@@ -42,7 +42,7 @@ export function Contact() {
 						className="font-medium font-mono text-sm tracking-wide hover:underline"
 						href={`mailto:${APP_EMAIL}`}
 					>
-						{APP_EMAIL}
+						contact@extravertyai.com
 					</a>
 				</Box>
 				<Box
