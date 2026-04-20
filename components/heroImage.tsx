@@ -7,7 +7,7 @@ import { Separator } from "./ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { AutomatiserButton } from "./hero";
 import { Logo } from "./logo";
-import { Button } from "./ui/button";
+import React from "react";
 
 const features = [
     {
@@ -158,45 +158,30 @@ export default function HeroImage() {
           </div>
 
           <div className="w-full max-w-5xl md:mx-auto py-1 md:px-2 rounded-md bg-card flex flex-col md:flex-row justify-between md:justify-center items-center">
-            {features.map((feature, idx) => (
-              <>
-                {idx === 1 && (
-                  <>
-                    <Separator
-                      orientation="vertical"
-                      className="hidden md:block mx-8 h-12 my-auto"
-                    />
-                    <Separator className="mx-auto block md:hidden w-14 my-1" />
-                  </>
-                )}
-                <Item
-                  key={idx}
-                  className="w-full px-0 flex flex-row md:flex-col lg:flex-row items-center justify-start md:justify-center md:w-auto"
-                >
-                  <ItemMedia
-                    className="bg-muted md:self-center! lg:self-start!  h-12 w-12 rounded-full"
-                    variant={"icon"}
-                  >
-                    {<feature.icon />}
-                  </ItemMedia>
-                  <ItemContent className="text-center md:items-center lg:items-start md:justify-center lg:justify-start">
-                    <ItemTitle>{feature.title}</ItemTitle>
-                    <ItemDescription className="md:text-center! lg:text-left!">
-                      {feature.description}
-                    </ItemDescription>
-                  </ItemContent>
-                </Item>
-                {idx === 1 && (
-                  <>
-                    <Separator
-                      orientation="vertical"
-                      className="hidden md:block mx-8 h-12 my-auto"
-                    />
-                    <Separator className="mx-auto block md:hidden w-14 my-1" />
-                  </>
-                )}
-              </>
-            ))}
+           {features.map((feature, idx) => (
+  <React.Fragment key={idx}>
+    <Item className="...">
+      <ItemMedia className="..." variant="icon">
+        <feature.icon />
+      </ItemMedia>
+
+      <ItemContent className="...">
+        <ItemTitle>{feature.title}</ItemTitle>
+        <ItemDescription>{feature.description}</ItemDescription>
+      </ItemContent>
+    </Item>
+
+    {idx < features.length - 1 && (
+      <>
+        <Separator
+          orientation="vertical"
+          className="hidden md:block mx-8 h-12 my-auto"
+        />
+        <Separator className="mx-auto block md:hidden w-14 my-1" />
+      </>
+    )}
+  </React.Fragment>
+))}
           </div>
         </div>
       </div>
