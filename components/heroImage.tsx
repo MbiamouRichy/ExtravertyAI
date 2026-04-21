@@ -7,7 +7,6 @@ import { Separator } from "./ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { AutomatiserButton } from "./hero";
 import { Logo } from "./logo";
-import { Button } from "./ui/button";
 import React from "react";
 
 const features = [
@@ -113,7 +112,7 @@ export default function HeroImage() {
                 ))}
               </div>
 
-              <AutomatiserButton />
+              <AutomatiserButton className="w-full md:w-fit" />
             </div>
             <div className="hidden md:flex flex-col gap-2 h-full justify-center items-center">
               <Item className="rounded-2xl ml-auto shadow max-w-xs w-auto  text-primary-foreground bg-foreground">
@@ -161,10 +160,7 @@ export default function HeroImage() {
           <div className="w-full max-w-5xl md:mx-auto py-1 md:px-2 rounded-md bg-card flex flex-col md:flex-row justify-between md:justify-center items-center">
             {features.map((feature, idx) => (
               <React.Fragment key={idx}>
-                
-                <Item
-                  className="w-full px-1 flex flex-row md:flex-col lg:flex-row items-center justify-start md:justify-center md:w-auto"
-                >
+                <Item className="w-full px-1 flex flex-row md:flex-col lg:flex-row items-center justify-start md:justify-center md:w-auto">
                   <ItemMedia
                     className="bg-muted md:self-center! lg:self-start!  h-12 w-12 rounded-full"
                     variant={"icon"}

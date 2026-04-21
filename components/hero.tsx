@@ -5,6 +5,7 @@ import { ArrowRight, ArrowRightIcon, Video } from "lucide-react";
 
 import Link from "next/link";
 import HeroImage, { WhatsAppIcon } from "./heroImage";
+import { VariantProps } from "class-variance-authority";
 
 export function HeroSection() {
   return (
@@ -60,7 +61,7 @@ export function HeroSection() {
             "fade-in slide-in-from-bottom-10 animate-in fill-mode-backwards delay-100 duration-500 ease-out",
           )}
         >
-         Automatisez vos réponses WhatsApp et ne perdez plus aucun client
+          Automatisez vos réponses WhatsApp et ne perdez plus aucun client
         </h1>
 
         <p
@@ -69,37 +70,54 @@ export function HeroSection() {
             "fade-in slide-in-from-bottom-10 animate-in fill-mode-backwards delay-200 duration-500 ease-out",
           )}
         >
-         extravertyAI répond automatiquement à vos messages WhatsApp, qualifie vos prospects et transforme chaque conversation en opportunité de vente — même quand vous dormez.
+          extravertyAI répond automatiquement à vos messages WhatsApp, qualifie
+          vos prospects et transforme chaque conversation en opportunité de
+          vente — même quand vous dormez.
         </p>
 
         <div className="fade-in slide-in-from-bottom-10 flex flex-col md:flex-row md:w-fit w-full animate-in items-center justify-center gap-3 fill-mode-backwards pt-2 delay-300 duration-500 ease-out">
-          <Button asChild className="w-full md:w-auto" size={"lg"} variant="outline">
+          <Button
+            asChild
+            className="w-full md:w-auto"
+            size={"lg"}
+            variant="outline"
+          >
             <Link href="" title="/demo">
               <Video data-icon="inline-start" /> Regarder la démo
             </Link>
           </Button>
-          <AutomatiserButton/>
+          <AutomatiserButton className="w-full md:w-fit" />
         </div>
       </div>
       <HeroImage />
     </section>
   );
 }
+type AutomatiserButtonProps = {
+  className?: string;
+  variant?: VariantProps<typeof buttonVariants>["variant"];
+};
 
-export const AutomatiserButton = (className: {className?: string}) => {
+export const AutomatiserButton = ({
+  className,
+  variant = "default",
+}: AutomatiserButtonProps) => {
   return (
     <Link
-      className={cn(
-        buttonVariants({ variant: "default", size: "lg" }),
-        "group w-full md:w-fit",
-        {className}
-      )}
-      href={"/commencer"}
+      href="/commencer"
       title="commencer"
+      className={cn(
+        buttonVariants({ variant, size: "lg" }),
+        "group",
+        className,
+      )}
     >
       <WhatsAppIcon />
-      Automatiser mes reponses
-      <ArrowRight data-icon="inline-end" className="-translate-x-0.5 duration-150 ease-out group-hover:translate-x-0.5" />
+      Automatiser mes réponses
+      <ArrowRight
+        data-icon="inline-end"
+        className="-translate-x-0.5 duration-150 ease-out group-hover:translate-x-0.5"
+      />
     </Link>
   );
 };

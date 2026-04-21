@@ -6,6 +6,7 @@ import { navLinks } from "@/components/header";
 import { XIcon, MenuIcon } from "lucide-react";
 import Link from "next/link";
 import { ModeToggle } from "./theming";
+import { AutomatiserButton } from "./hero";
 
 export function MobileNav() {
 	const [open, setOpen] = React.useState(false);
@@ -64,11 +65,7 @@ export function MobileNav() {
                   Regarder la demo
                 </Link>
               </Button>
-              <Button asChild onClick={() => setOpen(false)} className="w-full">
-                <Link href="commencer" title="Commencer">
-                  Commencer
-                </Link>
-              </Button>
+              <AutomatiserButton className="w-full" />
             </div>
           </div>
         </Portal>

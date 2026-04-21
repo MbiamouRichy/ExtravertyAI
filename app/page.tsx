@@ -1,6 +1,6 @@
 import { cn } from "@/lib/utils";
 import { HeroSection } from "@/components/hero";
-import { LogosSection } from "@/components/logos-section";
+import AvantApres from "@/components/avantApres";
 
 export default function page() {
   return (
@@ -15,6 +15,7 @@ export default function page() {
       >
         <HeroSection />
         {/* <LogosSection /> */}
+        <AvantApres />
       </main>
     </div>
   );
