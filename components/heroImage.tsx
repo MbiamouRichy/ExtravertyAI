@@ -49,7 +49,7 @@ const features2 = [
 
 export default function HeroImage() {
   return (
-    <div className="relative w-full">
+    <div className="relative w-full px-2 md:px-0">
       <DecorIcon className="size-4" position="top-left" />
       <DecorIcon className="size-4" position="top-right" />
       <DecorIcon className="size-4" position="bottom-left" />
@@ -65,17 +65,18 @@ export default function HeroImage() {
           width="1900"
           className="object-cover hidden md:block absolute top-0 left-0 -z-10 w-full h-full dark:brightness-[0.6]"
         />
-        <div className="px- py-8 md:pt-16 lg:pt-24 md:px-12 lg:px-16 md:pb-6 w-full flex flex-col gap-4 md:gap-6">
+        <div className=" py-8 md:pt-16 lg:pt-24 md:px-12 lg:px-16 md:pb-6 w-full flex flex-col gap-4 md:gap-6">
           <Item className="flex p-0 mb-6 gap-0.5 flex-row items-center justify-start w-auto">
-            <ItemMedia
-              className="h-12 w-12 bg-accent rounded-full"
-              variant={"icon"}
-            >
-              <Logo />
+            <ItemMedia variant={"icon"}>
+              <Logo className="w-12" />
             </ItemMedia>
             <ItemContent>
-              <ItemTitle>ExtravertyAI</ItemTitle>
-              <ItemDescription>Service d{`'`}automatisation</ItemDescription>
+              <ItemTitle className="text-foreground dark:md:text-foreground md:text-primary-foreground">
+                ExtravertyAI
+              </ItemTitle>
+              <ItemDescription className="text-foreground/80 dark:md:text-foreground/80 md:text-primary-foreground/80">
+                Service d{`'`}automatisation
+              </ItemDescription>
             </ItemContent>
           </Item>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2 w-full text-foreground dark:md:text-foreground md:text-primary-foreground">
@@ -157,10 +158,10 @@ export default function HeroImage() {
             </div>
           </div>
 
-          <div className="w-full max-w-5xl md:mx-auto py-1 md:px-2 rounded-md bg-card flex flex-col md:flex-row justify-between md:justify-center items-center">
+          <div className="w-full max-w-5xl md:mx-auto py-1 md:px-2 rounded-md bg-card flex flex-col md:flex-row justify-between md:justify-center md:items-center">
             {features.map((feature, idx) => (
               <React.Fragment key={idx}>
-                <Item className="w-full px-1 flex flex-row md:flex-col lg:flex-row items-center justify-start md:justify-center md:w-auto">
+                <Item className="w-full px-0 md:px-4 flex flex-row md:flex-col lg:flex-row items-center justify-start md:justify-center md:w-auto">
                   <ItemMedia
                     className="bg-muted md:self-center! lg:self-start!  h-12 w-12 rounded-full"
                     variant={"icon"}

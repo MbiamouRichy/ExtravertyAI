@@ -1,10 +1,12 @@
 import { cn } from "@/lib/utils";
 import { HeroSection } from "@/components/hero";
 import AvantApres from "@/components/avantApres";
+import Footer from "@/components/footer";
+import { Faq } from "@/components/faq";
 
 export default function page() {
   return (
-    <div className="relative flex min-h-screen flex-col overflow-hidden px-4 supports-[overflow:clip]:overflow-clip">
+    <div className="relative flex min-h-screen flex-col overflow-hidden supports-[overflow:clip]:overflow-clip">
       <main
         className={cn(
           "relative mx-auto grow",
@@ -16,6 +18,8 @@ export default function page() {
         <HeroSection />
         {/* <LogosSection /> */}
         <AvantApres />
+        <Faq />
+        <Footer/>
       </main>
     </div>
   );

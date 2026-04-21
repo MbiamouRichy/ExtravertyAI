@@ -1,16 +1,17 @@
 import { cn } from "@/lib/utils";
 
 import { Button, buttonVariants } from "@/components/ui/button";
-import { ArrowRight, ArrowRightIcon, Video } from "lucide-react";
+import { ArrowRight, ArrowRightIcon, StarIcon, Video } from "lucide-react";
 
 import Link from "next/link";
 import HeroImage, { WhatsAppIcon } from "./heroImage";
 import { VariantProps } from "class-variance-authority";
+import { Separator } from "./ui/separator";
 
 export function HeroSection() {
   return (
     <section className="relative w-full">
-      <div className="flex flex-col max-w-5xl mx-auto items-center justify-center gap-5 px-4 py-16 md:px-4 md:py-24 lg:py-28">
+      <div className="flex flex-col max-w-5xl mx-auto items-center justify-center gap-5 px-2 py-16 md:px-4 md:py-24 lg:py-28">
         {/* X Faded Borders & Shades */}
         <div
           aria-hidden="true"
@@ -30,11 +31,6 @@ export function HeroSection() {
               "bg-[radial-gradient(20%_80%_at_20%_0%,--theme(--color-foreground/.15),transparent)]",
             )}
           />
-
-          <div className="absolute inset-y-0 left-4 w-px bg-linear-to-b from-transparent via-border to-border md:left-8" />
-          <div className="absolute inset-y-0 right-4 w-px bg-linear-to-b from-transparent via-border to-border md:right-8" />
-          <div className="absolute inset-y-0 left-8 w-px bg-linear-to-b from-transparent via-border/50 to-border/50 md:left-12" />
-          <div className="absolute inset-y-0 right-8 w-px bg-linear-to-b from-transparent via-border/50 to-border/50 md:right-12" />
         </div>
         <Link
           className={cn(
@@ -57,7 +53,7 @@ export function HeroSection() {
 
         <h1
           className={cn(
-            " text-balance text-center text-3xl text-foreground md:text-5xl lg:text-6xl",
+            " text-balance text-center ",
             "fade-in slide-in-from-bottom-10 animate-in fill-mode-backwards delay-100 duration-500 ease-out",
           )}
         >
@@ -66,11 +62,11 @@ export function HeroSection() {
 
         <p
           className={cn(
-            "text-center md:max-w-prose text-muted-foreground text-sm tracking-wider sm:text-lg",
+            "text-center md:max-w-prose text-muted-foreground text-sm tracking-wider md:text-base",
             "fade-in slide-in-from-bottom-10 animate-in fill-mode-backwards delay-200 duration-500 ease-out",
           )}
         >
-          extravertyAI répond automatiquement à vos messages WhatsApp, qualifie
+          ExtravertyAI répond automatiquement à vos messages WhatsApp, qualifie
           vos prospects et transforme chaque conversation en opportunité de
           vente — même quand vous dormez.
         </p>
@@ -87,6 +83,48 @@ export function HeroSection() {
             </Link>
           </Button>
           <AutomatiserButton className="w-full md:w-fit" />
+        </div>
+
+        <div className="flex flex-col md:flex-row w-full md:justify-center md:items-center gap-4">
+          <p className="text-muted-foreground text-sm">
+            <span className="text-primary font-bold">+1000</span> messages{" "}
+            <br className="hidden md:inline" />
+            automatisés par jour
+          </p>
+          <Separator
+            orientation="vertical"
+            className="hidden md:block h-8 my-auto"
+          />
+          <Separator
+            orientation="horizontal"
+            className="block md:hidden w-11/12! mx-auto"
+          />
+          <p className="text-muted-foreground text-sm">
+            <span className="text-primary font-bold">+32%</span> de prospects{" "}
+            {""}
+            <br className="hidden md:inline" />
+            captés
+          </p>
+          <Separator
+            orientation="vertical"
+            className="hidden md:block h-8 my-auto"
+          />
+          <Separator
+            orientation="horizontal"
+            className="block md:hidden w-11/12! mx-auto"
+          />
+
+          <p className="text-muted-foreground flex flex-row w-auto md:flex-col gap-0.5 text-sm">
+            <span>Recommandé 5/5 </span>
+            <span className="inline-flex md:w-full items-center">
+              {[...Array(5)].map((_, idx) => (
+                <StarIcon
+                  key={idx}
+                  className="w-4 md:w-1/5 fill-yellow-400 text-yellow-400 drop-shadow-sm"
+                />
+              ))}
+            </span>
+          </p>
         </div>
       </div>
       <HeroImage />

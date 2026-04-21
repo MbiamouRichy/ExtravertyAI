@@ -1,6 +1,6 @@
 "use client";
 import { cn } from "@/lib/utils";
-import { Logo } from "@/components/logo";
+import { LogoIcon } from "@/components/logo";
 import { useScroll } from "@/hooks/use-scroll";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { MobileNav } from "@/components/mobile-nav";
@@ -47,11 +47,11 @@ export function Header() {
         <Link
           className={cn(
             buttonVariants({ variant: "ghost" }),
-            "border-border border hover:bg-muted dark:hover:bg-muted/50",
+            "border-border border w-auto! hover:bg-muted dark:hover:bg-muted/50",
           )}
           href="/"
         >
-          <Logo  className="size-14" />
+          <LogoIcon  LogoClassName="w-6" />
           <span className="sr-only">Logo de extravertyAI</span>
         </Link>
         <div className="hidden items-center gap-2 md:flex">
