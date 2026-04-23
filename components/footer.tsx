@@ -25,7 +25,7 @@ export default function Footer() {
       <DecorIcon className="size-4" position="bottom-right" />
       <FullWidthDivider className="-top-px" />
       <div className="flex flex-col px-2 w-full">
-        <div className="md:px-6 flex flex-col gap-6 py-6">
+        <div className="md:px-6 flex flex-col gap-6 border-b py-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <LogoIcon LogoClassName="w-8" />
@@ -57,22 +57,11 @@ export default function Footer() {
             </ul>
           </nav>
         </div>
-
-        <div className="md:px-6 flex flex-col items-center justify-center border-t py-4">
-          <p className="text-base font-medium">
-            Prêt à ne plus perdre de clients sur WhatsApp ?
-          </p>
-
-          <p className="text-muted-foreground text-sm mb-4">
-            Installation disponible aujourd&apos;hui uniquement pour les 5
-            premiers clients.
-          </p>
-          <AutomatiserButton
-            href="https://wa.me/241XXXXXXXXX?text=Bonjour,%20je%20veux%20automatiser%20mes%20ventes%20sur%20WhatsApp.%20Pouvez-vous%20m'accompagner%20?[CTA]"
-            text="Automatiser mes réponses maintenant"
-            className="h-16 w-full mx-auto"
-          />
-        </div>
+        <AutomatiserButton
+          href="https://wa.me/24176205629?text=Bonjour,%20je%20veux%20automatiser%20mes%20ventes%20sur%20WhatsApp.%20Pouvez-vous%20m'accompagner%20?[CTA]"
+          text="Automatiser mes réponses maintenant"
+          className="h-16 w-full mt-6 mb-2"
+        />
       </div>
     </footer>
   );

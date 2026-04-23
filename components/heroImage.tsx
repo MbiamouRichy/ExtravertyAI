@@ -78,9 +78,9 @@ export default function HeroImage() {
           loading="eager"
           src="/heroImage.png"
           width="1900"
-          className="object-cover hidden md:block absolute top-0 left-0 -z-10 w-full h-full dark:brightness-[0.6]"
+          className="object-cover hidden md:block absolute top-0 left-0 -z-10 w-full min-h-300 h-full dark:brightness-[0.9]"
         />
-        <div className=" py-8 md:pt-16 lg:pt-24 md:px-12 lg:px-16 md:pb-6 w-full flex flex-col gap-4 md:gap-6">
+        <div className="py-8 md:pt-16 lg:pt-24 md:px-12 lg:px-16 md:pb-6 w-full flex flex-col gap-4 md:gap-6">
           <Item className="flex p-0 mb-6 gap-0.5 flex-row items-center justify-start w-auto">
             <ItemMedia
               variant={"icon"}
@@ -134,7 +134,7 @@ export default function HeroImage() {
               <AutomatiserButton className="w-full md:w-fit" />
             </div>
             <div className="hidden md:flex flex-col gap-2 h-full justify-center items-center">
-              <Item className="rounded-2xl ml-auto shadow max-w-xs w-auto  text-primary-foreground bg-foreground">
+              <Item className="rounded-2xl ml-auto shadow-sm max-w-xs w-auto  text-primary-foreground bg-foreground">
                 <ItemContent>
                   <ItemTitle>
                     Salut ! Prêt à automatiser vos réponses WhatsApp ?
@@ -147,19 +147,19 @@ export default function HeroImage() {
               </Item>
               <Item className=" flex mr-auto flex-row justify-center items-center max-w-xs  ">
                 <ItemMedia>
-                  <Avatar>
+                  <Avatar className="shadow-sm">
                     <AvatarImage src="avatar/img1.png" />
                     <AvatarFallback>Av</AvatarFallback>
                   </Avatar>
                 </ItemMedia>
-                <ItemContent className="text-foreground rounded-2xl px-4 py-3.5 shadow bg-primary-foreground">
+                <ItemContent className="text-foreground rounded-2xl px-4 py-3.5 shadow-sm bg-primary-foreground">
                   <ItemTitle>Oui, allons-y !</ItemTitle>
                   <ItemFooter className="justify-end text-xs text-muted-foreground">
                     <span>11h:31</span>
                   </ItemFooter>
                 </ItemContent>
               </Item>
-              <Item className="rounded-2xl ml-auto shadow max-w-xs w-auto  text-primary-foreground bg-foreground">
+              <Item className="rounded-2xl ml-auto shadow-sm max-w-xs w-auto  text-primary-foreground bg-foreground">
                 <ItemContent>
                   <ItemTitle className="flex-col items-start gap-0">
                     Voici le lien que vous avez demandé. Profitez-en ! <br />

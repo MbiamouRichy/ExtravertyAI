@@ -12,17 +12,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-export function ModeToggle({screen}: {screen: "mobile" | "desktop"}) {
-  const { setTheme } = useTheme();
+export function ModeToggle({ screen }: { screen: "mobile" | "desktop" }) {
+  const { theme, setTheme } = useTheme();
 
   return screen === "desktop" ? (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button
-          className="hover:bg-muted dark:hover:bg-muted/50 border border-border"
-          variant="ghost"
-          size="icon"
-        >
+        <Button variant="ghost" size="icon">
           <Sun className="scale-100 rotate-0 transition-all dark:scale-0 dark:-rotate-90" />
           <Moon className="absolute scale-0 rotate-90 transition-all dark:scale-100 dark:rotate-0" />
           <span className="sr-only">Changer de mode</span>
@@ -44,14 +40,22 @@ export function ModeToggle({screen}: {screen: "mobile" | "desktop"}) {
     <div className="flex flex-row items-center gap-2">
       <p>Mode :</p>
       <div className="flex flex-row gap-1">
-        <Button variant="outline" size="icon" onClick={() => setTheme("light")}>
+        <Button
+          variant={theme === "light" ? "default" : "outline"}
+          size="icon"
+          onClick={() => setTheme("light")}
+        >
           <Sun />
         </Button>
-        <Button variant="outline" size="icon" onClick={() => setTheme("dark")}>
+        <Button
+          variant={theme === "dark" ? "default" : "outline"}
+          size="icon"
+          onClick={() => setTheme("dark")}
+        >
           <Moon />
         </Button>
         <Button
-          variant="outline"
+          variant={theme === "system" ? "default" : "outline"}
           size="icon"
           onClick={() => setTheme("system")}
         >
@@ -61,5 +65,4 @@ export function ModeToggle({screen}: {screen: "mobile" | "desktop"}) {
       </div>
     </div>
   );
-
 }

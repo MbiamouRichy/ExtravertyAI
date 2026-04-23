@@ -7,6 +7,7 @@ import { MobileNav } from "@/components/mobile-nav";
 import Link from "next/link";
 import { ModeToggle } from "./theming";
 import { Separator } from "./ui/separator";
+import { AutomatiserButton } from "./hero";
 
 export const navLinks = [
   {
@@ -20,6 +21,10 @@ export const navLinks = [
   {
     label: "Faq",
     href: "#faq",
+  },
+  {
+    label: "Contact",
+    href: "/contact",
   },
 ];
 
@@ -65,11 +70,7 @@ export function Header() {
         <div className="hidden md:flex h-4 flex-row justify-center gap-2 items-center">
           <ModeToggle screen="desktop" />
           <Separator orientation="vertical" />
-          <Button asChild>
-            <Link title="commercer" href="/commercer">
-              Commercer
-            </Link>
-          </Button>
+          <AutomatiserButton href="/test" text="Tester sur Whatsapp" />
         </div>
         <MobileNav />
       </nav>

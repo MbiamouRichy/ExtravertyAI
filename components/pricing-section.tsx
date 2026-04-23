@@ -100,7 +100,7 @@ export function Tarifs() {
       id="tarifs"
       className="flex w-full flex-col items-center justify-center gap-7 py-10 px-2 md:px-4"
     >
-      <div className="mx-auto max-w-3xl space-y-2">
+      <div className="md:mx-auto w-full max-w-3xl space-y-2">
         <h4 className="text-center font-bold text-2xl tracking-tight md:text-3xl lg:font-extrabold lg:text-4xl">
           Nos tarifs simples et transparents!
         </h4>
@@ -139,7 +139,7 @@ export function PricingCard({
     <div
       className={cn(
         "relative flex w-full flex-col overflow-hidden rounded-lg border shadow-xs",
-        plan.highlighted && "scale-105",
+        plan.highlighted && "md:scale-105",
         className,
       )}
       key={plan.name}
@@ -147,49 +147,53 @@ export function PricingCard({
     >
       <div
         className={cn(
-          "border-b p-4",
+          "border-b p-2 md:p-4",
           plan.highlighted && "bg-card dark:bg-card/80",
         )}
       >
-        <AnimatePresence mode="wait">
-          <div className="absolute top-2 right-2 z-10 flex items-center gap-2">
-            {plan.highlighted && (
-              <motion.div
-                className="flex items-center gap-1 rounded-md border bg-background px-2 py-0.5 text-xs"
-                key="popular-badge"
-                layout
-                transition={{ duration: 0.1 }}
-              >
-                <StarIcon className="size-3 fill-current" />
-                Populaire
-              </motion.div>
-            )}
+        <div className="flex flex-row justify-between items-center w-full">
+          <p className="font-medium text-lg">{plan.name}</p>
 
-            {frequency === "Annuel" &&
-              plan.price.Mensuel > plan.price.Annuel && (
+          <AnimatePresence mode="wait">
+            <div className="flex items-center gap-2">
+              {plan.highlighted && (
                 <motion.div
-                  animate={{ opacity: 1 }}
-                  className="flex items-center gap-1 rounded-md border bg-primary px-2 py-0.5 text-primary-foreground text-xs"
-                  exit={{ opacity: 0 }}
-                  initial={{ opacity: 0 }}
-                  key="discount-badge"
+                  className="flex items-center gap-1 rounded-md border bg-background md:px-2 py-0.5 text-xs"
+                  key="popular-badge"
                   layout
-                  transition={{ duration: 0.15 }}
+                  transition={{ duration: 0.1 }}
                 >
-                  {/* Calculate the actual discount percentage of the plan */}
-                  {Math.round(
-                    ((plan.price.Mensuel - plan.price.Annuel) /
-                      plan.price.Mensuel) *
-                      100,
-                  )}
-                  % reduit
+                  <StarIcon className="size-3 fill-current" />
+                  Populaire
                 </motion.div>
               )}
-          </div>
-        </AnimatePresence>
 
-        <div className="font-medium text-lg">{plan.name}</div>
-        <p className="font-normal text-muted-foreground text-sm">{plan.info}</p>
+              {frequency === "Annuel" &&
+                plan.price.Mensuel > plan.price.Annuel && (
+                  <motion.div
+                    animate={{ opacity: 1 }}
+                    className="flex items-center gap-1 rounded-md border bg-primary md:px-2 py-0.5 text-primary-foreground text-xs"
+                    exit={{ opacity: 0 }}
+                    initial={{ opacity: 0 }}
+                    key="discount-badge"
+                    layout
+                    transition={{ duration: 0.15 }}
+                  >
+                    {/* Calculate the actual discount percentage of the plan */}
+                    {Math.round(
+                      ((plan.price.Mensuel - plan.price.Annuel) /
+                        plan.price.Mensuel) *
+                        100,
+                    )}
+                    % reduit
+                  </motion.div>
+                )}
+            </div>
+          </AnimatePresence>
+        </div>
+        <p className="font-normal max-w-74 md:max-w-full text-muted-foreground text-sm">
+          {plan.info}
+        </p>
         <h3 className="mt-6 mb-1 flex w-max items-end gap-1">
           <NumberFlow
             className="font-extrabold text-3xl [&::part(suffix)]:font-normal [&::part(suffix)]:text-base [&::part(suffix)]:text-muted-foreground"
@@ -208,7 +212,7 @@ export function PricingCard({
       </div>
       <div
         className={cn(
-          "space-y-3 px-4 pt-6 pb-8 text-muted-foreground text-sm",
+          "space-y-3 px-2 md:px-4 pt-6 pb-8 text-muted-foreground text-sm",
           plan.highlighted && "bg-muted/10",
         )}
       >
@@ -221,7 +225,7 @@ export function PricingCard({
       </div>
       <div
         className={cn(
-          "mt-auto w-full border-t p-3",
+          "mt-auto w-full border-t py-2 px-1 md:p-3",
           plan.highlighted && "bg-card dark:bg-card/80",
         )}
       >

@@ -135,6 +135,7 @@ type AutomatiserButtonProps = {
   className?: string;
   text?: string;
   href?: string;
+  target?: string;
   variant?: VariantProps<typeof buttonVariants>["variant"];
 };
 
@@ -143,11 +144,13 @@ export const AutomatiserButton = ({
   variant = "default",
   text = "Automatiser mes réponses",
   href = "/commencer",
+  target = "_self",
 }: AutomatiserButtonProps) => {
   return (
     <Link
       href={href}
       title={text}
+      target={target}
       className={cn(
         buttonVariants({ variant, size: "lg" }),
         "group",
