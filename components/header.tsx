@@ -8,26 +8,25 @@ import Link from "next/link";
 import { ModeToggle } from "./theming";
 import { Separator } from "./ui/separator";
 
-
 export const navLinks = [
-	{
-		label: "Features",
-		href: "#",
-	},
-	{
-		label: "Tarifs",
-		href: "#",
-	},
-	{
-		label: "faq",
-		href: "#",
-	},
+  {
+    label: "Démo",
+    href: "#demo",
+  },
+  {
+    label: "Tarifs",
+    href: "#tarifs",
+  },
+  {
+    label: "Faq",
+    href: "#faq",
+  },
 ];
 
 export function Header() {
-	const scrolled = useScroll(10);
+  const scrolled = useScroll(10);
 
-	return (
+  return (
     <header
       className={cn(
         "fixed left-1/2 top-1.5 -translate-x-1/2 backdrop-blur-sm supports-backdrop-filter:bg-background/50 z-50  w-full  max-w-4xl border-border border-b md:rounded-md md:border md:transition-all md:ease-out",
@@ -51,7 +50,7 @@ export function Header() {
           )}
           href="/"
         >
-          <LogoIcon  LogoClassName="w-6" />
+          <LogoIcon LogoClassName="w-6" />
           <span className="sr-only">Logo de extravertyAI</span>
         </Link>
         <div className="hidden items-center gap-2 md:flex">
@@ -77,4 +76,3 @@ export function Header() {
     </header>
   );
 }
-

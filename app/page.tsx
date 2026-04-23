@@ -3,6 +3,7 @@ import { HeroSection } from "@/components/hero";
 import AvantApres from "@/components/avantApres";
 import Footer from "@/components/footer";
 import { Faq } from "@/components/faq";
+import { Tarifs } from "@/components/pricing-section";
 
 export default function page() {
   return (
@@ -18,8 +19,9 @@ export default function page() {
         <HeroSection />
         {/* <LogosSection /> */}
         <AvantApres />
+        <Tarifs />
         <Faq />
-        <Footer/>
+        <Footer />
       </main>
     </div>
   );

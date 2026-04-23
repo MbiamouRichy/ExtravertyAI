@@ -133,17 +133,21 @@ export function HeroSection() {
 }
 type AutomatiserButtonProps = {
   className?: string;
+  text?: string;
+  href?: string;
   variant?: VariantProps<typeof buttonVariants>["variant"];
 };
 
 export const AutomatiserButton = ({
   className,
   variant = "default",
+  text = "Automatiser mes réponses",
+  href = "/commencer",
 }: AutomatiserButtonProps) => {
   return (
     <Link
-      href="/commencer"
-      title="commencer"
+      href={href}
+      title={text}
       className={cn(
         buttonVariants({ variant, size: "lg" }),
         "group",
@@ -151,7 +155,7 @@ export const AutomatiserButton = ({
       )}
     >
       <WhatsAppIcon />
-      Automatiser mes réponses
+      {text}
       <ArrowRight
         data-icon="inline-end"
         className="-translate-x-0.5 duration-150 ease-out group-hover:translate-x-0.5"

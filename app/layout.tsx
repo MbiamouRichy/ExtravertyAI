@@ -2,14 +2,37 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { cn } from "@/lib/utils";
 import { ThemeProvider } from "@/components/ui/theme-provider";
-import { Bricolage_Grotesque, Crimson_Text, Roboto_Mono } from "next/font/google";
+import {
+  Bricolage_Grotesque,
+  Crimson_Text,
+  Roboto_Mono,
+} from "next/font/google";
 import { Header } from "@/components/header";
 
-const robotoMonoRobotoMono = Roboto_Mono({subsets:['cyrillic','cyrillic-ext','greek','latin','latin-ext','vietnamese'],weight:['100','200','300','400','500','600','700'],variable:'--font-roboto-mono'});
+const robotoMonoRobotoMono = Roboto_Mono({
+  subsets: [
+    "cyrillic",
+    "cyrillic-ext",
+    "greek",
+    "latin",
+    "latin-ext",
+    "vietnamese",
+  ],
+  weight: ["100", "200", "300", "400", "500", "600", "700"],
+  variable: "--font-roboto-mono",
+});
 
-const crimsonTextCrimsonText = Crimson_Text({subsets:['latin','latin-ext','vietnamese'],weight:['400','600','700'],variable:'--font-crimson-text'});
+const crimsonTextCrimsonText = Crimson_Text({
+  subsets: ["latin", "latin-ext", "vietnamese"],
+  weight: ["400", "600", "700"],
+  variable: "--font-crimson-text",
+});
 
-const bricolageGrotesqueBricolageGrotesque = Bricolage_Grotesque({subsets:['latin','latin-ext','vietnamese'],weight:['200','300','400','500','600','700','800'],variable:'--font-bricolage-grotesque'});
+const bricolageGrotesqueBricolageGrotesque = Bricolage_Grotesque({
+  subsets: ["latin", "latin-ext", "vietnamese"],
+  weight: ["200", "300", "400", "500", "600", "700", "800"],
+  variable: "--font-bricolage-grotesque",
+});
 
 export const metadata: Metadata = {
   title: "ExtravertyAI",
@@ -30,6 +53,7 @@ export default function RootLayout({
         bricolageGrotesqueBricolageGrotesque.variable,
         crimsonTextCrimsonText.variable,
         robotoMonoRobotoMono.variable,
+        "scroll-smooth",
       )}
     >
       <head>

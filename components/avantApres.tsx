@@ -49,14 +49,16 @@ function AvantApres() {
       <DecorIcon className="size-4" position="bottom-right" />
       <div className="flex flex-col justify-center items-center text-center max-w-3xl gap-2">
         <Logo className="w-12" />
-        <h3>Automatisez vos Conversations WhatsApp avec ExtravertyAI</h3>
+        <h3 className="text-center font-bold text-2xl tracking-tight md:text-3xl lg:font-extrabold lg:text-4xl">
+          Automatisez vos Conversations WhatsApp avec ExtravertyAI
+        </h3>
         <p className="text-muted-foreground">
           Fatigué de perdre du temps à gérer les DM WhatsApp ? Découvrez comment
           ExtravertyAI facilite votre gestion.
         </p>
       </div>
       <div className="flex flex-col md:flex-row justify-center max-w-4xl w-full gap-4">
-        <Card className="w-full min-w-75 md:w-1/2 shadow-md">
+        <Card className="w-full min-w-75 md:w-1/2 bg-background shadow-sm">
           <CardHeader>
             <CardDescription className="text-center">
               Avant ExtravertyAI:
@@ -82,9 +84,12 @@ function AvantApres() {
               </React.Fragment>
             ))}
           </ItemGroup>
-          <AutomatiserButton className="w-11/12! mt-auto mx-auto" />
+          <AutomatiserButton
+            variant={"outline"}
+            className="w-11/12! mt-auto mx-auto"
+          />
         </Card>
-        <Card className="w-full  min-w-75 md:w-1/2 shadow-md bg-accent-foreground! text-accent">
+        <Card className="w-full  min-w-75 md:w-1/2">
           <CardHeader>
             <CardDescription className="text-center">
               Après ExtravertyAI:
@@ -97,7 +102,7 @@ function AvantApres() {
             {apresExtraverty.map((item, idx) => (
               <React.Fragment key={idx}>
                 <Item className="py-1">
-                  <ItemMedia className="h-12 w-12 rounded-full text-accent-foreground bg-accent">
+                  <ItemMedia className="h-12 w-12 rounded-full bg-primary text-primary-foreground">
                     <Check />
                   </ItemMedia>
                   <ItemContent>
@@ -105,12 +110,12 @@ function AvantApres() {
                   </ItemContent>
                 </Item>
                 {idx < apresExtraverty.length - 1 && (
-                  <ItemSeparator className="w-11/12! my-1 mx-auto bg-accent" />
+                  <ItemSeparator className="w-11/12! my-1 mx-auto" />
                 )}
               </React.Fragment>
             ))}
           </ItemGroup>
-          <AutomatiserButton className="w-11/12! mt-auto mx-auto bg-accent! text-accent-foreground hover:bg-accent/80!" />
+          <AutomatiserButton className="w-11/12! mt-auto mx-auto" />
         </Card>
       </div>
       <FullWidthDivider className="-bottom-px" />

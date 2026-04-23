@@ -3,10 +3,10 @@ import { LogoIcon } from "@/components/logo";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { navLinks } from "./header";
-import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { FacebookIcon } from "./contact";
 import { DecorIcon } from "./ui/decor-icon";
 import { FullWidthDivider } from "./ui/full-width-divider";
+import { AutomatiserButton } from "./hero";
 
 const socialLinks = [
   {
@@ -58,31 +58,22 @@ export default function Footer() {
           </nav>
         </div>
 
-        <div className="md:px-6 flex flex-col md:flex-row items-center justify-center md:justify-between gap-4 border-t py-4 text-muted-foreground text-sm">
-          <p>&copy; {new Date().getFullYear()} ExtravertyAI</p>
-
-          <p className="inline-flex items-center gap-1">
-            <span>Fait par</span>
-            <Link
-              title="Richy Mbiamou's website"
-              className="inline-flex items-center gap-1 text-foreground/80 hover:text-foreground hover:underline"
-              href={"https://richy-mbiamou.vercel.app/"}
-              rel="noreferrer"
-              target="_blank"
-            >
-              <Avatar>
-                <AvatarImage
-                  alt="Richy mbiamou' image profile"
-                  src="/richy.png"
-                />
-                <AvatarFallback>Mb</AvatarFallback>
-              </Avatar>
-              Mbiamou
-            </Link>
+        <div className="md:px-6 flex flex-col items-center justify-center border-t py-4">
+          <p className="text-base font-medium">
+            Prêt à ne plus perdre de clients sur WhatsApp ?
           </p>
+
+          <p className="text-muted-foreground text-sm mb-4">
+            Installation disponible aujourd&apos;hui uniquement pour les 5
+            premiers clients.
+          </p>
+          <AutomatiserButton
+            href="https://wa.me/241XXXXXXXXX?text=Bonjour,%20je%20veux%20automatiser%20mes%20ventes%20sur%20WhatsApp.%20Pouvez-vous%20m'accompagner%20?[CTA]"
+            text="Automatiser mes réponses maintenant"
+            className="h-16 w-full mx-auto"
+          />
         </div>
       </div>
-      <FullWidthDivider className="-bottom-px" />
     </footer>
   );
 }

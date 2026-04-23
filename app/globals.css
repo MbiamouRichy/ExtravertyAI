@@ -152,15 +152,18 @@
     letter-spacing: -0.02em;
     font-weight: 700;
   }
-  h4, h5, h6 {
+  h4,
+  h5,
+  h6 {
     font-family: var(--font-heading);
     letter-spacing: -0.01em;
   }
-  body, p{
+  body,
+  p {
     font-family: var(--font-mono);
-    scroll-behavior: smooth;
   }
-  code, pre {
+  code,
+  pre {
     font-family: var(--font-mono);
   }
 }

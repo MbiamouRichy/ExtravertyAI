@@ -71,19 +71,24 @@ const items = [
 ];
 export function Faq() {
   return (
-    <div className="w-full flex flex-col items-center justify-center gap-6 md:gap-10 py-10">
+    <div
+      id="faq"
+      className="relative w-full flex flex-col items-center justify-center gap-6 md:gap-10 py-10"
+    >
+      <DecorIcon className="size-4" position="top-left" />
+      <DecorIcon className="size-4" position="top-right" />
+      <DecorIcon className="size-4" position="bottom-left" />
+      <DecorIcon className="size-4" position="bottom-right" />
+      <FullWidthDivider className="-top-px" />
       <div className="flex flex-col justify-center items-center gap-2 text-center">
-        <h4 className="text-2xl">Questions Fréquemment Posées</h4>
+        <h5 className="text-center font-bold text-2xl tracking-tight md:text-3xl lg:font-extrabold lg:text-4xl">
+          Questions Fréquemment Posées
+        </h5>
         <p className="text-sm text-muted-foreground">
           Voici les questions les plus souvent demandées par nos clients :
         </p>
-      </div>{" "}
-      <div className="relative w-full flex flex-col items-center justify-center gap-6 md:gap-10">
-        <DecorIcon className="size-4" position="top-left" />
-        <DecorIcon className="size-4" position="top-right" />
-        <DecorIcon className="size-4" position="bottom-left" />
-        <DecorIcon className="size-4" position="bottom-right" />
-        <FullWidthDivider className="-top-px" />
+      </div>
+      <div className="w-full flex flex-col items-center justify-center gap-6 md:gap-10">
         <Accordion
           type="single"
           collapsible
@@ -101,6 +106,7 @@ export function Faq() {
         </Accordion>
         <FullWidthDivider className="-bottom-px" />
       </div>
+      <FullWidthDivider className="-bottom-px" />
     </div>
   );
 }
