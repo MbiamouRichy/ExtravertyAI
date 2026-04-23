@@ -15,7 +15,7 @@ export default function PhoneMockup({
       className={`relative w-full md:w-auto flex  items-center md:ml-auto justify-center md:justify-end  ${className}`}
     >
       {/* Téléphone */}
-      <div className="relative w-full min-h-150 sm:w-80 aspect-9/16 rounded-[2.5rem] border-2 border-zinc-800 bg-zinc-950 shadow-md">
+      <div className="relative w-full aspect-9/19.5 sm:w-80 rounded-[2.5rem] border-2 border-zinc-800 bg-zinc-950 shadow-md">
         {/* Boutons latéraux */}
         <div className="absolute -left-1.5 top-2/10 h-7 w-1 rounded-l-full bg-zinc-700" />
         <div className="absolute -left-1.5 top-3/10 h-10 w-1 rounded-l-full bg-zinc-700" />
