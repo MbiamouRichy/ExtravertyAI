@@ -34,12 +34,61 @@ const bricolageGrotesqueBricolageGrotesque = Bricolage_Grotesque({
   variable: "--font-bricolage-grotesque",
 });
 
-export const metadata: Metadata = {
-  title: "ExtravertyAI",
-  description:
-    "ExtravertyAI est un assistant de support client alimenté par l'IA qui fournit des réponses rapides et précises aux questions des clients, améliorant ainsi l'expérience client et le nombre de ventes.",
-};
 
+export const metadata: Metadata = {
+  title: "ExtravertyAI - Automatisation WhatsApp & Support Client IA",
+  description:
+    "Automatisez votre support client WhatsApp avec ExtravertyAI. Réponses instantanées, augmentation des ventes et expérience client améliorée.",
+
+  keywords: [
+    "ExtravertyAI",
+    "ia libreville",
+    " WhatsApp automation libreville",
+    "automatisation WhatsApp pour business au Gabon",
+    "bot WhatsApp",
+    "automatisation WhatsApp",
+    "chatbot WhatsApp",
+    "marketing WhatsApp",
+    "tunnel de vente automatisé",
+    "automation whatsapp libreville",
+    "Gabon automatisation",
+    "ia gabon",
+    "extraverty",
+    "IA WhatsApp afrique",
+    "automatisation WhatsApp",
+    "chatbot IA whatsapp",
+    "support client automatisé",
+    "automation business",
+    "intelligence artificielle entreprise",
+    "bot WhatsApp gabon",
+    "service client IA",
+    "automatisation marketing",
+    "no code automation gabon",
+  ],
+
+  authors: [{ name: "ExtravertyAI" }],
+
+  icons: {
+    icon: "/favicon.ico",
+    apple: "/apple-touch-icon.png",
+  },
+
+  openGraph: {
+    title: "ExtravertyAI",
+    description: "Automatisez votre support client sur whatsapp avec l'IA",
+    url: "https://extravertyai.com",
+    siteName: "ExtravertyAI",
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+      },
+    ],
+    locale: "fr_FR",
+    type: "website",
+  },
+};
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -56,25 +105,7 @@ export default function RootLayout({
         "scroll-smooth",
       )}
     >
-      <head>
-        <link
-          rel="apple-touch-icon"
-          sizes="180x180"
-          href="/apple-touch-icon.png"
-        />
-        <link
-          rel="icon"
-          type="image/png"
-          sizes="32x32"
-          href="/favicon-32x32.png"
-        />
-        <link
-          rel="icon"
-          type="image/png"
-          sizes="16x16"
-          href="/favicon-16x16.png"
-        />
-      </head>
+
       <body>
         <ThemeProvider
           attribute="class"

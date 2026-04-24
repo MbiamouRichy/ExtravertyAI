@@ -18,6 +18,7 @@ export const Logo = ({ className }: { className?: string }) => (
       alt="logo"
       width={100}
       height={100}
+      loading="eager"
       className={cn("dark:hidden block", className)}
     />
     <Image
@@ -25,6 +26,7 @@ export const Logo = ({ className }: { className?: string }) => (
       alt="logo"
       width={100}
       height={100}
+      loading="eager"
       className={cn("dark:block hidden", className)}
     />
   </>

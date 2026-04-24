@@ -74,7 +74,7 @@ export default function HeroImage() {
       <div className="overflow-hidden relative h-full w-full">
         <Image
           alt="hero image"
-          loading="eager"
+          loading="lazy"
           src="/heroImage.png"
           fill
           className=" object-cover hidden md:block absolute top-0 left-0 -z-10 w-full min-h-max h-full dark:brightness-[0.9]"
