@@ -3,16 +3,14 @@ import React from "react";
 
 type PhoneMockupProps = {
   videoSrc: string;
-  className?: string;
 };
 
 export default function PhoneMockup({
   videoSrc,
-  className = "",
 }: PhoneMockupProps) {
   return (
     <div
-      className={`relative w-full md:w-auto flex  items-center md:ml-auto justify-center md:justify-end  ${className}`}
+      className={`relative w-full md:w-auto flex  items-center md:ml-auto justify-center md:justify-end`}
     >
       {/* Téléphone */}
       <div className="relative w-full aspect-9/19.5 sm:w-80 rounded-[2.5rem] border-2 border-zinc-800 bg-zinc-950 shadow-md">

@@ -71,16 +71,16 @@ export default function HeroImage() {
       <DecorIcon className="size-4" position="bottom-right" />
 
       <FullWidthDivider className="-top-px" />
-      <div className="overflow-hidden relative w-full">
+      <div className="overflow-hidden relative h-full w-full">
         <Image
           alt="hero image"
-          height="1200"
           loading="eager"
           src="/heroImage.png"
-          width="1900"
-          className="object-cover hidden md:block absolute top-0 left-0 -z-10 w-full min-h-300 h-full dark:brightness-[0.9]"
+          fill
+          className=" object-cover hidden md:block absolute top-0 left-0 -z-10 w-full min-h-max h-full dark:brightness-[0.9]"
         />
-        <div className="py-8 md:pt-16 lg:pt-24 md:px-12 lg:px-16 md:pb-6 w-full flex flex-col gap-4 md:gap-6">
+
+        <div className="py-8 md:py-16 lg:py-20 md:px-12 lg:px-16 w-full flex flex-col gap-4 md:gap-6">
           <Item className="flex p-0 mb-6 gap-0.5 flex-row items-center justify-start w-auto">
             <ItemMedia
               variant={"icon"}
@@ -98,7 +98,7 @@ export default function HeroImage() {
             </ItemContent>
           </Item>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2 w-full text-foreground dark:md:text-foreground md:text-primary-foreground">
-            <div className="flex flex-col gap-2 md:gap-6">
+            <div className="flex flex-col text-center md:text-left gap-2 md:gap-6">
               <h2 className="text-foreground/90 dark:md:text-foreground/90 md:text-primary-foreground/90 ">
                 Automatisez vos <br /> réponses WhatsApp.
                 <br />
@@ -131,7 +131,10 @@ export default function HeroImage() {
                 ))}
               </div>
 
-              <AutomatiserButton className="w-full md:w-fit" />
+              <AutomatiserButton
+                text="Commencer maintenant"
+                className="w-full md:w-fit"
+              />
             </div>
             <div className="hidden md:flex flex-col gap-2 h-full justify-center items-center">
               <Item className="rounded-2xl ml-auto shadow-sm max-w-xs w-auto  text-primary-foreground bg-foreground">
@@ -176,19 +179,19 @@ export default function HeroImage() {
             </div>
           </div>
 
-          <div className="w-full max-w-5xl md:mx-auto py-1 md:px-2 rounded-md bg-card flex flex-col md:flex-row justify-between md:justify-center md:items-center">
+          <div className="w-full md:mt-6 md:mx-auto py-1 px-2 rounded-md bg-card flex flex-col md:flex-row justify-between md:justify-evenly md:items-center">
             {features.map((feature, idx) => (
               <React.Fragment key={idx}>
-                <Item className="w-full px-0 md:px-4 flex flex-row md:flex-col lg:flex-row items-center justify-start md:justify-center md:w-auto">
+                <Item className="w-full px-0 md:px-4 flex flex-col lg:flex-row items-center justify-start md:justify-center md:w-auto">
                   <ItemMedia
-                    className="bg-muted md:self-center! lg:self-start!  h-12 w-12 rounded-full"
+                    className="bg-muted self-center! lg:self-start!  h-12 w-12 rounded-full"
                     variant={"icon"}
                   >
                     {<feature.icon className="fill-primary" />}
                   </ItemMedia>
-                  <ItemContent className="text-center md:items-center lg:items-start md:justify-center lg:justify-start">
+                  <ItemContent className="text-center items-center lg:items-start justify-center lg:justify-start">
                     <ItemTitle>{feature.title}</ItemTitle>
-                    <ItemDescription className="md:text-center! lg:text-left!">
+                    <ItemDescription className="text-center! lg:text-left!">
                       {feature.description}
                     </ItemDescription>
                   </ItemContent>

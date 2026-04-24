@@ -19,6 +19,7 @@ import { Card } from "./ui/card";
 import { DecorIcon } from "./ui/decor-icon";
 import { FullWidthDivider } from "./ui/full-width-divider";
 import PhoneMockup from "./phoneMockup";
+import { AutomatiserButton } from "./hero";
 
 const feature = [
   {
@@ -59,7 +60,7 @@ const features2 = [
 function Demo() {
   return (
     <section
-      className="w-full relative flex flex-col items-center md:items-start gap-4 py-10 px-2 md:px-6 lg:px-12"
+      className="w-full relative flex flex-col items-center md:items-start gap-4 py-10 md:py-24 px-2 md:px-6 lg:px-12"
       id="demo"
     >
       <DecorIcon className="size-4" position="bottom-left" />
@@ -70,11 +71,11 @@ function Demo() {
         <SparklesIcon className="fill-primary size-4 " /> Demo en direct
       </p>
       <div className="flex flex-col-reverse md:flex-row gap-4 items-center justify-between w-full">
-        <div className="flex flex-col gap-3 w-full md:grow md:max-w-6/10">
+        <div className="flex flex-col text-center md:text-left gap-3 w-full md:grow md:max-w-6/10">
           <h2 className="text-2xl tracking-tight md:text-3xl lg:font-extrabold lg:text-4xl">
             Voyez ExtravertyAI en action
           </h2>
-          <p className="text-sm md:text-base text-muted-foreground">
+          <p className="text-sm text-muted-foreground">
             Découvrez comment notre assistant IA répond à vos clients
             instantanément. 24h/24 et 7j/7.
           </p>
@@ -120,6 +121,17 @@ function Demo() {
               </Item>
             ))}
           </Card>
+
+          <div className="flex flex-col gap-1 mt-6 md:mt-8">
+            <p className="text-sm md:text-base font-medium">
+              Prêt à ne plus perdre des clients sur WhatsApp ?
+            </p>
+            <p className="text-sm text-muted-foreground mb-2">
+              Rejoignez les nombreuses entreprises qui utilisent déjà
+              ExtravertyAI et ne manquer plus jamais un client sur WhatsApp.
+            </p>
+            <AutomatiserButton text="Commencer maintenant" className="w-full" />
+          </div>
         </div>
         <PhoneMockup videoSrc="/video.mp4" />
       </div>
