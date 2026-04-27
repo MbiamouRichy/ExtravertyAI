@@ -42,6 +42,8 @@ export const metadata: Metadata = {
 
   keywords: [
     "ExtravertyAI",
+    "extravertyia",
+    "extraverty ia",
     "ia libreville",
     " WhatsApp automation libreville",
     "automatisation WhatsApp pour business au Gabon",
