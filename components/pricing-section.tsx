@@ -80,7 +80,6 @@ const plans: Plan[] = [
       "Collecte et analyse des données clients illimitée",
       "Gestion des conversations avancée",
       "Intégrations (CRM, Google Sheets, Agenda, etc.)",
-      "Optimisation des ventes",
       "Support dédié",
     ],
     btn: {
@@ -183,7 +182,7 @@ export function PricingCard({
                     {Math.round(
                       ((plan.price.Mensuel - plan.price.Annuel) /
                         plan.price.Mensuel) *
-                        100,
+                      100,
                     )}
                     % reduit
                   </motion.div>
