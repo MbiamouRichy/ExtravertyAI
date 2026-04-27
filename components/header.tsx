@@ -70,7 +70,7 @@ export function Header() {
         <div className="hidden md:flex h-4 flex-row justify-center gap-2 items-center">
           <ModeToggle screen="desktop" />
           <Separator orientation="vertical" />
-          <AutomatiserButton href="/test" text="Tester sur Whatsapp" />
+          <AutomatiserButton text="Tester sur Whatsapp" />
         </div>
         <MobileNav />
       </nav>
