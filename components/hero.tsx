@@ -79,7 +79,7 @@ export function HeroSection() {
             size={"lg"}
             variant="outline"
           >
-            <Link href="" title="/demo">
+            <Link href="/#demo" title="demo">
               <Video data-icon="inline-start" /> Regarder la démo
             </Link>
           </Button>
