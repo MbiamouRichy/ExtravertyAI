@@ -22,7 +22,11 @@
     "hooks": "@/hooks"
   },
   "registries": {
+<<<<<<< HEAD
     "@efferd": "https://efferd.com/r/{name}.json",
     "@fonttrio": "https://www.fonttrio.xyz/r/{name}.json"
+=======
+    "@efferd": "https://efferd.com/r/{name}.json"
+>>>>>>> 527510af029a27aa66c1e0e4bd97884e91083ab2
   }
 }

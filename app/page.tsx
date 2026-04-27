@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import { cn } from "@/lib/utils";
 import { HeroSection } from "@/components/hero";
 import AvantApres from "@/components/avantApres";
@@ -27,4 +28,10 @@ export default function page() {
       </main>
     </div>
   );
+=======
+import { redirect } from "next/navigation";
+
+export default function Home() {
+  return redirect("/contact");
+>>>>>>> 527510af029a27aa66c1e0e4bd97884e91083ab2
 }
