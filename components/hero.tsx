@@ -11,7 +11,7 @@ import { Separator } from "./ui/separator";
 export function HeroSection() {
   return (
     <section className="relative w-full">
-      <div className="flex flex-col max-w-5xl mx-auto items-center justify-center gap-5 px-2 py-16 md:px-4 md:py-24 lg:py-28">
+      <div className="flex flex-col max-w-5xl mx-auto items-center justify-center gap-5 px-2 pt-20 pb-8 md:px-4 md:py-24 lg:py-28">
         {/* X Faded Borders & Shades */}
         <div
           aria-hidden="true"
