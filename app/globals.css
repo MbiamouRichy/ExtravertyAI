@@ -46,13 +46,10 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
-<<<<<<< HEAD
   --font-body: var(--font-crimson-text);
   --font-bricolage-grotesque: var(--font-bricolage-grotesque);
   --font-crimson-text: var(--font-crimson-text);
   --font-roboto-mono: var(--font-roboto-mono);
-=======
->>>>>>> 527510af029a27aa66c1e0e4bd97884e91083ab2
 }
 
 :root {
