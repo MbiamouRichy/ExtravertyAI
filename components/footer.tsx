@@ -10,7 +10,7 @@ import { AutomatiserButton } from "./hero";
 
 const socialLinks = [
   {
-    href: "#",
+    href: "https://www.facebook.com/profile.php?id=61576441577255",
     label: "Facebook",
     icon: <FacebookIcon />,
   },
