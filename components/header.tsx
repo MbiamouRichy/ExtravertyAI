@@ -12,15 +12,15 @@ import { AutomatiserButton } from "./hero";
 export const navLinks = [
   {
     label: "Démo",
-    href: "#demo",
+    href: "/#demo",
   },
   {
     label: "Tarifs",
-    href: "#tarifs",
+    href: "/#tarifs",
   },
   {
     label: "Faq",
-    href: "#faq",
+    href: "/#faq",
   },
   {
     label: "Contact",

@@ -143,7 +143,7 @@ export const AutomatiserButton = ({
   className,
   variant = "default",
   text = "Automatiser mes réponses",
-  href = "/commencer",
+  href = "https://wa.me/24176205629?text=Bonjour,%20Pouvez-vous%20m'expliquer%20la%20mise%20en%20place%20?",
   target = "_self",
 }: AutomatiserButtonProps) => {
   return (

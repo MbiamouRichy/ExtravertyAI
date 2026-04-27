@@ -61,7 +61,7 @@ export function MobileNav() {
                 className="w-full"
                 variant="outline"
               >
-                <Link href="" title="Regarder la demo">
+                <Link href="/#demo" title="Regarder la demo">
                   Regarder la demo
                 </Link>
               </Button>
