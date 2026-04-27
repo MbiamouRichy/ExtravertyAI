@@ -72,7 +72,7 @@ export function HeroSection() {
           vente — même quand vous dormez.
         </p>
 
-        <div className="fade-in slide-in-from-bottom-10 flex flex-col md:flex-row md:w-fit w-full animate-in items-center justify-center gap-3 fill-mode-backwards pt-2 delay-300 duration-500 ease-out">
+        <div className="fade-in slide-in-from-bottom-10 flex flex-col-reverse md:flex-row md:w-fit w-full animate-in items-center justify-center gap-3 fill-mode-backwards pt-2 delay-300 duration-500 ease-out">
           <Button
             asChild
             className="w-full md:w-auto"
