@@ -9,9 +9,9 @@ import { ModeToggle } from "./theming";
 import { AutomatiserButton } from "./hero";
 
 export function MobileNav() {
-	const [open, setOpen] = React.useState(false);
+  const [open, setOpen] = React.useState(false);
 
-	return (
+  return (
     <div className="md:hidden">
       <Button
         aria-controls="mobile-menu"
@@ -65,7 +65,7 @@ export function MobileNav() {
                   Regarder la demo
                 </Link>
               </Button>
-              <AutomatiserButton className="w-full" />
+              <AutomatiserButton text="Obtenir le mien!" className="w-full" />
             </div>
           </div>
         </Portal>

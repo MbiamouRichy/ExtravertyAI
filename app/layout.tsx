@@ -36,6 +36,9 @@ const bricolageGrotesqueBricolageGrotesque = Bricolage_Grotesque({
 
 
 export const metadata: Metadata = {
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
+  ),
   title: "ExtravertyAI - Automatisation WhatsApp & Support Client IA",
   description:
     "Automatisez votre support client WhatsApp avec ExtravertyAI. Réponses instantanées, augmentation des ventes et expérience client améliorée.",
