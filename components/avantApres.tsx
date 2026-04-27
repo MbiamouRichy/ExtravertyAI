@@ -47,7 +47,7 @@ function AvantApres() {
     <section className="relative w-full flex flex-col items-center justify-center px-2 gap-6 md:gap-10 py-10">
       <DecorIcon className="size-4" position="bottom-left" />
       <DecorIcon className="size-4" position="bottom-right" />
-      <div className="flex flex-col justify-center items-center text-center max-w-3xl gap-2">
+      <div className="flex flex-col justify-center items-center text-center w-full max-w-3xl gap-2">
         <Logo className="w-12" />
         <h3 className="text-center font-bold text-2xl tracking-tight md:text-3xl lg:font-extrabold lg:text-4xl">
           Automatisez vos Conversations WhatsApp avec ExtravertyAI

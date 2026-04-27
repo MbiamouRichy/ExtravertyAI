@@ -101,7 +101,7 @@ export function Faq() {
               <AccordionTrigger className="text-base">
                 {item.trigger}
               </AccordionTrigger>
-              <AccordionContent>{item.content}</AccordionContent>
+              <AccordionContent className="h-auto">{item.content}</AccordionContent>
             </AccordionItem>
           ))}
         </Accordion>

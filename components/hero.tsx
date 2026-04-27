@@ -37,7 +37,8 @@ export function HeroSection() {
             "group mx-auto text-xs hidden md:flex w-fit items-center gap-3 rounded-sm border bg-card p-1 shadow",
             "fade-in slide-in-from-bottom-10 animate-in fill-mode-backwards transition-all delay-500 duration-500 ease-out",
           )}
-          href="commencer"
+          href="https://wa.me/24176205629?text=Bonjour,%20Pouvez-vous%20m'expliquer%20la%20mise%20en%20place%20?"
+
         >
           <div className="rounded-xs border bg-card px-1.5 py-0.5 shadow-sm">
             <p className="font-mono">Actuellement</p>
