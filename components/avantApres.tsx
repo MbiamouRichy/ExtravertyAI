@@ -52,7 +52,7 @@ function AvantApres() {
         <h3 className="text-center font-bold text-2xl tracking-tight md:text-3xl lg:font-extrabold lg:text-4xl">
           Automatisez vos Conversations WhatsApp avec ExtravertyAI
         </h3>
-        <p className="text-muted-foreground">
+        <p className="text-muted-foreground text-sm md:text-base">
           Fatigué de perdre du temps à gérer les DM WhatsApp ? Découvrez comment
           ExtravertyAI facilite votre gestion.
         </p>
