@@ -18,9 +18,8 @@ const socialLinks = [
 
 export default function Footer() {
   return (
-    <footer className="relative w-full">
-      <DecorIcon className="size-4" position="top-left" />
-      <DecorIcon className="size-4" position="top-right" />
+    <footer className="relative w-full max-w-7xl md:mx-auto">
+
       <DecorIcon className="size-4" position="bottom-left" />
       <DecorIcon className="size-4" position="bottom-right" />
       <FullWidthDivider className="-top-px" />
