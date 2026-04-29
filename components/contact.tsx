@@ -2,6 +2,7 @@ import { cn } from "@/lib/utils";
 import type React from "react";
 import { FullWidthDivider } from "@/components/ui/full-width-divider";
 import { Mail, MapPin, Phone } from "lucide-react";
+import { AutomatiserButton } from "./hero";
 
 const APP_EMAIL = "richymbiamou52@gmail.com";
 const APP_PHONE = "+24176205629";
@@ -21,17 +22,17 @@ export function Contact() {
 	];
 
 	return (
-		<div className="relative mx-auto min-h-screen max-w-5xl border-x">
-			<div className="flex grow flex-col justify-center px-4 py-18 md:items-center">
-				<h1 className="font-bold text-4xl md:text-5xl">Contactez nous</h1>
-				<p className="mb-5 text-base text-muted-foreground">
-					Contactez nous pour toute question ou demande de renseignements.
+		<div className="relative mx-auto min-h-screen max-w-7xl border-x">
+			<div className="flex grow flex-col justify-center px-2 py-18 md:py-24 lg:py-28 md:items-center">
+				<h1 className="font-bold text-4xl md:text-5xl">Contactez-nous</h1>
+				<p className="mb-5 text-sm md:text-base text-muted-foreground">
+					Contactez-nous pour toutes questions ou besoins de renseignements.
 				</p>
 			</div>
 			<FullWidthDivider />
 			<div className="grid md:grid-cols-3">
 				<Box
-					description="Nous répondons sous les 24 heures."
+					description="Nous répondons immédiatement."
 					icon={
 						<Mail
 						/>
@@ -46,7 +47,7 @@ export function Contact() {
 					</a>
 				</Box>
 				<Box
-					description="Nous sommes basés à Libreville, Gabon."
+					description="Nous sommes à Libreville au Gabon."
 					icon={
 						<MapPin
 						/>
@@ -59,7 +60,7 @@ export function Contact() {
 				</Box>
 				<Box
 					className="border-b-0 md:border-r-0"
-					description="Nous sommes disponibles tous les jours."
+					description="Nous sommes disponibles 24h/7."
 					icon={
 						<Phone
 						/>
@@ -73,6 +74,8 @@ export function Contact() {
 						>
 							{APP_PHONE}
 						</a>
+
+						<AutomatiserButton text="Ecrivez-nous" />
 						{/* <a
 							className="block font-medium font-mono text-sm tracking-wide hover:underline"
 							href={`tel:${APP_PHONE_2}`}

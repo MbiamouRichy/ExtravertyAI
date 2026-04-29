@@ -34,7 +34,7 @@ export function NotFoundPage() {
 						<Button asChild variant="outline">
 							<Link title="page de contact" href="/contact">
 								<PhoneIcon data-icon="inline-start" />{" "}
-								Contacter-nous
+								Contactez-nous
 							</Link>
 						</Button>
 					</div>

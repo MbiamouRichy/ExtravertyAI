@@ -8,6 +8,7 @@ import {
   Roboto_Mono,
 } from "next/font/google";
 import { Header } from "@/components/header";
+import Footer from "@/components/footer";
 
 const robotoMonoRobotoMono = Roboto_Mono({
   subsets: [
@@ -39,7 +40,10 @@ export const metadata: Metadata = {
   metadataBase: new URL(
     process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
   ),
-  title: "ExtravertyAI - Automatisation WhatsApp & Support Client IA",
+  title: {
+    default: "ExtravertyAI - Automatisation WhatsApp & Support Client IA",
+    template: "%s | ExtravertyAI",
+  },
   description:
     "Automatisez votre support client WhatsApp avec ExtravertyAI. Réponses instantanées, augmentation des ventes et expérience client améliorée.",
 
@@ -76,6 +80,18 @@ export const metadata: Metadata = {
   icons: {
     icon: "/favicon.ico",
     apple: "/apple-touch-icon.png",
+  },
+  alternates: {
+    canonical: "/",
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
+
+  twitter: {
+    card: "summary_large_image",
+    images: ["/og-image.png"],
   },
 
   openGraph: {
@@ -122,6 +138,7 @@ export default function RootLayout({
 
           {children}
         </ThemeProvider>
+        <Footer />
       </body>
     </html>
   );
