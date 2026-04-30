@@ -1,6 +1,7 @@
 import { cn } from "@/lib/utils";
 import { HeroSection } from "@/components/hero";
 import AvantApres from "@/components/avantApres";
+import Footer from "@/components/footer";
 import { Faq } from "@/components/faq";
 import { Tarifs } from "@/components/pricing-section";
 import Demo from "@/components/demo";
@@ -23,6 +24,7 @@ export default function page() {
         <AvantApres />
         <Tarifs />
         <Faq />
+        <Footer />
       </main>
     </div>
   );

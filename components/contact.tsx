@@ -22,7 +22,7 @@ export function Contact() {
 	];
 
 	return (
-		<div className="relative mx-auto min-h-screen max-w-7xl border-x">
+		<div className="relative md:mx-auto min-h-screen w-full max-w-7xl border-x overflow-hidden">
 			<div className="flex grow flex-col justify-center px-2 py-18 md:py-24 lg:py-28 md:items-center">
 				<h1 className="font-bold text-4xl md:text-5xl">Contactez-nous</h1>
 				<p className="mb-5 text-sm md:text-base text-muted-foreground">
@@ -67,7 +67,7 @@ export function Contact() {
 					}
 					title="Phone"
 				>
-					<div>
+					<div className="flex flex-col md:flex-row gap-2 items-center">
 						<a
 							className="block font-medium font-mono text-sm tracking-wide hover:underline"
 							href={`tel:${APP_PHONE}`}

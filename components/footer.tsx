@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { navLinks } from "./header";
 import { FacebookIcon } from "./contact";
-import { DecorIcon } from "./ui/decor-icon";
 import { FullWidthDivider } from "./ui/full-width-divider";
 import { AutomatiserButton } from "./hero";
 
@@ -19,9 +18,6 @@ const socialLinks = [
 export default function Footer() {
   return (
     <footer className="relative w-full max-w-7xl md:mx-auto">
-
-      <DecorIcon className="size-4" position="bottom-left" />
-      <DecorIcon className="size-4" position="bottom-right" />
       <FullWidthDivider className="-top-px" />
       <div className="flex flex-col px-2 w-full">
         <div className="md:px-6 flex flex-col gap-6 border-b py-6">

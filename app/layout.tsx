@@ -8,7 +8,6 @@ import {
   Roboto_Mono,
 } from "next/font/google";
 import { Header } from "@/components/header";
-import Footer from "@/components/footer";
 
 const robotoMonoRobotoMono = Roboto_Mono({
   subsets: [
@@ -137,7 +136,6 @@ export default function RootLayout({
           <Header />
 
           {children}
-          <Footer />
 
         </ThemeProvider>
       </body>
