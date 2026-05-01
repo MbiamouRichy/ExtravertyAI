@@ -77,6 +77,7 @@ export default function HeroImage() {
           loading="lazy"
           src="/heroImage.png"
           fill
+          sizes="1200"
           className=" object-cover hidden md:block absolute top-0 left-0 -z-10 w-full min-h-max h-full dark:brightness-[0.9]"
         />
 

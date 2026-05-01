@@ -1,5 +1,8 @@
+"use client";
 // components/PhoneMockup.tsx
-import React from "react";
+import React, { useState } from "react";
+import { Skeleton } from "./ui/skeleton";
+import { LoaderIcon } from "lucide-react";
 
 type PhoneMockupProps = {
   videoSrc: string;
@@ -8,6 +11,8 @@ type PhoneMockupProps = {
 export default function PhoneMockup({
   videoSrc,
 }: PhoneMockupProps) {
+  const [isLoading, setIsLoading] = useState(true);
+
   return (
     <div
       className={`relative w-full md:w-auto flex  items-center md:ml-auto justify-center md:justify-end`}
@@ -22,14 +27,29 @@ export default function PhoneMockup({
 
         {/* Écran */}
         <div className="absolute  inset-2.5 overflow-hidden rounded-[2rem] bg-black">
+
           <video
             className="h-full w-full aspect-9/16 object-cover"
-            src={videoSrc}
+
             autoPlay
             muted
             loop
             playsInline
-          />
+            onCanPlay={() =>
+              setIsLoading(false)
+            }
+          >
+            <source src={videoSrc} type="video/mp4" />
+            Votre navigateur ne supporte pas la lecture de vidéos.
+          </video>
+
+          {/* skeleton */}
+          {isLoading && (
+            <div className="absolute inset-0 z-20 flex items-center justify-center">
+              <Skeleton className="absolute inset-0 h-full w-full" />
+              <LoaderIcon className="h-6 w-6 animate-spin" />
+            </div>
+          )}
 
           {/* Optionnel : léger overlay pour un look plus clean */}
           <div className="pointer-events-none absolute inset-0 bg-muted/10" />
@@ -38,6 +58,7 @@ export default function PhoneMockup({
         {/* Barre home */}
         <div className="absolute bottom-5 left-1/2 h-2 w-20 -translate-x-1/2 rounded-full bg-zinc-600" />
       </div>
-    </div>
+    </div >
   );
 }
+

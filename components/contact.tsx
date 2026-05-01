@@ -3,6 +3,8 @@ import type React from "react";
 import { FullWidthDivider } from "@/components/ui/full-width-divider";
 import { Mail, MapPin, Phone } from "lucide-react";
 import { AutomatiserButton } from "./hero";
+import Link from "next/link";
+import { buttonVariants } from "./ui/button";
 
 const APP_EMAIL = "richymbiamou52@gmail.com";
 const APP_PHONE = "+24176205629";
@@ -39,12 +41,14 @@ export function Contact() {
 					}
 					title="Email"
 				>
-					<a
-						className="font-medium font-mono text-sm tracking-wide hover:underline"
+					<Link
+						className={cn(
+							buttonVariants({ variant: "link" })
+						)}
 						href={`mailto:${APP_EMAIL}`}
 					>
 						{APP_EMAIL}
-					</a>
+					</Link>
 				</Box>
 				<Box
 					description="Nous sommes à Libreville au Gabon."
@@ -68,14 +72,9 @@ export function Contact() {
 					title="Phone"
 				>
 					<div className="flex flex-col md:flex-row gap-2 items-center">
-						<a
-							className="block font-medium font-mono text-sm tracking-wide hover:underline"
-							href={`tel:${APP_PHONE}`}
-						>
-							{APP_PHONE}
-						</a>
+						<AutomatiserButton text={APP_PHONE}
+						/>
 
-						<AutomatiserButton text="Ecrivez-nous" />
 						{/* <a
 							className="block font-medium font-mono text-sm tracking-wide hover:underline"
 							href={`tel:${APP_PHONE_2}`}
@@ -92,7 +91,7 @@ export function Contact() {
 				</h2>
 				<div className="flex flex-wrap items-center gap-2">
 					{socialLinks.map((link) => (
-						<a
+						<Link
 							className="flex items-center gap-x-2 rounded-full border bg-card px-3 py-1.5 shadow hover:bg-accent"
 							href={link.href}
 							key={link.label}
@@ -103,7 +102,7 @@ export function Contact() {
 							<span className="font-medium font-mono text-xs tracking-wide">
 								{link.label}
 							</span>
-						</a>
+						</Link>
 					))}
 				</div>
 			</div>

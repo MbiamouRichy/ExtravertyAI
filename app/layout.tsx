@@ -7,6 +7,7 @@ import {
   Crimson_Text,
   Roboto_Mono,
 } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next"
 import { Header } from "@/components/header";
 
 const robotoMonoRobotoMono = Roboto_Mono({
@@ -134,9 +135,8 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <Header />
-
           {children}
-
+          <Analytics />
         </ThemeProvider>
       </body>
     </html>
