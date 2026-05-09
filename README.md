@@ -48,29 +48,30 @@ Pour exécuter ce projet localement sur votre machine :
    ```bash
    git clone [https://github.com/MbiamouRichy/ExtravertyAI.git](https://github.com/MbiamouRichy/ExtravertyAI.git)
    cd ExtravertyAI
-   
-2. Installer les dépendances :
+   ```
+2. **Installer les dépendances :**
 
-Bash
-npm install
-# ou
-yarn install
-# ou
-pnpm install
+  ```bash
+  npm install
+  # ou
+  yarn install
+  # ou
+  pnpm install
+ ```
 
-3. Lancer le serveur de développement :
+3. **Lancer le serveur de développement :**
 
-Bash
-npm run dev
-# ou
-yarn dev
-# ou
-pnpm dev
-
+  ``` bash
+   npm run dev
+   # ou
+   yarn dev
+   # ou
+   pnpm dev
+  ```
 4. Ouvrez http://localhost:3000 dans votre navigateur pour visualiser le site.
 
 📂 Structure du Projet
-<pre>
+```PlainText
 ├── app/            # Architecture des routes Next.js (layout, page)
 ├── components/     # Composants réutilisables
 │   ├── ui/         # Composants shadcn/ui générés
@@ -80,6 +81,7 @@ pnpm dev
 ├── tailwind.config.ts  # Configuration et thématique Tailwind
 └── package.json        # Dépendances du projet
 </pre>
+```
 
 📞 Contact
 Pour toute question technique ou demande de partenariat :
