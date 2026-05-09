@@ -50,7 +50,6 @@ Pour exécuter ce projet localement sur votre machine :
    cd ExtravertyAI
    ```
 2. **Installer les dépendances :**
-
   ```bash
   npm install
   # ou
@@ -58,9 +57,8 @@ Pour exécuter ce projet localement sur votre machine :
   # ou
   pnpm install
  ```
-
 3. **Lancer le serveur de développement :**
-
+   
   ``` bash
    npm run dev
    # ou
@@ -68,7 +66,7 @@ Pour exécuter ce projet localement sur votre machine :
    # ou
    pnpm dev
   ```
-4. Ouvrez http://localhost:3000 dans votre navigateur pour visualiser le site.
+4. **Ouvrez http://localhost:3000 dans votre navigateur pour visualiser le site.**
 
 📂 Structure du Projet
 ```PlainText
