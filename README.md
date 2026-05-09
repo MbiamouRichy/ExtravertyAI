@@ -72,13 +72,11 @@ pnpm dev
 📂 Structure du Projet
 <pre>
 ├── public/             # Images statiques (logo.png, icônes, assets)
-├── src/
-│   ├── app/            # Architecture des routes Next.js (layout, page)
-│   ├── components/     # Composants réutilisables
-│   │   ├── ui/         # Composants shadcn/ui générés
-│   │   └── shared/     # Composants globaux (Navbar, Footer, etc.)
-│   ├── lib/            # Fonctions utilitaires (utils.ts pour cn)
-│   └── styles/         # Styles globaux (globals.css avec les variables de thème)
+├── app/            # Architecture des routes Next.js (layout, page)
+├── components/     # Composants réutilisables
+│   ├── ui/         # Composants shadcn/ui générés
+├── hooks/          # Customs hooks
+├── lib/            # Fonctions utilitaires (utils.ts pour cn)
 ├── tailwind.config.ts  # Configuration et thématique Tailwind
 └── package.json        # Dépendances du projet
 </pre>
