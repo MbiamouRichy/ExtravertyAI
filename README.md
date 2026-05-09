@@ -70,7 +70,7 @@ pnpm dev
 4. Ouvrez http://localhost:3000 dans votre navigateur pour visualiser le site.
 
 📂 Structure du Projet
-Plaintext
+<pre>
 ├── public/             # Images statiques (logo.png, icônes, assets)
 ├── src/
 │   ├── app/            # Architecture des routes Next.js (layout, page)
@@ -81,7 +81,7 @@ Plaintext
 │   └── styles/         # Styles globaux (globals.css avec les variables de thème)
 ├── tailwind.config.ts  # Configuration et thématique Tailwind
 └── package.json        # Dépendances du projet
-
+</pre>
 📞 Contact
 Pour toute question technique ou demande de partenariat :
 
