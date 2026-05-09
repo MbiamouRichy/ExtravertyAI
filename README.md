@@ -46,8 +46,8 @@ Pour exécuter ce projet localement sur votre machine :
 
 1. **Cloner le dépôt :**
    ```bash
-   git clone [https://github.com/votre-nom-d-utilisateur/extraverty-ai.git](https://github.com/votre-nom-d-utilisateur/extraverty-ai.git)
-   cd extraverty-ai
+   git clone [https://github.com/MbiamouRichy/ExtravertyAI.git](https://github.com/MbiamouRichy/ExtravertyAI.git)
+   cd ExtravertyAI
    
 2. Installer les dépendances :
 
@@ -82,10 +82,11 @@ pnpm dev
 ├── tailwind.config.ts  # Configuration et thématique Tailwind
 └── package.json        # Dépendances du projet
 </pre>
+
 📞 Contact
 Pour toute question technique ou demande de partenariat :
 
-* Site Web : Contactez-nous via le site
+* Site Web : <a title="Contactez-nous" href="https://www.extravertyai.com/contact">Contactez-nous via le site</a>
 
 * Découvrez nos solutions d'automatisation sur mesure pour propulser votre support client.
 
