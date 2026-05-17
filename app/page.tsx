@@ -5,14 +5,15 @@ import Footer from "@/components/footer";
 import { Faq } from "@/components/faq";
 import { Tarifs } from "@/components/pricing-section";
 import Demo from "@/components/demo";
+
 export const dynamic = "force-static";
 
 export default function page() {
   return (
-    <div className="relative flex min-h-screen flex-col overflow-hidden">
+    <div className="relative h-full overflow-hidden">
       <main
         className={cn(
-          "relative md:mx-auto max-w-7xl grow",
+          "relative md:mx-auto max-w-7xl h-full grow",
           // X Borders
           "before:absolute before:-inset-y-14 before:-left-px before:w-px before:bg-border",
           "after:absolute after:-inset-y-14 after:-right-px after:w-px after:bg-border",

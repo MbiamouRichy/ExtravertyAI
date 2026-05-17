@@ -87,7 +87,7 @@ export function Contact() {
 			<FullWidthDivider />
 			<div className="z-1 flex h-full flex-col items-center justify-center gap-4 py-24">
 				<h2 className="text-center font-medium text-2xl text-muted-foreground tracking-tight md:text-3xl">
-					Suivez <span className="text-foreground">nous</span>
+					Suivez-<span className="text-foreground">nous</span>
 				</h2>
 				<div className="flex flex-wrap items-center gap-2">
 					{socialLinks.map((link) => (

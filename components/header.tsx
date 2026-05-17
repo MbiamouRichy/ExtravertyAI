@@ -6,7 +6,6 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { MobileNav } from "@/components/mobile-nav";
 import Link from "next/link";
 import { ModeToggle } from "./theming";
-import { Separator } from "./ui/separator";
 import { AutomatiserButton } from "./hero";
 
 export const navLinks = [
@@ -69,8 +68,7 @@ export function Header() {
         </div>
         <div className="hidden md:flex h-4 flex-row justify-center gap-2 items-center">
           <ModeToggle screen="desktop" />
-          <Separator orientation="vertical" />
-          <AutomatiserButton text="Tester le!" />
+          <AutomatiserButton text="Testez-le!" />
         </div>
         <MobileNav />
       </nav>
