@@ -6,7 +6,7 @@ import { AutomatiserButton } from "./hero";
 import Link from "next/link";
 import { buttonVariants } from "./ui/button";
 
-const APP_EMAIL = "richymbiamou52@gmail.com";
+const APP_EMAIL = "extravertyai@gmail.com";
 const APP_PHONE = "+24176205629";
 
 export function Contact() {
@@ -41,9 +41,9 @@ export function Contact() {
 					}
 					title="Email"
 				>
-					<Link
+					<Link aria-readonly
 						className={cn(
-							buttonVariants({ variant: "link" })
+							buttonVariants({ variant: "link" }), "pointer-events-none opacity-50"
 						)}
 						href={`mailto:${APP_EMAIL}`}
 					>
