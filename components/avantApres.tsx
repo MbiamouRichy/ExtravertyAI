@@ -52,7 +52,7 @@ function AvantApres() {
         <h3 className="text-center font-bold text-2xl tracking-tight md:text-3xl lg:font-extrabold lg:text-4xl">
           Automatisez vos Conversations WhatsApp avec ExtravertyAI
         </h3>
-        <p className="text-muted-foreground text-sm md:text-base">
+        <p className="text-muted-foreground text-base md:text-lg">
           Fatigué de perdre du temps à gérer les DM WhatsApp ? Découvrez comment
           ExtravertyAI facilite votre gestion.
         </p>
@@ -63,7 +63,7 @@ function AvantApres() {
             <CardDescription className="text-center">
               Avant ExtravertyAI:
             </CardDescription>
-            <CardTitle className="text-center text-muted-foreground">
+            <CardTitle className="text-center text-base text-muted-foreground">
               Vous gérez vos inbox à la dure
             </CardTitle>
           </CardHeader>
@@ -75,7 +75,7 @@ function AvantApres() {
                     <Check />
                   </ItemMedia>
                   <ItemContent>
-                    <ItemTitle>{item.title}</ItemTitle>
+                    <ItemTitle className="text-base">{item.title}</ItemTitle>
                   </ItemContent>
                 </Item>
                 {idx < avantExtraverty.length - 1 && (
@@ -89,12 +89,12 @@ function AvantApres() {
             className="w-11/12! mt-auto mx-auto"
           />
         </Card>
-        <Card className="w-full  min-w-75 md:w-1/2">
+        <Card className="w-full bg-primary/5 dark:bg-card min-w-75 md:w-1/2">
           <CardHeader>
             <CardDescription className="text-center">
               Après ExtravertyAI:
             </CardDescription>
-            <CardTitle className="text-center ">
+            <CardTitle className="text-center text-base">
               Simplifiez-vous la vie
             </CardTitle>
           </CardHeader>
@@ -106,7 +106,7 @@ function AvantApres() {
                     <Check />
                   </ItemMedia>
                   <ItemContent>
-                    <ItemTitle>{item.title}</ItemTitle>
+                    <ItemTitle className="text-base">{item.title}</ItemTitle>
                   </ItemContent>
                 </Item>
                 {idx < apresExtraverty.length - 1 && (

@@ -6,6 +6,7 @@ import { navLinks } from "./header";
 import { FacebookIcon } from "./contact";
 import { FullWidthDivider } from "./ui/full-width-divider";
 import { AutomatiserButton } from "./hero";
+import { DecorIcon } from "./ui/decor-icon";
 
 const socialLinks = [
   {
@@ -18,6 +19,8 @@ const socialLinks = [
 export default function Footer() {
   return (
     <footer className="relative w-full max-w-7xl md:mx-auto">
+      <DecorIcon className="size-4" position="top-left" />
+      <DecorIcon className="size-4" position="top-right" />
       <FullWidthDivider className="-top-px" />
       <div className="flex flex-col px-2 w-full">
         <div className="md:px-6 flex flex-col gap-6 border-b py-6">
@@ -37,7 +40,7 @@ export default function Footer() {
           </div>
 
           <nav>
-            <ul className="flex flex-wrap gap-4 font-medium text-muted-foreground text-sm md:gap-6">
+            <ul className="flex flex-wrap gap-4 font-medium text-muted-foreground text-sm md:text-base md:gap-6">
               {navLinks.map((link) => (
                 <li key={link.label}>
                   <Link

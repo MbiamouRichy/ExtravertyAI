@@ -10,6 +10,10 @@ import { AutomatiserButton } from "./hero";
 
 export const navLinks = [
   {
+    label: "A propos",
+    href: "/apropos",
+  },
+  {
     label: "Démo",
     href: "/#demo",
   },
@@ -33,9 +37,9 @@ export function Header() {
   return (
     <header
       className={cn(
-        "fixed left-1/2 top-1.5 -translate-x-1/2 backdrop-blur-sm supports-backdrop-filter:bg-background/50 z-50  w-full  max-w-4xl border-border border-b md:rounded-md md:border md:transition-all md:ease-out",
+        "fixed left-1/2 top-1.5 -translate-x-1/2 backdrop-blur-sm supports-backdrop-filter:bg-background/50 z-50  w-full  max-w-5xl border-border border-b md:rounded-md md:border md:transition-all md:ease-out",
         {
-          "md:top-2.5 md:max-w-3xl md:shadow": scrolled,
+          "md:top-2.5 md:max-w-4xl md:shadow": scrolled,
         },
       )}
     >
@@ -61,7 +65,7 @@ export function Header() {
           <div>
             {navLinks.map((link) => (
               <Button asChild key={link.label} size="sm" variant="ghost">
-                <Link href={link.href}>{link.label}</Link>
+                <Link className="text-sm md:text-base" href={link.href}>{link.label}</Link>
               </Button>
             ))}
           </div>

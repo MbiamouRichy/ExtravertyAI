@@ -11,13 +11,13 @@ import Link from "next/link";
 
 export function NotFoundPage() {
 	return (
-		<div className="relative flex min-h-screen w-full items-center justify-center overflow-hidden">
-			<Empty>
+		<div className="flex min-h-screen p-4 w-screen items-center justify-center overflow-x-hidden">
+			<Empty className="p-0 md:p-12">
 				<EmptyHeader>
 					<EmptyTitle className="mask-b-from-20% mask-b-to-80% font-extrabold text-9xl">
 						404
 					</EmptyTitle>
-					<EmptyDescription className="-mt-8 text-nowrap text-foreground/80">
+					<EmptyDescription className="-mt-8 md:text-nowrap text-foreground/80 text-base md:text-lg">
 						La page que vous recherchez n{`'`}existe pas ou a été déplacée.<br />
 						Veuillez vérifier l{`'`}URL ou rechercher une page.
 					</EmptyDescription>

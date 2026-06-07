@@ -11,7 +11,7 @@ import { Separator } from "./ui/separator";
 export function HeroSection() {
   return (
     <section className="relative w-full">
-      <div className="flex flex-col max-w-5xl mx-auto items-center justify-center gap-5 px-2 pt-20 pb-8 md:px-4 md:py-24 lg:py-28">
+      <div className="flex flex-col max-w-5xl mx-auto items-center justify-center gap-5 px-2 pt-28 pb-8 md:px-4 md:py-32">
         {/* X Faded Borders & Shades */}
         <div
           aria-hidden="true"
@@ -34,13 +34,13 @@ export function HeroSection() {
         </div>
         <Link
           className={cn(
-            "group mx-auto text-xs hidden md:flex w-fit items-center gap-3 rounded-sm border bg-card p-1 shadow",
+            "group mx-auto text-sm hidden md:flex w-fit items-center gap-3 rounded-sm border bg-card p-1 shadow",
             "fade-in slide-in-from-bottom-10 animate-in fill-mode-backwards transition-all delay-500 duration-500 ease-out",
           )}
           href="https://wa.me/24176205629?text=Bonjour,%20Pouvez-vous%20m'expliquer%20la%20mise%20en%20place%20?"
 
         >
-          <div className="rounded-xs border bg-card px-1.5 py-0.5 shadow-sm">
+          <div className="rounded-xs border bg-primary/5 dark:bg-card px-1.5 py-0.5 shadow-sm">
             <p className="font-mono">Actuellement</p>
           </div>
 
@@ -63,7 +63,7 @@ export function HeroSection() {
 
         <p
           className={cn(
-            "text-center md:max-w-prose text-muted-foreground text-sm tracking-wider md:text-base",
+            "text-center md:max-w-prose text-muted-foreground text-base tracking-wider md:text-lg",
             "fade-in slide-in-from-bottom-10 animate-in fill-mode-backwards delay-200 duration-500 ease-out",
           )}
         >
@@ -72,10 +72,10 @@ export function HeroSection() {
           vente — même quand vous dormez.
         </p>
 
-        <div className="fade-in slide-in-from-bottom-10 flex flex-col-reverse md:flex-row md:w-fit w-full animate-in items-center justify-center gap-3 fill-mode-backwards pt-2 delay-300 duration-500 ease-out">
+        <div className="fade-in slide-in-from-bottom-10 flex flex-col-reverse md:flex-row-reverse md:w-fit w-full animate-in items-center justify-center gap-6 fill-mode-backwards pt-2 delay-300 duration-500 ease-out">
           <Button
             asChild
-            className="w-full md:w-auto"
+            className="w-full md:w-auto text-sm md:text-base"
             size={"lg"}
             variant="outline"
           >
@@ -154,7 +154,7 @@ export const AutomatiserButton = ({
       target={target}
       className={cn(
         buttonVariants({ variant, size: "lg" }),
-        "group",
+        "group text-sm md:text-base",
         className,
       )}
     >

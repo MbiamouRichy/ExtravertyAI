@@ -103,11 +103,11 @@ export function Tarifs() {
         <h4 className="text-center font-bold text-2xl tracking-tight md:text-3xl lg:font-extrabold lg:text-4xl">
           Nos tarifs simples et transparents!
         </h4>
-        <p className="text-center text-muted-foreground text-sm md:text-base">
+        <p className="text-center text-muted-foreground text-base md:text-lg">
           Choisissez l&apos;offre adaptée à votre business et commencez à
           répondre automatiquement à vos clients dès aujourd&apos;hui.
         </p>
-        <p className="text-sm text-muted-foreground text-center md:text-base">
+        <p className="text-base text-muted-foreground text-center md:text-lg">
           <span className="font-bold text-foreground">+ de 80%</span> des
           clients répondus en moins de 10 secondes grâce à ExtravertyIA
         </p>
@@ -151,7 +151,7 @@ export function PricingCard({
         )}
       >
         <div className="flex flex-row justify-between items-center w-full">
-          <p className="font-medium text-lg">{plan.name}</p>
+          <p className="font-medium text-lg md:text-xl">{plan.name}</p>
 
           <AnimatePresence mode="wait">
             <div className="flex items-center gap-2">
@@ -190,7 +190,7 @@ export function PricingCard({
             </div>
           </AnimatePresence>
         </div>
-        <p className="font-normal max-w-74 md:max-w-full text-muted-foreground text-sm">
+        <p className="font-normal max-w-74 md:max-w-full text-muted-foreground text-sm md:text-base">
           {plan.info}
         </p>
         <h3 className="mt-6 mb-1 flex w-max items-end gap-1">
@@ -205,7 +205,7 @@ export function PricingCard({
             value={plan.price[frequency]}
           />
         </h3>
-        <p className="mb-2 font-normal text-muted-foreground text-xs">
+        <p className="mb-2 font-normal text-muted-foreground text-xs md:text-sm">
           Paiement {frequency}
         </p>
       </div>
@@ -218,7 +218,7 @@ export function PricingCard({
         {plan.features.map((feature) => (
           <div className="flex items-center gap-2" key={feature}>
             <CheckCircleIcon className="size-3.5 shrink-0 text-foreground" />
-            <p className="w-auto">{feature}</p>
+            <p className="w-auto text-sm md:text-base">{feature}</p>
           </div>
         ))}
       </div>

@@ -107,7 +107,7 @@ export default function HeroImage() {
                   Gagnez du temps, <br /> boostez votre business.
                 </span>
               </h2>
-              <p className="text-sm text-foreground/80 dark:md:text-foreground/80 md:text-primary-foreground/80 pb-4">
+              <p className="text-base text-foreground/80 dark:md:text-foreground/80 md:text-primary-foreground/80 pb-4">
                 L{`'`}IA au service de conversations <br /> rapides, humaines et
                 efficaces.
               </p>
@@ -124,7 +124,7 @@ export default function HeroImage() {
                       {<feature.icon />}
                     </ItemMedia>
                     <ItemContent>
-                      <ItemTitle className="whitespace-pre-line">
+                      <ItemTitle className="whitespace-pre-line text-sm md:text-base">
                         {feature.title}
                       </ItemTitle>
                     </ItemContent>
@@ -140,7 +140,7 @@ export default function HeroImage() {
             <div className="hidden md:flex flex-col gap-2 h-full justify-center items-center">
               <Item className="rounded-2xl ml-auto shadow-sm max-w-xs w-auto  text-primary-foreground bg-foreground">
                 <ItemContent>
-                  <ItemTitle>
+                  <ItemTitle className="text-sm md:text-base">
                     Salut ! Prêt à automatiser vos réponses WhatsApp ?
                   </ItemTitle>
                   <ItemFooter className="justify-end text-xs text-muted-foreground">
@@ -157,7 +157,7 @@ export default function HeroImage() {
                   </Avatar>
                 </ItemMedia>
                 <ItemContent className="text-foreground rounded-2xl px-4 py-3.5 shadow-sm bg-primary-foreground">
-                  <ItemTitle>Oui, allons-y !</ItemTitle>
+                  <ItemTitle className="text-sm md:text-base">Oui, allons-y !</ItemTitle>
                   <ItemFooter className="justify-end text-xs text-muted-foreground">
                     <span>11h:31</span>
                   </ItemFooter>
@@ -165,7 +165,7 @@ export default function HeroImage() {
               </Item>
               <Item className="rounded-2xl ml-auto shadow-sm max-w-xs w-auto  text-primary-foreground bg-foreground">
                 <ItemContent>
-                  <ItemTitle className="flex-col items-start gap-0">
+                  <ItemTitle className="flex-col text-sm md:text-base items-start gap-0">
                     Voici le lien que vous avez demandé. Profitez-en ! <br />
                     <p className="text-blue-500 underline">
                       https://extravertyai.com
@@ -180,7 +180,7 @@ export default function HeroImage() {
             </div>
           </div>
 
-          <div className="w-full md:mt-6 md:mx-auto py-1 px-2 rounded-md bg-card flex flex-col md:flex-row justify-between md:justify-evenly md:items-center">
+          <div className="w-full md:mt-6 md:mx-auto py-1 px-2 rounded-md bg-background flex flex-col md:flex-row justify-between md:justify-evenly md:items-center">
             {features.map((feature, idx) => (
               <React.Fragment key={idx}>
                 <Item className="w-full px-0 md:px-4 flex flex-col lg:flex-row items-center justify-start md:justify-center md:w-auto">
@@ -191,7 +191,7 @@ export default function HeroImage() {
                     {<feature.icon className="fill-primary" />}
                   </ItemMedia>
                   <ItemContent className="text-center items-center lg:items-start justify-center lg:justify-start">
-                    <ItemTitle>{feature.title}</ItemTitle>
+                    <ItemTitle className="text-base">{feature.title}</ItemTitle>
                     <ItemDescription className="text-center! lg:text-left!">
                       {feature.description}
                     </ItemDescription>

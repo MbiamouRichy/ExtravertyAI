@@ -78,14 +78,12 @@ export function Faq() {
     >
       <DecorIcon className="size-4" position="top-left" />
       <DecorIcon className="size-4" position="top-right" />
-      <DecorIcon className="size-4" position="bottom-left" />
-      <DecorIcon className="size-4" position="bottom-right" />
       <FullWidthDivider className="-top-px" />
       <div className="flex flex-col justify-center items-center gap-2 text-center">
         <h5 className="text-center font-bold text-2xl tracking-tight md:text-3xl lg:font-extrabold lg:text-4xl">
           Questions Fréquemment Posées
         </h5>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-base md:text-lg text-muted-foreground">
           Voici les questions les plus souvent demandées par nos clients :
         </p>
       </div>
@@ -98,21 +96,21 @@ export function Faq() {
         >
           {items.map((item) => (
             <AccordionItem key={item.value} value={item.value}>
-              <AccordionTrigger className="text-base">
+              <AccordionTrigger className="text-base md:text-lg">
                 {item.trigger}
               </AccordionTrigger>
-              <AccordionContent className="h-auto">{item.content}</AccordionContent>
+              <AccordionContent className="h-auto text-sm md:text-base">{item.content}</AccordionContent>
             </AccordionItem>
           ))}
         </Accordion>
         <FullWidthDivider className="-bottom-px" />
       </div>
       <div className="max-w-xl px-2 md:px-6 text-center flex flex-col items-center gap-2 justify-center py-4">
-        <p className="text-base font-medium">
+        <p className="text-lg md:text-xl font-bold">
           Avez-vous des questions ou toutes autres demandes supplémentaires ?
         </p>
 
-        <p className="text-muted-foreground text-sm mb-4">
+        <p className="text-muted-foreground text-base md:text-lg mb-4">
           Pour toute question, n&apos;hésitez pas à nous contacter via WhatsApp.
           Nous sommes là pour vous aider à réussir avec ExtravertyAI.
         </p>

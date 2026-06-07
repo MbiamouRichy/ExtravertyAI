@@ -136,8 +136,8 @@ export default function RootLayout({
         >
           <Header />
           {children}
-          <Analytics />
         </ThemeProvider>
+        <Analytics />
       </body>
     </html>
   );

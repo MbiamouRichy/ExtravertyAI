@@ -132,14 +132,14 @@
     @apply font-sans;
   }
   h1 {
-    @apply text-4xl md:text-[2.75rem];
+    @apply text-4xl md:text-[2.75rem] tracking-tight;
     font-family: var(--font-heading);
     line-height: 1.05;
     letter-spacing: -0.035em;
     font-weight: 800;
   }
   h2 {
-    @apply text-2xl md:text-4xl;
+    @apply text-2xl md:text-3xl tracking-tight;
     font-family: var(--font-heading);
     line-height: 1.1;
     letter-spacing: -0.025em;
@@ -155,11 +155,13 @@
   h4,
   h5,
   h6 {
+    @apply tracking-tight;
     font-family: var(--font-heading);
     letter-spacing: -0.01em;
   }
   body,
   p {
+    @apply leading-relaxed;
     font-family: var(--font-mono);
   }
   code,

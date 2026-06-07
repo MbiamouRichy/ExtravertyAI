@@ -75,7 +75,7 @@ function Demo() {
           <h2 className="text-2xl tracking-tight md:text-3xl lg:font-extrabold lg:text-4xl">
             Voyez ExtravertyAI en action
           </h2>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-base md:text-lg text-muted-foreground">
             Découvrez comment notre assistant IA répond à vos clients
             instantanément. 24h/24 et 7j/7.
           </p>
@@ -92,10 +92,10 @@ function Demo() {
                   {<feature.icon />}
                 </ItemMedia>
                 <ItemContent>
-                  <ItemTitle className="whitespace-pre-line">
+                  <ItemTitle className="whitespace-pre-line text-lg">
                     {feature.title}
                   </ItemTitle>
-                  <ItemDescription>{feature.description}</ItemDescription>
+                  <ItemDescription className="text-sm md:text-base">{feature.description}</ItemDescription>
                 </ItemContent>
               </Item>
             ))}
@@ -111,10 +111,10 @@ function Demo() {
                   {<feature.icon className="size-12" />}
                 </ItemMedia>
                 <ItemContent className="items-center text-center">
-                  <ItemTitle className="whitespace-pre-line text-2xl">
+                  <ItemTitle className="whitespace-pre-line text-lg">
                     {feature.title}
                   </ItemTitle>
-                  <ItemDescription className="text-center">
+                  <ItemDescription className="text-center text-sm">
                     {feature.description}
                   </ItemDescription>
                 </ItemContent>
@@ -123,10 +123,10 @@ function Demo() {
           </Card>
 
           <div className="flex flex-col gap-1 mt-6 md:mt-8">
-            <p className="text-sm md:text-base font-medium">
+            <p className="text-lg md:text-xl font-bold">
               Prêt à ne plus perdre des clients sur WhatsApp ?
             </p>
-            <p className="text-sm text-muted-foreground mb-2">
+            <p className="text-base text-muted-foreground mb-2">
               Rejoignez les nombreuses entreprises qui utilisent déjà
               ExtravertyAI et ne manquer plus jamais un client sur WhatsApp.
             </p>

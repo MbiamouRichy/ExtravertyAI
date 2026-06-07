@@ -5,7 +5,7 @@ import type React from "react";
 export const LogoIcon = ({ className, LogoClassName }: { className?: string; LogoClassName?: string }) => (
   <div className={cn("flex items-center", className)}>
     <Logo className={cn(LogoClassName)} />
-    <p className="text-lg font-extrabold font-bricolage-grotesque">
+    <p className="text-lg md:text-xl font-bold tracking-tight font-bricolage-grotesque">
       ExtravertyAI
     </p>
   </div>
