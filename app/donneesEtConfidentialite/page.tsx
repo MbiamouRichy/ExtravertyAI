@@ -121,7 +121,7 @@ export default function PrivacyPolicy() {
                                         <h2 className="text-2xl font-bold m-0 text-foreground">3. Partage et Tiers</h2>
                                     </div>
                                     <p className="text-muted-foreground leading-relaxed">
-                                        ExtravertyAI ne vend <strong className="text-foreground">jamais</strong> vos données personnelles ni celles de vos clients. Nous partageons certaines informations uniquement avec des fournisseurs d&apos;infrastructure cloud de confiance (hébergement, bases de données, modèles de langage) strictement nécessaires à l&apos;exécution de notre service, dans le cadre d&apos;accords de confidentialité rigoureux.
+                                        ExtravertyAI ne vend <strong className="text-foreground">jamais </strong> vos données personnelles ni celles de vos clients. Nous partageons certaines informations uniquement avec des fournisseurs d&apos;infrastructure cloud de confiance (hébergement, bases de données, modèles de langage) strictement nécessaires à l&apos;exécution de notre service, dans le cadre d&apos;accords de confidentialité rigoureux.
                                     </p>
                                 </section>
 
