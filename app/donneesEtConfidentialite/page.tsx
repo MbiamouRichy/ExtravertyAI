@@ -1,5 +1,5 @@
 import React from 'react';
-import { ShieldCheck, Lock, Database, Mail } from 'lucide-react';
+import { ShieldCheck, Lock, Database, Mail, Cog, Share2, Scale } from 'lucide-react';
 import type { Metadata } from "next";
 import { Header } from '@/components/header';
 import Footer from '@/components/footer';
@@ -28,7 +28,7 @@ export default function PrivacyPolicy() {
                 <Header />
 
                 {/* Header Section */}
-                <header className="bg-muted/40 border-b border-border py-16 sm:py-24">
+                <section className="bg-muted/40 z-2 border-b border-border py-16 sm:py-24">
                     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
                         <div className="flex items-center gap-3 text-muted-foreground mb-4">
                             <ShieldCheck className="w-6 h-6 text-foreground" />
@@ -44,16 +44,16 @@ export default function PrivacyPolicy() {
                             Dernière mise à jour : {lastUpdated}
                         </div>
                     </div>
-                </header>
+                </section>
 
                 {/* Main Content */}
-                <div className='border-x max-w-7xl md:mx-auto w-full'>
+                <div className='border-x  max-w-7xl md:mx-auto w-full'>
                     <div className="max-w-5xl md:mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-20">
                         <div className="flex flex-col md:flex-row gap-12 lg:gap-24">
 
                             {/* Sidebar Navigation (Sticky) */}
-                            <aside className="md:w-1/4 hidden md:block sticky top-24 self-start">
-                                <div>
+                            <aside className="md:w-1/4 z-0 hidden md:block self-start">
+                                <div className="w-full">
                                     <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-4">
                                         Sommaire
                                     </h3>
@@ -94,7 +94,12 @@ export default function PrivacyPolicy() {
                                 <hr className="border-border my-10" />
 
                                 <section id="utilisation" className="mb-12 scroll-mt-24">
-                                    <h2 className="text-2xl font-bold mb-6 text-foreground">2. Utilisation des données</h2>
+                                    <div className="flex items-center gap-3 mb-6">
+                                        <div className="p-2 bg-secondary rounded-lg">
+                                            <Cog className="w-5 h-5 text-secondary-foreground" />
+                                        </div>
+                                        <h2 className="text-2xl font-bold m-0 text-foreground">2. Utilisation des données</h2>
+                                    </div>
                                     <p className="text-muted-foreground leading-relaxed mb-4">
                                         Nous utilisons vos données exclusivement pour :
                                     </p>
@@ -109,7 +114,12 @@ export default function PrivacyPolicy() {
                                 <hr className="border-border my-10" />
 
                                 <section id="partage" className="mb-12 scroll-mt-24">
-                                    <h2 className="text-2xl font-bold mb-6 text-foreground">3. Partage et Tiers</h2>
+                                    <div className="flex items-center gap-3 mb-6">
+                                        <div className="p-2 bg-secondary rounded-lg">
+                                            <Share2 className="w-5 h-5 text-secondary-foreground" />
+                                        </div>
+                                        <h2 className="text-2xl font-bold m-0 text-foreground">3. Partage et Tiers</h2>
+                                    </div>
                                     <p className="text-muted-foreground leading-relaxed">
                                         ExtravertyAI ne vend <strong className="text-foreground">jamais</strong> vos données personnelles ni celles de vos clients. Nous partageons certaines informations uniquement avec des fournisseurs d&apos;infrastructure cloud de confiance (hébergement, bases de données, modèles de langage) strictement nécessaires à l&apos;exécution de notre service, dans le cadre d&apos;accords de confidentialité rigoureux.
                                     </p>
@@ -132,7 +142,12 @@ export default function PrivacyPolicy() {
                                 <hr className="border-border my-10" />
 
                                 <section id="droits" className="mb-12 scroll-mt-24">
-                                    <h2 className="text-2xl font-bold mb-6 text-foreground">5. Vos droits</h2>
+                                    <div className="flex items-center gap-3 mb-6">
+                                        <div className="p-2 bg-secondary rounded-lg">
+                                            <Scale className="w-5 h-5 text-secondary-foreground" />
+                                        </div>
+                                        <h2 className="text-2xl font-bold m-0 text-foreground">5. Vos droits</h2>
+                                    </div>
                                     <p className="text-muted-foreground leading-relaxed">
                                         Vous conservez le contrôle total sur vos données. Vous avez le droit de demander l&apos;accès, la rectification, la portabilité ou la suppression complète de vos données de nos serveurs à tout moment. La suppression d&apos;un compte entraîne la purge de toutes les données associées de notre base de données principale.
                                     </p>
@@ -140,7 +155,7 @@ export default function PrivacyPolicy() {
 
                                 <hr className="border-border my-10" />
 
-                                <section id="contact" className="mb-12 scroll-mt-24 bg-card text-card-foreground p-8 rounded-2xl border border-border shadow-sm">
+                                <section id="contact" className="mb-12 scroll-mt-24 dark:bg-card bg-primary/5 text-card-foreground p-8 rounded-2xl border border-border shadow-sm">
                                     <div className="flex items-center gap-3 mb-4">
                                         <Mail className="w-6 h-6 text-foreground" />
                                         <h2 className="text-xl font-bold m-0 text-foreground">6. Nous contacter</h2>
