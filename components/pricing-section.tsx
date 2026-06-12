@@ -95,9 +95,9 @@ export function Tarifs() {
   );
 
   return (
-    <div
+    <section
       id="tarifs"
-      className="flex w-full flex-col items-center justify-center gap-7 py-10 px-2 md:px-4"
+      className="flex w-full flex-col items-center justify-center gap-7 py-10 px-2 md:px-4 scroll-mt-24"
     >
       <div className="md:mx-auto w-full max-w-3xl space-y-2">
         <h4 className="text-center font-bold text-2xl tracking-tight md:text-3xl lg:font-extrabold lg:text-4xl">
@@ -119,7 +119,7 @@ export function Tarifs() {
           <PricingCard frequency={frequency} key={plan.name} plan={plan} />
         ))}
       </div>
-    </div>
+    </section>
   );
 }
 

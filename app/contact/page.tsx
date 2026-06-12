@@ -1,4 +1,5 @@
 import { Contact } from "@/components/contact";
+import { Header } from "@/components/header";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -9,8 +10,12 @@ export const metadata: Metadata = {
 export const dynamic = "force-static";
 export default function Page() {
   return (
-    <div className="min-h-screen w-full overflow-hidden px-4">
-      <Contact />
-    </div>
+    <>
+    <Header/>
+      <div className="min-h-screen w-full overflow-hidden px-4">
+        <Contact />
+      </div>
+    </>
+    
   );
 }

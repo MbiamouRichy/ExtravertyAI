@@ -1,4 +1,5 @@
 import Footer from "@/components/footer";
+import { Header } from "@/components/header";
 import { DecorIcon } from "@/components/ui/decor-icon"
 import { FullWidthDivider } from "@/components/ui/full-width-divider"
 import type { Metadata } from "next";
@@ -21,6 +22,8 @@ export const dynamic = "force-static";
 
 function Apropos() {
     return (
+        <>
+        <Header/>
         <main className='relative h-full overflow-hidden'>
 
             <div className='relative w-full max-w-7xl border-x pt-26 mx-auto '>
@@ -176,6 +179,8 @@ function Apropos() {
 
             </div>
         </main>
+        </>
+
     )
 }
 

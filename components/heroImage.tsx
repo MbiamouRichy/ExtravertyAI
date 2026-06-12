@@ -64,7 +64,7 @@ const features2 = [
 
 export default function HeroImage() {
   return (
-    <div className="relative w-full px-2 md:px-0">
+    <section className="relative w-full px-2 md:px-0">
       <DecorIcon className="size-4" position="top-left" />
       <DecorIcon className="size-4" position="top-right" />
       <DecorIcon className="size-4" position="bottom-left" />
@@ -81,7 +81,7 @@ export default function HeroImage() {
           className=" object-cover hidden md:block absolute top-0 left-0 -z-10 w-full min-h-max h-full dark:brightness-[0.9]"
         />
 
-        <div className="py-8 md:py-16 lg:py-20 md:px-12 lg:px-16 w-full flex flex-col gap-4 md:gap-6">
+        <div className="py-8 md:py-16 lg:py-20 md:px-12 lg:px-16 w-full flex flex-col gap-4 md:gap-6 scroll-mt-24">
           <Item className="flex p-0 mb-6 gap-0.5 flex-row items-center justify-start w-auto">
             <ItemMedia
               variant={"icon"}
@@ -212,7 +212,7 @@ export default function HeroImage() {
         </div>
       </div>
       <FullWidthDivider className="-bottom-px" />
-    </div>
+    </section>
   );
 }
 

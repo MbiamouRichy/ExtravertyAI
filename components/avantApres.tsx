@@ -44,7 +44,7 @@ const apresExtraverty = [
 
 function AvantApres() {
   return (
-    <section className="relative w-full flex flex-col items-center justify-center px-2 gap-6 md:gap-10 py-10">
+    <section className="relative w-full flex flex-col items-center justify-center px-2 gap-6 md:gap-10 py-10 scroll-mt-24">
       <DecorIcon className="size-4" position="bottom-left" />
       <DecorIcon className="size-4" position="bottom-right" />
       <div className="flex flex-col justify-center items-center text-center w-full max-w-3xl gap-2">

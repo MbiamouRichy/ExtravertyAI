@@ -37,9 +37,9 @@ export function Header() {
   return (
     <header
       className={cn(
-        "fixed left-1/2 top-1.5 -translate-x-1/2 backdrop-blur-sm supports-backdrop-filter:bg-background/50 z-50  w-full  max-w-5xl border-border border-b md:rounded-md md:border md:transition-all md:ease-out",
+        "fixed left-1/2 top-2.5 -translate-x-1/2 backdrop-blur-sm supports-backdrop-filter:bg-background/50 z-50  w-full  max-w-5xl border-border border-b md:rounded-md md:border md:transition-all md:ease-out",
         {
-          "md:top-2.5 md:max-w-4xl md:shadow": scrolled,
+          "md:top-3.5 md:max-w-4xl md:shadow": scrolled,
         },
       )}
     >

@@ -72,9 +72,9 @@ const items = [
 ];
 export function Faq() {
   return (
-    <div
+    <section
       id="faq"
-      className="relative w-full flex flex-col items-center justify-center gap-6 md:gap-10 py-10"
+      className="relative w-full flex flex-col items-center justify-center gap-6 md:gap-10 py-10 scroll-mt-24"
     >
       <DecorIcon className="size-4" position="top-left" />
       <DecorIcon className="size-4" position="top-right" />
@@ -122,6 +122,6 @@ export function Faq() {
         />
       </div>
       <FullWidthDivider className="-bottom-px" />
-    </div>
+    </section>
   );
 }

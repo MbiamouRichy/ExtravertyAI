@@ -60,7 +60,7 @@ const features2 = [
 function Demo() {
   return (
     <section
-      className="w-full relative flex flex-col items-center md:items-start gap-4 py-10 md:py-24 px-2 md:px-6 lg:px-12"
+      className="w-full relative flex flex-col items-center md:items-start gap-4 py-10 md:py-24 px-2 md:px-6 lg:px-12 scroll-mt-24"
       id="demo"
     >
       <DecorIcon className="size-4" position="bottom-left" />

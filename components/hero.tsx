@@ -10,8 +10,8 @@ import { Separator } from "./ui/separator";
 
 export function HeroSection() {
   return (
-    <section className="relative w-full">
-      <div className="flex flex-col max-w-5xl mx-auto items-center justify-center gap-5 px-2 pt-28 pb-8 md:px-4 md:py-32">
+    <section className="relative w-full scroll-mt-24">
+      <div className="flex flex-col max-w-5xl mx-auto items-center justify-center gap-5 px-2 pt-28 lg:pt-32 pb-8 md:pb-12 md:px-4">
         {/* X Faded Borders & Shades */}
         <div
           aria-hidden="true"

@@ -7,8 +7,8 @@ import {
   Crimson_Text,
   Roboto_Mono,
 } from "next/font/google";
-import { Analytics } from "@vercel/analytics/next"
-import { Header } from "@/components/header";
+import { Analytics } from "@vercel/analytics/next";
+import { Toaster } from "@/components/ui/sonner";
 
 const robotoMonoRobotoMono = Roboto_Mono({
   subsets: [
@@ -134,10 +134,10 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <Header />
           {children}
+          <Toaster/>
         </ThemeProvider>
-        <Analytics />
+        <Analytics/>
       </body>
     </html>
   );
