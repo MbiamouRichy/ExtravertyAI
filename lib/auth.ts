@@ -13,7 +13,7 @@ export const auth = betterAuth({
   account: {
     accountLinking: {
       enabled: true,
-      trustedProviders: ["google", "facebook"],
+      trustedProviders: ["google", "tiktok"],
     },
   },
   emailAndPassword: {
@@ -23,7 +23,7 @@ export const auth = betterAuth({
         to: user.email,
         subject: "Changement de mot de passe",
         html: ResetPasswordTemplate({ url, email: user.email }),
-        from: "noreply<extravertyai.com>",
+        from: "ExtravertyAI <notification@extravertyai.com>",
       });
     },
   },
@@ -33,9 +33,9 @@ export const auth = betterAuth({
       clientId: process.env.GOOGLE_CLIENT_ID as string,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET as string,
     },
-    facebook: {
-      clientId: process.env.FACEBOOK_CLIENT_ID as string,
-      clientSecret: process.env.FACEBOOK_CLIENT_SECRET as string,
+    tiktok: {
+      clientKey: process.env.TIKTOK_CLIENT_KEY as string,
+      clientSecret: process.env.TIKTOK_CLIENT_SECRET as string,
     },
   },
   emailVerification: {
@@ -46,7 +46,7 @@ export const auth = betterAuth({
         to: user.email,
         subject: "Verifier votre adresse e-mail",
         html: EmailTemplate({ url, email: user.email }),
-        from: "noreply<extravertyai.com>",
+        from: "ExtravertyAI <notification@extravertyai.com>",
       });
     },
   },

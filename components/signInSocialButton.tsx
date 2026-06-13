@@ -2,8 +2,7 @@ import { signIn } from "@/lib/auth-client";
 import { useHaptics } from "@/lib/webHaptics";
 import { toast } from "sonner";
 import { Button } from "./ui/button";
-import { GoogleIcon } from "./google-icon";
-import { FacebookIcon } from "./contact";
+import { GoogleIcon, TiktokIcon } from "./social-icon";
 type providerType = Parameters<typeof signIn.social>[0]["provider"];
 
 export function SignInSocialButton() {
@@ -12,7 +11,7 @@ export function SignInSocialButton() {
     await signIn.social(
       {
         provider: provider,
-        callbackURL: "/dashboard",
+        callbackURL: "/app",
       },
       {
         onError: (error) => {
@@ -26,7 +25,7 @@ export function SignInSocialButton() {
             action: {
               label: "Réessayer",
               onClick: () => {
-                SignInSocial("google");
+                SignInSocial(provider);
               },
             },
           });
@@ -45,13 +44,14 @@ export function SignInSocialButton() {
         Google
       </Button>
       <Button
-        onClick={() => SignInSocial("facebook")}
+        onClick={() => SignInSocial("tiktok")}
         variant="outline"
         type="button"
       >
-        <FacebookIcon data-icon="inline-start" />
-        Facebook
+        <TiktokIcon data-icon="inline-start" />
+        Tiktok
       </Button>
     </div>
   );
 }
+

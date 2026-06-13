@@ -4,9 +4,10 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { ArrowRight, ArrowRightIcon, StarIcon, Video } from "lucide-react";
 
 import Link from "next/link";
-import HeroImage, { WhatsAppIcon } from "./heroImage";
+import HeroImage from "./heroImage";
 import { VariantProps } from "class-variance-authority";
 import { Separator } from "./ui/separator";
+import { WhatsAppIcon } from "./social-icon";
 
 export function HeroSection() {
   return (

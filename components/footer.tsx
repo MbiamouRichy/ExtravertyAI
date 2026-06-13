@@ -3,7 +3,7 @@ import { LogoIcon } from "@/components/logo";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { navLinks } from "./header";
-import { FacebookIcon } from "./contact";
+import { FacebookIcon } from "./social-icon";
 import { FullWidthDivider } from "./ui/full-width-divider";
 import { AutomatiserButton } from "./hero";
 import { DecorIcon } from "./ui/decor-icon";

@@ -147,7 +147,7 @@ export function PricingCard({
       <div
         className={cn(
           "border-b p-2 md:p-4",
-          plan.highlighted && "bg-card dark:bg-card/80",
+          plan.highlighted && "bg-primary/5 dark:bg-card",
         )}
       >
         <div className="flex flex-row justify-between items-center w-full">

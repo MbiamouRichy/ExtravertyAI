@@ -63,7 +63,7 @@ export function AuthPage() {
 					toast.success("Connexion réussie.", {
 						position: "top-center",
 					});
-					router.push("/dashboard");
+					router.push("/app");
 				},
 				onError: (error) => {
 					let errorMessage = "";
@@ -207,7 +207,7 @@ export function AuthPage() {
 
 										<FieldDescription className="px-6 text-center">
 											Je n{`'`}ai pas de compte?{" "}
-											<Link title="s'identifier" href="/inscription">
+											<Link title="s'identifier" href="/sign-up">
 												S{`'`}incrire
 											</Link>
 										</FieldDescription>
