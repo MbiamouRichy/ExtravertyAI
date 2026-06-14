@@ -7,13 +7,7 @@ import { toast } from "sonner";
 import * as z from "zod";
 
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+
 import {
   Field,
   FieldDescription,
@@ -29,6 +23,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Eye, EyeOff, Loader } from "lucide-react";
 import { useState } from "react";
 import { useHaptics } from "@/lib/webHaptics";
+import { DecorIcon } from "@/components/decor-icon";
+import { cn } from "@/lib/utils";
 
 const formSchema = z.object({
   password: z
@@ -79,7 +75,7 @@ export default function ResetPassword() {
             description: (
               <p className="text-muted-foreground text-sm">
                 {error.error.message ===
-                "[body.token] Invalid input: expected string, received null"
+                  "[body.token] Invalid input: expected string, received null"
                   ? "Le token de réinitialisation est invalide ou a expiré."
                   : "Une erreur inconnue s'est produite."}
               </p>
@@ -99,77 +95,88 @@ export default function ResetPassword() {
     setLoading(false);
   }
   return (
-    <div className="w-screen min-h-screen flex flex-col items-center justify-center p-2">
-      <h1>Changer de mot de passe</h1>
-      <Card className="w-full mt-2 md:max-w-prose">
-        <CardHeader>
-          <CardTitle>Reinitialiser votre mot de passe</CardTitle>
-          <CardDescription>
-            Entrer votre nouveau mot de passe pour recevoir pour le mettre à
-            jour.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form id="form-rhf-demo" onSubmit={form.handleSubmit(onSubmit)}>
-            <FieldGroup>
-              <Controller
-                name="password"
-                control={form.control}
-                render={({ field, fieldState }) => (
-                  <Field data-invalid={fieldState.invalid}>
-                    <FieldLabel htmlFor={field.name}>
-                      Nouveau mot de passe
-                    </FieldLabel>
-                    <div className="relative">
-                      <Input
-                        {...field}
-                        id={field.name}
-                        aria-invalid={fieldState.invalid}
-                        placeholder="Entrer votre nouveau mot de passe"
-                        autoComplete="off"
-                        type={showPassword ? "text" : "password"}
-                      />
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-2 top-0 rounded-md p-0 data-[state=open]:bg-transparent"
-                        type="button"
-                      >
-                        {showPassword ? (
-                          <Eye className="h-4 w-4" />
-                        ) : (
-                          <EyeOff className="h-4 w-4" />
-                        )}
-                      </Button>
-                    </div>
-
-                    {fieldState.invalid && (
-                      <FieldError errors={[fieldState.error]} />
-                    )}
-                  </Field>
-                )}
-              />
-
+    <div className="relative flex h-screen w-full items-center justify-center overflow-hidden px-6 md:px-8">
+      <div
+        className={cn(
+          "relative flex w-full max-w-md flex-col justify-between p-6 md:p-8",
+          "dark:bg-[radial-gradient(50%_80%_at_20%_0%,--theme(--color-foreground/.1),transparent)]"
+        )}
+      >
+        <div className="absolute -inset-y-6 -left-px w-px bg-border" />
+        <div className="absolute -inset-y-6 -right-px w-px bg-border" />
+        <div className="absolute -inset-x-6 -top-px h-px bg-border" />
+        <div className="absolute -inset-x-6 -bottom-px h-px bg-border" />
+        <DecorIcon position="top-left" />
+        <DecorIcon position="bottom-right" />
+        <div className="w-full max-w-md animate-in space-y-8">
+          <div className="flex flex-col space-y-1">
+            <h1 className="font-bold text-2xl tracking-wide">Reinitialisation</h1>
+            <p className="text-base text-muted-foreground">
+              Saisissez votre nouveau mot de passe pour sécuriser l&apos;accès à votre compte.
+            </p>
+          </div>
+          <div className="space-y-4">
+            <form id="form-rhf-demo" onSubmit={form.handleSubmit(onSubmit)}>
               <FieldGroup>
-                <Field>
-                  <Button disabled={loading} type="submit" id="form-rhf-demo">
-                    {loading ? <Loader className="animate-spin" /> : null}
-                    Changer de mot de passe
-                  </Button>
+                <Controller
+                  name="password"
+                  control={form.control}
+                  render={({ field, fieldState }) => (
+                    <Field data-invalid={fieldState.invalid}>
+                      <FieldLabel htmlFor={field.name}>
+                        Nouveau mot de passe
+                      </FieldLabel>
+                      <div className="relative">
+                        <Input
+                          {...field}
+                          id={field.name}
+                          aria-invalid={fieldState.invalid}
+                          placeholder="Entrer votre nouveau mot de passe"
+                          autoComplete="off"
+                          type={showPassword ? "text" : "password"}
+                        />
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="absolute right-2 top-0 rounded-md p-0 data-[state=open]:bg-transparent"
+                          type="button"
+                        >
+                          {showPassword ? (
+                            <Eye className="h-4 w-4" />
+                          ) : (
+                            <EyeOff className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </div>
 
-                  <FieldDescription className="px-6 text-center">
-                    Je n{`'`}ai pas de compte?{" "}
-                    <Link title="s'identifier" href="sign-up">
-                      S{`'`}incrire
-                    </Link>
-                  </FieldDescription>
-                </Field>
+                      {fieldState.invalid && (
+                        <FieldError errors={[fieldState.error]} />
+                      )}
+                    </Field>
+                  )}
+                />
+
+                <FieldGroup>
+                  <Field>
+                    <Button disabled={loading} type="submit" id="form-rhf-demo">
+                      {loading ? <Loader className="animate-spin" /> : null}
+                      Changer de mot de passe
+                    </Button>
+
+                    <FieldDescription className="px-6 text-center">
+                      Je n{`'`}ai pas de compte?{" "}
+                      <Link title="s'identifier" href="/sign-up">
+                        S{`'`}incrire
+                      </Link>
+                    </FieldDescription>
+                  </Field>
+                </FieldGroup>
               </FieldGroup>
-            </FieldGroup>
-          </form>
-        </CardContent>
-      </Card>
+            </form>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

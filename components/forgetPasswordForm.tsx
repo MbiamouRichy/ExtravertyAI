@@ -16,12 +16,16 @@ import {
   FieldGroup,
   FieldLabel,
 } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from "@/components/ui/input-group";
 
 import Link from "next/link";
 import { authClient } from "@/lib/auth-client";
 import { useRouter } from "next/navigation";
-import { Loader } from "lucide-react";
+import { AtSignIcon, Loader } from "lucide-react";
 import { useState } from "react";
 import { useHaptics } from "@/lib/webHaptics";
 import { cn } from "@/lib/utils";
@@ -117,12 +121,18 @@ export default function ForgetPasswordForm() {
                   render={({ field, fieldState }) => (
                     <Field data-invalid={fieldState.invalid}>
                       <FieldLabel htmlFor={field.name}>Email</FieldLabel>
-                      <Input
-                        {...field}
-                        id={field.name}
-                        aria-invalid={fieldState.invalid}
-                        placeholder="Entrer votre adresse e-mail"
-                      />
+                      <InputGroup>
+                        <InputGroupInput
+                          type="email"
+                          {...field}
+                          id={field.name}
+                          aria-invalid={fieldState.invalid}
+                          placeholder="votre.email@example.com"
+                        />
+                        <InputGroupAddon align="inline-start">
+                          <AtSignIcon />
+                        </InputGroupAddon>
+                      </InputGroup>
 
                       {fieldState.invalid && (
                         <FieldError errors={[fieldState.error]} />

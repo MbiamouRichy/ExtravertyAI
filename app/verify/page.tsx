@@ -16,9 +16,7 @@ export default async function page(props: {
 
   return (
     <main className="w-screen h-screen flex items-center justify-center flex-col mx-auto p-2 md:p-6 space-y-4 text-white">
-
-          <h1>Vérification de l{`'`}e-mail</h1>
-          <Card className="w-full max-w-prose">
+          <Card className="w-full max-w-md">
             <CardHeader>
               <CardTitle>Veuillez vérifier votre adresse e-mail.</CardTitle>
 

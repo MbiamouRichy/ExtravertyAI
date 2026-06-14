@@ -5,7 +5,7 @@ import { Button } from "./ui/button";
 import { GoogleIcon, TiktokIcon } from "./social-icon";
 type providerType = Parameters<typeof signIn.social>[0]["provider"];
 
-export function SignInSocialButton() {
+export function SignInSocialButton({variant: variant = "outline", form: form= "grid", text}: {variant?: "outline" | "default", form?: "grid" | "flex", text?: string}) {
   const { playHaptic } = useHaptics();
   async function SignInSocial(provider: providerType) {
     await signIn.social(
@@ -34,22 +34,22 @@ export function SignInSocialButton() {
     );
   }
   return (
-    <div className="grid grid-cols-2 gap-2 space-y-2">
+    <div className={`gap-2 space-y-2 ${form === "flex" ? "flex flex-col" : "grid grid-cols-2"}`}>
       <Button
         onClick={() => SignInSocial("google")}
-        variant="outline"
+        variant={variant}
         type="button"
       >
         <GoogleIcon data-icon="inline-start"/>
-        Google
+        {text} Google
       </Button>
       <Button
         onClick={() => SignInSocial("tiktok")}
-        variant="outline"
+        variant={variant}
         type="button"
       >
         <TiktokIcon data-icon="inline-start" />
-        Tiktok
+        {text} Tiktok
       </Button>
     </div>
   );
