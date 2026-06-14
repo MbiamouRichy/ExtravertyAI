@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/input-group";
 import { AuthDivider } from "@/components/auth-divider";
 import { FloatingPaths } from "@/components/floating-paths";
-import { ChevronLeftIcon, AtSignIcon, Loader, Eye, EyeOff, UserIcon, UserKeyIcon } from "lucide-react";
+import { ChevronLeftIcon, AtSignIcon, Loader, Eye, EyeOff, UserIcon, UserKeyIcon, KeySquareIcon } from "lucide-react";
 import { SignInSocialButton } from "./signInSocialButton";
 import Link from "next/link";
 import { signUp } from "@/lib/auth-client";
@@ -37,7 +37,7 @@ const formSchema = z
 			.string()
 			.min(2, "Votre nom doit contenir au moins 02 caractères.")
 			.max(32, "Votre nom doit contenir au maximum 32 caractères."),
-		email: z.string().email("Entrer une addresse email."),
+		email: z.string().email("Entrez une adresse email valide."),
 		password: z
 			.string()
 			.min(8, "La mot de passe doit contenir au moins 8 caractères.")
@@ -184,7 +184,7 @@ export function AuthPage() {
 								render={({ field, fieldState }) => (
 									<Field data-invalid={fieldState.invalid}>
 										<FieldLabel htmlFor={field.name}>
-											Entrer votre adresse e-mail
+											Entrez votre adresse e-mail
 										</FieldLabel>
 										<InputGroup>
 											<InputGroupInput
@@ -222,7 +222,7 @@ export function AuthPage() {
 												type={showPassword ? "text" : "password"}
 											/>
 											<InputGroupAddon align="inline-start">
-												<UserKeyIcon/>
+												<KeySquareIcon/>
 											</InputGroupAddon>
 											<InputGroupAddon align="inline-end">
 												<InputGroupButton
