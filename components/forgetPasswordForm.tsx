@@ -31,7 +31,7 @@ import { useHaptics } from "@/lib/webHaptics";
 import { cn } from "@/lib/utils";
 
 const formSchema = z.object({
-  email: z.string().email("Entrer une addresse email."),
+  email: z.string().email("Entrer une adresse email valide."),
 });
 
 export default function ForgetPasswordForm() {

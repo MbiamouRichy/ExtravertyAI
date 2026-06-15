@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/input-group";
 import { AuthDivider } from "@/components/auth-divider";
 import { FloatingPaths } from "@/components/floating-paths";
-import { ChevronLeftIcon, AtSignIcon, Loader, Eye, EyeOff, UserIcon, UserKeyIcon, KeySquareIcon } from "lucide-react";
+import { ChevronLeftIcon, AtSignIcon, Loader, Eye, EyeOff, UserIcon, KeySquareIcon } from "lucide-react";
 import { SignInSocialButton } from "./signInSocialButton";
 import Link from "next/link";
 import { signUp } from "@/lib/auth-client";
@@ -229,7 +229,6 @@ export function AuthPage() {
 													variant="ghost"
 													size="icon-sm"
 													onClick={() => setShowPassword(!showPassword)}
-													className="rounded-md p-0 data-[state=open]:bg-transparent"
 													type="button"
 												>
 													{showPassword ? (

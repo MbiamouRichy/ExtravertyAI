@@ -11,11 +11,12 @@ import {
 import {
 	InputGroup,
 	InputGroupAddon,
+	InputGroupButton,
 	InputGroupInput,
 } from "@/components/ui/input-group";
 import { AuthDivider } from "@/components/auth-divider";
 import { DecorIcon } from "@/components/decor-icon";
-import {  AtSignIcon, Eye, EyeOff, Loader } from "lucide-react";
+import { AtSignIcon, Eye, EyeOff, KeySquareIcon, Loader } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useHaptics } from "@/lib/webHaptics";
 import Link from "next/link";
@@ -25,16 +26,15 @@ import { toast } from "sonner";
 import { signIn } from "@/lib/auth-client";
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Controller, useForm } from "react-hook-form"
-import { Input } from "./ui/input";
 import { Checkbox } from "./ui/checkbox";
 import { SignInSocialButton } from "./signInSocialButton";
 
 const formSchema = z.object({
-	email: z.string().email("Entrer une addresse email."),
+	email: z.string().email("Entrer une adresse email valide."),
 	password: z
 		.string()
-		.min(8, "La mot de passe doit contenir au moins 8 caractères.")
-		.max(10, "La mot de passe doit contenir au maximum 10 caractères."),
+		.min(8, "Le mot de passe doit contenir au moins 8 caractères.")
+		.max(15, "Le mot de passe doit contenir au maximum 15 caractères."),
 });
 
 
@@ -119,7 +119,7 @@ export function AuthPage() {
 					<div className="flex flex-col space-y-1">
 						<h1 className="font-bold text-2xl tracking-wide">Rejoignez-nous!</h1>
 						<p className="text-base text-muted-foreground">
-							Connectez-vous a votre compte ExtravertyAI.
+							Connectez-vous à votre compte ExtravertyAI.
 						</p>
 					</div>
 					<div className="space-y-4">
@@ -132,114 +132,116 @@ export function AuthPage() {
 										<Field data-invalid={fieldState.invalid}>
 											<FieldLabel htmlFor={field.name}>Email</FieldLabel>
 											<InputGroup>
-											<InputGroupInput
-												type="email"
+												<InputGroupInput
+													type="email"
 													{...field}
 													id={field.name}
 													aria-invalid={fieldState.invalid}
 													placeholder="votre.email@example.com"
-											/>
-											<InputGroupAddon align="inline-start">
-												<AtSignIcon />
-											</InputGroupAddon>
-										</InputGroup>
+												/>
+												<InputGroupAddon align="inline-start">
+													<AtSignIcon />
+												</InputGroupAddon>
+											</InputGroup>
 											{fieldState.invalid && (
-										<FieldError errors={[fieldState.error]} />
-									)}
+												<FieldError errors={[fieldState.error]} />
+											)}
 										</Field>
 									)}
 								/>
-							<Controller
-								name="password"
-								control={form.control}
-								render={({ field, fieldState }) => (
-									<Field data-invalid={fieldState.invalid}>
-										<div className="flex flex-row w-full items-center justify-between">
-											<FieldLabel htmlFor={field.name}>Mot de passe</FieldLabel>
-											<Link
-												href="/forget-password"
-												className="text-sm text-muted-foreground underline focus-visible:underline"
-											>
-												Mot de passe oublié?
-											</Link>
-										</div>
-										<div className="relative w-full">
-											<Input
-												{...field}
-												id={field.name}
-												aria-invalid={fieldState.invalid}
-												placeholder="Entrer le mot de passe."
-												autoComplete="off"
-												type={showPassword ? "text" : "password"}
-											/>
-											<Button
-												variant="ghost"
-												size="icon"
-												onClick={() => setShowPassword(!showPassword)}
-												className="absolute right-2 top-0 rounded-md p-0 data-[state=open]:bg-transparent"
-												type="button"
-											>
-												{showPassword ? (
-													<Eye className="h-4 w-4" />
-												) : (
-													<EyeOff className="h-4 w-4" />
-												)}
-											</Button>
-										</div>
-
-										{fieldState.invalid && (
-											<FieldError errors={[fieldState.error]} />
-										)}
-									</Field>
-								)}
-							/>
-
-							<Field orientation="horizontal">
-								<Checkbox
-									id="terms-checkbox-desc"
-									name="terms-checkbox-desc"
-									checked={checked}
-									onCheckedChange={(value) => setChecked(value === true)}
+								<Controller
+									name="password"
+									control={form.control}
+									render={({ field, fieldState }) => (
+										<Field data-invalid={fieldState.invalid}>
+											<div className="flex flex-row w-full items-center justify-between">
+												<FieldLabel htmlFor={field.name}>Mot de passe</FieldLabel>
+												<Link
+													href="/forget-password"
+													className="text-sm text-muted-foreground underline focus-visible:underline"
+												>
+													Mot de passe oublié?
+												</Link>
+											</div>
+											<InputGroup>
+												<InputGroupInput
+													{...field}
+													id={field.name}
+													aria-invalid={fieldState.invalid}
+													placeholder="Entrer le mot de passe."
+													autoComplete="off"
+													type={showPassword ? "text" : "password"}
+												/>
+												<InputGroupAddon align="inline-start">
+													<KeySquareIcon />
+												</InputGroupAddon>
+												<InputGroupAddon align="inline-end">
+													<InputGroupButton
+														variant="ghost"
+														size="icon-sm"
+														onClick={() => setShowPassword(!showPassword)}
+														type="button"
+													>
+														{showPassword ? (
+															<Eye />
+														) : (
+															<EyeOff />
+														)}</InputGroupButton>
+												</InputGroupAddon>
+											</InputGroup>
+											{fieldState.invalid && (
+												<FieldError errors={[fieldState.error]} />
+											)}
+										</Field>
+									)}
 								/>
-								<FieldLabel htmlFor="terms-checkbox-desc">
-									Se souvenir de moi
-								</FieldLabel>
-							</Field>
 
-							<FieldGroup>
-								<Field>
-									<Button disabled={loading} type="submit" id="form-rhf-demo">
-										{loading ? <Loader className="animate-spin" /> : null}
-										Se connecter
-									</Button>
-
-									{/* Se connecter avec Google */}
-
-									<FieldDescription className="px-6 text-center">
-										Je n{`'`}ai pas de compte?{" "}
-										<Link title="s'identifier" href="/sign-up">
-											S{`'`}incrire
-										</Link>
-									</FieldDescription>
+								<Field orientation="horizontal">
+									<Checkbox
+										id="terms-checkbox-desc"
+										name="terms-checkbox-desc"
+										checked={checked}
+										onCheckedChange={(value) => setChecked(value === true)}
+									/>
+									<FieldLabel htmlFor="terms-checkbox-desc">
+										Se souvenir de moi
+									</FieldLabel>
 								</Field>
+
+								<FieldGroup>
+									<Field>
+										<Button disabled={loading} type="submit" id="form-rhf-demo">
+											{loading ? <Loader className="animate-spin" /> : null}
+											Se connecter
+										</Button>
+
+										{/* Se connecter avec Google */}
+
+										<FieldDescription className="px-6 text-center">
+											Je n{`'`}ai pas de compte?{" "}
+											<Link title="s'identifier" href="/sign-up">
+												S{`'`}incrire
+											</Link>
+										</FieldDescription>
+									</Field>
+								</FieldGroup>
 							</FieldGroup>
-						</FieldGroup>
-					</form>
-					<AuthDivider>Ou</AuthDivider>
-					<SignInSocialButton />
+						</form>
+						<AuthDivider>Ou</AuthDivider>
+						<SignInSocialButton />
+					</div>
+					<p className="text-muted-foreground text-sm">
+						En continuant, vous acceptez notre{" "}
+						<Link
+							className="underline underline-offset-4 hover:text-primary"
+							href="/donneesEtConfidentialite"
+						>
+							politique de confidentialité
+						</Link>
+						.
+					</p>
 				</div>
-				<p className="text-muted-foreground text-sm">
-					En continuant, vous acceptez notre{" "}
-					<Link
-						className="underline underline-offset-4 hover:text-primary"
-						href="/donneesEtConfidentialite"
-					>
-						politique de confidentialité
-					</Link>
-					.
-				</p>
 			</div>
-		</div>
 		</div >
 	);
 }

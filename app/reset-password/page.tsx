@@ -15,12 +15,16 @@ import {
   FieldGroup,
   FieldLabel,
 } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
-
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupInput,
+} from "@/components/ui/input-group";
 import Link from "next/link";
 import { authClient } from "@/lib/auth-client";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Eye, EyeOff, Loader } from "lucide-react";
+import { Eye, EyeOff, KeySquareIcon, Loader } from "lucide-react";
 import { useState } from "react";
 import { useHaptics } from "@/lib/webHaptics";
 import { DecorIcon } from "@/components/decor-icon";
@@ -29,8 +33,8 @@ import { cn } from "@/lib/utils";
 const formSchema = z.object({
   password: z
     .string()
-    .min(8, "La mot de passe doit contenir au moins 8 caractères.")
-    .max(10, "La mot de passe doit contenir au maximum 10 caractères."),
+    .min(8, "Le mot de passe doit contenir au moins 8 caractères.")
+    .max(15, "Le mot de passe doit contenir au maximum 15 caractères."),
 });
 
 export default function ResetPassword() {
@@ -126,29 +130,32 @@ export default function ResetPassword() {
                       <FieldLabel htmlFor={field.name}>
                         Nouveau mot de passe
                       </FieldLabel>
-                      <div className="relative">
-                        <Input
+                      <InputGroup>
+                        <InputGroupInput
                           {...field}
                           id={field.name}
                           aria-invalid={fieldState.invalid}
-                          placeholder="Entrer votre nouveau mot de passe"
+                          placeholder="Entrez le nouveau mot de passe."
                           autoComplete="off"
                           type={showPassword ? "text" : "password"}
                         />
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => setShowPassword(!showPassword)}
-                          className="absolute right-2 top-0 rounded-md p-0 data-[state=open]:bg-transparent"
-                          type="button"
-                        >
-                          {showPassword ? (
-                            <Eye className="h-4 w-4" />
-                          ) : (
-                            <EyeOff className="h-4 w-4" />
-                          )}
-                        </Button>
-                      </div>
+                        <InputGroupAddon align="inline-start">
+                          <KeySquareIcon />
+                        </InputGroupAddon>
+                        <InputGroupAddon align="inline-end">
+                          <InputGroupButton
+                            variant="ghost"
+                            size="icon-sm"
+                            onClick={() => setShowPassword(!showPassword)}
+                            type="button"
+                          >
+                            {showPassword ? (
+                              <Eye />
+                            ) : (
+                              <EyeOff />
+                            )}</InputGroupButton>
+                        </InputGroupAddon>
+                      </InputGroup>
 
                       {fieldState.invalid && (
                         <FieldError errors={[fieldState.error]} />
