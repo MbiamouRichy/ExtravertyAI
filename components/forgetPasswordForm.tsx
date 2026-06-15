@@ -150,7 +150,7 @@ export default function ForgetPasswordForm() {
 
                     <FieldDescription className="px-6 text-center">
                       Je n{`'`}ai pas de compte?{" "}
-                      <Link title="s'identifier" href="/sign-up">
+                      <Link title="s'inscrire" href="/sign-up">
                         S{`'`}incrire
                       </Link>
                     </FieldDescription>
