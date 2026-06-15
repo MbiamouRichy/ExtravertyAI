@@ -148,8 +148,8 @@ export function AuthPage() {
 						</p>
 					</div>
 					
-					<form id="form-inscription" onSubmit={form.handleSubmit(onSubmit)} className="space-y-2">
-						<FieldGroup>
+					<form id="form-inscription" onSubmit={form.handleSubmit(onSubmit)}>
+						<FieldGroup className="gap-4">
 							<Controller
 								name="nom"
 								control={form.control}
@@ -270,9 +270,13 @@ export function AuthPage() {
 					</div>
 
 					<p className="mt-8 mx-auto text-center text-muted-foreground text-sm">
-						J{`'`}ai dejà un compte?{" "}
-						<Link title="s'identifier" href="/sign-in">
-							S{`'`}identifier
+						Vous avez déjà un compte?{" "}
+						<Link
+							className="underline underline-offset-4 hover:text-primary"
+							title="s'identifier"
+							href="/sign-in"
+						>
+							Identifiez-vous
 						</Link>
 					</p>
 				</div>

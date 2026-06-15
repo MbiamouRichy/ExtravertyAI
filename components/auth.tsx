@@ -123,8 +123,8 @@ export function AuthPage() {
 						</p>
 					</div>
 					<div className="space-y-4">
-						<form id="form-rhf-demo" onSubmit={form.handleSubmit(onSubmit)}>
-							<FieldGroup className="gap-2">
+						<form  id="form-rhf-demo" onSubmit={form.handleSubmit(onSubmit)}>
+							<FieldGroup className="gap-4">
 								<Controller
 									name="email"
 									control={form.control}
@@ -218,9 +218,11 @@ export function AuthPage() {
 										{/* Se connecter avec Google */}
 
 										<FieldDescription className="px-6 text-center">
-											Je n{`'`}ai pas de compte?{" "}
-											<Link title="s'identifier" href="/sign-up">
-												S{`'`}incrire
+											Vous n{`'`}avez pas de compte?{" "}
+											<Link
+												className="underline underline-offset-4 hover:text-primary"
+												 title="s'inscrire" href="/sign-up">
+												Inscrivez-vous
 											</Link>
 										</FieldDescription>
 									</Field>
