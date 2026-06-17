@@ -1,3 +1,4 @@
+import { EmailTemplate } from '@/components/emailTemplate';
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import prisma from "./prisma";
@@ -36,5 +37,16 @@ export const auth = betterAuth({
       clientKey: process.env.TIKTOK_CLIENT_KEY as string,
       clientSecret: process.env.TIKTOK_CLIENT_SECRET as string,
     },
-  }
+  },
+  emailVerification: {
+      sendOnSignUp: true,
+      sendVerificationEmail: async ({ user, url }) => {
+        await resend.emails.send({
+          to: user.email,
+          subject: "Verifier votre adresse e-mail",
+          html: EmailTemplate({ url, email: user.email }),
+          from: "ExtravertyAI <notification@extravertyai.com>",
+        });
+      },
+    },
 });

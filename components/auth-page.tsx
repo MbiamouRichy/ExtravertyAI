@@ -30,7 +30,6 @@ import Link from "next/link";
 import { signUp } from "@/lib/auth-client";
 import { useState } from "react";
 import { useHaptics } from "@/lib/webHaptics";
-import { useRouter } from "next/navigation";
 const formSchema = z
 	.object({
 		nom: z
@@ -47,7 +46,6 @@ const formSchema = z
 	
 
 export function AuthPage() {
-	const router = useRouter();
 	const { playHaptic } = useHaptics();
 	const [loading, setLoading] = useState<boolean>(false);
 	const [showPassword, setShowPassword] = useState(false);
@@ -74,10 +72,9 @@ export function AuthPage() {
 				onSuccess: () => {
 					playHaptic("success");
 
-					toast.success("Compte créé avec succès.", {
+					toast.success("Verifier votre adresse email pour verification", {
 						position: "top-center",
 					});
-					router.push("/dashboard");
 				},
 				onError: (error) => {
 					playHaptic("error");

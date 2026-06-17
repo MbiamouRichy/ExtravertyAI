@@ -9,6 +9,7 @@ import {
 } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import { Toaster } from "@/components/ui/sonner";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 const robotoMonoRobotoMono = Roboto_Mono({
   subsets: [
@@ -134,7 +135,7 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          {children}
+          <TooltipProvider>{children}</TooltipProvider>
           <Toaster/>
         </ThemeProvider>
         <Analytics/>
