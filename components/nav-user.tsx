@@ -14,29 +14,27 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { signOut } from "@/lib/auth-client";
+import { User } from "better-auth";
 import { UserIcon, SettingsIcon, CreditCardIcon, LogOutIcon } from "lucide-react";
+import { redirect } from "next/navigation";
 
-const user = {
-	name: "Shaban Haider",
-	email: "shaban@efferd.com",
-	avatar: "https://github.com/shabanhr.png",
-};
 
-export function NavUser() {
+export function NavUser(user: User) {
 	return (
 		<DropdownMenu>
 			<DropdownMenuTrigger asChild>
 				<Avatar className="size-8">
-					<AvatarImage src={user.avatar} />
-					<AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
+					<AvatarImage src={user.image ?? undefined} />
+					<AvatarFallback>{user.name.charAt(0).toUpperCase()}{user.name.charAt(1).toLowerCase()}</AvatarFallback>
 				</Avatar>
 			</DropdownMenuTrigger>
 			<DropdownMenuContent align="end" className="w-60">
 				<DropdownMenuItem className="flex items-center justify-start gap-2">
 					<DropdownMenuLabel className="flex items-center gap-3">
 						<Avatar className="size-10">
-							<AvatarImage src={user.avatar} />
-							<AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
+							<AvatarImage src={user.image ?? undefined} />
+							<AvatarFallback>{user.name.charAt(0).toUpperCase()}{user.name.charAt(1).toLowerCase()}</AvatarFallback>
 						</Avatar>
 						<div>
 							<span className="font-medium text-foreground">{user.name}</span>{" "}
@@ -71,12 +69,16 @@ export function NavUser() {
 				<DropdownMenuSeparator />
 				<DropdownMenuGroup>
 					<DropdownMenuItem
+						onClick={() => {
+							signOut()
+							redirect("/sign-in");
+						}}
 						className="w-full cursor-pointer"
 						variant="destructive"
 					>
 						<LogOutIcon
 						/>
-						Log out
+						Se déconnecter
 					</DropdownMenuItem>
 				</DropdownMenuGroup>
 			</DropdownMenuContent>

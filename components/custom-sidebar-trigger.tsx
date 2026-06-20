@@ -10,10 +10,10 @@ export function CustomSidebarTrigger() {
 	return (
 		<Tooltip delayDuration={1000}>
 			<TooltipTrigger asChild>
-				<SidebarTrigger />
+				<SidebarTrigger variant="ghost" />
 			</TooltipTrigger>
 			<TooltipContent className="px-2 py-1" side="right">
-				Toggle Sidebar{" "}
+				Basculer la barre latérale {" "}
 				<KbdGroup>
 					<Kbd>⌘</Kbd>
 					<Kbd>b</Kbd>

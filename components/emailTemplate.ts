@@ -96,7 +96,7 @@ export function EmailTemplate({ url, email }: { url: string; email: string }) {
 
                 <!-- Avertissement de sécurité -->
                 <p style="margin: 0; font-size: 13px; line-height: 18px; color: #9ca3af;">
-                  Si vous n'avez pas créé de compte sur [Nom de la Startup], aucune action n'est requise de votre part. Vous pouvez ignorer cet email en toute sécurité.
+                  Si vous n'avez pas créé de compte sur ExtravertyAI, aucune action n'est requise de votre part. Vous pouvez ignorer cet email en toute sécurité.
                 </p>
 
               </td>

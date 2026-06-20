@@ -41,9 +41,9 @@ const formSchema = z
 			.string()
 			.min(8, "La mot de passe doit contenir au moins 8 caractères.")
 			.max(15, "La mot de passe doit contenir au maximum 15 caractères."),
-		
+
 	});
-	
+
 
 export function AuthPage() {
 	const { playHaptic } = useHaptics();
@@ -62,40 +62,59 @@ export function AuthPage() {
 
 	async function onSubmit(data: z.infer<typeof formSchema>) {
 		setLoading(true);
-		await signUp.email(
-			{
-				name: data.nom as string,
-				email: data.email as string,
-				password: data.password as string,
-			},
-			{
-				onSuccess: () => {
-					playHaptic("success");
+		try {
+			await signUp.email(
+				{
+					name: data.nom as string,
+					email: data.email as string,
+					password: data.password as string,
+					callbackURL: "/dashboard",
+				},
+				{
+					onSuccess: () => {
+						playHaptic("success");
 
-					toast.success("Verifier votre adresse email pour verification", {
-						position: "top-center",
-					});
-				},
-				onError: (error) => {
-					playHaptic("error");
-					toast.error("Une erreur s'est produite.", {
-						description:
-							error.error.message === "User already exists. Use another email."
-								? "Cet email est déjà utilisé. Veuillez en utiliser un autre."
-								: "Quelque chose s'est mal passé. Veuillez réessayer.",
-						position: "top-center",
-						className: "text-muted-foreground text-sm bg-card",
-						action: {
-							label: "Réessayer",
-							onClick: () => {
-								onSubmit(data);
+						toast.success("Verifier votre adresse email pour verification", {
+							position: "top-center",
+						});
+					},
+					onError: (error) => {
+						playHaptic("error");
+						toast.error("Une erreur s'est produite.", {
+							description:
+								error.error.message === "User already exists. Use another email."
+									? "Cet email est déjà utilisé. Veuillez en utiliser un autre."
+									: "Quelque chose s'est mal passé. Veuillez réessayer.",
+							position: "top-center",
+							className: "text-muted-foreground text-sm bg-card",
+							action: {
+								label: "Réessayer",
+								onClick: () => {
+									onSubmit(data);
+								},
 							},
-						},
-					});
+						});
+					},
 				},
-			},
-		);
-		setLoading(false);
+			)
+		} catch (error) {
+			console.error("Erreur d'inscription:", error);
+			playHaptic("error");
+			toast.error("Une erreur s'est produite.", {
+				description:
+					"Quelque chose s'est mal passé. Veuillez réessayer.",
+				position: "top-center",
+				className: "text-muted-foreground text-sm bg-card",
+				action: {
+					label: "Réessayer",
+					onClick: () => {
+						onSubmit(data);
+					},
+				},
+			});
+		} finally {
+			setLoading(false);
+		}
 	}
 	return (
 		<main className="relative md:min-h-screen h-full overflow-x-hidden lg:grid lg:grid-cols-2">
@@ -144,7 +163,7 @@ export function AuthPage() {
 							Creer un compte sur ExtravertyAI.
 						</p>
 					</div>
-					
+
 					<form id="form-inscription" onSubmit={form.handleSubmit(onSubmit)}>
 						<FieldGroup className="gap-4">
 							<Controller
@@ -153,7 +172,7 @@ export function AuthPage() {
 								render={({ field, fieldState }) => (
 									<Field data-invalid={fieldState.invalid}>
 										<FieldLabel htmlFor={field.name}>
-											Entrer votre nom
+											Entrez votre nom
 										</FieldLabel>
 										<InputGroup>
 											<InputGroupInput
@@ -219,7 +238,7 @@ export function AuthPage() {
 												type={showPassword ? "text" : "password"}
 											/>
 											<InputGroupAddon align="inline-start">
-												<KeySquareIcon/>
+												<KeySquareIcon />
 											</InputGroupAddon>
 											<InputGroupAddon align="inline-end">
 												<InputGroupButton

@@ -1,8 +1,6 @@
-import SignOutButton from "@/components/signOutButton";
 import {
   Card,
   CardContent,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -42,9 +40,7 @@ export default async function DashboardPage() {
             <p>{user.email}</p>
           </div>
         </CardContent>
-        <CardFooter>
-          <SignOutButton />
-        </CardFooter>
+
       </Card>
     </main>
   );

@@ -68,7 +68,7 @@ export function AuthPage() {
 					toast.success("Connexion réussie.", {
 						position: "top-center",
 					});
-					router.push("/app");
+					router.push("/dashboard");
 				},
 				onError: (error) => {
 					let errorMessage = "";

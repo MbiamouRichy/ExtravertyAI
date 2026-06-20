@@ -11,7 +11,7 @@ export function SignInSocialButton({variant: variant = "outline", form: form= "g
     await signIn.social(
       {
         provider: provider,
-        callbackURL: "/app",
+        callbackURL: "/dashboard",
       },
       {
         onError: (error) => {

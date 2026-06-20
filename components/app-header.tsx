@@ -7,10 +7,17 @@ import { navLinks } from "@/components/app-shared";
 import { CustomSidebarTrigger } from "@/components/custom-sidebar-trigger";
 import { NavUser } from "@/components/nav-user";
 import { SendIcon, BellIcon } from "lucide-react";
+import { getUser } from "@/lib/auth-server";
 
 const activeItem = navLinks.find((item) => item.isActive);
 
-export function AppHeader() {
+
+
+export async function AppHeader() {
+	const user = await getUser();
+	if (!user) {
+		return null; // or you can return a placeholder or redirect to sign-in page
+	}
 	return (
 		<header
 			className={cn(
@@ -40,7 +47,7 @@ export function AppHeader() {
 					className="h-4 data-[orientation=vertical]:self-center"
 					orientation="vertical"
 				/>
-				<NavUser />
+				<NavUser {...user} />
 			</div>
 		</header>
 	);

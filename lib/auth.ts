@@ -48,5 +48,6 @@ export const auth = betterAuth({
           from: "ExtravertyAI <notification@extravertyai.com>",
         });
       },
+      
     },
 });
