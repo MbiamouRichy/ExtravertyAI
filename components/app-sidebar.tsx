@@ -14,6 +14,8 @@ import {
 import { footerNavLinks, navGroups } from "@/components/app-shared";
 import { LatestChange } from "@/components/latest-change";
 import { NavGroup } from "@/components/nav-group";
+import Link from "next/link";
+import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 
 export function AppSidebar() {
 	return (
@@ -40,19 +42,26 @@ export function AppSidebar() {
 				<LatestChange />
 				<SidebarMenu className="border-t p-2">
 					{footerNavLinks.map((item) => (
-						<SidebarMenuItem key={item.title}>
-							<SidebarMenuButton
-								asChild
-								className="text-muted-foreground"
-								isActive={item.isActive}
-								size="sm"
-							>
-								<a href={item.path}>
-									{item.icon}
-									<span>{item.title}</span>
-								</a>
-							</SidebarMenuButton>
-						</SidebarMenuItem>
+						<Tooltip delayDuration={1000} key={item.title}>
+							<TooltipTrigger asChild>
+								<SidebarMenuItem key={item.title}>
+									<SidebarMenuButton
+										asChild
+										className="text-muted-foreground"
+										isActive={item.isActive}
+										size="sm"
+									>
+										<Link href={item.path || "#"}>
+											{item.icon}
+											<span>{item.title}</span>
+										</Link>
+									</SidebarMenuButton>
+								</SidebarMenuItem>
+							</TooltipTrigger>
+							<TooltipContent side="right">
+								{item.title}
+							</TooltipContent>
+						</Tooltip>
 					))}
 				</SidebarMenu>
 				<div className="px-4 pt-4 pb-2 transition-opacity group-data-[collapsible=icon]:pointer-events-none group-data-[collapsible=icon]:opacity-0">

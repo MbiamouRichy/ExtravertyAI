@@ -3,13 +3,11 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { DecorIcon } from "@/components/decor-icon";
 import { AppBreadcrumbs } from "@/components/app-breadcrumbs";
-import { navLinks } from "@/components/app-shared";
 import { CustomSidebarTrigger } from "@/components/custom-sidebar-trigger";
 import { NavUser } from "@/components/nav-user";
 import { SendIcon, BellIcon } from "lucide-react";
 import { getUser } from "@/lib/auth-server";
 
-const activeItem = navLinks.find((item) => item.isActive);
 
 
 
@@ -32,7 +30,7 @@ export async function AppHeader() {
 					className="mr-2 h-4 data-[orientation=vertical]:self-center"
 					orientation="vertical"
 				/>
-				<AppBreadcrumbs page={activeItem} />
+				<AppBreadcrumbs />
 			</div>
 			<div className="flex items-center gap-3">
 				<Button size="icon-sm" variant="outline">
