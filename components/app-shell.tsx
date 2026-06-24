@@ -5,7 +5,7 @@ import { AppSidebar } from "@/components/app-sidebar";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
 	return (
-		<SidebarProvider className={cn("[--app-wrapper-max-width:80rem]")}>
+		<SidebarProvider className={cn("[--app-wrapper-max-width:90rem]")}>
 			<AppSidebar />
 			<SidebarInset>
 				<AppHeader />

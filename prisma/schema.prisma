@@ -12,6 +12,20 @@ datasource db {
   provider = "postgresql"
 }
 
+model Project {
+  id          String   @id @default(cuid())
+  name        String
+  numero      String   @unique
+  status      String   @default("active") // active, completed, paused
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  instanceName    String   @unique
+  instanceStatus  String   @default("disconnected") // disconnected, connecting, connected
+  // Relation avec l'utilisateur Better Auth
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
 model User {
   id            String    @id
   name          String
@@ -22,7 +36,7 @@ model User {
   updatedAt     DateTime  @updatedAt
   sessions      Session[]
   accounts      Account[]
-
+  projects      Project[]
   @@unique([email])
   @@map("user")
 }

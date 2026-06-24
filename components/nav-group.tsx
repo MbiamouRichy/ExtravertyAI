@@ -38,7 +38,7 @@ export function NavGroup({ label, items }: SidebarNavGroup) {
 									{item.subItems?.length ? (
 										<>
 											<CollapsibleTrigger asChild>
-												<SidebarMenuButton isActive={item.path?.includes(pathname)}>
+												<SidebarMenuButton isActive={item.path === pathname}>
 													{item.icon}
 													<span>{item.title}</span>
 													<ChevronRightIcon className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
@@ -65,7 +65,7 @@ export function NavGroup({ label, items }: SidebarNavGroup) {
 											</CollapsibleContent>
 										</>
 									) : (
-										<SidebarMenuButton asChild isActive={item.path?.includes(pathname)}>
+										<SidebarMenuButton asChild isActive={item.path === pathname}>
 											<Link href={item.path || "#"}>
 												{item.icon}
 												<span>{item.title}</span>

@@ -124,8 +124,8 @@ export default function RootLayout({
         bricolageGrotesqueBricolageGrotesque.variable,
         crimsonTextCrimsonText.variable,
         robotoMonoRobotoMono.variable,
-        "scroll-smooth",
       )}
+      data-scroll-behavior="smooth"
     >
 
       <body>
