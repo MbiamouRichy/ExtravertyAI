@@ -12,18 +12,34 @@ datasource db {
   provider = "postgresql"
 }
 
+enum InstanceStatus {
+  disconnected
+  connecting
+  connected
+}
+
+enum ProjectStatus {
+  active
+  paused
+}
+
 model Project {
-  id          String   @id @default(cuid())
-  name        String
-  numero      String   @unique
-  status      String   @default("active") // active, completed, paused
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  instanceName    String   @unique
-  instanceStatus  String   @default("disconnected") // disconnected, connecting, connected
+  id             String        @id @default(cuid())
+  name           String
+  numero         String        
+  status         ProjectStatus @default(active)
   // Relation avec l'utilisateur Better Auth
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // Instances API
+  instanceName   String        @unique
+  instanceStatus InstanceStatus @default(disconnected)
+  // Dates
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  expiredAt      DateTime?    
+  
+  @@index([userId]) 
 }
 
 model User {
