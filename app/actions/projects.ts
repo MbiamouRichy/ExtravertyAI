@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import prisma from "@/lib/prisma";
 import { getSession } from "@/lib/auth-server";
+import { createEvolutionInstance } from "./evolutiomAPI";
 
 // Récupérer les projets de l'utilisateur connecté
 export async function getProjects() {
@@ -54,8 +55,8 @@ export async function createProject(data: { nom: string; numero: string }) {
   const uniqueId = Math.random().toString(36).substring(2, 7);
   const instanceName = `ext_${Date.now()}_${uniqueId}`;
 
-  // 3. (Optionnel plus tard) L'appel à Evolution API viendra se greffer ici
-
+  // 3. Création de l'instance côté EvolutionAPI
+     await createEvolutionInstance(instanceName, cleanedNumero)
   // 4. Insertion dans la base de données
   try {
     const project = await prisma.project.create({

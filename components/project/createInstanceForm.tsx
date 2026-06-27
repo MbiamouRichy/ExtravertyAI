@@ -10,7 +10,6 @@ import {
     FieldGroup,
     FieldLabel,
 } from "@/components/ui/field";
-import { Button } from "@/components/ui/button";
 import {
     InputGroup,
     InputGroupAddon,
@@ -22,21 +21,22 @@ import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import * as z from "zod";
 
-
 import {
-    Dialog,
-    DialogClose,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-    DialogTrigger,
-} from "@/components/ui/dialog"
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 
 
 import { PhoneIcon, FolderIcon, Loader } from "lucide-react"
 import { useHaptics } from "@/lib/webHaptics"
+import { Project } from "@/src/generated/prisma/client";
 
 const formSchema = z
     .object({
@@ -52,60 +52,73 @@ const formSchema = z
     });
 
 
-export function CreateProjectDialog({children}: {children: React.ReactNode}) {
+export function CreateProjectDialog({ children, addOptimisticProject }: { children: React.ReactNode, addOptimisticProject: (project: Project) => void }) {
     const { playHaptic } = useHaptics();
     const [open, setOpen] = useState(false)
     const [loading, setLoading] = useState(false)
     const [isPending, startTransition] = useTransition()
 
-   const form = useForm<z.infer<typeof formSchema>>({
+    const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
         mode: "onChange"
     });
-   
+
     async function onSubmit(data: z.infer<typeof formSchema>) {
         setLoading(true);
-          startTransition(async () => {
-              try {
-                  await createProject(data)
-                  setOpen(false) // Ferme la modale en cas de succès
-              } catch (err) {
-                  playHaptic("error");
-                  toast.error("Une erreur s'est produite.", {
-                      description:
-                          err instanceof Error ? err.message : "Erreur inconnue",
-                      position: "top-center",
-                      className: "text-muted-foreground text-sm bg-card",
-                      action: {
-                          label: "Réessayer",
-                          onClick: () => {
-                              onSubmit(data);
-                          },
-                      },
-                  });
-              } finally {
-                  setLoading(false)
-              }
-          })
-      }
-       
-    
+        startTransition(async () => {
+            try {
+                await createProject(data)
+                form.reset()
+                addOptimisticProject({
+                    id: Date.now().toString(),
+                    name: data.nom,
+                    numero: data.numero,
+                    instanceName: "En attente...",
+                    instanceStatus: "connecting", // ou la valeur par défaut de ton enum
+                    status: "active",         // Remplir les champs manquants
+                    userId: "temp-user",      // Valeur fictive
+                    createdAt: new Date(),    // Date actuelle
+                    updatedAt: new Date(),
+                    expiredAt: null
+                } as Project);
+                // Réinitialise le formulaire en cas de succès
+            } catch (err) {
+                playHaptic("error");
+                toast.error("Une erreur s'est produite.", {
+                    description:
+                        err instanceof Error ? err.message : "Erreur inconnue",
+                    position: "top-center",
+                    className: "text-muted-foreground text-sm bg-card",
+                    action: {
+                        label: "Réessayer",
+                        onClick: () => {
+                            onSubmit(data);
+                        },
+                    },
+                });
+            } finally {
+                setLoading(false)
+            }
+        })
+    }
+
+
 
     return (
-        <Dialog open={open} onOpenChange={(v) => { if (!isPending) setOpen(v) }}>
-            <DialogTrigger asChild>
+        <AlertDialog open={open} onOpenChange={(v) => { if (!isPending) setOpen(v) }}>
+            <AlertDialogTrigger asChild>
                 {children}
-            </DialogTrigger>
+            </AlertDialogTrigger>
 
-            <DialogContent className="sm:max-w-115 p-6 border border-border bg-card shadow-lg rounded-xl animate-in fade-in-50 duration-200">
-                <DialogHeader className="space-y-1.5">
-                    <DialogTitle className="text-xl font-semibold tracking-tight text-foreground">
+            <AlertDialogContent className="sm:max-w-115 p-6 border border-border bg-card shadow-lg rounded-xl animate-in fade-in-50 duration-200">
+                <AlertDialogHeader className="space-y-1.5">
+                    <AlertDialogTitle className="text-xl font-semibold tracking-tight text-foreground">
                         Créer un projet
-                    </DialogTitle>
-                    <DialogDescription className="text-sm text-muted-foreground">
+                    </AlertDialogTitle>
+                    <AlertDialogDescription className="text-sm text-muted-foreground">
                         Associez un nom à votre canal et configurez le terminal de routage WhatsApp.
-                    </DialogDescription>
-                </DialogHeader>
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
 
                 <form id="form-instance" onSubmit={form.handleSubmit(onSubmit)}>
                     <FieldGroup className="gap-4">
@@ -166,19 +179,20 @@ export function CreateProjectDialog({children}: {children: React.ReactNode}) {
                                 </Field>
                             )}
                         />
-                        
-                  <DialogFooter className="mt-4">
-                            <DialogClose asChild>
-                                <Button variant={"outline"} type="button">Close</Button>
-                            </DialogClose>
-                            <Button disabled={loading} type="submit" id="form-instance">
+
+                        <AlertDialogFooter className="mt-4">
+                            <AlertDialogCancel disabled={loading} variant={"outline"} >
+                                Fermer
+                            </AlertDialogCancel>
+
+                            <AlertDialogAction disabled={loading} type="submit" id="form-instance">
                                 {loading ? <Loader className="animate-spin" /> : null}
-                                Initialiser le projet
-                            </Button>
-                    </DialogFooter>
+                                {isPending ? "Initialisation en cours..." : "Initialiser le projet"}
+                            </AlertDialogAction>
+                        </AlertDialogFooter>
                     </FieldGroup>
                 </form>
-            </DialogContent>
-        </Dialog>
+            </AlertDialogContent>
+        </AlertDialog>
     )
 }
