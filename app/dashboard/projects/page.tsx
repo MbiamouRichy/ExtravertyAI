@@ -1,8 +1,9 @@
 import { getProjects } from "@/app/actions/projects"
+import HomeProjectsPage from "@/components/project/homePage"
 
 export default async function ProjectsPage() {
 
   return (
-    <ProjectsPage projects={await getProjects()} />
+    <HomeProjectsPage projects={await getProjects()} />
   )
 }

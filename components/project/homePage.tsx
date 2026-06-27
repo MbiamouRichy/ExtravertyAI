@@ -13,7 +13,7 @@ import { Plus, Smartphone, FolderOpen, Server, MoreHorizontal } from "lucide-rea
 import { CreateProjectDialog } from "@/components/project/createInstanceForm"
 import { Project } from "@/src/generated/prisma/client"
 
-export default function ProjectsPage({projects}:{projects: Project[]}) {
+export default function HomeProjectsPage({projects}:{projects: Project[]}) {
 
   return (
     <div className="flex flex-col space-y-6 md:space-y-8 p-4 sm:p-6 md:p-10 w-full max-w-300 mx-auto">
