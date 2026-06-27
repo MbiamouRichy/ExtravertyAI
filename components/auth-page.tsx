@@ -30,6 +30,8 @@ import Link from "next/link";
 import { signUp } from "@/lib/auth-client";
 import { useState } from "react";
 import { useHaptics } from "@/lib/webHaptics";
+import { useRouter } from "next/navigation";
+
 const formSchema = z
 	.object({
 		nom: z
@@ -49,7 +51,7 @@ export function AuthPage() {
 	const { playHaptic } = useHaptics();
 	const [loading, setLoading] = useState<boolean>(false);
 	const [showPassword, setShowPassword] = useState(false);
-
+    const router = useRouter();
 	const form = useForm<z.infer<typeof formSchema>>({
 		resolver: zodResolver(formSchema),
 		mode: "onChange",
@@ -68,7 +70,7 @@ export function AuthPage() {
 					name: data.nom as string,
 					email: data.email as string,
 					password: data.password as string,
-					callbackURL: "/dashboard",
+					callbackURL: "/sign-in",
 				},
 				{
 					onSuccess: () => {
@@ -77,6 +79,7 @@ export function AuthPage() {
 						toast.success("Verifier votre adresse email pour verification", {
 							position: "top-center",
 						});
+						router.push("/sign-in");
 					},
 					onError: (error) => {
 						playHaptic("error");
@@ -97,8 +100,7 @@ export function AuthPage() {
 					},
 				},
 			)
-		} catch (error) {
-			console.error("Erreur d'inscription:", error);
+		} catch {
 			playHaptic("error");
 			toast.error("Une erreur s'est produite.", {
 				description:

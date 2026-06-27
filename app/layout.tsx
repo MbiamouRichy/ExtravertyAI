@@ -128,7 +128,7 @@ export default function RootLayout({
       data-scroll-behavior="smooth"
     >
 
-      <body>
+      <body suppressHydrationWarning>
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
@@ -136,9 +136,9 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <TooltipProvider>{children}</TooltipProvider>
-          <Toaster/>
+          <Toaster />
         </ThemeProvider>
-        <Analytics/>
+        <Analytics />
       </body>
     </html>
   );

@@ -7,18 +7,48 @@ import { getSession } from "@/lib/auth-server";
 // Récupérer les projets de l'utilisateur connecté
 export async function getProjects() {
   const session = await getSession();
-  if (!session?.user) throw new Error("Non autorisé")
+  if (!session?.user) throw new Error("Non autorisé");
 
   return await prisma.project.findMany({
     where: { userId: session.user.id },
     orderBy: { createdAt: "desc" },
-  })
+  });
 }
 
-export async function createProject(data: { name: string; numero: string }) {
+// Fonction de validation et nettoyage du numéro de téléphone
+function validateAndCleanNumero(numero: string): string {
+  // Supprime les espaces, tirets, parenthèses
+  const cleaned = numero.replace(/[\s()\-]/g, "");
+
+  // Expression régulière pour le format international (ex: +24106xxxxxx ou 24107xxxxxx)
+  const phoneRegex = /^\+?[1-9]\d{6,14}$/;
+
+  if (!phoneRegex.test(cleaned)) {
+    throw new Error(
+      "Format invalide. Utilisez le format international (ex: +24166000000).",
+    );
+  }
+
+  // S'assurer que le numéro commence par un '+' pour l'uniformisation en base
+  return cleaned.startsWith("+") ? cleaned : `+${cleaned}`;
+}
+
+export async function createProject(data: { nom: string; numero: string }) {
   // 1. Vérification de la session avec Better Auth
   const session = await getSession();
   if (!session?.user) throw new Error("Non autorisé");
+
+  const cleanedNumero = validateAndCleanNumero(data.numero);
+
+  // Vérifier l'unicité du numéro pour cet utilisateur
+  const existingProject = await prisma.project.findFirst({
+    where: { numero: cleanedNumero, userId: session.user.id },
+  });
+  if (existingProject) {
+    throw new Error(
+      "Ce numéro WhatsApp est déjà configuré sur un autre projet.",
+    );
+  }
 
   // 2. Génération de l'instanceName unique (format clean pour Evolution API)
   const uniqueId = Math.random().toString(36).substring(2, 7);
@@ -30,9 +60,11 @@ export async function createProject(data: { name: string; numero: string }) {
   try {
     const project = await prisma.project.create({
       data: {
-        name: data.name,
-        numero: data.numero, // Le numéro fourni par l'utilisateur
+        name: data.nom, // Le nom fourni par l'utilisateur
+        numero: cleanedNumero, // Le numéro nettoyé
         instanceName: instanceName, // L'identifiant technique autogénéré
+        instanceStatus: "connecting", // Statut initial
+        status: "active", // Statut du projet
         userId: session.user.id,
       },
     });
