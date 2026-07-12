@@ -1,4 +1,4 @@
-import { AppShell } from "@/components/app-shell";
+import { AppShell } from "@/components/dashboard/app-shell";
 import { getUser } from "@/lib/auth-server";
 import { redirect } from "next/navigation";
 

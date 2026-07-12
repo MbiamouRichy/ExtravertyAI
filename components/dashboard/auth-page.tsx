@@ -22,10 +22,10 @@ import {
 	InputGroupButton,
 	InputGroupInput,
 } from "@/components/ui/input-group";
-import { AuthDivider } from "@/components/auth-divider";
-import { FloatingPaths } from "@/components/floating-paths";
+import { AuthDivider } from "@/components/dashboard/auth-divider";
+import { FloatingPaths } from "@/components/dashboard/floating-paths";
 import { ChevronLeftIcon, AtSignIcon, Loader, Eye, EyeOff, UserIcon, KeySquareIcon } from "lucide-react";
-import { SignInSocialButton } from "./signInSocialButton";
+import { SignInSocialButton } from "../auth/signInSocialButton";
 import Link from "next/link";
 import { signUp } from "@/lib/auth-client";
 import { useState } from "react";

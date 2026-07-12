@@ -8,7 +8,7 @@ import {
   ItemFooter,
   ItemMedia,
   ItemTitle,
-} from "./ui/item";
+} from "../ui/item";
 import {
   CheckCheck,
   LinkIcon,
@@ -19,10 +19,10 @@ import {
   UsersIcon,
   ZapIcon,
 } from "lucide-react";
-import { Separator } from "./ui/separator";
+import { Separator } from "../ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { AutomatiserButton } from "./hero";
-import { Logo } from "./logo";
+import { Logo } from "../logo";
 import React from "react";
 
 const features = [

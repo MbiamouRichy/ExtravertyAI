@@ -4,8 +4,8 @@ import { FullWidthDivider } from "@/components/ui/full-width-divider";
 import { Mail, MapPin, Phone } from "lucide-react";
 import { AutomatiserButton } from "./hero";
 import Link from "next/link";
-import { buttonVariants } from "./ui/button";
-import { FacebookIcon } from "./social-icon";
+import { buttonVariants } from "../ui/button";
+import { FacebookIcon } from "../social-icon";
 
 const APP_EMAIL = "extravertyai@gmail.com";
 const APP_PHONE = "+24176205629";

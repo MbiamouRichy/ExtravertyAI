@@ -17,6 +17,7 @@ import {
 import { signOut } from "@/lib/auth-client";
 import { User } from "better-auth";
 import { UserIcon, SettingsIcon, CreditCardIcon, LogOutIcon } from "lucide-react";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 
 
@@ -50,7 +51,9 @@ export function NavUser(user: User) {
 					<DropdownMenuItem>
 						<UserIcon
 						/>
-						Account
+						<Link href="/dashboard/user" className="w-full">
+							Profil
+						</Link>
 					</DropdownMenuItem>
 					<DropdownMenuItem>
 						<SettingsIcon

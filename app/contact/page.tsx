@@ -1,5 +1,5 @@
-import { Contact } from "@/components/contact";
-import { Header } from "@/components/header";
+import { Contact } from "@/components/website/contact";
+import { Header } from "@/components/website/header";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {

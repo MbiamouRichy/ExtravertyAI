@@ -14,10 +14,10 @@ import {
   ItemDescription,
   ItemMedia,
   ItemTitle,
-} from "./ui/item";
-import { Card } from "./ui/card";
-import { DecorIcon } from "./ui/decor-icon";
-import { FullWidthDivider } from "./ui/full-width-divider";
+} from "../ui/item";
+import { Card } from "../ui/card";
+import { DecorIcon } from "../ui/decor-icon";
+import { FullWidthDivider } from "../ui/full-width-divider";
 import PhoneMockup from "./phoneMockup";
 import { AutomatiserButton } from "./hero";
 

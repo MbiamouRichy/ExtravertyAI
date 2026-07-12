@@ -1,4 +1,4 @@
-import ForgetPasswordForm from "@/components/forgetPasswordForm";
+import ForgetPasswordForm from "@/components/auth/forgetPasswordForm";
 import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: "Zana - Mot de passe oublié ?",

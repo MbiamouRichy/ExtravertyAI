@@ -1,9 +1,9 @@
-import { EmailTemplate } from '@/components/emailTemplate';
+import { EmailTemplate } from '@/components/auth/emailTemplate';
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import prisma from "./prisma";
 import { resend } from "./resend";
-import { ResetPasswordTemplate } from "@/components/resetPasswordTemplate";
+import { ResetPasswordTemplate } from "@/components/auth/resetPasswordTemplate";
 
 export const auth = betterAuth({
   baseURL: process.env.NEXT_PUBLIC_BASE_URL as string,

@@ -5,7 +5,7 @@ import {
 	CardTitle,
 } from "@/components/ui/card";
 import { Delta, DeltaIcon, DeltaValue } from "@/components/delta";
-import { DashboardCard } from "@/components/dashboard-card";
+import { DashboardCard } from "@/components/dashboard/dashboard-card";
 
 type Stat = {
 	label: string;

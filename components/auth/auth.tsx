@@ -14,7 +14,7 @@ import {
 	InputGroupButton,
 	InputGroupInput,
 } from "@/components/ui/input-group";
-import { AuthDivider } from "@/components/auth-divider";
+import { AuthDivider } from "@/components/dashboard/auth-divider";
 import { DecorIcon } from "@/components/decor-icon";
 import { AtSignIcon, Eye, EyeOff, KeySquareIcon, Loader } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -26,7 +26,7 @@ import { toast } from "sonner";
 import { signIn } from "@/lib/auth-client";
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Controller, useForm } from "react-hook-form"
-import { Checkbox } from "./ui/checkbox";
+import { Checkbox } from "../ui/checkbox";
 import { SignInSocialButton } from "./signInSocialButton";
 
 const formSchema = z.object({

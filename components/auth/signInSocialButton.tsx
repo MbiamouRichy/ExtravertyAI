@@ -1,8 +1,8 @@
 import { signIn } from "@/lib/auth-client";
 import { useHaptics } from "@/lib/webHaptics";
 import { toast } from "sonner";
-import { Button } from "./ui/button";
-import { GoogleIcon, TiktokIcon } from "./social-icon";
+import { Button } from "../ui/button";
+import { GoogleIcon, TiktokIcon } from "../social-icon";
 type providerType = Parameters<typeof signIn.social>[0]["provider"];
 
 export function SignInSocialButton({variant: variant = "outline", form: form= "grid", text}: {variant?: "outline" | "default", form?: "grid" | "flex", text?: string}) {

@@ -4,8 +4,8 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { DecorIcon } from "./ui/decor-icon";
-import { FullWidthDivider } from "./ui/full-width-divider";
+import { DecorIcon } from "../ui/decor-icon";
+import { FullWidthDivider } from "../ui/full-width-divider";
 import { AutomatiserButton } from "./hero";
 
 const items = [

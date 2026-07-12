@@ -1,5 +1,5 @@
-import Footer from "@/components/footer";
-import { Header } from "@/components/header";
+import Footer from "@/components/website/footer";
+import { Header } from "@/components/website/header";
 import { DecorIcon } from "@/components/ui/decor-icon"
 import { FullWidthDivider } from "@/components/ui/full-width-divider"
 import type { Metadata } from "next";

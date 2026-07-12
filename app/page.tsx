@@ -1,11 +1,11 @@
 import { cn } from "@/lib/utils";
-import { HeroSection } from "@/components/hero";
-import AvantApres from "@/components/avantApres";
-import Footer from "@/components/footer";
-import { Faq } from "@/components/faq";
-import { Tarifs } from "@/components/pricing-section";
-import Demo from "@/components/demo";
-import { Header } from "@/components/header";
+import { HeroSection } from "@/components/website/hero";
+import AvantApres from "@/components/website/avantApres";
+import Footer from "@/components/website/footer";
+import { Faq } from "@/components/website/faq";
+import { Tarifs } from "@/components/website/pricing-section";
+import Demo from "@/components/website/demo";
+import { Header } from "@/components/website/header";
 
 export const dynamic = "force-static";
 

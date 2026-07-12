@@ -14,11 +14,11 @@ import {
 	SidebarMenuSubButton,
 	SidebarMenuSubItem,
 } from "@/components/ui/sidebar";
-import type { SidebarNavGroup } from "@/components/app-shared";
+import type { SidebarNavGroup } from "@/components/dashboard/app-shared";
 import { ChevronRightIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 
 export function NavGroup({ label, items }: SidebarNavGroup) {
 	const pathname = usePathname();

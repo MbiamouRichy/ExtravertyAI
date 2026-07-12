@@ -3,9 +3,9 @@ import { cn } from "@/lib/utils";
 import { LogoIcon } from "@/components/logo";
 import { useScroll } from "@/hooks/use-scroll";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { MobileNav } from "@/components/mobile-nav";
+import { MobileNav } from "@/components/website/mobile-nav";
 import Link from "next/link";
-import { ModeToggle } from "./theming";
+import { ModeToggle } from "../theming";
 import { AutomatiserButton } from "./hero";
 
 export const navLinks = [

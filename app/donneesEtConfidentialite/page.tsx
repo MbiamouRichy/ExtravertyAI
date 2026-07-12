@@ -1,8 +1,8 @@
 import React from 'react';
 import { ShieldCheck, Lock, Database, Mail, Cog, Share2, Scale } from 'lucide-react';
 import type { Metadata } from "next";
-import { Header } from '@/components/header';
-import Footer from '@/components/footer';
+import { Header } from '@/components/website/header';
+import Footer from '@/components/website/footer';
 import { WhatsAppIcon } from '@/components/social-icon';
 import { cn } from '@/lib/utils';
 

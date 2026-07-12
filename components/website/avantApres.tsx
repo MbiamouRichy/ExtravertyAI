@@ -1,4 +1,4 @@
-import { Card, CardDescription, CardHeader, CardTitle } from "./ui/card";
+import { Card, CardDescription, CardHeader, CardTitle } from "../ui/card";
 import {
   Item,
   ItemContent,
@@ -6,13 +6,13 @@ import {
   ItemMedia,
   ItemSeparator,
   ItemTitle,
-} from "./ui/item";
+} from "../ui/item";
 import { Check } from "lucide-react";
 import { AutomatiserButton } from "./hero";
 import React from "react";
-import { Logo } from "./logo";
-import { DecorIcon } from "./ui/decor-icon";
-import { FullWidthDivider } from "./ui/full-width-divider";
+import { Logo } from "../logo";
+import { DecorIcon } from "../ui/decor-icon";
+import { FullWidthDivider } from "../ui/full-width-divider";
 
 const avantExtraverty = [
   {

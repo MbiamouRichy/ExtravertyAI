@@ -11,11 +11,11 @@ import {
 	SidebarMenuButton,
 	SidebarMenuItem,
 } from "@/components/ui/sidebar";
-import { footerNavLinks, navGroups } from "@/components/app-shared";
-import { LatestChange } from "@/components/latest-change";
-import { NavGroup } from "@/components/nav-group";
+import { footerNavLinks, navGroups } from "@/components/dashboard/app-shared";
+import { LatestChange } from "@/components/dashboard/latest-change";
+import { NavGroup } from "@/components/dashboard/nav-group";
 import Link from "next/link";
-import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 
 export function AppSidebar() {
 	return (

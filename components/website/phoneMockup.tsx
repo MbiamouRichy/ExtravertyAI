@@ -1,7 +1,7 @@
 "use client";
 // components/PhoneMockup.tsx
 import React, { useState } from "react";
-import { Skeleton } from "./ui/skeleton";
+import { Skeleton } from "../ui/skeleton";
 import { LoaderIcon } from "lucide-react";
 
 type PhoneMockupProps = {

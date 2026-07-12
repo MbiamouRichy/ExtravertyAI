@@ -1,4 +1,4 @@
-import { AuthPage } from "@/components/auth-page";
+import { AuthPage } from "@/components/dashboard/auth-page";
 
 export default function DemoPage() {
     return <AuthPage />;

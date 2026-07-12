@@ -10,9 +10,10 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Plus, Smartphone, FolderOpen, Server, MoreHorizontal } from "lucide-react"
-import { CreateProjectDialog } from "@/components/project/createInstanceForm"
+import { CreateProjectDialog } from "@/components/dashboard/project/createInstanceForm"
 import { Project } from "@/src/generated/prisma/client"
 import { useOptimistic } from "react"
+import Link from "next/link"
 
 export default function HomeProjectsPage({projects}:{projects: Project[]}) {
   const [optimisticProjects, addOptimisticProject] = useOptimistic(
@@ -168,13 +169,15 @@ export default function HomeProjectsPage({projects}:{projects: Project[]}) {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {optimisticProjects.map((project) => (
+                {optimisticProjects.map((project,id) => (
                   <TableRow
-                    key={project.id}
+                  key={id}
                     className="transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted"
                   >
                     <TableCell className="font-medium text-foreground py-4">
-                      {project.name}
+                      <Link href={`dashboard/projects/${project.id}`}>
+                        {project.name}
+                      </Link>
                     </TableCell>
 
                     <TableCell className="py-4">
