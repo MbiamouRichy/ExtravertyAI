@@ -50,7 +50,7 @@ export default function AccountPage() {
 
             <div className="grid gap-6 md:grid-cols-2">
                 {/* SECTION 1 : PROFIL UTILISATEUR */}
-                <Card className="border-neutral-200 shadow-sm">
+                <Card className="shadow-sm">
                     <CardHeader>
                         <CardTitle className="text-lg flex items-center gap-2">
                             <User className="h-5 w-5 text-neutral-500" />
@@ -92,15 +92,15 @@ export default function AccountPage() {
                             </div>
                         </div>
                     </CardContent>
-                    <CardFooter className="bg-neutral-50 border-t border-neutral-100 rounded-b-xl py-3 mt-4">
-                        <Button className="bg-neutral-900 text-white hover:bg-neutral-800 ml-auto transition-colors">
+                    <CardFooter  className="bg-neutral-50 border-t border-neutral-100 justify-end">
+                        <Button >
                             Enregistrer les modifications
                         </Button>
                     </CardFooter>
                 </Card>
 
                 {/* SECTION 2 : ABONNEMENT & FACTURATION */}
-                <Card className="border-neutral-200 shadow-sm flex flex-col">
+                <Card className="shadow-sm flex flex-col">
                     <CardHeader>
                         <CardTitle className="text-lg flex items-center gap-2">
                             <CreditCard className="h-5 w-5 text-neutral-500" />
@@ -129,11 +129,11 @@ export default function AccountPage() {
                             {/* Progress bar avec une couleur neutre foncée */}
                             <Progress value={40} className="h-2 [&>div]:bg-neutral-800" />
                             <p className="text-xs text-neutral-500">
-                                Vous pouvez encore connecter 3 numéros avec votre forfait actuel.
+                                Vous avez utilise 4
                             </p>
                         </div>
                     </CardContent>
-                    <CardFooter className="bg-neutral-50 border-t border-neutral-100 rounded-b-xl py-3 flex justify-between items-center">
+                    <CardFooter className="bg-neutral-50 border-t border-neutral-100 justify-between">
                         <p className="text-xs text-neutral-500">Prochain prélèvement le 15 Juil 2026</p>
                         <Button variant="outline" className="border-neutral-300 text-neutral-700 hover:bg-neutral-100">
                             Gérer l&apos;abonnement <ArrowUpRight className="ml-2 h-4 w-4" />
@@ -152,7 +152,7 @@ export default function AccountPage() {
                         </CardDescription>
                     </div>
                     <Link href="/dashboard/projects">
-                        <Button variant="ghost" size="sm" className="text-neutral-600 hover:text-neutral-900">
+                        <Button variant="ghost" size="sm">
                             Voir tout
                         </Button>
                     </Link>

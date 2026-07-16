@@ -14,10 +14,6 @@ export default async function DashboardPage() {
     redirect("/sign-in");
   }
 
-  // 🔒 BLOQUER SI EMAIL NON VERIFIÉ
-  if (!user.emailVerified) {
-    redirect("/verify");
-  }
 
   return (
     <main className="max-w-md h-screen flex items-center justify-center flex-col mx-auto p-6 space-y-4 text-white">
