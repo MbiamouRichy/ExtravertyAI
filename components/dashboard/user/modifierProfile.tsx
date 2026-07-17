@@ -23,10 +23,8 @@ import {
 } from "@/components/ui/drawer"
 import {
     Field,
-    FieldDescription,
     FieldError,
     FieldGroup,
-    FieldLabel,
 } from "@/components/ui/field";
 import {
     InputGroup,
@@ -43,21 +41,14 @@ import { Controller, useForm } from "react-hook-form"
 import { CameraIcon, Loader, UserIcon } from "lucide-react"
 import { User } from "better-auth"
 import { useIsMobile } from "@/hooks/use-mobile"
-
-const MAX_FILE_SIZE = 2000000; // 2 Mo
-const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
+import { Input } from "@/components/ui/input";
+import { updateProfileAction } from "@/app/actions/upload";
 
 const formSchema = z.object({
     nom: z
         .string()
         .min(2, "Le nom doit contenir au moins 2 caractères.")
-        .max(50, "Le nom doit contenir au maximum 50 caractères.").optional(),
-    avatar: z.instanceof(File)
-        .refine((file) => file.size <= MAX_FILE_SIZE, `La taille maximale est de 2 Mo.`)
-        .refine(
-            (file) => ACCEPTED_IMAGE_TYPES.includes(file.type),
-            "Seuls les formats .jpg, .jpeg, .png et .webp sont supportés."
-        )
+        .max(50, "Le nom doit contenir au maximum 50 caractères.").optional()
 });
 
 
@@ -106,20 +97,67 @@ export function ModifierProfile({ children, open, setOpen, user }: { children?: 
 }
 
 function ProfileForm({ className, user }: React.ComponentProps<"form"> & { user: User }) {
+
     const { playHaptic } = useHaptics();
     const [loading, setLoading] = useState<boolean>(false);
+    const [file, setFile] = useState<File | null>(null);
+    const [preview, setPreview] = useState<string | null>(null);
+    const [error, setError] = useState<string | null>(null);
+
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setError(null);
+        const selectedFile = e.target.files?.[0];
+
+        if (!selectedFile) return;
+
+        // Vérification de la taille côté client (2 Mo)
+        if (selectedFile.size > 2 * 1024 * 1024) {
+            playHaptic("error");
+            toast.error("Une erreur s'est produite.", {
+                description: (
+                    <p className="text-muted-foreground text-sm">
+                        L&apos;image est trop lourde. Veuillez choisir un fichier de moins de 2 Mo.
+                    </p>
+                ),
+                position: "top-center",
+            });
+            setError("L'image est trop lourde. Veuillez choisir un fichier de moins de 2 Mo.");
+            setFile(null);
+            if (preview) URL.revokeObjectURL(preview);
+            setPreview(null);
+            return;
+        }
+
+        setFile(selectedFile);
+
+        // Créer un aperçu local de l'image
+        if (preview) URL.revokeObjectURL(preview);
+        const objectUrl = URL.createObjectURL(selectedFile);
+        setPreview(objectUrl);
+    };
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
         mode: "onChange",
         defaultValues: {
             nom: user.name,
-            avatar: undefined,
         },
     });
     async function onSubmit(data: z.infer<typeof formSchema>) {
         setLoading(true);
         try {
-            console.log(data);
+            console.log(data, file);
+            const formData = new FormData();
+            if (data.nom) {
+                formData.append("nom", data.nom);
+            }
+            if (user.id) {
+                formData.append("userId", user.id);
+            }
+            if (file) {
+                formData.append("file", file);
+            }
+            const result = await updateProfileAction(formData);
+            if (result?.error) throw new Error(result.error);
             playHaptic("success");
             toast.success("Informations mises à jour avec succès.", {
                 position: "top-center",
@@ -150,26 +188,32 @@ function ProfileForm({ className, user }: React.ComponentProps<"form"> & { user:
         <form className={className} id="profile-Form" onSubmit={form.handleSubmit(onSubmit)}>
             <FieldGroup className="gap-4">
 
-                <div className="flex justify-center relative items-center w-full gap-4 mb-4">
+                <div className="flex flex-col justify-center relative items-center w-full gap-4 mb-4">
                     <div className="relative w-32 h-32">
                         <Avatar className="h-full w-full border border-neutral-200">
-                            <AvatarImage src={user.image || ""} alt={user.name} />
+                            <AvatarImage src={preview ? preview : user.image || undefined} alt={user.name} />
                             <AvatarFallback className="bg-neutral-100 text-neutral-900 text-xl font-medium">
                                 {user.name.charAt(0).toUpperCase()}{user.name.charAt(1).toLowerCase()}
                             </AvatarFallback>
                         </Avatar>
-                        <Button variant="secondary" size="icon-sm" className="rounded-full absolute bottom-0 right-0" >
+                        <Button variant="secondary" size="icon-sm" className="rounded-full absolute bottom-0 right-0 pointer-events-none" >
                             <CameraIcon />
                         </Button>
-                    </div>
-                </div>
 
+                        <Input
+                            type="file"
+                            className="absolute bottom-0 right-0 w-full h-full opacity-0 cursor-pointer"
+                            accept="image/jpeg, image/jpg, image/png, image/webp"
+                            onChange={handleFileChange}
+                        />
+                    </div>
+                    {error && <p className="text-red-500 text-sm font-medium">{error}</p>}
+                </div>
                 <Controller
                     name="nom"
                     control={form.control}
                     render={({ field, fieldState }) => (
                         <Field data-invalid={fieldState.invalid}>
-                            <FieldLabel htmlFor={field.name}>Entrez votre nom</FieldLabel>
                             <InputGroup>
                                 <InputGroupInput
                                     type="text"
@@ -193,7 +237,7 @@ function ProfileForm({ className, user }: React.ComponentProps<"form"> & { user:
 
                 <FieldGroup>
                     <Field>
-                        <Button disabled={loading} type="submit" id="profile-Form">
+                        <Button disabled={loading} type="submit">
                             {loading ? <Loader className="animate-spin" /> : null}
                             Enregistrer
                         </Button>

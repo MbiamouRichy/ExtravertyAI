@@ -1,52 +1,53 @@
 "use server";
 
-import { PutObjectCommand } from "@aws-sdk/client-s3";
+import prisma from "@/lib/prisma";
 import { s3Client } from "@/lib/storage";
-const MAX_FILE_SIZE = 2 * 1024 * 1024; // 2 Mo en octets
-const ALLOWED_FILE_TYPES = ["image/jpeg", "image/png", "image/webp"];
+import { PutObjectCommand } from "@aws-sdk/client-s3";
 
-export async function uploadProfilePicture(formData: FormData) {
+export async function updateProfileAction(data: FormData) {
   try {
-    const file = formData.get("file") as File | null;
+    // 1. Récupérer les données
+    const nom = data.get("nom") as string | null;
+    const file = data.get("file") as File | null;
+    const ID = data.get("userId") as string | null;
 
-    if (!file) {
-      return { error: "Aucun fichier fourni." };
+    if (!ID) {
+      throw new Error("ID utilisateur manquant.");
     }
 
-    // 1. Validation de la taille (Sécurité Serveur)
-    if (file.size > MAX_FILE_SIZE) {
-      return { error: "Le fichier dépasse la limite autorisée de 2 Mo." };
+    let newImageUrl = null;
+
+    // 2. Traiter le fichier (s'il y en a un nouveau)
+    if (file && file.size > 0) {
+      // Revérification de sécurité côté serveur (obligatoire)
+      if (file.size > 2 * 1024 * 1024) throw new Error("Fichier trop lourd.");
+
+      const buffer = Buffer.from(await file.arrayBuffer());
+      const fileName = `profiles/${crypto.randomUUID()}-${file.name}`;
+
+      await s3Client.send(
+        new PutObjectCommand({
+          Bucket: process.env.MINIO_BUCKET,
+          Key: fileName,
+          Body: buffer,
+          ContentType: file.type,
+        }),
+      );
+
+      newImageUrl = `${process.env.MINIO_ENDPOINT}/${process.env.MINIO_BUCKET}/${fileName}`;
     }
 
-    // 2. Validation du type de fichier
-    if (!ALLOWED_FILE_TYPES.includes(file.type)) {
-      return { error: "Seuls les formats JPEG, PNG et WEBP sont acceptés." };
-    }
-
-    // 3. Préparation du fichier
-    const buffer = Buffer.from(await file.arrayBuffer());
-
-    // Générer un nom unique pour éviter d'écraser d'autres photos
-    const uniqueId = crypto.randomUUID();
-    const extension = file.name.split(".").pop();
-    const fileName = `profiles/${uniqueId}.${extension}`;
-
-    // 4. Envoi vers MinIO
-    const command = new PutObjectCommand({
-      Bucket: process.env.MINIO_BUCKET || "extravertyai-uploads",
-      Key: fileName,
-      Body: buffer,
-      ContentType: file.type,
+    await prisma.user.update({
+      where: { id: ID },
+      data: {
+        ...(nom && { name: nom }),
+        ...(newImageUrl && { image: newImageUrl }),
+      },
     });
 
-    await s3Client.send(command);
-
-    // Construction de l'URL publique
-    const fileUrl = `${process.env.MINIO_ENDPOINT}/${process.env.MINIO_BUCKET}/${fileName}`;
-
-    return { success: true, url: fileUrl };
+    return { success: true };
   } catch (error) {
-    console.error("Erreur d'upload S3:", error);
-    return { error: "Une erreur est survenue lors du téléchargement." };
+    console.error(error);
+    return { error: "Échec de la mise à jour" };
   }
 }

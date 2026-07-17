@@ -196,7 +196,7 @@ export function AuthPage() {
 									)}
 								/>
 
-								<Field orientation="horizontal">
+								<Field aria-disabled={loading} orientation="horizontal">
 									<Checkbox
 										id="terms-checkbox-desc"
 										name="terms-checkbox-desc"

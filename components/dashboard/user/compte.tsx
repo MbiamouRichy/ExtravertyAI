@@ -9,17 +9,30 @@ import {
     CardHeader,
     CardTitle,
 } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+    InputGroup,
+    InputGroupAddon,
+    InputGroupButton,
+    InputGroupInput,
+} from "@/components/ui/input-group"
+
+import {
+    Field,
+    FieldDescription,
+    FieldGroup,
+    FieldLabel,
+} from "@/components/ui/field"
 import { Progress } from "@/components/ui/progress";
 import {
     CreditCard,
     User,
     CheckCircle2,
     ArrowUpRight,
-    MoreHorizontal
+    MoreHorizontal,
+    AtSignIcon
 } from "lucide-react";
 import Link from "next/link";
 
@@ -79,20 +92,70 @@ export default function AccountPage() {
                         </div>
 
                         <div className="space-y-4">
+                            <FieldGroup className="space-y-4">
+                                <Field className="space-y-2">
+                                    <FieldLabel htmlFor="block-start-input">Nom complet</FieldLabel>
+                                    <InputGroup className="max-w-sm">
+                                        <InputGroupInput readOnly id="name" type="text" defaultValue={user.name} className="focus-visible:ring-neutral-400" disabled />
+                                        <InputGroupAddon>
+                                            <User className="text-muted-foreground" />
+                                        </InputGroupAddon>
+                                    </InputGroup>
+                                </Field>
+
+                                <Field className="space-y-2">
+                                    <FieldLabel htmlFor="email">Adresse e-mail</FieldLabel>
+                                    <InputGroup aria-disabled={true} className="max-w-sm">
+                                        <InputGroupInput readOnly id="email" type="email" defaultValue={user.email} className="focus-visible:ring-neutral-400" disabled />
+                                        <InputGroupAddon>
+                                            <AtSignIcon className="text-muted-foreground" />
+                                        </InputGroupAddon>
+                                        <InputGroupAddon align="inline-end">
+                                            <InputGroupButton>
+                                                Modifier
+                                            </InputGroupButton>
+                                        </InputGroupAddon>
+                                    </InputGroup>
+                                    <FieldDescription>
+                                        L&apos;adresse e-mail est liée à votre authentification.
+                                    </FieldDescription>
+                                </Field>
+                            </FieldGroup>
+
                             <div className="space-y-2">
-                                <Label htmlFor="name">Nom complet</Label>
-                                <Input id="name" defaultValue={user.name} className="focus-visible:ring-neutral-400" />
+                                <Label htmlFor="email">Adresse e-mail</Label>
+                                <InputGroup className="max-w-sm">
+                                    <InputGroupInput readOnly id="email" type="email" defaultValue={user.email} className="focus-visible:ring-neutral-400" disabled />
+                                    <InputGroupAddon>
+                                        <AtSignIcon className="text-muted-foreground" />
+                                    </InputGroupAddon>
+                                    <InputGroupAddon align="inline-end">
+                                        <InputGroupButton>
+                                            Modifier
+                                        </InputGroupButton>
+                                    </InputGroupAddon>
+                                </InputGroup>
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="email">Adresse e-mail</Label>
-                                <Input id="email" type="email" defaultValue={user.email} className="focus-visible:ring-neutral-400" disabled />
+                                <InputGroup aria-disabled={true} className="max-w-sm">
+                                    <InputGroupInput readOnly id="email" type="email" defaultValue={user.email} className="focus-visible:ring-neutral-400" disabled />
+                                    <InputGroupAddon>
+                                        <AtSignIcon className="text-muted-foreground" />
+                                    </InputGroupAddon>
+                                    <InputGroupAddon align="inline-end">
+                                        <InputGroupButton>
+                                            Modifier
+                                        </InputGroupButton>
+                                    </InputGroupAddon>
+                                </InputGroup>
                                 <p className="text-xs text-neutral-500">
                                     L&apos;adresse e-mail est liée à votre authentification.
                                 </p>
                             </div>
                         </div>
                     </CardContent>
-                    <CardFooter  className="bg-neutral-50 border-t border-neutral-100 justify-end">
+                    <CardFooter className="bg-neutral-50 border-t border-neutral-100 justify-end">
                         <Button >
                             Enregistrer les modifications
                         </Button>
