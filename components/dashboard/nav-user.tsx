@@ -16,75 +16,88 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { signOut } from "@/lib/auth-client";
 import { User } from "better-auth";
-import { UserIcon, SettingsIcon, CreditCardIcon, LogOutIcon } from "lucide-react";
+import { UserIcon, SettingsIcon, CreditCardIcon, LogOutIcon, UserCog } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { ModifierProfile } from "./user/modifierProfile";
+import React from "react";
 
 
 export function NavUser(user: User) {
+	const [isModalOpen, setIsModalOpen] = React.useState(false);
 	return (
-		<DropdownMenu>
-			<DropdownMenuTrigger asChild>
-				<Avatar className="size-8">
-					<AvatarImage src={user.image ?? undefined} />
-					<AvatarFallback>{user.name.charAt(0).toUpperCase()}{user.name.charAt(1).toLowerCase()}</AvatarFallback>
-				</Avatar>
-			</DropdownMenuTrigger>
-			<DropdownMenuContent align="end" className="w-60">
-				<DropdownMenuItem className="flex items-center justify-start gap-2">
-					<DropdownMenuLabel className="flex items-center gap-3">
-						<Avatar className="size-10">
-							<AvatarImage src={user.image ?? undefined} />
-							<AvatarFallback>{user.name.charAt(0).toUpperCase()}{user.name.charAt(1).toLowerCase()}</AvatarFallback>
-						</Avatar>
-						<div>
-							<span className="font-medium text-foreground">{user.name}</span>{" "}
-							<br />
-							<div className="max-w-full overflow-hidden overflow-ellipsis whitespace-nowrap text-muted-foreground text-xs">
-								{user.email}
-							</div>
-						</div>
-					</DropdownMenuLabel>
-				</DropdownMenuItem>
-				<DropdownMenuSeparator />
-				<DropdownMenuGroup>
-					<DropdownMenuItem>
-						<UserIcon
-						/>
+		<>
+			<ModifierProfile open={isModalOpen} setOpen={setIsModalOpen} user={user} />
+			<DropdownMenu>
+				<DropdownMenuTrigger className="cursor-pointer" asChild>
+					<Avatar className="size-8 ">
+						<AvatarImage src={user.image ?? undefined} />
+						<AvatarFallback>{user.name.charAt(0).toUpperCase()}{user.name.charAt(1).toLowerCase()}</AvatarFallback>
+					</Avatar>
+				</DropdownMenuTrigger>
+				<DropdownMenuContent align="end" className="w-60">
+					<DropdownMenuItem className="flex items-center justify-start gap-2 cursor-pointer" asChild>
 						<Link href="/dashboard/user" className="w-full">
-							Profil
+							<DropdownMenuLabel className="flex items-center gap-3">
+								<Avatar className="size-10">
+									<AvatarImage src={user.image ?? undefined} />
+									<AvatarFallback>{user.name.charAt(0).toUpperCase()}{user.name.charAt(1).toLowerCase()}</AvatarFallback>
+								</Avatar>
+								<div>
+									<span className="font-medium text-foreground">{user.name}</span>{" "}
+									<br />
+									<div className="max-w-full overflow-hidden overflow-ellipsis whitespace-nowrap text-muted-foreground text-xs">
+										{user.email}
+									</div>
+								</div>
+							</DropdownMenuLabel>
 						</Link>
 					</DropdownMenuItem>
-					<DropdownMenuItem>
-						<SettingsIcon
-						/>
-						Settings
-					</DropdownMenuItem>
-				</DropdownMenuGroup>
-				<DropdownMenuSeparator />
-				<DropdownMenuGroup>
-					<DropdownMenuItem>
-						<CreditCardIcon
-						/>
-						Plan & Billing
-					</DropdownMenuItem>
-				</DropdownMenuGroup>
-				<DropdownMenuSeparator />
-				<DropdownMenuGroup>
-					<DropdownMenuItem
-						onClick={() => {
-							signOut()
-							redirect("/sign-in");
-						}}
-						className="w-full cursor-pointer"
-						variant="destructive"
-					>
-						<LogOutIcon
-						/>
-						Se déconnecter
-					</DropdownMenuItem>
-				</DropdownMenuGroup>
-			</DropdownMenuContent>
-		</DropdownMenu>
+					<DropdownMenuSeparator />
+					<DropdownMenuGroup>
+						<DropdownMenuItem className="cursor-pointer" asChild>
+							<Link href="/dashboard/user" className="w-full">
+								<UserIcon
+								/>
+								Infos générales
+							</Link>
+						</DropdownMenuItem>
+						<DropdownMenuItem className="cursor-pointer" onSelect={() => setIsModalOpen(true)}>
+							<UserCog />
+							Modifier le profil
+						</DropdownMenuItem>
+						<DropdownMenuItem>
+							<SettingsIcon
+							/>
+							Paramètres
+						</DropdownMenuItem>
+					</DropdownMenuGroup>
+					<DropdownMenuSeparator />
+					<DropdownMenuGroup>
+						<DropdownMenuItem>
+							<CreditCardIcon
+							/>
+							Plan & Tarifs
+						</DropdownMenuItem>
+					</DropdownMenuGroup>
+					<DropdownMenuSeparator />
+					<DropdownMenuGroup>
+						<DropdownMenuItem
+							onClick={() => {
+								signOut()
+								redirect("/sign-in");
+							}}
+							className="w-full cursor-pointer"
+							variant="destructive"
+						>
+							<LogOutIcon
+							/>
+							Se déconnecter
+						</DropdownMenuItem>
+					</DropdownMenuGroup>
+				</DropdownMenuContent>
+			</DropdownMenu>
+		</>
+
 	);
 }

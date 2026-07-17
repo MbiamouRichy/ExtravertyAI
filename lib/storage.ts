@@ -1,11 +1,17 @@
 import { S3Client } from "@aws-sdk/client-s3";
+const accessKeyId = process.env.MINIO_ACCESS_KEY;
+const secretAccessKey = process.env.MINIO_SECRET_KEY;
+
+if (!accessKeyId || !secretAccessKey) {
+  throw new Error("Les variables d'environnement MINIO sont manquantes !");
+}
 
 export const s3Client = new S3Client({
-  region: "us-east-1", // Requis par le SDK, même si MinIO ne l'utilise pas vraiment
+  region: "us-east-1",
   endpoint: process.env.MINIO_ENDPOINT,
   credentials: {
-    accessKeyId: process.env.MINIO_ACCESS_KEY,
-    secretAccessKey: process.env.MINIO_SECRET_KEY,
+    accessKeyId,
+    secretAccessKey,
   },
-  forcePathStyle: true, // OBLIGATOIRE pour MinIO
+  forcePathStyle: true,
 });
