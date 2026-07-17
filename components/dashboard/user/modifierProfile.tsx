@@ -191,12 +191,12 @@ function ProfileForm({ className, user }: React.ComponentProps<"form"> & { user:
                 <div className="flex flex-col justify-center relative items-center w-full gap-4 mb-4">
                     <div className="relative w-32 h-32">
                         <Avatar className="h-full w-full border border-neutral-200">
-                            <AvatarImage src={preview ? preview : user.image || undefined} alt={user.name} />
+                            <AvatarImage src={preview ? preview : user.image ? user.image : undefined} alt={user.name} />
                             <AvatarFallback className="bg-neutral-100 text-neutral-900 text-xl font-medium">
                                 {user.name.charAt(0).toUpperCase()}{user.name.charAt(1).toLowerCase()}
                             </AvatarFallback>
                         </Avatar>
-                        <Button variant="secondary" size="icon-sm" className="rounded-full absolute bottom-0 right-0 pointer-events-none" >
+                        <Button variant="outline" size="icon-sm" className="rounded-full absolute bottom-0 right-0 pointer-events-none" >
                             <CameraIcon />
                         </Button>
 

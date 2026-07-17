@@ -3,6 +3,7 @@
 import prisma from "@/lib/prisma";
 import { s3Client } from "@/lib/storage";
 import { PutObjectCommand } from "@aws-sdk/client-s3";
+import { revalidatePath } from "next/cache";
 
 export async function updateProfileAction(data: FormData) {
   try {
@@ -44,7 +45,7 @@ export async function updateProfileAction(data: FormData) {
         ...(newImageUrl && { image: newImageUrl }),
       },
     });
-
+    revalidatePath("/dashboard", "layout");
     return { success: true };
   } catch (error) {
     console.error(error);
