@@ -41,7 +41,7 @@ function ProfileUtilisateur({ user }: { user: { name: string; email: string; rol
                     Mettez à jour vos informations de connexion.
                 </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
+            <CardContent className="space-y-6 w-full">
                 <div className="flex items-center gap-4 mb-4">
                     <Avatar className="h-16 w-16 border border-neutral-200">
                         <AvatarImage src="" alt={user.name} />
@@ -59,40 +59,41 @@ function ProfileUtilisateur({ user }: { user: { name: string; email: string; rol
                     </div>
                 </div>
 
-                <div className="space-y-4">
-                    <FieldGroup className="space-y-4">
-                        <Field className="space-y-2">
-                            <FieldLabel htmlFor="block-start-input">Nom complet</FieldLabel>
-                            <InputGroup className="max-w-sm">
-                                <InputGroupInput readOnly id="name" type="text" defaultValue={user.name} className="focus-visible:ring-neutral-400" disabled />
-                                <InputGroupAddon>
-                                    <User className="text-muted-foreground" />
-                                </InputGroupAddon>
-                            </InputGroup>
-                        </Field>
-
-                        <Field className="space-y-2">
-                            <FieldLabel htmlFor="email">Adresse e-mail</FieldLabel>
-                            <InputGroup aria-disabled={true} className="max-w-sm">
-                                <InputGroupInput readOnly id="email" type="email" defaultValue={user.email} className="focus-visible:ring-neutral-400" disabled />
-                                <InputGroupAddon>
-                                    <AtSignIcon className="text-muted-foreground" />
-                                </InputGroupAddon>
-                                <InputGroupAddon align="inline-end">
-                                    <InputGroupButton>
-                                        Modifier
-                                    </InputGroupButton>
-                                </InputGroupAddon>
-                            </InputGroup>
-                            <FieldDescription>
-                                L&apos;adresse e-mail est liée à votre authentification.
-                            </FieldDescription>
-                        </Field>
-                    </FieldGroup>
-
-                </div>
+                <FieldGroup>
+                    <Field>
+                        <FieldLabel htmlFor="block-start-input">Nom complet</FieldLabel>
+                        <InputGroup>
+                            <InputGroupInput readOnly id="name" type="text" defaultValue={user.name} className="focus-visible:ring-neutral-400" disabled />
+                            <InputGroupAddon>
+                                <User className="text-muted-foreground" />
+                            </InputGroupAddon>
+                        </InputGroup>
+                    </Field>
+                    <Field>
+                        <FieldLabel htmlFor="email">Adresse e-mail</FieldLabel>
+                        <InputGroup aria-disabled={true}>
+                            <InputGroupInput readOnly id="email" type="email" defaultValue={user.email} className="focus-visible:ring-neutral-400" disabled />
+                            <InputGroupAddon>
+                                <AtSignIcon className="text-muted-foreground" />
+                            </InputGroupAddon>
+                            <InputGroupAddon align="inline-end">
+                                <InputGroupButton variant="default" className="cursor-pointer">
+                                    Modifier
+                                </InputGroupButton>
+                            </InputGroupAddon>
+                        </InputGroup>
+                        <FieldDescription>
+                            L&apos;adresse e-mail est liée à votre authentification.
+                        </FieldDescription>
+                    </Field>
+                </FieldGroup>
             </CardContent>
             <CardFooter className="bg-neutral-50 border-t border-neutral-100 justify-end">
+                {/* <ModifierProfile user={user}>
+                    <Button >
+                        Enregistrer les modifications
+                    </Button>
+                </ModifierProfile> */}
                 <Button >
                     Enregistrer les modifications
                 </Button>

@@ -11,6 +11,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 
 import {
+    ArrowUpRight,
     MoreHorizontal,
 } from "lucide-react";
 import Link from "next/link";
@@ -25,11 +26,12 @@ function ProjectsRecents({ recentProjects }: { recentProjects: { id: string; nam
                         Vos dernières instances connectées.
                     </CardDescription>
                 </div>
-                <Link href="/dashboard/projects">
-                    <Button variant="ghost" size="sm">
-                        Voir tout
-                    </Button>
-                </Link>
+                <Button variant="ghost" size="sm" asChild>
+                    <Link href="/dashboard/projects">
+                        Voir tout <ArrowUpRight className="ml-2 h-4 w-4" />
+                    </Link>
+                </Button>
+
             </CardHeader>
             <CardContent>
                 <div className="border border-neutral-100 rounded-md overflow-hidden">

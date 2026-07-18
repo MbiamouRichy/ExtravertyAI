@@ -34,6 +34,8 @@ model Project {
   // Instances API
   instanceName   String        @unique
   instanceStatus InstanceStatus @default(disconnected)
+  plan                   Plan      @default(starter)
+
   // Dates
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
@@ -42,6 +44,22 @@ model Project {
   @@index([userId]) 
 }
 
+enum Role {
+  USER
+  ADMIN
+  OWNER
+}
+
+enum Theme {
+  light
+  dark
+  system
+}
+enum Plan {
+  starter
+  business
+  pro
+}
 model User {
   id            String    @id
   name          String
@@ -53,6 +71,12 @@ model User {
   sessions      Session[]
   accounts      Account[]
   projects      Project[]
+  role          Role      @default(OWNER)
+  stripeCustomerId       String?   @unique
+  stripeSubscriptionId   String?   @unique
+  stripePriceId          String?
+  stripeCurrentPeriodEnd DateTime?
+  theme                  Theme     @default(system)
   @@unique([email])
   @@map("user")
 }
