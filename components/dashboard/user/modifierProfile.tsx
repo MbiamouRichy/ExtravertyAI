@@ -145,40 +145,42 @@ function ProfileForm({ className, user }: React.ComponentProps<"form"> & { user:
     async function onSubmit(data: z.infer<typeof formSchema>) {
         setLoading(true);
         try {
-            console.log(data, file);
             const formData = new FormData();
+
             if (data.nom) {
                 formData.append("nom", data.nom);
             }
-            if (user.id) {
-                formData.append("userId", user.id);
-            }
+
             if (file) {
                 formData.append("file", file);
             }
+
             const result = await updateProfileAction(formData);
-            if (result?.error) throw new Error(result.error);
+
+            if (result?.error) {
+                throw new Error(typeof result.error === 'string' ? result.error : "Une erreur inconnue est survenue");
+            }
+
             playHaptic("success");
             toast.success("Informations mises à jour avec succès.", {
                 position: "top-center",
             });
 
         } catch (error) {
-            console.error("Error submitting profile form:", error);
+            const errorMessage = error instanceof Error ? error.message : "Une erreur s'est produite lors de la mise à jour.";
+
             playHaptic("error");
-            toast.error("Une erreur s'est produite.", {
+
+            toast.error("Échec de la mise à jour", {
                 description: (
-                    <p className="text-muted-foreground text-sm">Une erreur s&apos;est produite lors de la mise à jour de votre profil.</p>
+                    <p className="text-muted-foreground text-sm">{errorMessage}</p>
                 ),
                 position: "top-center",
                 action: {
                     label: "Réessayer",
-                    onClick: () => {
-                        onSubmit(data);
-                    },
+                    onClick: () => onSubmit(data),
                 },
             });
-
         } finally {
             setLoading(false);
         }
@@ -208,33 +210,31 @@ function ProfileForm({ className, user }: React.ComponentProps<"form"> & { user:
                         />
                     </div>
                     {error && <p className="text-red-500 text-sm font-medium">{error}</p>}
+                    <Controller
+                        name="nom"
+                        control={form.control}
+                        render={({ field, fieldState }) => (
+                            <Field data-invalid={fieldState.invalid}>
+                                <InputGroup>
+                                    <InputGroupInput
+                                        type="text"
+                                        {...field}
+                                        id={field.name}
+                                        aria-invalid={fieldState.invalid}
+                                        placeholder="Votre nom"
+                                    />
+                                    <InputGroupAddon align="block-start">
+                                        <UserIcon />
+                                        <InputGroupText>Modifier votre nom</InputGroupText>
+                                    </InputGroupAddon>
+                                </InputGroup>
+                                {fieldState.invalid && (
+                                    <FieldError errors={[fieldState.error]} />
+                                )}
+                            </Field>
+                        )}
+                    />
                 </div>
-                <Controller
-                    name="nom"
-                    control={form.control}
-                    render={({ field, fieldState }) => (
-                        <Field data-invalid={fieldState.invalid}>
-                            <InputGroup>
-                                <InputGroupInput
-                                    type="text"
-                                    {...field}
-                                    id={field.name}
-                                    aria-invalid={fieldState.invalid}
-                                    placeholder="Votre nom"
-                                />
-                                <InputGroupAddon align="block-start">
-                                    <UserIcon />
-                                    <InputGroupText>Modifier votre nom</InputGroupText>
-                                </InputGroupAddon>
-                            </InputGroup>
-                            {fieldState.invalid && (
-                                <FieldError errors={[fieldState.error]} />
-                            )}
-                        </Field>
-                    )}
-                />
-
-
                 <FieldGroup>
                     <Field>
                         <Button disabled={loading} type="submit">
