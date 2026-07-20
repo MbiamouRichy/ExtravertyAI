@@ -28,6 +28,8 @@ import {
     User,
     AtSignIcon
 } from "lucide-react";
+import { SubscribeButton } from "@/components/suscribeButton";
+import { PLANS } from "@/lib/stripe-plans";
 
 function ProfileUtilisateur({ user }: { user: { name: string; email: string; role: string; plan: string } }) {
     return (
@@ -77,7 +79,7 @@ function ProfileUtilisateur({ user }: { user: { name: string; email: string; rol
                                 <AtSignIcon className="text-muted-foreground" />
                             </InputGroupAddon>
                             <InputGroupAddon align="inline-end">
-                                <InputGroupButton variant="default" className="cursor-pointer">
+                                <InputGroupButton variant="outline" className="cursor-pointer">
                                     Modifier
                                 </InputGroupButton>
                             </InputGroupAddon>
@@ -95,8 +97,9 @@ function ProfileUtilisateur({ user }: { user: { name: string; email: string; rol
                     </Button>
                 </ModifierProfile> */}
                 <Button >
-                    Enregistrer les modifications
+                    Modifier le profil
                 </Button>
+                <SubscribeButton priceId={PLANS.STARTER.priceId} />
             </CardFooter>
         </Card>
     )

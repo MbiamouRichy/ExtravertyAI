@@ -1,8 +1,6 @@
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
   provider = "prisma-client"
   output   = "../src/generated/prisma"
@@ -19,29 +17,10 @@ enum InstanceStatus {
 }
 
 enum ProjectStatus {
-  active
-  paused
-}
-
-model Project {
-  id             String        @id @default(cuid())
-  name           String
-  numero         String        
-  status         ProjectStatus @default(active)
-  // Relation avec l'utilisateur Better Auth
-  userId         String
-  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  // Instances API
-  instanceName   String        @unique
-  instanceStatus InstanceStatus @default(disconnected)
-  plan                   Plan      @default(starter)
-
-  // Dates
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
-  expiredAt      DateTime?    
-  
-  @@index([userId]) 
+  testing   // Phase de test par le client (Statut par défaut)
+  active    // Abonnement payé, en production
+  paused    // Mis en pause temporairement
+  inactive  // Abonnement annulé / non payé
 }
 
 enum Role {
@@ -55,28 +34,86 @@ enum Theme {
   dark
   system
 }
+
 enum Plan {
   starter
   business
   pro
 }
+
+// ------------------------------------------------------
+// 🏢 MODÈLE PROJET (Le cœur de la facturation)
+// ------------------------------------------------------
+model Project {
+  id             String         @id @default(cuid())
+  name           String
+  numero         String        
+  status         ProjectStatus  @default(testing)
+  
+  // Instances API WhatsApp
+  instanceName   String         @unique
+  instanceStatus InstanceStatus @default(disconnected)
+  plan           Plan           @default(starter)
+
+  // 💳 FACTURATION STRIPE (Rattachée au projet)
+  stripeCustomerId       String?   @unique
+  stripeSubscriptionId   String?   @unique
+  stripePriceId          String?
+  stripeCurrentPeriodEnd DateTime?
+
+  // 👥 SYSTÈME MULTI-TENANT (Membres du projet)
+  members        ProjectMembership[]
+
+  // Dates
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  expiredAt      DateTime?    
+}
+
+// ------------------------------------------------------
+// 🔗 TABLE DE LIAISON (Gestion des accès et de l'équipe)
+// ------------------------------------------------------
+model ProjectMembership {
+  id        String   @id @default(cuid())
+  userId    String
+  projectId String
+  role      Role     @default(OWNER) // Celui qui crée le projet en est le OWNER
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  // Un utilisateur ne peut avoir qu'un seul rôle par projet
+  @@unique([userId, projectId])
+  @@index([userId])
+  @@index([projectId])
+  @@map("project_membership")
+}
+
+// ------------------------------------------------------
+// 👤 UTILISATEURS & AUTHENTIFICATION (Better Auth)
+// ------------------------------------------------------
 model User {
   id            String    @id
   name          String
   email         String
   emailVerified Boolean   @default(false)
   image         String?
+  theme         Theme     @default(system)
+  
+  // Sécurité : Rôle global sur la plateforme ExtravertyAI
+  globalRole    Role      @default(USER) 
+
+  // Les projets auxquels l'utilisateur a accès
+  memberships   ProjectMembership[]
+
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
+  
+  // Relations Better Auth
   sessions      Session[]
   accounts      Account[]
-  projects      Project[]
-  role          Role      @default(OWNER)
-  stripeCustomerId       String?   @unique
-  stripeSubscriptionId   String?   @unique
-  stripePriceId          String?
-  stripeCurrentPeriodEnd DateTime?
-  theme                  Theme     @default(system)
+
   @@unique([email])
   @@map("user")
 }
