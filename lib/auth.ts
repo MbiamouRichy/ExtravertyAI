@@ -1,4 +1,4 @@
-import { EmailTemplate } from '@/components/auth/emailTemplate';
+import { EmailTemplate } from "@/components/auth/emailTemplate";
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import prisma from "./prisma";
@@ -39,15 +39,24 @@ export const auth = betterAuth({
     },
   },
   emailVerification: {
-      sendOnSignUp: true,
-      sendVerificationEmail: async ({ user, url }) => {
-        await resend.emails.send({
-          to: user.email,
-          subject: "Verifier votre adresse e-mail",
-          html: EmailTemplate({ url, email: user.email }),
-          from: "ExtravertyAI <notification@extravertyai.com>",
-        });
-      },
-      
+    sendOnSignUp: true,
+    sendVerificationEmail: async ({ user, url }) => {
+      await resend.emails.send({
+        to: user.email,
+        subject: "Verifier votre adresse e-mail",
+        html: EmailTemplate({ url, email: user.email }),
+        from: "ExtravertyAI <notification@extravertyai.com>",
+      });
     },
+  },
+  user: {
+    // C'est ici que vous enregistrez votre nouveau champ
+    additionalFields: {
+      globalRole: {
+        type: "string",
+        required: false,
+        defaultValue: "USER", // Assurez-vous que ça correspond à votre enum
+      },
+    },
+  },
 });

@@ -25,18 +25,21 @@ import {
     FieldLabel,
 } from "@/components/ui/field"
 import {
-    User,
+    UserIcon,
     AtSignIcon
 } from "lucide-react";
 import { SubscribeButton } from "@/components/suscribeButton";
 import { PLANS } from "@/lib/stripe-plans";
+import { redirect } from "next/navigation";
+import { signOut } from "@/lib/auth-client";
+import { User } from "better-auth";
 
-function ProfileUtilisateur({ user }: { user: { name: string; email: string; role: string; plan: string } }) {
+function ProfileUtilisateur({ user }: { user: User }) {
     return (
         <Card className="shadow-sm">
             <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
-                    <User className="h-5 w-5 text-neutral-500" />
+                    <UserIcon className="h-5 w-5 text-neutral-500" />
                     Profil Utilisateur
                 </CardTitle>
                 <CardDescription>
@@ -55,7 +58,7 @@ function ProfileUtilisateur({ user }: { user: { name: string; email: string; rol
                         <p className="font-medium text-neutral-900">{user.name}</p>
                         <div className="flex items-center gap-2 mt-1">
                             <Badge variant="secondary" className="bg-neutral-100 text-neutral-600 hover:bg-neutral-100 pointer-events-none">
-                                {user.role}
+                                Verified
                             </Badge>
                         </div>
                     </div>
@@ -67,7 +70,7 @@ function ProfileUtilisateur({ user }: { user: { name: string; email: string; rol
                         <InputGroup>
                             <InputGroupInput readOnly id="name" type="text" defaultValue={user.name} className="focus-visible:ring-neutral-400" disabled />
                             <InputGroupAddon>
-                                <User className="text-muted-foreground" />
+                                <UserIcon className="text-muted-foreground" />
                             </InputGroupAddon>
                         </InputGroup>
                     </Field>
@@ -96,6 +99,13 @@ function ProfileUtilisateur({ user }: { user: { name: string; email: string; rol
                         Enregistrer les modifications
                     </Button>
                 </ModifierProfile> */}
+                <Button
+                    onClick={() => {
+                        signOut()
+                        redirect("/sign-in");
+                    }}
+                    className="w-full cursor-pointer"
+                    variant="destructive">Se déconnecter</Button>
                 <Button >
                     Modifier le profil
                 </Button>

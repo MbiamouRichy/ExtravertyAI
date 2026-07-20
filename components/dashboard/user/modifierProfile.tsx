@@ -59,7 +59,7 @@ export function ModifierProfile({ children, open, setOpen, user }: { children?: 
         return (
             <Dialog open={open} onOpenChange={setOpen}>
                 {children && (
-                    <DialogTrigger asChild>
+                    <DialogTrigger className="cursor-pointer" asChild>
                         {children}
                     </DialogTrigger>
                 )}
@@ -79,7 +79,7 @@ export function ModifierProfile({ children, open, setOpen, user }: { children?: 
     return (
         <Drawer open={open} onOpenChange={setOpen}>
             {children && (
-                <DrawerTrigger asChild>
+                <DrawerTrigger className="cursor-pointer" asChild>
                     {children}
                 </DrawerTrigger>
             )}
@@ -195,7 +195,7 @@ function ProfileForm({ className, user }: React.ComponentProps<"form"> & { user:
                         <Avatar className="h-full w-full border border-neutral-200">
                             <AvatarImage src={preview ? preview : user.image ? user.image : undefined} alt={user.name} />
                             <AvatarFallback className="bg-neutral-100 text-neutral-900 text-xl font-medium">
-                                {user.name.charAt(0).toUpperCase()}{user.name.charAt(1).toLowerCase()}
+                                {user.name.substring(0, 2).toUpperCase()}
                             </AvatarFallback>
                         </Avatar>
                         <Button variant="outline" size="icon-sm" className="rounded-full absolute bottom-0 right-0 pointer-events-none" >

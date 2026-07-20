@@ -14,13 +14,12 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { signOut } from "@/lib/auth-client";
 import { User } from "better-auth";
-import { UserIcon, SettingsIcon, CreditCardIcon, LogOutIcon, UserCog } from "lucide-react";
+import { UserIcon, SettingsIcon, CreditCardIcon, UserCog } from "lucide-react";
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { ModifierProfile } from "./user/modifierProfile";
 import React from "react";
+import SignOutButton from "./user/signOutButton";
 
 
 export function NavUser(user: User) {
@@ -41,7 +40,7 @@ export function NavUser(user: User) {
 							<DropdownMenuLabel className="flex items-center gap-3">
 								<Avatar className="size-10">
 									<AvatarImage src={user.image ?? undefined} />
-									<AvatarFallback>{user.name.charAt(0).toUpperCase()}{user.name.charAt(1).toLowerCase()}</AvatarFallback>
+									<AvatarFallback>{user.name.substring(0, 2).toUpperCase()}</AvatarFallback>
 								</Avatar>
 								<div>
 									<span className="font-medium text-foreground">{user.name}</span>{" "}
@@ -82,17 +81,8 @@ export function NavUser(user: User) {
 					</DropdownMenuGroup>
 					<DropdownMenuSeparator />
 					<DropdownMenuGroup>
-						<DropdownMenuItem
-							onClick={() => {
-								signOut()
-								redirect("/sign-in");
-							}}
-							className="w-full cursor-pointer"
-							variant="destructive"
-						>
-							<LogOutIcon
-							/>
-							Se déconnecter
+						<DropdownMenuItem className="cursor-pointer" asChild>
+							<SignOutButton variant="destructive" className="w-full justify-start bg-background focus:bg-destructive/10 dark:focus:bg-destructive/20" />
 						</DropdownMenuItem>
 					</DropdownMenuGroup>
 				</DropdownMenuContent>
