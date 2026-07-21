@@ -3,14 +3,15 @@ import { redirect } from "next/navigation";
 import { UAParser } from "ua-parser-js";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Shield, Key, Smartphone, Mail, CalendarDays, UserCog } from "lucide-react";
+import { Shield, Key, Smartphone, Mail, CalendarDays, UserCog, Monitor } from "lucide-react";
 import SignOutButton from "@/components/dashboard/user/signOutButton";
 import { ModifierProfile } from "@/components/dashboard/user/modifierProfile";
 import { getSession } from "@/lib/auth-server";
 import { formatTimeAgo } from "@/lib/formatTimeAgo";
+import { ChangePasswordDialog } from "@/components/dashboard/user/changePassword";
 
 export default async function ProfilePage() {
   // Récupération de la session utilisateur via Better Auth
@@ -35,19 +36,34 @@ export default async function ProfilePage() {
   const rawSessions = await prisma.session.findMany({
     where: { userId: user.id, expiresAt: { gt: new Date() } },
     orderBy: { createdAt: "desc" },
+    take: 4, // Limite à 4 sessions pour éviter de surcharger l'affichage
   });
 
   const sessions = rawSessions.map((s) => {
-    // Avec l'import nommé, TypeScript reconnaît le constructeur
     const parser = new UAParser(s.userAgent || "");
     const result = parser.getResult();
 
+    // Formatage propre de l'IP locale
+    let displayIp = s.ipAddress || "IP masquée";
+    if (displayIp === "::1" || displayIp === "127.0.0.1" || displayIp.includes("0000:0000")) {
+      displayIp = "Localhost (En développement)";
+    }
+
+    // NOUVEAU : Formatage de la date façon Réseaux Sociaux (ex: "21 juil. à 14:30")
+    const sessionDate = new Intl.DateTimeFormat("fr-FR", {
+      day: "numeric",
+      month: "short",
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(new Date(s.createdAt));
+
     return {
       id: s.id,
-      browser: result.browser.name || "Navigateur inconnu",
-      os: result.os.name || "Système inconnu",
-      device: result.device.type === "mobile" ? "Mobile" : "Ordinateur",
-      ip: s.ipAddress || "IP masquée",
+      browser: result.browser?.name || "Navigateur inconnu",
+      os: result.os?.name || "Système inconnu",
+      device: result.device?.type === "mobile" ? "Mobile" : "Ordinateur",
+      ip: displayIp,
+      date: sessionDate, // On ajoute la date ici
     };
   });
 
@@ -65,9 +81,9 @@ export default async function ProfilePage() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
         {/* Colonne Gauche : Identité */}
-        <div className="space-y-6 md:col-span-1">
+        <div className="space-y-6 lg:col-span-1">
           <Card className="border-border shadow-sm">
             <CardContent className="pt-6 flex flex-col items-center text-center">
               <div className="relative mb-4">
@@ -83,10 +99,6 @@ export default async function ProfilePage() {
               <h2 className="text-xl font-semibold">{user.name}</h2>
               <p className="text-sm text-muted-foreground mb-4">{user.email}</p>
 
-              <Badge variant="secondary" className="mb-6 uppercase tracking-wider text-xs">
-                {user.globalRole || "Utilisateur"}
-              </Badge>
-
               <div className="w-full flex flex-col justify-between gap-2 items-center">
                 <ModifierProfile user={user}>
                   <Button className="w-full cursor-pointer">
@@ -97,18 +109,15 @@ export default async function ProfilePage() {
                 <SignOutButton className="w-full cursor-pointer" />
               </div>
             </CardContent>
-
-            <Separator />
-
-            <CardContent className="p-4 bg-muted/30 text-sm text-muted-foreground flex items-center justify-center gap-2">
+            <CardFooter className="text-sm text-muted-foreground flex items-center justify-center gap-2">
               <CalendarDays className="h-4 w-4" />
               Membre depuis {joinedDate}
-            </CardContent>
+            </CardFooter>
           </Card>
         </div>
 
         {/* Colonne Droite : Sécurité & Sessions dynamiques */}
-        <div className="space-y-6 md:col-span-2">
+        <div className="space-y-6 lg:col-span-2">
           <Card className="border-border shadow-sm">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-lg">
@@ -120,22 +129,27 @@ export default async function ProfilePage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="flex items-center justify-between">
-                <div className="space-y-1">
-                  <p className="font-medium flex items-center gap-2">
-                    <Mail className="h-4 w-4 text-muted-foreground" />
-                    Adresse Email
-                  </p>
+              <div className="flex flex-col lg:flex-row justify-between gap-2">
+                <div className="space-y-1 flex flex-col gap-2">
+                  <div className="flex flex-col md:flex-row justify-between md:items-center gap-2">
+                    <p className="font-medium flex items-center gap-2">
+                      <Mail className="h-4 w-4 text-muted-foreground" />
+                      Adresse Email
+                    </p>
+                    <Badge className="text-sm" variant={user.emailVerified ? "default" : "destructive"}>
+                      {user.emailVerified ? "Vérifiée" : "Non vérifiée"}
+                    </Badge>
+                  </div>
                   <p className="text-sm text-muted-foreground">{user.email}</p>
                 </div>
-                <Badge variant={user.emailVerified ? "default" : "destructive"}>
-                  {user.emailVerified ? "Vérifiée" : "Non vérifiée"}
-                </Badge>
+                <Button variant="outline" size="sm">
+                  Modifier l&apos;email
+                </Button>
               </div>
 
               <Separator />
 
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-2">
                 <div className="space-y-1">
                   <p className="font-medium flex items-center gap-2">
                     <Key className="h-4 w-4 text-muted-foreground" />
@@ -145,9 +159,11 @@ export default async function ProfilePage() {
                     Dernière modification : {passwordLastUpdated}
                   </p>
                 </div>
-                <Button variant="outline" size="sm">
-                  Modifier
-                </Button>
+                <ChangePasswordDialog>
+                  <Button variant="outline" size="sm">
+                    Modifier le mot de passe
+                  </Button>
+                </ChangePasswordDialog>
               </div>
             </CardContent>
           </Card>
@@ -156,32 +172,36 @@ export default async function ProfilePage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-lg">
                 <Smartphone className="h-5 w-5 text-primary" />
-                Sessions actives ({sessions.length})
+                Connexions récentes
               </CardTitle>
               <CardDescription>
-                Les appareils actuellement connectés à votre compte.
+                Les appareils  récemment connectés à votre compte.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               {sessions.map((s, index) => (
-                <div key={s.id} className="flex items-center justify-between p-4 rounded-lg border bg-card">
-                  <div className="flex items-center gap-4">
-                    <div className="p-2 bg-primary/10 rounded-full">
-                      <Smartphone className="h-5 w-5 text-primary" />
+                <div key={s.id} className="flex flex-col lg:flex-row items-center justify-between p-4 rounded-lg border bg-card">
+                  <div className="flex flex-col lg:flex-row items-center gap-4">
+                    <div className="p-2 bg-primary/10 w-fit rounded-full">
+                      {s.device === "Mobile" ? (
+                        <Smartphone className="h-5 w-5 text-primary" />
+                      ) : (
+                        <Monitor className="h-5 w-5 text-primary" />
+                      )}
                     </div>
                     <div>
-                      <p className="font-medium text-sm">{s.os} - {s.browser}</p>
-                      <p className="text-xs text-muted-foreground">
-                        IP : {s.ip} {index === 0 ? "• Session actuelle" : ""}
+                      <p className="font-medium text-sm">
+                        {s.device} • {s.os} - {s.browser}
+                      </p>
+                      {/* Affichage de l'IP et de la date ici */}
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {s.ip} • Connecté le {s.date}
                       </p>
                     </div>
                   </div>
-                  {index === 0 ? (
+
+                  {index === 0 && (
                     <Badge className="bg-emerald-500 hover:bg-emerald-600">Actuelle</Badge>
-                  ) : (
-                    <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive">
-                      Révoquer
-                    </Button>
                   )}
                 </div>
               ))}

@@ -51,7 +51,7 @@ export function AuthPage() {
 	const { playHaptic } = useHaptics();
 	const [loading, setLoading] = useState<boolean>(false);
 	const [showPassword, setShowPassword] = useState(false);
-    const router = useRouter();
+	const router = useRouter();
 	const form = useForm<z.infer<typeof formSchema>>({
 		resolver: zodResolver(formSchema),
 		mode: "onChange",
@@ -265,7 +265,7 @@ export function AuthPage() {
 							/>
 
 							<Field>
-								<Button disabled={loading} type="submit" id="form-inscription">
+								<Button disabled={loading} type="submit">
 									{loading ? <Loader className="animate-spin" /> : null}
 									Continuer avec l&apos;e-mail
 								</Button>
