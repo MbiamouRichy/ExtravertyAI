@@ -17,16 +17,16 @@ import {
 import type { SidebarNavGroup } from "@/components/dashboard/app-shared";
 import { ChevronRightIcon } from "lucide-react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
+import { useActivePage } from "@/hooks/useActivePage";
 
 export function NavGroup({ label, items }: SidebarNavGroup) {
-	const pathname = usePathname();
+	const { pathname, activeSection } = useActivePage();
 	return (
 		<SidebarGroup>
 			{label && <SidebarGroupLabel>{label}</SidebarGroupLabel>}
 			<SidebarMenu>
-				{items.map((item) => (
+				{items.map((item) => item.show !== false && (
 					<Collapsible
 						asChild
 						className="group/collapsible"
@@ -38,7 +38,7 @@ export function NavGroup({ label, items }: SidebarNavGroup) {
 									{item.subItems?.length ? (
 										<>
 											<CollapsibleTrigger asChild>
-												<SidebarMenuButton isActive={item.path === pathname}>
+												<SidebarMenuButton isActive={item.title === activeSection}>
 													{item.icon}
 													<span>{item.title}</span>
 													<ChevronRightIcon className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
@@ -65,7 +65,7 @@ export function NavGroup({ label, items }: SidebarNavGroup) {
 											</CollapsibleContent>
 										</>
 									) : (
-										<SidebarMenuButton asChild isActive={item.path === pathname}>
+										<SidebarMenuButton asChild isActive={item.title === activeSection}>
 											<Link href={item.path || "#"}>
 												{item.icon}
 												<span>{item.title}</span>
@@ -76,7 +76,6 @@ export function NavGroup({ label, items }: SidebarNavGroup) {
 							</TooltipTrigger>
 							<TooltipContent side="right">
 								{item.title} {" "}
-								
 							</TooltipContent>
 						</Tooltip>
 					</Collapsible>

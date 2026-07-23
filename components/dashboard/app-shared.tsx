@@ -7,6 +7,7 @@ export type SidebarNavItem = {
 	icon?: ReactNode;
 	isActive?: boolean;
 	subItems?: SidebarNavItem[];
+	show?: boolean;
 };
 
 export type SidebarNavGroup = {
@@ -35,12 +36,21 @@ export const navGroups: SidebarNavGroup[] = [
 				),
 			},
 			{
-				title: "Projects",
-				path: "/dashboard/projects",
+				title: "Projets",
+				path: "/dashboard/projets",
 				icon: (
 					<BriefcaseIcon
 					/>
 				),
+			},
+			{
+				title: "User",
+				path: "/dashboard/user",
+				icon: (
+					<UsersIcon
+					/>
+				),
+				show: false,
 			},
 		],
 	},

@@ -1,9 +1,10 @@
-import { EmailTemplate } from "@/components/auth/emailTemplate";
+import { EmailTemplate } from "@/components/emailTemplate/emailTemplate";
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import prisma from "./prisma";
 import { resend } from "./resend";
-import { ResetPasswordTemplate } from "@/components/auth/resetPasswordTemplate";
+import { ResetPasswordTemplate } from "@/components/emailTemplate/resetPasswordTemplate";
+import { ChangeEmailTemplate } from "@/components/emailTemplate/changeEmailTemplate";
 
 export const auth = betterAuth({
   baseURL: process.env.NEXT_PUBLIC_BASE_URL as string,
@@ -50,7 +51,17 @@ export const auth = betterAuth({
     },
   },
   user: {
-    // C'est ici que vous enregistrez votre nouveau champ
+    changeEmail: {
+      enabled: true,
+      sendChangeEmailConfirmation: async ({ user, newEmail, url }) => {
+        await resend.emails.send({
+          to: user.email, // Sent to the CURRENT email
+          subject: "Approve email change",
+          html: ChangeEmailTemplate({ newEmail, url }),
+          from: "ExtravertyAI <notification@extravertyai.com>",
+        });
+      },
+    },
     additionalFields: {
       globalRole: {
         type: "string",

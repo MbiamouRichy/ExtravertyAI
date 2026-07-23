@@ -1,4 +1,4 @@
-"use client"
+"use client";
 import type { ReactNode } from "react";
 import {
 	Breadcrumb,
@@ -6,8 +6,8 @@ import {
 	BreadcrumbList,
 	BreadcrumbPage,
 } from "@/components/ui/breadcrumb";
-import { usePathname } from "next/navigation";
 import { navLinks } from "./app-shared";
+import { useActivePage } from "@/hooks/useActivePage";
 
 /** Current page segment shown in the header — pass a nav item or `{ title, icon? }`. */
 export type AppBreadcrumbPage = {
@@ -16,11 +16,12 @@ export type AppBreadcrumbPage = {
 };
 
 export function AppBreadcrumbs() {
-	
-	const pathname = usePathname()
-	const page = navLinks.find((item) => item.path === pathname)
 
-	if(!page) {
+	const { activeSection } = useActivePage()
+	console.log(activeSection)
+	const page = navLinks.find((item) => item.title === activeSection)
+
+	if (!page) {
 		return null
 	}
 

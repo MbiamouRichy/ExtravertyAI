@@ -42,11 +42,11 @@ const formSchema = z
         newPassword: z
             .string()
             .min(8, "Le mot de passe doit contenir au moins 8 caractères.")
-            .max(15, "Le mot de passe doit contenir au maximum 15 caractères."),
+            .max(30, "Le mot de passe doit contenir au maximum 30 caractères."),
         confirmPassword: z
             .string()
             .min(8, "Le mot de passe doit contenir au moins 8 caractères.")
-            .max(15, "Le mot de passe doit contenir au maximum 15 caractères."),
+            .max(30, "Le mot de passe doit contenir au maximum 30 caractères."),
         // On retire le .optional() pour aligner parfaitement les types TypeScript
         revokeSessions: z.boolean(),
     })
@@ -133,7 +133,7 @@ export function ChangePasswordDialog({ children }: { children: React.ReactNode }
                 {children}
             </DialogTrigger>
 
-            <DialogContent className="sm:max-w-[425px]">
+            <DialogContent className="sm:max-w-106.25">
                 {/* On passe la fonction onError pour jouer l'haptique si Zod bloque la soumission */}
                 <form id="change-password-form" onSubmit={form.handleSubmit(onSubmit, onError)}>
                     <DialogHeader>

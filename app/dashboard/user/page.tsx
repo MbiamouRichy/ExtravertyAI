@@ -12,6 +12,7 @@ import { ModifierProfile } from "@/components/dashboard/user/modifierProfile";
 import { getSession } from "@/lib/auth-server";
 import { formatTimeAgo } from "@/lib/formatTimeAgo";
 import { ChangePasswordDialog } from "@/components/dashboard/user/changePassword";
+import ChangeEmailForm from "@/components/dashboard/user/modiferEmail";
 
 export default async function ProfilePage() {
   // Récupération de la session utilisateur via Better Auth
@@ -87,7 +88,7 @@ export default async function ProfilePage() {
           <Card className="border-border shadow-sm">
             <CardContent className="pt-6 flex flex-col items-center text-center">
               <div className="relative mb-4">
-                <div className="absolute -inset-1 rounded-full bg-gradient-to-tr from-primary/20 to-primary/0 blur-md" />
+                <div className="absolute -inset-1 rounded-full bg-linear-to-tr from-primary/20 to-primary/0 blur-md" />
                 <Avatar className="h-24 w-24 border-2 border-background relative shadow-sm">
                   <AvatarImage src={user.image || ""} alt={user.name} />
                   <AvatarFallback className="text-2xl bg-primary/10 text-primary">
@@ -142,9 +143,11 @@ export default async function ProfilePage() {
                   </div>
                   <p className="text-sm text-muted-foreground">{user.email}</p>
                 </div>
-                <Button variant="outline" size="sm">
-                  Modifier l&apos;email
-                </Button>
+                <ChangeEmailForm>
+                  <Button variant="outline" size="sm">
+                    Modifier l&apos;email
+                  </Button>
+                </ChangeEmailForm>
               </div>
 
               <Separator />
