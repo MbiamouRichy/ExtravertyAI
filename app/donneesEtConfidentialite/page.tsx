@@ -158,7 +158,7 @@ export default function PrivacyPolicy() {
 
                             <hr className="border-border my-10" />
 
-                            <section id="contact" className="mb-12 scroll-mt-24 dark:bg-card bg-primary/5 text-card-foreground p-8 rounded-2xl border border-border shadow-sm">
+                            <section id="contact" className="mb-12 scroll-mt-24 bg-card text-card-foreground p-8 rounded-2xl border border-border shadow-sm">
                                 <div className="flex items-center gap-3 mb-4">
                                     <Mail className="w-6 h-6 text-foreground" />
                                     <h2 className="text-xl font-bold m-0 text-foreground">6. Nous contacter</h2>

@@ -34,7 +34,7 @@ const formSchema = z.object({
 	password: z
 		.string()
 		.min(8, "Le mot de passe doit contenir au moins 8 caractères.")
-		.max(30, "Le mot de passe doit contenir au maximum 30 caractères."),
+		.max(256, "Le mot de passe doit contenir au maximum 256 caractères."),
 });
 
 

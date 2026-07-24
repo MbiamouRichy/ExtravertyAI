@@ -89,7 +89,7 @@ function AvantApres() {
             className="w-11/12! mt-auto mx-auto"
           />
         </Card>
-        <Card className="w-full bg-primary/5 dark:bg-card min-w-75 md:w-1/2">
+        <Card className="w-full bg-card min-w-75 md:w-1/2">
           <CardHeader>
             <CardDescription className="text-center">
               Après ExtravertyAI:

@@ -34,7 +34,7 @@ const formSchema = z.object({
   password: z
     .string()
     .min(8, "Le mot de passe doit contenir au moins 8 caractères.")
-    .max(15, "Le mot de passe doit contenir au maximum 15 caractères."),
+    .max(256, "Le mot de passe doit contenir au maximum 256 caractères."),
 });
 
 export default function ResetPassword() {
@@ -53,69 +53,70 @@ export default function ResetPassword() {
   });
   async function onSubmit(data: z.infer<typeof formSchema>) {
     setLoading(true);
-   try{ await authClient.resetPassword(
-      {
-        newPassword: data.password as string,
-        token: token,
-      },
-      {
-        onSuccess: () => {
-          playHaptic("success");
+    try {
+      await authClient.resetPassword(
+        {
+          newPassword: data.password as string,
+          token: token,
+        },
+        {
+          onSuccess: () => {
+            playHaptic("success");
 
-          toast.success("Mot de passe réinitialisé avec succès.", {
-            description: (
-              <p className="text-muted-foreground text-sm">
-                Votre mot de passe a été mis à jour. Vous pouvez maintenant vous
-                connecter avec votre nouveau mot de passe.
-              </p>
-            ),
-            position: "top-center",
-          });
-          router.push("/sign-in");
-        },
-        onError: (error) => {
-          playHaptic("error");
-          toast.error("Une erreur s'est produite.", {
-            description: (
-              <p className="text-muted-foreground text-sm">
-                {error.error.message ===
-                  "[body.token] Invalid input: expected string, received null"
-                  ? "Le token de réinitialisation est invalide ou a expiré."
-                  : "Une erreur inconnue s'est produite."}
-              </p>
-            ),
-            position: "top-center",
-            className: "text-muted-foreground text-sm bg-card",
-            action: {
-              label: "Réessayer",
-              onClick: () => {
-                onSubmit(data);
+            toast.success("Mot de passe réinitialisé avec succès.", {
+              description: (
+                <p className="text-muted-foreground text-sm">
+                  Votre mot de passe a été mis à jour. Vous pouvez maintenant vous
+                  connecter avec votre nouveau mot de passe.
+                </p>
+              ),
+              position: "top-center",
+            });
+            router.push("/sign-in");
+          },
+          onError: (error) => {
+            playHaptic("error");
+            toast.error("Une erreur s'est produite.", {
+              description: (
+                <p className="text-muted-foreground text-sm">
+                  {error.error.message ===
+                    "[body.token] Invalid input: expected string, received null"
+                    ? "Le token de réinitialisation est invalide ou a expiré."
+                    : "Une erreur inconnue s'est produite."}
+                </p>
+              ),
+              position: "top-center",
+              className: "text-muted-foreground text-sm bg-card",
+              action: {
+                label: "Réessayer",
+                onClick: () => {
+                  onSubmit(data);
+                },
               },
-            },
-          });
+            });
+          },
         },
-      },
-    );
-    setLoading(false);
-   } catch (error) {
-    console.error("Erreur de réinitialisation du mot de passe:", error);
-    playHaptic("error");
-    toast.error("Une erreur s'est produite.", {
-      description:
-        "Quelque chose s'est mal passé. Veuillez réessayer.",
-      position: "top-center",
-      className: "text-muted-foreground text-sm bg-card",
-      action: {
-        label: "Réessayer",
-        onClick: () => {
-          onSubmit(data);
+      );
+      setLoading(false);
+    } catch (error) {
+      console.error("Erreur de réinitialisation du mot de passe:", error);
+      playHaptic("error");
+      toast.error("Une erreur s'est produite.", {
+        description:
+          "Quelque chose s'est mal passé. Veuillez réessayer.",
+        position: "top-center",
+        className: "text-muted-foreground text-sm bg-card",
+        action: {
+          label: "Réessayer",
+          onClick: () => {
+            onSubmit(data);
+          },
         },
-      },
-    });
-      }finally {
-        setLoading(false);
-      }
+      });
+    } finally {
+      setLoading(false);
     }
+  }
   return (
     <div className="relative flex h-screen w-full items-center justify-center overflow-hidden px-6 md:px-8">
       <div

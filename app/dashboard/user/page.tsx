@@ -143,7 +143,7 @@ export default async function ProfilePage() {
                   </div>
                   <p className="text-sm text-muted-foreground">{user.email}</p>
                 </div>
-                <ChangeEmailForm>
+                <ChangeEmailForm currentEmail={user.email}>
                   <Button variant="outline" size="sm">
                     Modifier l&apos;email
                   </Button>

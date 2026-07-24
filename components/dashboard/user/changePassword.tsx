@@ -42,11 +42,11 @@ const formSchema = z
         newPassword: z
             .string()
             .min(8, "Le mot de passe doit contenir au moins 8 caractères.")
-            .max(30, "Le mot de passe doit contenir au maximum 30 caractères."),
+            .max(256, "Le mot de passe doit contenir au maximum 256 caractères."),
         confirmPassword: z
             .string()
             .min(8, "Le mot de passe doit contenir au moins 8 caractères.")
-            .max(30, "Le mot de passe doit contenir au maximum 30 caractères."),
+            .max(256, "Le mot de passe doit contenir au maximum 256 caractères."),
         // On retire le .optional() pour aligner parfaitement les types TypeScript
         revokeSessions: z.boolean(),
     })
