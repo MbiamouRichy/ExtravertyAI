@@ -50,6 +50,7 @@ export default function ChangeEmailForm({ children, currentEmail }: { children: 
     const router = useRouter();
     const { playHaptic } = useHaptics();
     const [loading, setLoading] = useState<boolean>(false);
+    const [currentPasswordVisible, setCurrentPasswordVisible] = useState(false);
     const [step, setStep] = useState<1 | 2 | 3>(1);
     const [open, setOpen] = useState<boolean>(false);
     const form = useForm<z.infer<typeof formEmailSchema>>({
@@ -67,10 +68,6 @@ export default function ChangeEmailForm({ children, currentEmail }: { children: 
             password: "",
         },
     });
-
-    // Champs du formulaire
-    const [currentPasswordVisible, setCurrentPasswordVisible] = useState(false);
-
 
     // Réinitialiser l'état quand on ferme la modale
     const handleOpenChange = (open: boolean) => {

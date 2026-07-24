@@ -37,7 +37,7 @@ export const navGroups: SidebarNavGroup[] = [
 			},
 			{
 				title: "Projets",
-				path: "/dashboard/projets",
+				path: "/dashboard/projects",
 				icon: (
 					<BriefcaseIcon
 					/>

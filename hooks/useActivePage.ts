@@ -24,9 +24,9 @@ export function useActivePage() {
   // (Optionnel) Retourne directement le nom de la section active pour d'autres usages logiques
   const currentSection = () => {
     if (!pathname) return null;
-    if (pathname === "/Dashboard") return "Dashboard";
-    if (pathname.includes("/Dashboard/projets")) return "Projets";
-    if (pathname.includes("/Dashboard/user")) return "User";
+    if (pathname === "/dashboard") return "Dashboard";
+    if (pathname.includes("/dashboard/projects")) return "Projets";
+    if (pathname.includes("/dashboard/user")) return "User";
     return "Other";
   };
 

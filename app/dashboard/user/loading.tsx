@@ -4,11 +4,11 @@ import { Separator } from "@/components/ui/separator";
 
 export default function ProfileLoading() {
     return (
-        <div className="max-w-5xl mx-auto p-6 space-y-8 animate-in fade-in duration-500">
+        <div className="w-full max-w-5xl mx-auto p-6 space-y-8 animate-in fade-in duration-500">
             {/* En-tête de page */}
             <div>
-                <Skeleton className="h-9 w-64" /> {/* Titre */}
-                <Skeleton className="h-5 w-96 mt-2 max-w-full" /> {/* Sous-titre */}
+                <Skeleton className="h-9 w-full md:w-50" /> {/* Titre */}
+                <Skeleton className="h-5 w-10/12 md:w-90 mt-2 max-w-full" /> {/* Sous-titre */}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -20,8 +20,8 @@ export default function ProfileLoading() {
                                 <Skeleton className="h-24 w-24 rounded-full" /> {/* Avatar */}
                             </div>
 
-                            <Skeleton className="h-7 w-40 mb-2" /> {/* Nom */}
-                            <Skeleton className="h-5 w-48 mb-4" /> {/* Email */}
+                            <Skeleton className="h-7 w-8/12 md:w-40 mb-2" /> {/* Nom */}
+                            <Skeleton className="h-5 w-10/12 md:w-48 mb-4" /> {/* Email */}
 
                             <div className="w-full flex flex-col justify-between gap-2 items-center">
                                 <Skeleton className="h-10 w-full rounded-md" /> {/* Bouton Modifier */}
@@ -29,7 +29,7 @@ export default function ProfileLoading() {
                             </div>
                         </CardContent>
                         <CardFooter className="flex items-center justify-center">
-                            <Skeleton className="h-4 w-40" /> {/* Membre depuis */}
+                            <Skeleton className="h-4 w-8/10 md:w-40" /> {/* Membre depuis */}
                         </CardFooter>
                     </Card>
                 </div>
@@ -39,8 +39,8 @@ export default function ProfileLoading() {
                     {/* Carte Sécurité */}
                     <Card className="border-border shadow-sm">
                         <CardHeader>
-                            <Skeleton className="h-7 w-56 mb-1.5" />
-                            <Skeleton className="h-5 w-80 max-w-full" />
+                            <Skeleton className="h-7 w-8/12 md:w-56 mb-1.5" />
+                            <Skeleton className="h-5 w-10/12 md:w-80" />
                         </CardHeader>
                         <CardContent className="space-y-6">
                             {/* Section Email */}
@@ -52,7 +52,7 @@ export default function ProfileLoading() {
                                     </div>
                                     <Skeleton className="h-4 w-48" /> {/* Adresse Email */}
                                 </div>
-                                <Skeleton className="h-9 w-32 shrink-0" /> {/* Bouton Modifier */}
+                                <Skeleton className="h-9 w-40 shrink-0" /> {/* Bouton Modifier */}
                             </div>
 
                             <Separator />
@@ -61,7 +61,7 @@ export default function ProfileLoading() {
                             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 lg:gap-2">
                                 <div className="space-y-2 w-full">
                                     <Skeleton className="h-5 w-32" /> {/* Label Mot de passe */}
-                                    <Skeleton className="h-4 w-64" /> {/* Dernière modif */}
+                                    <Skeleton className="h-4 w-8/10 md:w-64" /> {/* Dernière modif */}
                                 </div>
                                 <Skeleton className="h-9 w-44 shrink-0" /> {/* Bouton Modifier */}
                             </div>
@@ -71,8 +71,8 @@ export default function ProfileLoading() {
                     {/* Carte Connexions Récentes */}
                     <Card className="border-border shadow-sm">
                         <CardHeader>
-                            <Skeleton className="h-7 w-64 mb-1.5" />
-                            <Skeleton className="h-5 w-80 max-w-full" />
+                            <Skeleton className="h-7 w-7/12 md:w-64 mb-1.5" />
+                            <Skeleton className="h-5 w-10/12 md:w-80 max-w-full" />
                         </CardHeader>
                         <CardContent className="space-y-4">
                             {/* Génération de 2 sessions fictives (skeleton) */}
@@ -85,7 +85,7 @@ export default function ProfileLoading() {
                                         <Skeleton className="h-10 w-10 rounded-full shrink-0" /> {/* Icône Appareil */}
                                         <div className="w-full flex flex-col items-center lg:items-start gap-1.5">
                                             <Skeleton className="h-4 w-48" /> {/* Navigateur / OS */}
-                                            <Skeleton className="h-3 w-64" /> {/* IP / Date */}
+                                            <Skeleton className="h-3 w-10/12 md:w-64" /> {/* IP / Date */}
                                         </div>
                                     </div>
 
