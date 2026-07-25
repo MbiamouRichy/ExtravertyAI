@@ -1,8 +1,5 @@
-import { DashboardSkeleton } from '@/components/dashboard/dashboard-skeleton'
-import React from 'react'
+import { DashboardSkeleton } from '@/components/dashboard/dashboard-skeleton';
 
-function Loading() {
-    return <DashboardSkeleton />
+export default function Loading() {
+    return <DashboardSkeleton />;
 }
-
-export default Loading

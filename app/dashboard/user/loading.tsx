@@ -24,12 +24,12 @@ export default function ProfileLoading() {
                             <Skeleton className="h-5 w-10/12 md:w-48 mb-4" /> {/* Email */}
 
                             <div className="w-full flex flex-col justify-between gap-2 items-center">
-                                <Skeleton className="h-10 w-full rounded-md" /> {/* Bouton Modifier */}
-                                <Skeleton className="h-10 w-full rounded-md" /> {/* Bouton Déconnexion */}
+                                <Skeleton className="h-10 w-full md:w-48 rounded-md" /> {/* Bouton Modifier */}
+                                <Skeleton className="h-10 w-full md:w-48 rounded-md" /> {/* Bouton Déconnexion */}
                             </div>
                         </CardContent>
                         <CardFooter className="flex items-center justify-center">
-                            <Skeleton className="h-4 w-8/10 md:w-40" /> {/* Membre depuis */}
+                            <Skeleton className="h-4 w-8/10" /> {/* Membre depuis */}
                         </CardFooter>
                     </Card>
                 </div>

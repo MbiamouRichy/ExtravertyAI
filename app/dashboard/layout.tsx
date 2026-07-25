@@ -1,5 +1,5 @@
 import { AppShell } from "@/components/dashboard/app-shell";
-import { getUser } from "@/lib/auth-server";
+import { getSession } from "@/lib/auth-server";
 import { redirect } from "next/navigation";
 
 export default async function DashboardLayout({
@@ -8,10 +8,13 @@ export default async function DashboardLayout({
     children: React.ReactNode;
 }>) {
 
-      const user = await getUser(); // Get the user from the server-side session
-      if (!user) {
+    const session = await getSession();
+    if (!session) {
         redirect("/sign-in");
-      }
+    }
+    if (!session?.user?.id) {
+        redirect("/sign-in");
+    }
     return (
         <AppShell>
             {children}

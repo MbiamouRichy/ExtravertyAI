@@ -29,6 +29,7 @@ import { AtSignIcon, Loader } from "lucide-react";
 import { useState } from "react";
 import { useHaptics } from "@/lib/webHaptics";
 import { cn } from "@/lib/utils";
+import { state } from "@/lib/proxy-state";
 
 const formSchema = z.object({
   email: z.string().email("Entrer une adresse email valide."),
@@ -47,49 +48,67 @@ export default function ForgetPasswordForm() {
   });
   async function onSubmit(data: z.infer<typeof formSchema>) {
     setLoading(true);
-    await authClient.requestPasswordReset(
-      {
-        email: data.email as string,
-        redirectTo: "/reset-password",
-      },
-      {
-        onSuccess: () => {
-          playHaptic("success");
-          toast.success("Email de réinitialisation envoyé.", {
-            description: (
-              <p className="text-muted-foreground text-sm">
-                Vérifiez votre boîte de réception e-mail pour les instructions
-                de réinitialisation.
-              </p>
-            ),
-            position: "top-center",
-          });
-          router.push(`/verify?email=${data.email}`);
-        },
-        onError: (error) => {
-          playHaptic("error");
-          toast.error("Une erreur s'est produite.", {
-            description: (
-              <p className="text-muted-foreground text-sm">
-                {error.error.message === "User not found"
-                  ? "Aucun compte trouvé avec cette adresse e-mail."
-                  : "Une erreur inconnue s'est produite."}
-              </p>
-            ),
 
-            position: "top-center",
-            className: "text-muted-foreground text-sm bg-card",
-            action: {
-              label: "Réessayer",
-              onClick: () => {
-                onSubmit(data);
-              },
-            },
-          });
+    // 1. Définition d'un comportement de succès standard et générique
+    const handleSecureSuccess = () => {
+      playHaptic("success");
+      toast.success("Vérifiez votre boîte de réception.", {
+        description: (
+          <p className="text-muted-foreground text-sm">
+            Si cette adresse e-mail est associée à un compte, vous recevrez un lien de réinitialisation sous peu.
+          </p>
+        ),
+        position: "top-center",
+      });
+
+      // Redirection SANS exposer l'email dans l'URL. 
+      // Si la page /verify a absolument besoin de l'email, passez-le via un State management (Zustand/Context) ou un stockage temporaire (sessionStorage).
+      router.push("/verify-reset");
+    };
+
+    try {
+      await authClient.requestPasswordReset(
+        {
+          email: data.email, // 'as string' retiré car Zod gère déjà le typage
+          redirectTo: "/reset-password",
         },
-      },
-    );
-    setLoading(false);
+        {
+          onSuccess: () => {
+            state.email = data.email;
+            handleSecureSuccess();
+          },
+          onError: (error) => {
+            // 2. MITIGATION DE L'ÉNUMÉRATION D'UTILISATEURS
+            // Si l'erreur est "User not found", on l'intercepte et on simule un succès.
+            // L'attaquant (et l'utilisateur légitime) verra un message de succès dans tous les cas.
+            if (error?.error?.message === "User not found") {
+              handleSecureSuccess();
+              return; // On arrête l'exécution ici
+            }
+
+            // 3. Gestion des vraies erreurs (Rate limit, serveurs inaccessibles, etc.)
+            playHaptic("error");
+            toast.error("Une erreur s'est produite.", {
+              description: (
+                <p className="text-muted-foreground text-sm">
+                  Impossible de traiter votre demande pour le moment. Veuillez réessayer plus tard.
+                </p>
+              ),
+              position: "top-center",
+              className: "text-muted-foreground text-sm bg-card",
+            });
+          },
+        }
+      );
+    } catch {
+      // 4. Gestion des erreurs de réseau (ex: perte de wifi)
+      playHaptic("error");
+      toast.error("Erreur de connexion", {
+        description: "Veuillez vérifier votre connexion internet et réessayer."
+      });
+    } finally {
+      setLoading(false);
+    }
   }
   return (
     <div className="relative flex h-screen w-full items-center justify-center overflow-hidden px-6 md:px-8">
@@ -161,6 +180,6 @@ export default function ForgetPasswordForm() {
           </div>
         </div>
       </div>
-      </div>
-      );
+    </div>
+  );
 }

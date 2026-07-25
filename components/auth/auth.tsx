@@ -44,6 +44,7 @@ export function AuthPage() {
 	const [loading, setLoading] = useState<boolean>(false);
 	const [showPassword, setShowPassword] = useState(false);
 	const [checked, setChecked] = useState(false);
+
 	const form = useForm<z.infer<typeof formSchema>>({
 		resolver: zodResolver(formSchema),
 		mode: "onChange",
@@ -55,50 +56,47 @@ export function AuthPage() {
 
 	async function onSubmit(data: z.infer<typeof formSchema>) {
 		setLoading(true);
-		await signIn.email(
-			{
-				email: data.email as string,
-				password: data.password as string,
-				rememberMe: checked,
-			},
-			{
-				onSuccess: () => {
-					playHaptic("success");
-
-					toast.success("Connexion réussie.", {
-						position: "top-center",
-					});
-					router.push("/dashboard");
+		try {
+			await signIn.email(
+				{
+					email: data.email,
+					password: data.password,
+					rememberMe: checked,
 				},
-				onError: (error) => {
-					let errorMessage = "";
-					if (error.error.message === "User not found") {
-						errorMessage =
-							"Utilisateur non trouvé. Veuillez vérifier votre adresse e-mail.";
-					} else if (error.error.message === "Invalid email or password") {
-						errorMessage =
-							"Nom d'utilisateur ou mot de passe incorrect. Veuillez réessayer.";
-					} else {
-						errorMessage = "Quelque chose s'est mal passé. Veuillez réessayer.";
-					}
-
-					playHaptic("error");
-					toast.error("Une erreur s'est produite.", {
-						description: (
-							<p className="text-muted-foreground text-sm">{errorMessage}</p>
-						),
-						position: "top-center",
-						action: {
-							label: "Réessayer",
-							onClick: () => {
-								onSubmit(data);
-							},
-						},
-					});
-				},
-			},
-		);
-		setLoading(false);
+				{
+					onSuccess: () => {
+						playHaptic("success");
+						toast.success("Connexion réussie.", {
+							position: "top-center",
+						});
+						router.push("/dashboard");
+						form.reset()
+					},
+					onError: () => {
+						// Correction: Unification du message d'erreur (Anti-User Enumeration)
+						playHaptic("error");
+						toast.error("Échec de l'authentification", {
+							description: (
+								<p className="text-muted-foreground text-sm">
+									Email ou mot de passe incorrect. Veuillez réessayer.
+								</p>
+							),
+							position: "top-center",
+						});
+					},
+				}
+			);
+		} catch {
+			// Correction : Ajout du catch pour éviter de bloquer l'UI en cas de panne réseau
+			playHaptic("error");
+			toast.error("Erreur inattendue", {
+				description: "Veuillez vérifier votre connexion internet et réessayer.",
+				position: "top-center",
+			});
+		} finally {
+			// Correction : Déplacement du setLoading(false) dans le block finally
+			setLoading(false);
+		}
 	}
 	return (
 		<div className="relative flex h-screen w-full items-center justify-center overflow-hidden px-6 md:px-8">
@@ -123,7 +121,7 @@ export function AuthPage() {
 						</p>
 					</div>
 					<div className="space-y-4">
-						<form id="signIn-Form" onSubmit={form.handleSubmit(onSubmit)}>
+						<form onSubmit={form.handleSubmit(onSubmit)}>
 							<FieldGroup className="gap-4">
 								<Controller
 									name="email"

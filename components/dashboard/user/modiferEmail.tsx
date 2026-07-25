@@ -46,7 +46,7 @@ const formPasswordSchema = z.object({
         .max(256, "Le mot de passe ne peut pas dépasser 256 caractères."),
 });
 
-export default function ChangeEmailForm({ children, currentEmail }: { children: React.ReactNode; currentEmail: string }) {
+export default function ChangeEmailForm({ children }: { children: React.ReactNode }) {
     const router = useRouter();
     const { playHaptic } = useHaptics();
     const [loading, setLoading] = useState<boolean>(false);
@@ -85,60 +85,75 @@ export default function ChangeEmailForm({ children, currentEmail }: { children: 
     const handleVerifyPassword = async (data: z.infer<typeof formPasswordSchema>) => {
         setLoading(true);
         try {
-            // Astuce Better Auth : On tente une connexion silencieuse pour valider le mot de passe
-            const { error } = await authClient.signIn.email({
-                email: currentEmail,
-                password: data.password,
+            // Appel vers notre nouvelle route d'API sécurisée
+            const response = await fetch("/api/verify-password", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ password: data.password }),
             });
 
-            if (error) {
-                playHaptic("error")
-                toast.error("Mot de passe incorrect.");
+            const result = await response.json();
+
+            if (!response.ok) {
+                playHaptic("error");
+                // On utilise le message d'erreur renvoyé par l'API (générique)
+                toast.error(result.error || "Échec de la vérification.");
                 return;
             }
 
             // Si le mot de passe est bon, on passe à l'étape 2
             setStep(2);
         } catch {
-            playHaptic("error")
-            toast.error("Une erreur est survenue.");
+            playHaptic("error");
+            toast.error("Une erreur réseau est survenue.");
         } finally {
             setLoading(false);
         }
     };
 
     async function onSubmit(data: z.infer<typeof formEmailSchema>) {
+        // 1. On bloque l'interface
         setLoading(true);
+
         await authClient.changeEmail(
             {
-                newEmail: data.newEmail as string,
+                newEmail: data.newEmail, // Plus besoin de 'as string' avec Zod
                 callbackURL: "/dashboard/user",
             },
             {
                 onSuccess: () => {
+                    // 2. On retire le chargement ET on passe à l'étape 3 UNIQUEMENT en cas de succès
+                    setLoading(false);
+                    setStep(3);
+
                     playHaptic("success");
-                    toast.success("Email modifier avec succes.", {
+                    toast.success("Email modifié avec succès.", {
                         position: "top-center",
                     });
                     router.refresh();
                 },
-                onError: () => {
+                onError: (ctx) => {
+                    // 3. En cas d'erreur, on arrête le chargement mais on RESTE à l'étape 2
+                    setLoading(false);
+
                     playHaptic("error");
-                    toast.error("Une erreur s'est produite.", {
+
+                    // Si Better Auth renvoie un message d'erreur spécifique (ex: "Email already in use"), 
+                    // tu peux l'afficher via ctx.error.message. Sinon, message générique.
+                    const errorMessage = ctx?.error?.message || "Une erreur s'est produite lors de la modification.";
+
+                    toast.error(errorMessage, {
                         position: "top-center",
                         className: "text-muted-foreground text-sm bg-card",
-                        action: {
-                            label: "Réessayer",
-                            onClick: () => {
-                                onSubmit(data);
-                            },
-                        },
+                        // J'ai retiré l'action "Réessayer" pour forcer l'utilisateur 
+                        // à réutiliser le bouton standard du formulaire, 
+                        // ce qui évite les boucles infinies ou le spam de requêtes.
                     });
                 },
             },
         );
-        setLoading(false);
-        setStep(3);
     }
     return (
         <Dialog open={open} onOpenChange={handleOpenChange}>

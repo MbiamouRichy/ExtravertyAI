@@ -30,7 +30,7 @@ import Link from "next/link";
 import { signUp } from "@/lib/auth-client";
 import { useState } from "react";
 import { useHaptics } from "@/lib/webHaptics";
-import { useRouter } from "next/navigation";
+import AlertVerifyEmail from "../auth/alertVerifyEmail";
 
 const formSchema = z
 	.object({
@@ -50,8 +50,10 @@ const formSchema = z
 export function AuthPage() {
 	const { playHaptic } = useHaptics();
 	const [loading, setLoading] = useState<boolean>(false);
-	const [showPassword, setShowPassword] = useState(false);
-	const router = useRouter();
+	const [showPassword, setShowPassword] = useState<boolean>(false);
+	const [showAlertDialog, setShowAlertDialog] = useState<boolean>(false);
+	const [submittedEmail, setSubmittedEmail] = useState<string>(""); // Correction : Fige l'email soumis
+
 	const form = useForm<z.infer<typeof formSchema>>({
 		resolver: zodResolver(formSchema),
 		mode: "onChange",
@@ -67,19 +69,20 @@ export function AuthPage() {
 		try {
 			await signUp.email(
 				{
-					name: data.nom as string,
-					email: data.email as string,
-					password: data.password as string,
+					name: data.nom,
+					email: data.email,
+					password: data.password,
 					callbackURL: "/sign-in",
 				},
 				{
 					onSuccess: () => {
 						playHaptic("success");
-
-						toast.success("Verifier votre adresse email pour verification", {
+						setSubmittedEmail(data.email); // Enregistre l'email pour l'alerte
+						setShowAlertDialog(true);
+						toast.success("Vérifiez votre adresse email pour validation", {
 							position: "top-center",
 						});
-						router.push("/sign-in");
+						form.reset()
 					},
 					onError: (error) => {
 						playHaptic("error");
@@ -90,29 +93,14 @@ export function AuthPage() {
 									: "Quelque chose s'est mal passé. Veuillez réessayer.",
 							position: "top-center",
 							className: "text-muted-foreground text-sm bg-card",
-							action: {
-								label: "Réessayer",
-								onClick: () => {
-									onSubmit(data);
-								},
-							},
 						});
 					},
-				},
-			)
+				}
+			);
 		} catch {
 			playHaptic("error");
-			toast.error("Une erreur s'est produite.", {
-				description:
-					"Quelque chose s'est mal passé. Veuillez réessayer.",
-				position: "top-center",
-				className: "text-muted-foreground text-sm bg-card",
-				action: {
-					label: "Réessayer",
-					onClick: () => {
-						onSubmit(data);
-					},
-				},
+			toast.error("Erreur de connexion", {
+				description: "Veuillez vérifier votre connexion internet et réessayer."
 			});
 		} finally {
 			setLoading(false);
@@ -122,7 +110,9 @@ export function AuthPage() {
 		<main className="relative md:min-h-screen h-full overflow-x-hidden lg:grid lg:grid-cols-2">
 			<div className="relative hidden h-full flex-col border-r bg-secondary p-10 lg:flex dark:bg-secondary/20">
 				<div className="absolute inset-0 bg-linear-to-b from-transparent via-transparent to-background" />
-				<LogoIcon className="mr-auto w-10" />
+				<Link href="/" title="Page d'accueil">
+					<LogoIcon className="mr-auto w-10" />
+				</Link>
 
 				<div className="z-10 mt-auto">
 					<blockquote className="space-y-2">
@@ -149,8 +139,8 @@ export function AuthPage() {
 					<div className="absolute top-0 right-0 h-320 w-60 rounded-full bg-[radial-gradient(50%_50%_at_50%_50%,--theme(--color-foreground/.04)_0,--theme(--color-foreground/.01)_80%,transparent_100%)] [translate:5%_-50%]" />
 					<div className="absolute top-0 right-0 h-320 w-60 -translate-y-87.5 rounded-full bg-[radial-gradient(50%_50%_at_50%_50%,--theme(--color-foreground/.04)_0,--theme(--color-foreground/.01)_80%,transparent_100%)]" />
 				</div>
-				<Button asChild className="self-start mb-5 lg:mb-0" variant="ghost">
-					<Link href="/">
+				<Button asChild className="md:hidden flex self-start mb-5 lg:mb-0" variant="ghost">
+					<Link href="/" title="page d'accueil">
 						<ChevronLeftIcon data-icon="inline-start" />
 						Accueil
 					</Link>
@@ -299,6 +289,7 @@ export function AuthPage() {
 					</p>
 				</div>
 			</div>
+			{showAlertDialog && <AlertVerifyEmail email={submittedEmail} />}
 		</main>
 	);
 }

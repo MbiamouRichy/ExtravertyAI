@@ -12,6 +12,8 @@ import { authClient } from "@/lib/auth-client";
 import { toast } from "sonner";
 import { Loader } from "lucide-react";
 import { useEffect, useState } from "react";
+
+
 export default function AlertVerifyEmail({ email }: { email: string }) {
   const [loading, setLoading] = useState(false);
   const [timer, setTimer] = useState(0); // ⏱️ temps restant
