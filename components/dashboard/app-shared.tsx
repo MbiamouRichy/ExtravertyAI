@@ -52,6 +52,14 @@ export const navGroups: SidebarNavGroup[] = [
 				),
 				show: false,
 			},
+			{
+				title: "Plan",
+				path: "/dashboard/billing",
+				icon: (
+					<CreditCardIcon />
+				),
+				show: false,
+			},
 		],
 	},
 	{

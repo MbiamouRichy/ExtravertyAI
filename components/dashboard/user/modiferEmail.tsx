@@ -36,6 +36,9 @@ import {
     DialogTitle,
     DialogTrigger,
 } from "@/components/ui/dialog";
+import { VerifyPasswordAction } from "@/app/actions/verify-password";
+
+
 const formEmailSchema = z.object({
     newEmail: z.string().email("Entrer une adresse email valide."),
 });
@@ -46,15 +49,18 @@ const formPasswordSchema = z.object({
         .max(256, "Le mot de passe ne peut pas dépasser 256 caractères."),
 });
 
+type Step = 1 | 2 | 3;
+
 export default function ChangeEmailForm({ children }: { children: React.ReactNode }) {
     const router = useRouter();
     const { data: session } = authClient.useSession();
     const { playHaptic } = useHaptics();
     const [loading, setLoading] = useState<boolean>(false);
+    const [newEmail, setNewEmail] = useState<string>("");
     const [currentPasswordVisible, setCurrentPasswordVisible] = useState(false);
-    const [step, setStep] = useState<1 | 2 | 3>(1);
+    const [step, setStep] = useState<Step>(1);
     const [open, setOpen] = useState<boolean>(false);
-    const form = useForm<z.infer<typeof formEmailSchema>>({
+    const formEmail = useForm<z.infer<typeof formEmailSchema>>({
         resolver: zodResolver(formEmailSchema),
         mode: "onChange",
         defaultValues: {
@@ -70,40 +76,32 @@ export default function ChangeEmailForm({ children }: { children: React.ReactNod
         },
     });
 
-    // Réinitialiser l'état quand on ferme la modale
+    // 2. Gestion de l'ouverture du modal et vérification du Provider
     const handleOpenChange = async (isOpen: boolean) => {
         setOpen(isOpen);
 
         if (isOpen) {
             setLoading(true);
             try {
-                // On récupère la liste des comptes associés à l'utilisateur
                 const { data: accounts } = await authClient.listAccounts();
+                const hasPasswordAccount = accounts?.some((acc) => acc.providerId === "credential");
 
-                // On vérifie s'il existe un compte avec des identifiants (mot de passe)
-                const hasPasswordAccount = accounts?.some(
-                    (acc) => acc.providerId === "credential"
-                );
-
-                // S'il s'est connecté VIA Google/GitHub (pas de mot de passe),
-                // on saute l'étape 1 et on passe directement à l'étape 2 !
-                if (!hasPasswordAccount) {
-                    setStep(2);
-                } else {
-                    setStep(1);
-                }
-            } catch {
-                // En cas de doute, on laisse l'étape 1 par défaut
-                setStep(1);
+                // Contournement intelligent pour les comptes OAuth (Google, GitHub)
+                setStep(hasPasswordAccount ? 1 : 2);
+            } catch (error) {
+                console.error("Erreur lors de la récupération des comptes", error);
+                setStep(1); // Fallback sécurisé : exiger le mot de passe en cas de doute
             } finally {
                 setLoading(false);
             }
         } else {
-            // Réinitialisation à la fermeture
+            // Nettoyage fluide sans glitch visuel
             setTimeout(() => {
                 setStep(1);
                 formPassword.reset();
-                form.reset();
+                formEmail.reset();
+                setCurrentPasswordVisible(false);
+                setNewEmail("")
             }, 300);
         }
     };
@@ -116,20 +114,18 @@ export default function ChangeEmailForm({ children }: { children: React.ReactNod
         }
         setLoading(true);
         try {
-            // On tente une connexion avec l'email actuel et le mot de passe saisi.
-            // Better Auth se charge de toute la logique de hachage et de sécurité.
-            const { error } = await authClient.signIn.email({
-                email: session.user.email,
-                password: data.password,
-            });
+            const response = await VerifyPasswordAction(data.password);
 
-            if (error) {
+            if (!response.success) {
                 playHaptic("error");
-                toast.error("Mot de passe incorrect.");
+                // On affiche l'erreur assainie renvoyée par le serveur
+                toast.error(response.error || "Mot de passe incorrect.");
+                // Optionnel : Vider le champ mot de passe après une erreur
+                formPassword.setValue("password", "");
                 return;
             }
 
-            // Si aucune erreur n'est retournée, le mot de passe est valide !
+            playHaptic("success");
             setStep(2);
         } catch {
             playHaptic("error");
@@ -142,44 +138,40 @@ export default function ChangeEmailForm({ children }: { children: React.ReactNod
     async function onSubmit(data: z.infer<typeof formEmailSchema>) {
         // 1. On bloque l'interface
         setLoading(true);
-
-        await authClient.changeEmail(
-            {
-                newEmail: data.newEmail, // Plus besoin de 'as string' avec Zod
-                callbackURL: "/dashboard/user",
-            },
-            {
-                onSuccess: () => {
-                    // 2. On retire le chargement ET on passe à l'étape 3 UNIQUEMENT en cas de succès
-                    setLoading(false);
-                    setStep(3);
-
-                    playHaptic("success");
-                    toast.success("Email modifié avec succès.", {
-                        position: "top-center",
-                    });
-                    router.refresh();
+        try {
+            await authClient.changeEmail(
+                {
+                    newEmail: data.newEmail,
+                    callbackURL: "/dashboard/user",
                 },
-                onError: (ctx) => {
-                    // 3. En cas d'erreur, on arrête le chargement mais on RESTE à l'étape 2
-                    setLoading(false);
+                {
+                    onSuccess: () => {
+                        // 2. On retire le chargement ET on passe à l'étape 3 UNIQUEMENT en cas de succès
+                        setStep(3);
+                        setNewEmail(data.newEmail)
+                        playHaptic("success");
+                        toast.success("Email modifié avec succès.", {
+                            position: "top-center",
+                        });
+                        router.refresh();
+                    },
+                    onError: (ctx) => {
+                        playHaptic("error");
+                        const errorMessage = ctx?.error?.message || "Une erreur s'est produite lors de la modification.";
+                        toast.error(errorMessage, {
+                            position: "top-center",
+                            className: "text-muted-foreground text-sm bg-card",
 
-                    playHaptic("error");
-
-                    // Si Better Auth renvoie un message d'erreur spécifique (ex: "Email already in use"), 
-                    // tu peux l'afficher via ctx.error.message. Sinon, message générique.
-                    const errorMessage = ctx?.error?.message || "Une erreur s'est produite lors de la modification.";
-
-                    toast.error(errorMessage, {
-                        position: "top-center",
-                        className: "text-muted-foreground text-sm bg-card",
-                        // J'ai retiré l'action "Réessayer" pour forcer l'utilisateur 
-                        // à réutiliser le bouton standard du formulaire, 
-                        // ce qui évite les boucles infinies ou le spam de requêtes.
-                    });
+                        });
+                    },
                 },
-            },
-        );
+            );
+        } catch {
+            playHaptic("error");
+            toast.error("Une erreur réseau est survenue.")
+        } finally {
+            setLoading(false);
+        }
     }
     return (
         <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -250,7 +242,7 @@ export default function ChangeEmailForm({ children }: { children: React.ReactNod
                     </form>
                 )}
 
-                {step === 2 && (<form id="form-rhf-demo" onSubmit={form.handleSubmit(onSubmit)}>
+                {step === 2 && (<form id="form-rhf-demo" onSubmit={formEmail.handleSubmit(onSubmit)}>
                     <DialogHeader>
                         <DialogTitle className="flex items-center gap-2">
                             <AtSignIcon className="h-5 w-5 text-primary" />
@@ -263,7 +255,7 @@ export default function ChangeEmailForm({ children }: { children: React.ReactNod
                     <FieldGroup className="space-y-2 py-4">
                         <Controller
                             name="newEmail"
-                            control={form.control}
+                            control={formEmail.control}
                             render={({ field, fieldState }) => (
                                 <Field data-invalid={fieldState.invalid}>
                                     <FieldLabel htmlFor={field.name}>Nouvelle adresse email</FieldLabel>
@@ -314,7 +306,7 @@ export default function ChangeEmailForm({ children }: { children: React.ReactNod
                         </div>
                         <DialogTitle>Vérifiez votre boîte mail</DialogTitle>
                         <DialogDescription className="text-base">
-                            Un lien de confirmation a été envoyé à <strong>{form.getValues("newEmail")}</strong>.
+                            Un lien de confirmation a été envoyé à <strong>{newEmail}</strong>.
                             Cliquez sur le lien pour confirmer le changement. <br /><br />
                             <span className="p-4 bg-muted rounded-lg inline-flex border-l-4 border-foreground leading-relaxed text-sm text-muted-foreground">
                                 Un email de sécurité a également été envoyé à votre ancienne adresse pour vous informer du changement.

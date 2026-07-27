@@ -27,6 +27,7 @@ export function useActivePage() {
     if (pathname === "/dashboard") return "Dashboard";
     if (pathname.includes("/dashboard/projects")) return "Projets";
     if (pathname.includes("/dashboard/user")) return "User";
+    if (pathname.includes("/dashboard/billing")) return "PLan";
     return "Other";
   };
 

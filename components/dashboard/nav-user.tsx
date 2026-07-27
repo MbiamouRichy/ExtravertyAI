@@ -73,10 +73,12 @@ export function NavUser(user: User) {
 					</DropdownMenuGroup>
 					<DropdownMenuSeparator />
 					<DropdownMenuGroup>
-						<DropdownMenuItem>
-							<CreditCardIcon
-							/>
-							Plan & Tarifs
+						<DropdownMenuItem className="cursor-pointer" asChild>
+							<Link href="/dashboard/billing" className="w-full">
+								<CreditCardIcon
+								/>
+								Plan & Tarifs
+							</Link>
 						</DropdownMenuItem>
 					</DropdownMenuGroup>
 					<DropdownMenuSeparator />
