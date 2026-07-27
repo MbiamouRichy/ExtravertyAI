@@ -23,7 +23,6 @@ import {
 } from "@/components/ui/input-group";
 
 import { authClient } from "@/lib/auth-client";
-import { useRouter } from "next/navigation";
 import { ArrowRight, AtSignIcon, CheckCircle2, Eye, EyeOff, Loader, Lock } from "lucide-react";
 import { useState } from "react";
 import { useHaptics } from "@/lib/webHaptics";
@@ -52,7 +51,6 @@ const formPasswordSchema = z.object({
 type Step = 1 | 2 | 3;
 
 export default function ChangeEmailForm({ children }: { children: React.ReactNode }) {
-    const router = useRouter();
     const { data: session } = authClient.useSession();
     const { playHaptic } = useHaptics();
     const [loading, setLoading] = useState<boolean>(false);
@@ -153,7 +151,6 @@ export default function ChangeEmailForm({ children }: { children: React.ReactNod
                         toast.success("Email modifié avec succès.", {
                             position: "top-center",
                         });
-                        router.refresh();
                     },
                     onError: (ctx) => {
                         playHaptic("error");

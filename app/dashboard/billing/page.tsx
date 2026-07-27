@@ -18,8 +18,14 @@ import {
     TableRow,
 } from "@/components/ui/table";
 import { CreditCard, Download, Receipt, Zap, AlertCircle } from "lucide-react";
+import { getUser } from "@/lib/auth-server";
+import { redirect } from "next/navigation";
 
-export default function BillingPage() {
+export default async function BillingPage() {
+    const user = await getUser()
+    if (!user?.id) {
+        redirect("/sign-in")
+    }
     return (
         <div className="mx-auto max-w-5xl space-y-8 p-6 md:p-8">
             {/* En-tête de la page */}
@@ -75,7 +81,7 @@ export default function BillingPage() {
                         </CardContent>
 
                         <CardFooter className="flex justify-between border-t border-border/50 bg-muted/10 pt-4">
-                            <Button variant="outline">Annuler l&apos;abonnement</Button>
+                            <Button variant="destructive">Annuler l&apos;abonnement</Button>
                             <Button>Gérer le plan</Button>
                         </CardFooter>
                     </Card>
@@ -95,7 +101,7 @@ export default function BillingPage() {
                                         <CreditCard className="h-6 w-6 text-foreground/70" />
                                     </div>
                                     <div>
-                                        <p className="font-medium text-sm">Visa se terminant par 4242</p>
+                                        <p className="font-medium text-sm">Visa se terminant par **** 4242</p>
                                         <p className="text-xs text-muted-foreground">Expire en 12/28</p>
                                     </div>
                                 </div>
@@ -113,8 +119,8 @@ export default function BillingPage() {
                 </div>
 
                 {/* Colonne Secondaire (Historique des factures) */}
-                <div className="md:col-span-1">
-                    <Card className="border-border/50 shadow-sm h-full">
+                <div className="md:col-span-1 h-fit">
+                    <Card className="border-border/50 shadow-sm h-fit">
                         <CardHeader>
                             <CardTitle className="text-lg flex items-center gap-2">
                                 <Receipt className="h-5 w-5" />
@@ -130,7 +136,7 @@ export default function BillingPage() {
                                     <TableRow className="border-border/50 border-b">
                                         <TableHead className="text-xs">Date</TableHead>
                                         <TableHead className="text-xs text-right">Montant</TableHead>
-                                        <TableHead className="w-[50px]"></TableHead>
+                                        <TableHead className="w-12.5"></TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
