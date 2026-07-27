@@ -48,6 +48,7 @@ const formPasswordSchema = z.object({
 
 export default function ChangeEmailForm({ children }: { children: React.ReactNode }) {
     const router = useRouter();
+    const { data: session } = authClient.useSession();
     const { playHaptic } = useHaptics();
     const [loading, setLoading] = useState<boolean>(false);
     const [currentPasswordVisible, setCurrentPasswordVisible] = useState(false);
@@ -70,40 +71,65 @@ export default function ChangeEmailForm({ children }: { children: React.ReactNod
     });
 
     // Réinitialiser l'état quand on ferme la modale
-    const handleOpenChange = (open: boolean) => {
-        setOpen(open);
-        if (!open) {
+    const handleOpenChange = async (isOpen: boolean) => {
+        setOpen(isOpen);
+
+        if (isOpen) {
+            setLoading(true);
+            try {
+                // On récupère la liste des comptes associés à l'utilisateur
+                const { data: accounts } = await authClient.listAccounts();
+
+                // On vérifie s'il existe un compte avec des identifiants (mot de passe)
+                const hasPasswordAccount = accounts?.some(
+                    (acc) => acc.providerId === "credential"
+                );
+
+                // S'il s'est connecté VIA Google/GitHub (pas de mot de passe),
+                // on saute l'étape 1 et on passe directement à l'étape 2 !
+                if (!hasPasswordAccount) {
+                    setStep(2);
+                } else {
+                    setStep(1);
+                }
+            } catch {
+                // En cas de doute, on laisse l'étape 1 par défaut
+                setStep(1);
+            } finally {
+                setLoading(false);
+            }
+        } else {
+            // Réinitialisation à la fermeture
             setTimeout(() => {
                 setStep(1);
                 formPassword.reset();
                 form.reset();
-            }, 300); // Attendre la fin de l'animation de fermeture
+            }, 300);
         }
     };
 
     // Étape 1 : Vérification du mot de passe
     const handleVerifyPassword = async (data: z.infer<typeof formPasswordSchema>) => {
+        if (!session?.user?.email) {
+            toast.error("Impossible de vérifier votre identité.");
+            return;
+        }
         setLoading(true);
         try {
-            // Appel vers notre nouvelle route d'API sécurisée
-            const response = await fetch("/api/verify-password", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({ password: data.password }),
+            // On tente une connexion avec l'email actuel et le mot de passe saisi.
+            // Better Auth se charge de toute la logique de hachage et de sécurité.
+            const { error } = await authClient.signIn.email({
+                email: session.user.email,
+                password: data.password,
             });
 
-            const result = await response.json();
-
-            if (!response.ok) {
+            if (error) {
                 playHaptic("error");
-                // On utilise le message d'erreur renvoyé par l'API (générique)
-                toast.error(result.error || "Échec de la vérification.");
+                toast.error("Mot de passe incorrect.");
                 return;
             }
 
-            // Si le mot de passe est bon, on passe à l'étape 2
+            // Si aucune erreur n'est retournée, le mot de passe est valide !
             setStep(2);
         } catch {
             playHaptic("error");
@@ -248,6 +274,7 @@ export default function ChangeEmailForm({ children }: { children: React.ReactNod
                                             id={field.name}
                                             aria-invalid={fieldState.invalid}
                                             placeholder="votre.nouvelemail@example.com"
+                                            autoComplete="current-password"
                                         />
                                         <InputGroupAddon align="inline-start">
                                             <AtSignIcon />

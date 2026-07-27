@@ -48,7 +48,7 @@ export function EmailTemplate({ url, email }: { url: string; email: string }) {
                       <a href="https://extravertyai.com" target="_blank">
                         <img 
                           src="https://extravertyai.com/logo.png" 
-                          alt="Nom de la Startup"
+                          alt="ExtravertyAI"
                           width="120"
                           style="display: block; border: 0; height: auto;"
                         />

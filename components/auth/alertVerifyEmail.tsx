@@ -30,46 +30,51 @@ export default function AlertVerifyEmail({ email }: { email: string }) {
     return () => clearInterval(interval);
   }, [timer]);
 
-  const resendVerificationEmail = async () => {
-    if (timer > 0) return;
+  const resendVerificationEmail = async (e?: React.MouseEvent) => {
+    e?.preventDefault()
+    if (timer > 0 || loading) return;
     setLoading(true);
-    await authClient.sendVerificationEmail(
-      {
-        email: email,
-        callbackURL: "/app",
-      },
-      {
-        onSuccess: () => {
-          toast.success("Email de vérification renvoyé.", {
-            description: (
-              <p className="text-muted-foreground text-sm">
-                Un nouvel e-mail de vérification a été envoyé.
-              </p>
-            ),
-            position: "top-center",
-          });
-          setTimer(time);
+    try {
+      await authClient.sendVerificationEmail(
+        {
+          email: email,
+          callbackURL: "/sign-in",
         },
-        onError: () => {
-          toast.error("L'envoi de l'e-mail de vérification a échoué.", {
-            description: (
-              <p className="text-muted-foreground text-sm">
-                Une erreur s{`'`}est produite lors de l{`'`}envoi de l{`'`}
-                e-mail de vérification. Veuillez réessayer.
-              </p>
-            ),
-            position: "top-center",
-            action: {
-              label: "Réessayer",
-              onClick: () => resendVerificationEmail(),
-            },
-          });
+        {
+          onSuccess: () => {
+            toast.success("Email de vérification renvoyé.", {
+              description: (
+                <p className="text-muted-foreground text-sm">
+                  Un nouvel e-mail de vérification a été envoyé.
+                </p>
+              ),
+              position: "top-center",
+            });
+            setTimer(time);
+            // triple le temps d'attente pour la prochaine tentative
+            setTime((prev) => prev * 3);
+          },
+          onError: () => {
+            toast.error("L'envoi de l'e-mail de vérification a échoué.", {
+              description: (
+                <p className="text-muted-foreground text-sm">
+                  Une erreur s{`'`}est produite lors de l{`'`}envoi de l{`'`}
+                  e-mail de vérification. Veuillez réessayer.
+                </p>
+              ),
+              position: "top-center",
+            });
+          },
         },
-      },
-    );
-    setLoading(false);
-    // triple le temps d'attente pour la prochaine tentative
-    setTime((prev) => prev * 3);
+      )
+    } catch {
+      toast.error("Erreur inattendue", {
+        description: "Impossible de joindre le service d'authentification.",
+        position: "top-center",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
   return (
     <AlertDialog open={true}>
@@ -87,7 +92,7 @@ export default function AlertVerifyEmail({ email }: { email: string }) {
               >
                 {email}
               </a>
-              . Rendez vous dans votre boîte de réception d{`'`}e-mail et
+              . Rendez vous dans votre boîte de réception d&apos;e-mail et
               cliquer sur le lien de vérification contenu dans cet e-mail.
             </AlertDialogDescription>
           ) : null}
