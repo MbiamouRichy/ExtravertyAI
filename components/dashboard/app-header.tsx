@@ -5,18 +5,16 @@ import { DecorIcon } from "@/components/decor-icon";
 import { AppBreadcrumbs } from "@/components/dashboard/app-breadcrumbs";
 import { CustomSidebarTrigger } from "@/components/dashboard/custom-sidebar-trigger";
 import { NavUser } from "@/components/dashboard/nav-user";
-import { SendIcon, BellIcon } from "lucide-react";
-import { getUser } from "@/lib/auth-server";
+import { BellIcon, Plus } from "lucide-react";
 import { Notifications } from "./notifications";
+import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
+import Link from "next/link";
 
 
 
 
 export async function AppHeader() {
-	const user = await getUser();
-	if (!user) {
-		return null; // or you can return a placeholder or redirect to sign-in page
-	}
+
 	return (
 		<header
 			className={cn(
@@ -34,10 +32,18 @@ export async function AppHeader() {
 				<AppBreadcrumbs />
 			</div>
 			<div className="flex items-center gap-3">
-				<Button size="icon-sm" variant="outline">
-					<SendIcon
-					/>
-				</Button>
+				<Tooltip>
+					<TooltipTrigger className="cursor-pointer">
+						<Button asChild size="icon-sm">
+							<Link href="/dashboard/projects" title="Projets">
+								<Plus className="h-4 w-4" />
+							</Link>
+						</Button>
+					</TooltipTrigger>
+					<TooltipContent>
+						<p className="text-sm leading-relaxed">Nouveau project</p>
+					</TooltipContent>
+				</Tooltip>
 				<Notifications>
 					<Button aria-label="Notifications" size="icon-sm" variant="outline">
 						<BellIcon
@@ -48,7 +54,7 @@ export async function AppHeader() {
 					className="h-4 data-[orientation=vertical]:self-center"
 					orientation="vertical"
 				/>
-				<NavUser {...user} />
+				<NavUser />
 			</div>
 		</header>
 	);

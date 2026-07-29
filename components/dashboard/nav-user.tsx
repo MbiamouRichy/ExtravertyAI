@@ -14,16 +14,25 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { User } from "better-auth";
-import { UserIcon, SettingsIcon, CreditCardIcon, UserCog } from "lucide-react";
+import { UserIcon, SettingsIcon, CreditCardIcon, UserCog, Loader2Icon } from "lucide-react";
 import Link from "next/link";
 import { ModifierProfile } from "./user/modifierProfile";
 import React from "react";
 import SignOutButton from "./user/signOutButton";
+import { useSession } from "@/lib/auth-client";
+import { redirect } from "next/navigation";
 
 
-export function NavUser(user: User) {
+export function NavUser() {
 	const [isModalOpen, setIsModalOpen] = React.useState(false);
+	const { data: session, isPending } = useSession();
+	if (isPending) {
+		return <Loader2Icon className="w-6 h-6 animate-spin text-neutral-500" />;
+	}
+	if (!session || !session.user.id) {
+		redirect("/sign-in")
+	}
+	const user = session.user
 	return (
 		<>
 			<ModifierProfile open={isModalOpen} setOpen={setIsModalOpen} user={user} />
