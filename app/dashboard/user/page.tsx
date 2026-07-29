@@ -92,7 +92,7 @@ export default async function ProfilePage() {
                 <Avatar className="h-24 w-24 border-2 border-background relative shadow-sm">
                   <AvatarImage src={user.image || ""} alt={user.name} />
                   <AvatarFallback className="text-2xl bg-primary/10 text-primary">
-                    {user.name?.substring(0, 2).toUpperCase()}
+                    {user.name.charAt(0).toUpperCase()}{user.name.charAt(1).toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
               </div>

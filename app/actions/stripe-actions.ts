@@ -4,7 +4,6 @@ import { getSession } from "@/lib/auth-server";
 import { stripe } from "@/lib/stripe";
 import prisma from "@/lib/prisma";
 
-// On ajoute 'projectId' en paramètre
 export async function createCheckoutSession(
   priceId: string,
   projectId: string,
@@ -16,7 +15,7 @@ export async function createCheckoutSession(
     const session = await getSession();
     if (!session?.user?.id) throw new Error("Non autorisé");
 
-    // SÉCURITÉ : Vérifier que l'utilisateur a bien les droits OWNER ou ADMIN sur CE projet
+    // SÉCURITÉ : Vérifier les droits
     const membership = await prisma.projectMembership.findUnique({
       where: {
         userId_projectId: { userId: session.user.id, projectId: projectId },
@@ -39,22 +38,33 @@ export async function createCheckoutSession(
     if (customerId && project.stripeSubscriptionId) {
       const stripeSession = await stripe.billingPortal.sessions.create({
         customer: customerId,
-        return_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/${projectId}/settings`,
+        return_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/projects/${projectId}`,
       });
       return { url: stripeSession.url };
     }
 
-    // Création du lien de paiement
+    // Création du lien de paiement avec l'essai gratuit
     const checkoutSession = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],
       mode: "subscription",
       customer: customerId,
       customer_email: customerId ? undefined : session.user.email || undefined,
       line_items: [{ price: priceId, quantity: 1 }],
-      success_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/${projectId}?success=true`,
-      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/${projectId}?canceled=true`,
+
+      // --- AJOUTS POUR LE TRIAL DE 10 JOURS ---
+      payment_method_collection: "always", // OBLIGE la saisie de la carte même à 0€
+      subscription_data: {
+        trial_period_days: 10, // Définit les 10 jours d'essai
+        metadata: {
+          projectId: project.id, // CRUCIAL : Sauvegarde l'ID du projet dans l'abonnement
+        },
+      },
+      // ---------------------------------------
+
+      success_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/projects/${projectId}?success=true`,
+      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/projects?canceled=true`,
       metadata: {
-        projectId: project.id, // CRUCIAL : C'est ce que lira le webhook
+        projectId: project.id, // Pour la session
       },
     });
 

@@ -40,7 +40,9 @@ export function NavUser(user: User) {
 							<DropdownMenuLabel className="flex items-center gap-3">
 								<Avatar className="size-10">
 									<AvatarImage src={user.image ?? undefined} />
-									<AvatarFallback>{user.name.substring(0, 2).toUpperCase()}</AvatarFallback>
+									<AvatarFallback>
+										{user.name.charAt(0).toUpperCase()}{user.name.charAt(1).toUpperCase()}
+									</AvatarFallback>
 								</Avatar>
 								<div>
 									<span className="font-medium text-foreground">{user.name}</span>{" "}

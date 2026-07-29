@@ -4,21 +4,25 @@ import Stripe from "stripe";
 import prisma from "@/lib/prisma";
 import { stripe } from "@/lib/stripe";
 
-// Interfaces personnalisées pour satisfaire TypeScript
+// Mise à jour des interfaces pour inclure le statut et le trial
 interface CustomSession {
-  metadata?: { projectId?: string }; // On écoute maintenant le projectId
+  metadata?: { projectId?: string };
   subscription?: string;
 }
 
 interface CustomInvoice {
   subscription?: string;
+  status: string;
 }
 
 interface CustomSubscription {
   id: string;
   customer: string;
+  status: string; // 'trialing', 'active', 'past_due', 'canceled'
+  trial_end: number | null;
   current_period_end: number;
   items: { data: { price: { id: string } }[] };
+  metadata?: { projectId?: string };
 }
 
 export async function POST(req: Request) {
@@ -28,7 +32,6 @@ export async function POST(req: Request) {
 
   let event: Stripe.Event;
 
-  // 1. SÉCURITÉ : Vérification de la signature
   try {
     event = stripe.webhooks.constructEvent(
       body,
@@ -42,41 +45,45 @@ export async function POST(req: Request) {
     return new NextResponse(`Webhook Error: ${errorMessage}`, { status: 400 });
   }
 
-  // 2. TRAITEMENT DES ÉVÉNEMENTS DU PROJET
   try {
     switch (event.type) {
-      // A. Nouvel Abonnement : Fin de la phase de test et passage en production
+      // A. Nouvel Abonnement (Début de l'essai de 10 jours)
       case "checkout.session.completed": {
         const session = event.data.object as unknown as CustomSession;
         const projectId = session.metadata?.projectId;
 
         if (!projectId) {
-          throw new Error(
-            "Alerte: 'projectId' manquant dans les métadonnées de la session.",
-          );
+          throw new Error("Alerte: 'projectId' manquant.");
         }
 
         const subscription = (await stripe.subscriptions.retrieve(
           session.subscription as string,
         )) as unknown as CustomSubscription;
 
-        // On cible la table Project (et non plus User)
+        // Détermine le statut Prisma en fonction du statut Stripe
+        const projectStatus =
+          subscription.status === "trialing" ? "trialing" : "active";
+
         await prisma.project.update({
           where: { id: projectId },
           data: {
-            status: "active", // Le client valide sa phase de test, le bot est en prod
+            status: projectStatus,
             stripeCustomerId: subscription.customer,
             stripeSubscriptionId: subscription.id,
             stripePriceId: subscription.items.data[0].price.id,
             stripeCurrentPeriodEnd: new Date(
               subscription.current_period_end * 1000,
             ),
+            // On sauvegarde la date de fin d'essai si elle existe
+            expiredAt: subscription.trial_end
+              ? new Date(subscription.trial_end * 1000)
+              : null,
           },
         });
         break;
       }
 
-      // B. Renouvellement automatique (Le mois suivant est payé)
+      // B. Fin de l'essai ou Renouvellement (La carte est enfin débitée)
       case "invoice.payment_succeeded": {
         const invoice = event.data.object as unknown as CustomInvoice;
         const subscriptionId = invoice.subscription;
@@ -90,17 +97,18 @@ export async function POST(req: Request) {
         await prisma.project.update({
           where: { stripeSubscriptionId: subscription.id },
           data: {
-            status: "active", // Sécurité additionnelle pour garantir le statut
+            status: "active", // L'argent est passé, le projet passe officiellement en production
             stripePriceId: subscription.items.data[0].price.id,
             stripeCurrentPeriodEnd: new Date(
               subscription.current_period_end * 1000,
             ),
+            expiredAt: null, // Plus d'expiration d'essai
           },
         });
         break;
       }
 
-      // C. Mise à jour de l'abonnement (Changement de carte, etc.)
+      // C. Mise à jour de l'abonnement (Gère si la carte échoue à la fin des 10 jours)
       case "customer.subscription.updated": {
         const subEvent = event.data.object as unknown as CustomSubscription;
 
@@ -108,9 +116,20 @@ export async function POST(req: Request) {
           subEvent.id,
         )) as unknown as CustomSubscription;
 
+        // Mappage des statuts Stripe vers votre enum Prisma ProjectStatus
+        let newStatus: "trialing" | "active" | "paused" | "inactive" = "active";
+        if (subscription.status === "trialing") newStatus = "trialing";
+        if (
+          subscription.status === "past_due" ||
+          subscription.status === "unpaid"
+        )
+          newStatus = "paused";
+        if (subscription.status === "canceled") newStatus = "inactive";
+
         await prisma.project.update({
           where: { stripeSubscriptionId: subscription.id },
           data: {
+            status: newStatus,
             stripePriceId: subscription.items.data[0].price.id,
             stripeCurrentPeriodEnd: new Date(
               subscription.current_period_end * 1000,
@@ -124,12 +143,11 @@ export async function POST(req: Request) {
       case "customer.subscription.deleted": {
         const subscription = event.data.object as unknown as CustomSubscription;
 
-        // Le client annule : On désactive immédiatement son projet
         await prisma.project.update({
           where: { stripeSubscriptionId: subscription.id },
           data: {
             status: "inactive",
-            stripeSubscriptionId: null, // On nettoie l'ID de l'abonnement échu
+            stripeSubscriptionId: null,
             stripePriceId: null,
           },
         });

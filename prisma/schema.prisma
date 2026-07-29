@@ -17,7 +17,7 @@ enum InstanceStatus {
 }
 
 enum ProjectStatus {
-  testing   // Phase de test par le client (Statut par défaut)
+  trialing   // Phase de test par le client (Statut par défaut)
   active    // Abonnement payé, en production
   paused    // Mis en pause temporairement
   inactive  // Abonnement annulé / non payé
@@ -48,12 +48,14 @@ model Project {
   id             String         @id @default(cuid())
   name           String
   numero         String        
-  status         ProjectStatus  @default(testing)
+  status         ProjectStatus  @default(trialing)
   
   // Instances API WhatsApp
   instanceName   String         @unique
   instanceStatus InstanceStatus @default(disconnected)
   plan           Plan           @default(starter)
+  messageCount   Int  @default(0)
+  aLlmessagesCount   Int  @default(0)
 
   // 💳 FACTURATION STRIPE (Rattachée au projet)
   stripeCustomerId       String?   @unique
