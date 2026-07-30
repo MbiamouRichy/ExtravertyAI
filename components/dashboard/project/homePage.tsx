@@ -1,16 +1,11 @@
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
-import { Plus, Smartphone, FolderOpen, Server, MoreHorizontal } from "lucide-react"
+
+import { Plus, Smartphone, FolderOpen, Server } from "lucide-react"
 import { Project } from "@/src/generated/prisma/client"
 import Link from "next/link"
+import { ProjectsTable } from "./dataTable"
+import { ProjectsTableColumns } from "./columnTable"
 
 export default function HomeProjectsPage({ projects }: { projects: Project[] }) {
 
@@ -148,7 +143,7 @@ export default function HomeProjectsPage({ projects }: { projects: Project[] }) 
 
           {/* VUE DESKTOP : Le Tableau existant (Masqué sur mobile) */}
           <div className="hidden md:block rounded-xl border border-border bg-card shadow-sm overflow-hidden">
-            <Table>
+            {/* <Table>
               <TableHeader className="bg-secondary/50">
                 <TableRow className="hover:bg-transparent">
                   <TableHead className="font-medium h-11">Projet</TableHead>
@@ -242,7 +237,9 @@ export default function HomeProjectsPage({ projects }: { projects: Project[] }) 
                   </TableRow>
                 ))}
               </TableBody>
-            </Table>
+            </Table> */}
+
+            <ProjectsTable columns={ProjectsTableColumns} data={projects} />
           </div>
         </>
       )}
