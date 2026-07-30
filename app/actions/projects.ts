@@ -91,7 +91,7 @@ export async function createProject(data: { nom: string; numero: string }) {
         instanceStatus: "connecting",
 
         // Statut initial configuré sur la phase de test client obligatoire
-        status: "testing",
+        status: "trialing",
 
         // Création atomique : on lie immédiatement l'utilisateur comme OWNER
         members: {

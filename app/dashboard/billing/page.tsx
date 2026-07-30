@@ -20,7 +20,11 @@ import {
 import { CreditCard, Download, Receipt, Zap, AlertCircle } from "lucide-react";
 import { getUser } from "@/lib/auth-server";
 import { redirect } from "next/navigation";
+import type { Metadata } from "next";
 
+export const metadata: Metadata = {
+    title: "Billing | ExtravertyAI",
+}
 export default async function BillingPage() {
     const user = await getUser()
     if (!user?.id) {

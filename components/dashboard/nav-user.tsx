@@ -21,6 +21,7 @@ import React from "react";
 import SignOutButton from "./user/signOutButton";
 import { useSession } from "@/lib/auth-client";
 import { redirect } from "next/navigation";
+import { getInitials } from "../getInitials";
 
 
 export function NavUser() {
@@ -40,7 +41,7 @@ export function NavUser() {
 				<DropdownMenuTrigger className="cursor-pointer" asChild>
 					<Avatar className="size-8 ">
 						<AvatarImage src={user.image ?? undefined} />
-						<AvatarFallback>{user.name.charAt(0).toUpperCase()}{user.name.charAt(1).toLowerCase()}</AvatarFallback>
+						<AvatarFallback>{getInitials(user.name)}</AvatarFallback>
 					</Avatar>
 				</DropdownMenuTrigger>
 				<DropdownMenuContent align="end" className="w-60">
@@ -50,7 +51,7 @@ export function NavUser() {
 								<Avatar className="size-10">
 									<AvatarImage src={user.image ?? undefined} />
 									<AvatarFallback>
-										{user.name.charAt(0).toUpperCase()}{user.name.charAt(1).toUpperCase()}
+										{getInitials(user.name)}
 									</AvatarFallback>
 								</Avatar>
 								<div>

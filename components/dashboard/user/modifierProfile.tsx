@@ -43,6 +43,7 @@ import { User } from "better-auth"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { Input } from "@/components/ui/input";
 import { updateProfileAction } from "@/app/actions/upload";
+import { getInitials } from "@/components/getInitials";
 
 const formSchema = z.object({
     nom: z
@@ -195,7 +196,7 @@ function ProfileForm({ className, user }: React.ComponentProps<"form"> & { user:
                         <Avatar className="h-full w-full border border-neutral-200">
                             <AvatarImage src={preview ? preview : user.image ? user.image : undefined} alt={user.name} />
                             <AvatarFallback className="bg-neutral-100 text-neutral-900 text-xl font-medium">
-                                {user.name.substring(0, 2).toUpperCase()}
+                                {getInitials(user.name)}
                             </AvatarFallback>
                         </Avatar>
                         <Button variant="outline" size="icon-sm" className="rounded-full absolute bottom-0 right-0 pointer-events-none" >

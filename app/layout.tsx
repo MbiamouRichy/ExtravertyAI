@@ -1,4 +1,3 @@
-import type { Metadata } from "next";
 import "./globals.css";
 import { cn } from "@/lib/utils";
 import { ThemeProvider } from "@/components/ui/theme-provider";
@@ -37,80 +36,7 @@ const bricolageGrotesqueBricolageGrotesque = Bricolage_Grotesque({
 });
 
 
-export const metadata: Metadata = {
-  metadataBase: new URL(
-    process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
-  ),
-  title: {
-    default: "ExtravertyAI - Automatisation WhatsApp & Support Client IA",
-    template: "%s | ExtravertyAI",
-  },
-  description:
-    "Automatisez votre support client WhatsApp avec ExtravertyAI. Réponses instantanées, augmentation des ventes et expérience client améliorée.",
 
-  keywords: [
-    "ExtravertyAI",
-    "extravertyia",
-    "extraverty ia",
-    "ia libreville",
-    " WhatsApp automation libreville",
-    "automatisation WhatsApp pour business au Gabon",
-    "bot WhatsApp",
-    "automatisation WhatsApp",
-    "chatbot WhatsApp",
-    "marketing WhatsApp",
-    "tunnel de vente automatisé",
-    "automation whatsapp libreville",
-    "Gabon automatisation",
-    "ia gabon",
-    "extraverty",
-    "IA WhatsApp afrique",
-    "automatisation WhatsApp",
-    "chatbot IA whatsapp",
-    "support client automatisé",
-    "automation business",
-    "intelligence artificielle entreprise",
-    "bot WhatsApp gabon",
-    "service client IA",
-    "automatisation marketing",
-    "no code automation gabon",
-  ],
-
-  authors: [{ name: "ExtravertyAI" }],
-
-  icons: {
-    icon: "/favicon.ico",
-    apple: "/apple-touch-icon.png",
-  },
-  alternates: {
-    canonical: "/",
-  },
-  robots: {
-    index: true,
-    follow: true,
-  },
-
-  twitter: {
-    card: "summary_large_image",
-    images: ["/og-image.png"],
-  },
-
-  openGraph: {
-    title: "ExtravertyAI",
-    description: "Automatisez votre support client sur whatsapp avec l'IA",
-    url: "https://extravertyai.com",
-    siteName: "ExtravertyAI",
-    images: [
-      {
-        url: "/og-image.png",
-        width: 1200,
-        height: 630,
-      },
-    ],
-    locale: "fr_FR",
-    type: "website",
-  },
-};
 export default function RootLayout({
   children,
 }: Readonly<{

@@ -1,4 +1,3 @@
-"use client"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -10,16 +9,10 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Plus, Smartphone, FolderOpen, Server, MoreHorizontal } from "lucide-react"
-import { CreateProjectDialog } from "@/components/dashboard/project/createInstanceForm"
 import { Project } from "@/src/generated/prisma/client"
-import { useOptimistic } from "react"
 import Link from "next/link"
 
-export default function HomeProjectsPage({projects}:{projects: Project[]}) {
-  const [optimisticProjects, addOptimisticProject] = useOptimistic(
-    projects,
-    (state, newProject: Project) => [...state, newProject]
-  )
+export default function HomeProjectsPage({ projects }: { projects: Project[] }) {
 
   return (
     <div className="flex flex-col space-y-6 md:space-y-8 p-4 sm:p-6 md:p-10 w-full max-w-300 mx-auto">
@@ -34,15 +27,15 @@ export default function HomeProjectsPage({projects}:{projects: Project[]}) {
           </p>
         </div>
         {/* Le bouton prend toute la largeur sur mobile, et s'ajuste sur desktop */}
-        <CreateProjectDialog addOptimisticProject={addOptimisticProject}>
-          <Button className="w-full md:w-auto shrink-0">
+        <Button asChild className="cursor-pointer w-full md:w-auto shrink-0">
+          <Link href="/dashboard/projects/new" title="Creer un projet">
             <Plus className="mr-2 h-4 w-4" />
             Nouveau projet
-          </Button>
-        </CreateProjectDialog>
+          </Link>
+        </Button>
       </div>
 
-      {optimisticProjects.length === 0 ? (
+      {projects.length === 0 ? (
         /* Empty State : Identique mobile & desktop */
         <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border bg-card p-8 md:p-12 text-center animate-in fade-in-50 duration-500">
           <div className="flex h-12 w-12 md:h-14 md:w-14 items-center justify-center rounded-full bg-secondary mb-4">
@@ -54,18 +47,18 @@ export default function HomeProjectsPage({projects}:{projects: Project[]}) {
           <p className="text-sm text-muted-foreground max-w-sm mb-6">
             Créez votre premier projet pour générer une instance API et commencer à automatiser vos communications.
           </p>
-          <CreateProjectDialog addOptimisticProject={addOptimisticProject}>
-            <Button variant="outline" className="hidden sm:flex w-full sm:w-auto">
+          <Button asChild variant="outline" className="hidden sm:flex w-full sm:w-auto cursor-pointer">
+            <Link href="/dashboard/projects/new" title="Creer un project">
               <Plus className="mr-2 h-4 w-4" />
               Créer mon premier projet
-            </Button>
-          </CreateProjectDialog>
+            </Link>
+          </Button>
         </div>
       ) : (
         <>
           {/* VUE MOBILE : Affichage en Cartes (Masqué sur desktop) */}
           <div className="grid grid-cols-1 gap-4 md:hidden">
-            {optimisticProjects.map((project) => (
+            {projects.map((project) => (
               <div
                 key={project.id}
                 className="flex flex-col p-5 rounded-xl border border-border bg-card shadow-sm space-y-4"
@@ -169,9 +162,9 @@ export default function HomeProjectsPage({projects}:{projects: Project[]}) {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {optimisticProjects.map((project,id) => (
+                {projects.map((project, id) => (
                   <TableRow
-                  key={id}
+                    key={id}
                     className="transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted"
                   >
                     <TableCell className="font-medium text-foreground py-4">

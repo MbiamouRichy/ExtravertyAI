@@ -13,7 +13,12 @@ import { getSession } from "@/lib/auth-server";
 import { formatTimeAgo } from "@/lib/formatTimeAgo";
 import { ChangePasswordDialog } from "@/components/dashboard/user/changePassword";
 import ChangeEmailForm from "@/components/dashboard/user/modiferEmail";
+import type { Metadata } from "next";
+import { getInitials } from "@/components/getInitials";
 
+export const metadata: Metadata = {
+  title: "User | ExtravertyAI",
+}
 export default async function ProfilePage() {
   // Récupération de la session utilisateur via Better Auth
   const sessionData = await getSession();
@@ -92,7 +97,7 @@ export default async function ProfilePage() {
                 <Avatar className="h-24 w-24 border-2 border-background relative shadow-sm">
                   <AvatarImage src={user.image || ""} alt={user.name} />
                   <AvatarFallback className="text-2xl bg-primary/10 text-primary">
-                    {user.name.charAt(0).toUpperCase()}{user.name.charAt(1).toUpperCase()}
+                    {getInitials(user.name)}
                   </AvatarFallback>
                 </Avatar>
               </div>

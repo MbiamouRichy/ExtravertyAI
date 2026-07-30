@@ -1,4 +1,3 @@
-import { AppShell } from "@/components/dashboard/app-shell";
 import { getSession } from "@/lib/auth-server";
 import { redirect } from "next/navigation";
 
@@ -16,8 +15,8 @@ export default async function DashboardLayout({
         redirect("/sign-in");
     }
     return (
-        <AppShell>
+        <>
             {children}
-        </AppShell>
+        </>
     );
 }

@@ -33,10 +33,10 @@ export async function AppHeader() {
 			</div>
 			<div className="flex items-center gap-3">
 				<Tooltip>
-					<TooltipTrigger className="cursor-pointer">
+					<TooltipTrigger asChild className="cursor-pointer">
 						<Button asChild size="icon-sm">
-							<Link href="/dashboard/projects" title="Projets">
-								<Plus className="h-4 w-4" />
+							<Link href="/dashboard/projects/new" title="Projets">
+								<Plus />
 							</Link>
 						</Button>
 					</TooltipTrigger>
