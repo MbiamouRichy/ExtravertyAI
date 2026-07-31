@@ -22,6 +22,9 @@ import {
 } from "@/components/ui/input-group";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { useHaptics } from "@/lib/webHaptics";
+import { toast } from "sonner";
+import { createProjectAndCheckout } from "@/app/actions/stripe-actions";
 
 // --- VALIDATION ZOD ---
 const formSchema = z.object({
@@ -42,7 +45,6 @@ const PLANS = [
         price: "29€",
         messages: 1000,
         description: "Idéal pour lancer son automatisation.",
-        stripePriceId: process.env.NEXT_PUBLIC_STRIPE_PRICE_STARTER,
     },
     {
         id: "business",
@@ -50,7 +52,6 @@ const PLANS = [
         price: "79€",
         messages: 5000,
         description: "Pour les entreprises en pleine croissance.",
-        stripePriceId: process.env.NEXT_PUBLIC_STRIPE_PRICE_BUSINESS,
         isPopular: true,
     },
     {
@@ -59,13 +60,12 @@ const PLANS = [
         price: "199€",
         messages: 20000,
         description: "Volume intensif et support prioritaire.",
-        stripePriceId: process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO,
     },
 ];
 
 export default function CreateProjectForm() {
     const [isLoading, setIsLoading] = useState(false);
-
+    const { playHaptic } = useHaptics()
     const form = useForm<FormValues>({
         resolver: zodResolver(formSchema),
         defaultValues: {
@@ -80,28 +80,40 @@ export default function CreateProjectForm() {
 
     async function onSubmit(data: FormValues) {
         setIsLoading(true);
-        try {
-            // 1. Appel à votre Server Action pour créer le projet en base (statut: trialing)
-            // const newProject = await createProjectBaseAction(data);
 
-            // 2. Appel de l'action Stripe que nous avons créée précédemment
-            // const priceId = PLANS.find(p => p.id === data.plan)?.stripePriceId;
-            // const { url } = await createCheckoutSession(priceId, newProject.id);
+        try {
+            // 1. Appel à l'Action unifiée (DB + WhatsApp + Stripe)
+            // Le serveur gère tout de manière sécurisée et atomique.
+            const result = await createProjectAndCheckout({
+                name: data.name,
+                numero: data.numero,
+                plan: data.plan // Le serveur déduira le bon priceId depuis ce nom
+            });
+
+            // 2. Vérification du retour du serveur
+            if (!result.success || !result.url) {
+                // Si le backend a renvoyé une erreur (ex: numéro déjà utilisé), on la lève
+                throw new Error(result.error || "Impossible d'initialiser le projet.");
+            }
 
             // 3. Redirection vers Stripe
-            // router.push(url);
+            window.location.href = result.url;
 
-            // Simulation pour l'UI :
-            await new Promise((resolve) => setTimeout(resolve, 2000));
-            console.log("Données soumises :", data);
         } catch (error) {
-            console.error("Erreur lors de la création", error);
-            // Afficher un toast d'erreur ici
+            // En cas de problème (erreur réseau, timeout, ou numéro déjà pris)
+            playHaptic("error");
+            // On récupère le message d'erreur du serveur s'il existe, sinon on met un message générique
+            const errorMessage = error instanceof Error
+                ? error.message
+                : "Une erreur réseau s'est produite.";
+
+            toast.error(errorMessage, {
+                position: "top-center"
+            });
         } finally {
             setIsLoading(false);
         }
     }
-
     return (
         <div className="mx-auto max-w-5xl py-10 px-4 sm:px-6 lg:px-8">
             <div className="mb-8 text-center sm:text-left">
@@ -212,7 +224,7 @@ export default function CreateProjectForm() {
                                                     {/* 🔄 CORRECTION: Ajout de l'ID pour lier le label */}
                                                     <RadioGroupItem value={plan.id} id={`plan-${plan.id}`} className="peer sr-only" />
                                                     {/* 🔄 CORRECTION: Ajout du htmlFor pour rendre la carte cliquable */}
-                                                    <FieldLabel htmlFor={`plan-${plan.id}`} className="cursor-pointer flex flex-col items-center justify-between rounded-xl border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-primary/5 [&:has([data-state=checked])]:border-primary transition-all">
+                                                    <FieldLabel htmlFor={`plan-${plan.id}`} className="cursor-pointer flex flex-col items-center justify-between rounded-xl border-2 border-muted bg-backgroung p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-card [&:has([data-state=checked])]:border-primary transition-all">
                                                         {plan.isPopular && (
                                                             <span className="bg-primary text-primary-foreground text-[10px] font-bold px-2 py-0.5 rounded-full absolute -mt-7">
                                                                 POPULAIRE
@@ -247,7 +259,7 @@ export default function CreateProjectForm() {
                     <div className="sticky top-8 space-y-6">
 
                         {/* Carte de résumé */}
-                        <Card className="border-primary/20 bg-primary/5 shadow-md">
+                        <Card className="border-primary/20 bg-card shadow-md">
                             <CardHeader>
                                 <CardTitle className="text-lg">Récapitulatif</CardTitle>
                             </CardHeader>
@@ -277,7 +289,7 @@ export default function CreateProjectForm() {
                                                 Création de l&apos;instance...
                                             </>
                                         ) : (
-                                            "Démarrer mes 10 jours d&apos;essai"
+                                            "Démarrer mes 10 jours d'essai"
                                         )}
                                     </Button>
                                 </div>

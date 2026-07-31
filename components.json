@@ -23,6 +23,7 @@
   },
   "registries": {
     "@efferd": "https://efferd.com/r/{style}/{name}.json",
-    "@fonttrio": "https://www.fonttrio.xyz/r/{name}.json"
+    "@fonttrio": "https://www.fonttrio.xyz/r/{name}.json",
+    "@magicui": "https://magicui.design/r/{name}"
   }
 }
