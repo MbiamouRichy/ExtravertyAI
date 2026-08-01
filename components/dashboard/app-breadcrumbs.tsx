@@ -18,7 +18,6 @@ export type AppBreadcrumbPage = {
 export function AppBreadcrumbs() {
 
 	const { activeSection } = useActivePage()
-	console.log(activeSection)
 	const page = navLinks.find((item) => item.title === activeSection)
 
 	if (!page) {

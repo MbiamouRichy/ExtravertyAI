@@ -1,6 +1,6 @@
 "use client";
-"use no memo";
 
+import * as React from "react"
 import {
     ColumnDef,
     flexRender,
@@ -18,7 +18,6 @@ import {
     DropdownMenuContent,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-
 import {
     Table,
     TableBody,
@@ -27,9 +26,9 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table"
-import React from "react";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
+import { Settings2, Search } from "lucide-react"
 
 interface DataTableProps<TData, TValue> {
     columns: ColumnDef<TData, TValue>[]
@@ -44,6 +43,7 @@ export function ProjectsTable<TData, TValue>({
     const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
     const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({})
     const [rowSelection, setRowSelection] = React.useState({})
+
     // eslint-disable-next-line react-hooks/incompatible-library
     const table = useReactTable({
         data,
@@ -64,28 +64,31 @@ export function ProjectsTable<TData, TValue>({
     })
 
     return (
-        <div>
-            <div className="flex items-center py-4">
-                <Input
-                    placeholder="Filter Numéro..."
-                    value={(table.getColumn("Numéro")?.getFilterValue() as string) ?? ""}
-                    onChange={(event) =>
-                        table.getColumn("Numéro")?.setFilterValue(event.target.value)
-                    }
-                    className="max-w-sm"
-                />
+        <div className="space-y-4">
+            <div className="flex items-center justify-between gap-4">
+                <div className="relative max-w-sm w-full">
+                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                        placeholder="Filtrer par numéro..."
+                        // Note: L'ID ici doit correspondre à l'accessorKey dans columns.tsx
+                        value={(table.getColumn("numero")?.getFilterValue() as string) ?? ""}
+                        onChange={(event) =>
+                            table.getColumn("numero")?.setFilterValue(event.target.value)
+                        }
+                        className="pl-8"
+                    />
+                </div>
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                        <Button variant="outline" className="ml-auto">
-                            Columns
+                        <Button variant="outline" className="ml-auto flex items-center gap-2">
+                            <Settings2 className="h-4 w-4" />
+                            Affichage
                         </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                         {table
                             .getAllColumns()
-                            .filter(
-                                (column) => column.getCanHide()
-                            )
+                            .filter((column) => column.getCanHide())
                             .map((column) => {
                                 return (
                                     <DropdownMenuCheckboxItem
@@ -96,18 +99,19 @@ export function ProjectsTable<TData, TValue>({
                                             column.toggleVisibility(!!value)
                                         }
                                     >
-                                        {column.id}
+                                        {column.id === "numero" ? "Numéro" : column.id}
                                     </DropdownMenuCheckboxItem>
                                 )
                             })}
                     </DropdownMenuContent>
                 </DropdownMenu>
             </div>
-            <div className="overflow-hidden rounded-md border">
+
+            <div className="rounded-md border bg-card">
                 <Table>
                     <TableHeader>
                         {table.getHeaderGroups().map((headerGroup) => (
-                            <TableRow key={headerGroup.id}>
+                            <TableRow key={headerGroup.id} className="bg-muted/50">
                                 {headerGroup.headers.map((header) => {
                                     return (
                                         <TableHead key={header.id}>
@@ -129,9 +133,10 @@ export function ProjectsTable<TData, TValue>({
                                 <TableRow
                                     key={row.id}
                                     data-state={row.getIsSelected() && "selected"}
+                                    className="transition-colors hover:bg-muted/50"
                                 >
                                     {row.getVisibleCells().map((cell) => (
-                                        <TableCell key={cell.id}>
+                                        <TableCell key={cell.id} className="py-3">
                                             {flexRender(cell.column.columnDef.cell, cell.getContext())}
                                         </TableCell>
                                     ))}
@@ -140,16 +145,19 @@ export function ProjectsTable<TData, TValue>({
                         ) : (
                             <TableRow>
                                 <TableCell colSpan={columns.length} className="h-24 text-center">
-                                    No results.
+                                    Aucun résultat trouvé.
                                 </TableCell>
                             </TableRow>
                         )}
                     </TableBody>
                 </Table>
             </div>
-            <div className="flex-1 text-sm text-muted-foreground">
-                {table.getFilteredSelectedRowModel().rows.length} of{" "}
-                {table.getFilteredRowModel().rows.length} row(s) selected.
+
+            <div className="flex items-center justify-end space-x-2 text-sm text-muted-foreground">
+                <div className="flex-1 text-sm text-muted-foreground">
+                    {table.getFilteredSelectedRowModel().rows.length} sur{" "}
+                    {table.getFilteredRowModel().rows.length} ligne(s) sélectionnée(s).
+                </div>
             </div>
         </div>
     )

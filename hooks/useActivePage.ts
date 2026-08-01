@@ -4,7 +4,6 @@ import { usePathname } from "next/navigation";
 
 export function useActivePage() {
   const pathname = usePathname();
-  console.log(pathname);
 
   /**
    * Vérifie si le chemin passé correspond à l'URL actuelle.

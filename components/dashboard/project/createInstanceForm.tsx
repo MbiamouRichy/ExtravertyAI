@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Loader2, ShieldCheck, Lock, Smartphone, Folder, Sparkles, CheckCircle2, FolderPenIcon } from "lucide-react";
+import { ShieldCheck, Lock, Smartphone, Folder, Sparkles, CheckCircle2, FolderPenIcon, Loader } from "lucide-react";
 
 // Assurez-vous d'avoir ces composants shadcn/ui installés
 import { Button } from "@/components/ui/button";
@@ -25,6 +25,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useHaptics } from "@/lib/webHaptics";
 import { toast } from "sonner";
 import { createProjectAndCheckout } from "@/app/actions/stripe-actions";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 // --- VALIDATION ZOD ---
 const formSchema = z.object({
@@ -65,6 +66,7 @@ const PLANS = [
 
 export default function CreateProjectForm() {
     const [isLoading, setIsLoading] = useState(false);
+    const isMobile = useIsMobile();
     const { playHaptic } = useHaptics()
     const form = useForm<FormValues>({
         resolver: zodResolver(formSchema),
@@ -216,14 +218,12 @@ export default function CreateProjectForm() {
                                     render={({ field, fieldState }) => (
                                         <RadioGroup
                                             onValueChange={field.onChange}
-                                            value={field.value} // 🔄 CORRECTION: "value" au lieu de "defaultValue" pour le mode contrôlé
+                                            value={field.value}
                                             className="grid grid-cols-1 sm:grid-cols-3 gap-4"
                                         >
                                             {PLANS.map((plan) => (
                                                 <Field data-invalid={fieldState.invalid} key={plan.id}>
-                                                    {/* 🔄 CORRECTION: Ajout de l'ID pour lier le label */}
                                                     <RadioGroupItem value={plan.id} id={`plan-${plan.id}`} className="peer sr-only" />
-                                                    {/* 🔄 CORRECTION: Ajout du htmlFor pour rendre la carte cliquable */}
                                                     <FieldLabel htmlFor={`plan-${plan.id}`} className="cursor-pointer flex flex-col items-center justify-between rounded-xl border-2 border-muted bg-backgroung p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-card [&:has([data-state=checked])]:border-primary transition-all">
                                                         {plan.isPopular && (
                                                             <span className="bg-primary text-primary-foreground text-[10px] font-bold px-2 py-0.5 rounded-full absolute -mt-7">
@@ -285,12 +285,11 @@ export default function CreateProjectForm() {
                                     >
                                         {isLoading ? (
                                             <>
-                                                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                                                <Loader className="mr-2 h-5 w-5 animate-spin" />
                                                 Création de l&apos;instance...
                                             </>
-                                        ) : (
-                                            "Démarrer mes 10 jours d'essai"
-                                        )}
+                                        ) : isMobile ? ("Démarrer l'essai") : ("Démarrer mes 10 jours d'essai")
+                                        }
                                     </Button>
                                 </div>
                                 <p className="text-xs text-center text-muted-foreground flex items-center justify-center gap-1 mt-2">
@@ -305,7 +304,7 @@ export default function CreateProjectForm() {
                                 <CheckCircle2 className="h-5 w-5 text-emerald-500 shrink-0 mt-0.5" />
                                 <div>
                                     <p className="font-medium text-foreground">10 jours d&apos;essai offerts</p>
-                                    <p className="text-muted-foreground text-xs leading-relaxed">Testez votre IA gratuitement. Le premier prélèvement aura lieu dans 10 jours ou après 150 messages échangés.</p>
+                                    <p className="text-muted-foreground text-xs leading-relaxed">Testez votre IA gratuitement. Le premier prélèvement aura lieu dans <span className="text-foreground">10 jours</span> ou après <span className="text-foreground"> 150 messages </span> échangés.</p>
                                 </div>
                             </div>
                             <div className="flex items-start gap-3 text-sm">
