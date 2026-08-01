@@ -88,7 +88,7 @@ export const ProjectsTableColumns: ColumnDef<Project>[] = [
     },
     {
         accessorKey: "instanceStatus",
-        header: "Etat du numero",
+        header: "Etat du numéro",
         cell: ({ row }) => {
             const status = row.original.instanceStatus;
             return (

@@ -25,7 +25,6 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useHaptics } from "@/lib/webHaptics";
 import { toast } from "sonner";
 import { createProjectAndCheckout } from "@/app/actions/stripe-actions";
-import { useIsMobile } from "@/hooks/use-mobile";
 
 // --- VALIDATION ZOD ---
 const formSchema = z.object({
@@ -66,7 +65,6 @@ const PLANS = [
 
 export default function CreateProjectForm() {
     const [isLoading, setIsLoading] = useState(false);
-    const isMobile = useIsMobile();
     const { playHaptic } = useHaptics()
     const form = useForm<FormValues>({
         resolver: zodResolver(formSchema),
@@ -280,7 +278,7 @@ export default function CreateProjectForm() {
                                 <div className="pt-4 border-t border-primary/10">
                                     <Button
                                         type="submit"
-                                        className="w-full h-12 text-md font-semibold bg-primary hover:bg-primary/90 transition-all shadow-lg hover:shadow-primary/25"
+                                        className="w-full h-12 text-sm font-semibold bg-primary hover:bg-primary/90 transition-all shadow-lg hover:shadow-primary/25"
                                         disabled={isLoading}
                                     >
                                         {isLoading ? (
@@ -288,8 +286,14 @@ export default function CreateProjectForm() {
                                                 <Loader className="mr-2 h-5 w-5 animate-spin" />
                                                 Création de l&apos;instance...
                                             </>
-                                        ) : isMobile ? ("Démarrer l'essai") : ("Démarrer mes 10 jours d'essai")
-                                        }
+                                        ) : (
+                                            <>
+                                                {/* Version mobile (affichée par défaut, masquée sur sm et plus) */}
+                                                <span className="inline sm:hidden">Démarrer l&apos;essai</span>
+                                                {/* Version desktop (masquée sur mobile, affichée à partir de sm) */}
+                                                <span className="hidden sm:inline">Démarrer mes 10 jours d&apos;essai</span>
+                                            </>
+                                        )}
                                     </Button>
                                 </div>
                                 <p className="text-xs text-center text-muted-foreground flex items-center justify-center gap-1 mt-2">
