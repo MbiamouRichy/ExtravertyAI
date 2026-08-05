@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Plus, Smartphone, FolderOpen, Server, Settings } from "lucide-react"
+import { Plus, Smartphone, FolderOpen, Settings, CreditCardIcon } from "lucide-react"
 import Link from "next/link"
 import { ProjectsTable } from "./dataTable"
 import { ProjectsTableColumns } from "./columnTable"
@@ -28,13 +28,13 @@ export interface CustomProjectProps {
 
 export default function HomeProjectsPage({ projects }: CustomProjectProps) {
   return (
-    <div className="flex w-full flex-col mx-auto max-w-7xl space-y-6 md:space-y-8 p-4 sm:p-6 md:p-8">
+    <div className="flex w-full flex-col overflow-x-hidden justify-center md:mx-auto max-w-7xl space-y-6 md:space-y-8 p-4 sm:p-6 md:p-8">
 
       {/* En-tête de page (Responsive) */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="space-y-1.5">
           <h1 className="text-2xl md:text-3xl font-semibold tracking-tight text-foreground">
-            Projets
+            Vos projets
           </h1>
           <p className="text-sm text-muted-foreground max-w-2xl">
             Gérez vos flux d&apos;automatisation et surveillez l&apos;état de vos instances en temps réel.
@@ -80,9 +80,9 @@ export default function HomeProjectsPage({ projects }: CustomProjectProps) {
                     className="flex flex-col p-5 rounded-xl border border-border bg-card shadow-sm space-y-4"
                   >
                     <div className="flex items-start justify-between gap-2">
-                      <h3 className="font-semibold text-base text-foreground truncate">
+                      <Link href={`/dashboard/projects/${project.id}`} title={project.name} className="font-semibold text-base text-foreground truncate">
                         {project.name}
-                      </h3>
+                      </Link>
                       <Badge
                         variant={statusInfo.variant}
                         className="font-normal shrink-0"
@@ -103,7 +103,7 @@ export default function HomeProjectsPage({ projects }: CustomProjectProps) {
 
                       <div className="flex items-center justify-between gap-2 bg-muted/50 p-2 rounded-lg">
                         <div className="flex items-center gap-2">
-                          <Server className="h-4 w-4 text-muted-foreground" />
+                          <CreditCardIcon className="h-4 w-4 text-muted-foreground" />
                           <span className="text-xs font-mono text-muted-foreground truncate max-w-30">
                             {project.plan}
                           </span>

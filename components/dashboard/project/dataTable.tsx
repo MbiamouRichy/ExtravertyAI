@@ -9,8 +9,8 @@ import {
     SortingState,
     getSortedRowModel,
     ColumnFiltersState,
-    getFilteredRowModel,
     VisibilityState,
+    getPaginationRowModel
 } from "@tanstack/react-table"
 import {
     DropdownMenu,
@@ -28,7 +28,7 @@ import {
 } from "@/components/ui/table"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { Settings2, Search } from "lucide-react"
+import { Settings2, Search, ChevronLeft, ChevronRight } from "lucide-react"
 
 interface DataTableProps<TData, TValue> {
     columns: ColumnDef<TData, TValue>[]
@@ -42,7 +42,6 @@ export function ProjectsTable<TData, TValue>({
     const [sorting, setSorting] = React.useState<SortingState>([])
     const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
     const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({})
-    const [rowSelection, setRowSelection] = React.useState({})
 
     // eslint-disable-next-line react-hooks/incompatible-library
     const table = useReactTable({
@@ -52,14 +51,17 @@ export function ProjectsTable<TData, TValue>({
         onSortingChange: setSorting,
         getSortedRowModel: getSortedRowModel(),
         onColumnFiltersChange: setColumnFilters,
-        getFilteredRowModel: getFilteredRowModel(),
+        getPaginationRowModel: getPaginationRowModel(),
         onColumnVisibilityChange: setColumnVisibility,
-        onRowSelectionChange: setRowSelection,
         state: {
             sorting,
             columnFilters,
             columnVisibility,
-            rowSelection,
+        },
+        initialState: {
+            pagination: {
+                pageSize: 10, // 👈 Nombre de lignes par défaut par page
+            },
         },
     })
 
@@ -127,7 +129,7 @@ export function ProjectsTable<TData, TValue>({
                             </TableRow>
                         ))}
                     </TableHeader>
-                    <TableBody>
+                    <TableBody className="border-b border-border/40">
                         {table.getRowModel().rows?.length ? (
                             table.getRowModel().rows.map((row) => (
                                 <TableRow
@@ -152,11 +154,37 @@ export function ProjectsTable<TData, TValue>({
                     </TableBody>
                 </Table>
             </div>
-
-            <div className="flex items-center justify-end space-x-2 text-sm text-muted-foreground">
+            {/* 👇 3. Nouvelle Pagination UI (Style Shadcn) 👇 */}
+            <div className="flex items-center justify-between px-2 py-4">
                 <div className="flex-1 text-sm text-muted-foreground">
-                    {table.getFilteredSelectedRowModel().rows.length} sur{" "}
-                    {table.getFilteredRowModel().rows.length} ligne(s) sélectionnée(s).
+                    Total : <span className="font-medium text-foreground">{table.getFilteredRowModel().rows.length}</span> projet(s)
+                </div>
+
+                <div className="flex items-center space-x-6 lg:space-x-8">
+                    <div className="flex w-fit items-center justify-center text-sm font-medium">
+                        Page {table.getState().pagination.pageIndex + 1} sur{" "}
+                        {table.getPageCount() || 1}
+                    </div>
+                    <div className="flex items-center space-x-2">
+                        <Button
+                            variant="outline"
+                            className="h-8 w-8 p-0 lg:flex"
+                            onClick={() => table.previousPage()}
+                            disabled={!table.getCanPreviousPage()}
+                        >
+                            <span className="sr-only">Page précédente</span>
+                            <ChevronLeft className="h-4 w-4" />
+                        </Button>
+                        <Button
+                            variant="outline"
+                            className="h-8 w-8 p-0 lg:flex"
+                            onClick={() => table.nextPage()}
+                            disabled={!table.getCanNextPage()}
+                        >
+                            <span className="sr-only">Page suivante</span>
+                            <ChevronRight className="h-4 w-4" />
+                        </Button>
+                    </div>
                 </div>
             </div>
         </div>

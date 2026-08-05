@@ -10,47 +10,20 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Button } from "@/components/ui/button"
-import { Checkbox } from "@/components/ui/checkbox"
 import { Badge } from "@/components/ui/badge"
 import { ArrowUpDown, MoreHorizontal, Smartphone, Eye, Settings, CreditCardIcon } from "lucide-react"
 import Link from "next/link"
 import { CustomProjectProps } from "./homePage"
 
-// Fonction utilitaire sécurisée pour le presse-papier
-const copyToClipboard = async (text: string) => {
-    if (navigator?.clipboard) {
-        try {
-            await navigator.clipboard.writeText(text)
-            // Optionnel: Ajouter un toast de succès ici (ex: toast.success("Copié !"))
-        } catch (err) {
-            console.error("Échec de la copie", err)
-        }
-    }
-}
-
+// Dictionnaire de configuration des statuts
+const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "outline" | "destructive" }> = {
+    active: { label: "Actif", variant: "default" },       // Souvent vert/primaire par défaut
+    trialing: { label: "En essai", variant: "secondary" }, // Couleur secondaire pour l'essai
+    paused: { label: "En pause", variant: "outline" },     // Contour simple pour un état neutre/en attente
+    inactive: { label: "Inactif", variant: "destructive" } // Rouge/Destructif pour un arrêt
+};
 export const ProjectsTableColumns: ColumnDef<CustomProjectProps["projects"][0]>[] = [
-    {
-        id: "select",
-        header: ({ table }) => (
-            <Checkbox
-                checked={
-                    table.getIsAllPageRowsSelected() ||
-                    (table.getIsSomePageRowsSelected() && "indeterminate")
-                }
-                onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
-                aria-label="Sélectionner toutes les lignes"
-            />
-        ),
-        cell: ({ row }) => (
-            <Checkbox
-                checked={row.getIsSelected()}
-                onCheckedChange={(value) => row.toggleSelected(!!value)}
-                aria-label="Sélectionner la ligne"
-            />
-        ),
-        enableSorting: false,
-        enableHiding: false,
-    },
+
     {
         accessorKey: "name",
         header: "Projet",
@@ -66,7 +39,7 @@ export const ProjectsTableColumns: ColumnDef<CustomProjectProps["projects"][0]>[
             return (
                 <Button
                     variant="ghost"
-                    className="p-0 hover:bg-transparent"
+                    className="p-0 hover:bg-transparent text-muted-foreground"
                     onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
                 >
                     Numéro cible
@@ -123,15 +96,6 @@ export const ProjectsTableColumns: ColumnDef<CustomProjectProps["projects"][0]>[
         header: "Statut du projet",
         cell: ({ row }) => {
             const status = row.original.status;
-
-            // Dictionnaire de configuration des statuts
-            const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "outline" | "destructive" }> = {
-                active: { label: "Actif", variant: "default" },       // Souvent vert/primaire par défaut
-                trialing: { label: "En essai", variant: "secondary" }, // Couleur secondaire pour l'essai
-                paused: { label: "En pause", variant: "outline" },     // Contour simple pour un état neutre/en attente
-                inactive: { label: "Inactif", variant: "destructive" } // Rouge/Destructif pour un arrêt
-            };
-
             // On récupère la config correspondante, avec un fallback sécurisé au cas où un statut inattendu apparaît
             const config = statusConfig[status] || { label: "Inconnu", variant: "outline" };
 
@@ -142,6 +106,44 @@ export const ProjectsTableColumns: ColumnDef<CustomProjectProps["projects"][0]>[
                 >
                     {config.label}
                 </Badge>
+            )
+        },
+    },
+    {
+        id: "usage", // id personnalisé car on utilise deux champs différents
+        header: "Utilisation",
+        cell: ({ row }) => {
+            // Récupération sécurisée des valeurs
+            const used = row.original.messageCount || 0;
+            const limit = row.original.aLlmessagesCount || 0; // Attention à ton "L" majuscule ici !
+
+            // Calcul du pourcentage (avec protection contre la division par zéro)
+            // Math.min évite de dépasser 100% si jamais used > limit pour une raison quelconque
+            const percentage = limit > 0 ? Math.min(Math.round((used / limit) * 100), 100) : 0;
+
+            // Logique UI/UX : alerter visuellement si l'utilisateur approche de sa limite
+            const isNearLimit = percentage >= 90;
+
+            return (
+                <div className="flex w-full min-w-[130px] flex-col gap-1.5">
+                    <div className="flex items-center justify-between text-xs">
+                        <span className="text-muted-foreground">
+                            {used.toLocaleString('fr-FR')} / {limit.toLocaleString('fr-FR')}
+                        </span>
+                        <span className={`font-medium ${isNearLimit ? "text-destructive animate-pulse" : "text-foreground"}`}>
+                            {percentage}%
+                        </span>
+                    </div>
+
+                    {/* Barre de progression en pur Tailwind (plus flexible que Shadcn pour changer les couleurs dynamiquement) */}
+                    <div className="h-1.5 w-full overflow-hidden rounded-full bg-secondary">
+                        <div
+                            className={`h-full transition-all duration-500 ease-in-out ${isNearLimit ? "bg-destructive" : "bg-primary"
+                                }`}
+                            style={{ width: `${percentage}%` }}
+                        />
+                    </div>
+                </div>
             )
         },
     },
@@ -183,7 +185,7 @@ export const ProjectsTableColumns: ColumnDef<CustomProjectProps["projects"][0]>[
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                         <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                        <DropdownMenuItem onClick={() => copyToClipboard(project.id)}>
+                        <DropdownMenuItem>
                             <Settings className="mr-2 h-4 w-4" />
                             gerer
                         </DropdownMenuItem>

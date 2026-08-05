@@ -19,7 +19,6 @@ export default async function ProjectPage({ params, searchParams }: PageProps) {
   }
 
   const project = await getProjectById(projectId);
-  console.log("project ID:", projectId, "project:", project);
 
   if (!project) {
     return redirect("/dashboard/projects");
