@@ -1,6 +1,5 @@
 "use client"
 
-import { Project } from "@/src/generated/prisma/client"
 import { ColumnDef } from "@tanstack/react-table"
 import {
     DropdownMenu,
@@ -13,7 +12,9 @@ import {
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Badge } from "@/components/ui/badge"
-import { ArrowUpDown, MoreHorizontal, Smartphone, Server, Copy, Eye } from "lucide-react"
+import { ArrowUpDown, MoreHorizontal, Smartphone, Eye, Settings, CreditCardIcon } from "lucide-react"
+import Link from "next/link"
+import { CustomProjectProps } from "./homePage"
 
 // Fonction utilitaire sécurisée pour le presse-papier
 const copyToClipboard = async (text: string) => {
@@ -27,7 +28,7 @@ const copyToClipboard = async (text: string) => {
     }
 }
 
-export const ProjectsTableColumns: ColumnDef<Project>[] = [
+export const ProjectsTableColumns: ColumnDef<CustomProjectProps["projects"][0]>[] = [
     {
         id: "select",
         header: ({ table }) => (
@@ -53,7 +54,11 @@ export const ProjectsTableColumns: ColumnDef<Project>[] = [
     {
         accessorKey: "name",
         header: "Projet",
-        cell: ({ row }) => <span className="font-semibold">{row.original.name}</span>,
+        cell: ({ row }) => (
+            <Link href={`/dashboard/projects/${row.original.id}`} title={row.original.id} className="font-semibold hover:underline">
+                {row.original.name}
+            </Link>
+        ),
     },
     {
         accessorKey: "numero",
@@ -77,12 +82,12 @@ export const ProjectsTableColumns: ColumnDef<Project>[] = [
         ),
     },
     {
-        accessorKey: "instanceName",
-        header: "Instance",
+        accessorKey: "plan",
+        header: "Plan",
         cell: ({ row }) => (
             <span className="inline-flex items-center rounded-md bg-secondary px-2 py-1 text-xs font-mono text-secondary-foreground">
-                <Server className="mr-1 h-3 w-3" />
-                {row.original.instanceName}
+                <CreditCardIcon className="mr-1 h-3 w-3" />
+                {row.original.plan}
             </span>
         ),
     },
@@ -179,13 +184,15 @@ export const ProjectsTableColumns: ColumnDef<Project>[] = [
                     <DropdownMenuContent align="end">
                         <DropdownMenuLabel>Actions</DropdownMenuLabel>
                         <DropdownMenuItem onClick={() => copyToClipboard(project.id)}>
-                            <Copy className="mr-2 h-4 w-4" />
-                            Copier l&apos;ID du projet
+                            <Settings className="mr-2 h-4 w-4" />
+                            gerer
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem>
-                            <Eye className="mr-2 h-4 w-4" />
-                            Voir les détails
+                            <Link href={`/dashboard/projects/${project.id}`}>
+                                <Eye className="mr-2 h-4 w-4" />
+                                Voir le projet
+                            </Link>
                         </DropdownMenuItem>
                     </DropdownMenuContent>
                 </DropdownMenu>

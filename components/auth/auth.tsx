@@ -38,7 +38,7 @@ const formSchema = z.object({
 });
 
 
-export function AuthPage() {
+export function AuthPage({ callbackUrl }: { callbackUrl: string }) {
 	const router = useRouter();
 	const { playHaptic } = useHaptics();
 	const [loading, setLoading] = useState<boolean>(false);
@@ -69,7 +69,7 @@ export function AuthPage() {
 						toast.success("Connexion réussie.", {
 							position: "top-center",
 						});
-						router.push("/dashboard");
+						router.push(callbackUrl);
 						form.reset()
 					},
 					onError: () => {

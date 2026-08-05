@@ -28,7 +28,7 @@ export const metadata: Metadata = {
 export default async function BillingPage() {
     const user = await getUser()
     if (!user?.id) {
-        redirect("/sign-in")
+        return redirect(`/sign-in?callbackUrl=/dashboard/billing`);
     }
     return (
         <div className="mx-auto max-w-5xl space-y-8 p-6 md:p-8">

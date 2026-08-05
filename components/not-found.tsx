@@ -9,7 +9,7 @@ import {
 import { HomeIcon, PhoneIcon } from "lucide-react";
 import Link from "next/link";
 
-export function NotFoundPage() {
+export function NotFoundPage({ children }: { children?: React.ReactNode }) {
 	return (
 		<div className="flex min-h-screen p-4 w-screen items-center justify-center overflow-x-hidden">
 			<Empty className="p-0 md:p-12">
@@ -23,21 +23,23 @@ export function NotFoundPage() {
 					</EmptyDescription>
 				</EmptyHeader>
 				<EmptyContent>
-					<div className="flex gap-2">
-						<Button asChild>
-							<Link title="page d'accueil" href="/">
-								<HomeIcon data-icon="inline-start" />
-								Accueil
-							</Link>
-						</Button>
+					{children ? children : (
+						<div className="flex gap-2">
+							<Button asChild>
+								<Link title="page d'accueil" href="/">
+									<HomeIcon data-icon="inline-start" />
+									Accueil
+								</Link>
+							</Button>
 
-						<Button asChild variant="outline">
-							<Link title="page de contact" href="/contact">
-								<PhoneIcon data-icon="inline-start" />{" "}
-								Contactez-nous
-							</Link>
-						</Button>
-					</div>
+							<Button asChild variant="outline">
+								<Link title="page de contact" href="/contact">
+									<PhoneIcon data-icon="inline-start" />{" "}
+									Contactez-nous
+								</Link>
+							</Button>
+						</div>
+					)}
 				</EmptyContent>
 			</Empty>
 		</div>

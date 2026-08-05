@@ -15,7 +15,7 @@ export default async function DashboardPage() {
   const user = await getUser(); // Get the user from the server-side session
 
   if (!user?.id) {
-    redirect("/sign-in");
+    return redirect("/sign-in");
   }
 
   return (

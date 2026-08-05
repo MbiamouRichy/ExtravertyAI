@@ -2,12 +2,21 @@ import { AuthPage } from "@/components/auth/auth";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "ExtravertyAI - Se connecter",
-  description:
-    "ExtravertyAI est un assistant de support client alimenté par l'IA qui fournit des réponses rapides et précises aux questions des clients, améliorant ainsi l'expérience client et le nombre de ventes.",
+  title: "Se connecter | ExtravertyAI",
 };
-export const dynamic = "force-static";
 
-export default function SeConnecterPage() {
-    return <AuthPage />;
+type SignInPageProps = {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+};
+
+export default async function SeConnecterPage({ searchParams }: SignInPageProps) {
+  const params = await searchParams;
+
+  // 2. Sécurisation : on s'assure que c'est bien une chaîne de caractères
+  // Si callbackUrl n'existe pas, on renvoie vers le dashboard par défaut
+  const callbackUrl = typeof params?.callbackUrl === "string"
+    ? params.callbackUrl
+    : "/dashboard";
+
+  return <AuthPage callbackUrl={callbackUrl} />;
 }

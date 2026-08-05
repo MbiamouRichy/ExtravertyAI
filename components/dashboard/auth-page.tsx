@@ -225,7 +225,7 @@ export function AuthPage() {
 												{...field}
 												id={field.name}
 												aria-invalid={fieldState.invalid}
-												placeholder="Entrez un mot de passe (8-15 caractères)"
+												placeholder="Entrez un mot de passe"
 												autoComplete="off"
 												type={showPassword ? "text" : "password"}
 											/>

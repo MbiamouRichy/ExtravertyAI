@@ -1,7 +1,6 @@
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Plus, Smartphone, FolderOpen, Server, Settings } from "lucide-react"
-import { Project } from "@/src/generated/prisma/client"
 import Link from "next/link"
 import { ProjectsTable } from "./dataTable"
 import { ProjectsTableColumns } from "./columnTable"
@@ -12,11 +11,22 @@ const statusConfig: Record<string, { label: string; variant: "default" | "second
   paused: { label: "En pause", variant: "outline" },
   inactive: { label: "Inactif", variant: "destructive" }
 };
-interface HomeProjectsPageProps {
-  projects: Project[]
+export interface CustomProjectProps {
+  projects: {
+    id: string;
+    name: string;
+    numero: string;
+    status: string;
+    plan: string;
+    messageCount: number;
+    aLlmessagesCount: number;
+    expiredAt: Date | null;
+    instanceStatus: string | null;
+    stripeCurrentPeriodEnd: Date | null;
+  }[]
 }
 
-export default function HomeProjectsPage({ projects }: HomeProjectsPageProps) {
+export default function HomeProjectsPage({ projects }: CustomProjectProps) {
   return (
     <div className="flex w-full flex-col mx-auto max-w-7xl space-y-6 md:space-y-8 p-4 sm:p-6 md:p-8">
 
@@ -94,8 +104,8 @@ export default function HomeProjectsPage({ projects }: HomeProjectsPageProps) {
                       <div className="flex items-center justify-between gap-2 bg-muted/50 p-2 rounded-lg">
                         <div className="flex items-center gap-2">
                           <Server className="h-4 w-4 text-muted-foreground" />
-                          <span className="text-xs font-mono text-muted-foreground truncate max-w-[120px]">
-                            {project.instanceName}
+                          <span className="text-xs font-mono text-muted-foreground truncate max-w-30">
+                            {project.plan}
                           </span>
                         </div>
                         <div className="flex items-center gap-1.5 shrink-0">

@@ -3,21 +3,85 @@
 import prisma from "@/lib/prisma";
 import { getSession } from "@/lib/auth-server";
 
-// Récupérer les projets de l'utilisateur connecté
 export async function getProjects() {
   const session = await getSession();
-  if (!session?.user) throw new Error("Non autorisé");
-  // On récupère toutes les "adhésions" de cet utilisateur
-  const memberships = await prisma.projectMembership.findMany({
-    where: {
-      userId: session.user.id,
-    },
-    include: {
-      project: true, // On demande à Prisma d'inclure les infos du projet lié
-    },
-  });
+  // Correction : On retourne un tableau vide plutôt que de faire crasher l'application
+  if (!session?.user?.id) return [];
 
-  // memberships contient un tableau d'objets, chaque objet a une clé "project"
-  // On transforme ça pour retourner juste une liste de projets propre
-  return memberships.map((m) => m.project);
+  try {
+    const memberships = await prisma.projectMembership.findMany({
+      where: {
+        userId: session.user.id,
+      },
+      select: {
+        project: {
+          select: {
+            id: true,
+            name: true,
+            numero: true,
+            status: true,
+            plan: true,
+            messageCount: true,
+            aLlmessagesCount: true,
+            expiredAt: true,
+            instanceStatus: true,
+            stripeCurrentPeriodEnd: true,
+          },
+        },
+      },
+    });
+
+    return memberships.map((m) => m.project);
+  } catch (error) {
+    console.error("Erreur lors de la récupération des projets:", error);
+    return [];
+  }
+}
+
+export async function getProjectById(projectId: string) {
+  if (!projectId) return null;
+
+  const session = await getSession();
+  // Correction : On retourne 'null' pour que le composant de page puisse rediriger proprement
+  if (!session?.user?.id) return null;
+
+  try {
+    const memberShip = await prisma.projectMembership.findUnique({
+      where: {
+        userId_projectId: {
+          userId: session.user.id,
+          projectId: projectId,
+        },
+      },
+      select: {
+        role: true,
+        project: {
+          select: {
+            id: true,
+            name: true,
+            numero: true,
+            status: true,
+            plan: true,
+            messageCount: true,
+            aLlmessagesCount: true,
+            expiredAt: true,
+            instanceName: true,
+            instanceStatus: true,
+            stripeCurrentPeriodEnd: true,
+          },
+        },
+      },
+    });
+
+    // Si on ne trouve pas l'adhésion, c'est que soit le projet n'existe pas,
+    // soit l'utilisateur n'a pas le droit de le voir (sécurité absolue)
+    if (!memberShip) {
+      return null;
+    }
+
+    return memberShip.project;
+  } catch (error) {
+    console.error("Erreur lors de la récupération du projet:", error);
+    return null;
+  }
 }
