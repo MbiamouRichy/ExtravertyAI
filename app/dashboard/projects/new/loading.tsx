@@ -3,7 +3,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 
 export default function LoadingNewProject() {
     return (
-        <div className="mx-auto max-w-5xl py-10 px-4 sm:px-6 lg:px-8 animate-pulse">
+        <div className="mx-auto w-full max-w-5xl py-10 px-4 sm:px-6 lg:px-8 animate-pulse">
 
             {/* EN-TÊTE */}
             <div className="mb-8 text-center sm:text-left space-y-4">

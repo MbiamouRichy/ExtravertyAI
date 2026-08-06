@@ -133,7 +133,7 @@ export default function CreateProjectForm() {
                     {/* Section 1 : Informations du projet */}
                     <Card className="border-border/50 shadow-sm">
                         <CardHeader>
-                            <CardTitle className="text-xl flex items-center gap-2">
+                            <CardTitle className="text-xl flex flex-col md:flex-row text-center justify-center md:text-start md:justify-start items-center gap-2">
                                 <Folder className="h-5 w-5 text-primary" />
                                 Informations de l&apos;instance
                             </CardTitle>
@@ -203,7 +203,7 @@ export default function CreateProjectForm() {
                     {/* Section 2 : Choix du Forfait */}
                     <Card className="border-border/50 shadow-sm">
                         <CardHeader>
-                            <CardTitle className="text-xl flex items-center gap-2">
+                            <CardTitle className="text-xl flex flex-col md:flex-row text-center justify-center md:text-start md:justify-start items-center gap-2">
                                 <Sparkles className="h-5 w-5 text-primary" />
                                 Choisissez votre volume
                             </CardTitle>
@@ -272,7 +272,7 @@ export default function CreateProjectForm() {
                                 </div>
                                 <div className="flex justify-between items-center text-sm">
                                     <span className="text-muted-foreground">À payer aujourd&apos;hui</span>
-                                    <span className="font-bold text-lg text-foreground">0,00 €</span>
+                                    <span className="font-bold text-base md:text-lg text-foreground">0,00 €</span>
                                 </div>
 
                                 <div className="pt-4 border-t border-primary/10">
@@ -296,7 +296,7 @@ export default function CreateProjectForm() {
                                         )}
                                     </Button>
                                 </div>
-                                <p className="text-xs text-center text-muted-foreground flex items-center justify-center gap-1 mt-2">
+                                <p className="text-xs text-center text-muted-foreground flex flex-col md:flex-row items-center justify-center gap-1 mt-2">
                                     <Lock className="h-3 w-3" /> Redirection sécurisée vers Stripe
                                 </p>
                             </CardContent>

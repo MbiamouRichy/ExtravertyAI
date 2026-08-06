@@ -1,4 +1,4 @@
-import CreateProjectForm from '@/components/dashboard/project/createInstanceForm'
+import CreateProjectForm from '@/components/dashboard/project/createProjectForm'
 import { getSession } from '@/lib/auth-server';
 import type { Metadata } from "next";
 import { redirect } from 'next/navigation';

@@ -116,7 +116,7 @@ export const ProjectsTableColumns: ColumnDef<CustomProjectProps["projects"][0]>[
             // Récupération sécurisée des valeurs
             const used = row.original.messageCount || 0;
             const limit = row.original.aLlmessagesCount || 0; // Attention à ton "L" majuscule ici !
-
+            console.log(`Calcul de l'utilisation pour le projet ${row.original.id}: used=${used}, limit=${limit}`); // Log pour debug
             // Calcul du pourcentage (avec protection contre la division par zéro)
             // Math.min évite de dépasser 100% si jamais used > limit pour une raison quelconque
             const percentage = limit > 0 ? Math.min(Math.round((used / limit) * 100), 100) : 0;
@@ -187,13 +187,13 @@ export const ProjectsTableColumns: ColumnDef<CustomProjectProps["projects"][0]>[
                         <DropdownMenuLabel>Actions</DropdownMenuLabel>
                         <DropdownMenuItem>
                             <Settings className="mr-2 h-4 w-4" />
-                            gerer
+                            Gerer
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem>
                             <Link href={`/dashboard/projects/${project.id}`}>
                                 <Eye className="mr-2 h-4 w-4" />
-                                Voir le projet
+                                Ouvrir
                             </Link>
                         </DropdownMenuItem>
                     </DropdownMenuContent>

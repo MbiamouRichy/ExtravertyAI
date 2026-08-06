@@ -68,12 +68,12 @@ export default function ProjectsLoading() {
 
                         {/* Header du tableau */}
                         <div className="flex items-center bg-muted/50 border-b px-4 py-3 gap-4">
-                            <Skeleton className="h-4 w-4 rounded-sm shrink-0" /> {/* Checkbox */}
                             <Skeleton className="h-4 w-[15%] shrink-0" /> {/* Projet */}
                             <Skeleton className="h-4 w-[15%] shrink-0" /> {/* Numéro */}
-                            <Skeleton className="h-4 w-[15%] shrink-0" /> {/* Instance */}
-                            <Skeleton className="h-4 w-[15%] shrink-0" /> {/* Connexion API */}
-                            <Skeleton className="h-4 w-[10%] shrink-0" /> {/* Statut */}
+                            <Skeleton className="h-4 w-[10%] shrink-0" /> {/* Plan */}
+                            <Skeleton className="h-4 w-[10%] shrink-0" /> {/* Etat numero */}
+                            <Skeleton className="h-4 w-[15%] shrink-0" /> {/* Statut projet */}
+                            <Skeleton className="h-4 w-[20%] shrink-0" /> {/* utilisation */}
                             <Skeleton className="h-4 w-[15%] shrink-0" /> {/* Date */}
                             <Skeleton className="h-4 w-8 shrink-0 ml-auto" /> {/* Actions */}
                         </div>
