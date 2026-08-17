@@ -27,7 +27,8 @@ import {
     MessageHeader,
     MessageFooter,
 } from "@/components/ui/message";
-
+import confetti from "canvas-confetti";
+import { useEffect } from "react";
 // --- TYPES ---
 type Project = { id: string; name: string };
 type User = { id: string; name?: string | null; image?: string | null };
@@ -98,13 +99,46 @@ const MOCK_MESSAGES: Record<string, ChatMessage[]> = {
     "c3": []
 };
 
-export default function WhatsappWorkspace({ project, user }: { project: Project; user: User }) {
+export default function WhatsappWorkspace({ project, user, isSuccess }: { project: Project; user: User; isSuccess: boolean }) {
     const [clients] = useState<ChatClient[]>(MOCK_CLIENTS);
     const [activeClientId, setActiveClientId] = useState<string | null>(clients[0].id);
     const [messages, setMessages] = useState<ChatMessage[]>(MOCK_MESSAGES[clients[0].id] || []);
     const [input, setInput] = useState("");
     const [isSending, setIsSending] = useState(false);
 
+
+    useEffect(() => {
+        if (isSuccess) {
+            const duration = 5 * 1000;
+            const animationEnd = Date.now() + duration;
+            const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 0 };
+
+            const randomInRange = (min: number, max: number) =>
+                Math.random() * (max - min) + min;
+
+            const interval = window.setInterval(() => {
+                const timeLeft = animationEnd - Date.now();
+                if (timeLeft <= 0) {
+                    return clearInterval(interval);
+                }
+                const particleCount = 50 * (timeLeft / duration);
+
+                confetti({
+                    ...defaults,
+                    particleCount,
+                    origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 },
+                });
+                confetti({
+                    ...defaults,
+                    particleCount,
+                    origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 },
+                });
+            }, 250);
+
+            // Nettoyage de l'intervalle si le composant est démonté
+            return () => clearInterval(interval);
+        }
+    }, [isSuccess]);
     // 📱 ÉTAT RESPONSIVE : Définit si on affiche le chat sur mobile
     const [showMobileChat, setShowMobileChat] = useState<boolean>(false);
 
@@ -137,14 +171,14 @@ export default function WhatsappWorkspace({ project, user }: { project: Project;
     };
 
     return (
-        <div className="flex w-full h-[calc(100vh-4rem)] md:overflow-hidden bg-background border-t relative">
+        <div className="flex w-full h-full max-h-[calc(100vh-4rem)] overflow-hidden">
 
             {/* -------------------------------------------------------------------------
           SIDEBAR (Liste des clients)
           > Cachée sur mobile si un chat est ouvert (showMobileChat === true)
       -------------------------------------------------------------------------- */}
-            <div className={`w-full md:w-80 lg:w-96 md:border-r flex-col bg-muted/10 shrink-0 h-full ${showMobileChat ? 'hidden md:flex' : 'flex'}`}>
-                <div className="p-4 border-b bg-background/50 backdrop-blur-sm">
+            <div className={`w-full md:max-w-2/6 md:border-r flex-col md:bg-muted/10 shrink-0 h-full ${showMobileChat ? 'hidden md:flex' : 'flex'}`}>
+                <div className="py-4 md:px-4 md:border-b md:bg-background/50 md:backdrop-blur-sm">
                     <h2 className="font-semibold text-lg mb-4 flex items-center gap-2">
                         Boîte de réception
                         <Badge variant="secondary" className="bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20">
@@ -160,10 +194,10 @@ export default function WhatsappWorkspace({ project, user }: { project: Project;
                     </div>
                 </div>
 
-                <ScrollArea className="flex-1 h-full">
-                    <div className="flex flex-col w-full">
+                <ScrollArea className="max-w-full flex-1 h-full">
+                    <div className="flex flex-col w-full py-4">
                         {clients.map((client) => (
-                            <button
+                            <div
                                 key={client.id}
                                 onClick={() => handleSelectClient(client.id)}
                                 className={`flex items-start gap-3 p-4 text-left w-full transition-colors border-b last:border-0 ${activeClientId === client.id
@@ -189,7 +223,7 @@ export default function WhatsappWorkspace({ project, user }: { project: Project;
                                         <span className="font-semibold text-sm truncate">{client.name}</span>
                                         <span className="text-xs text-muted-foreground whitespace-nowrap ml-2">{client.timestamp}</span>
                                     </div>
-                                    <div className="flex justify-between items-center gap-2">
+                                    <div className="flex justify-between relative items-center gap-2">
                                         <p className="text-sm text-muted-foreground truncate line-clamp-1">
                                             {client.lastMessage}
                                         </p>
@@ -200,7 +234,7 @@ export default function WhatsappWorkspace({ project, user }: { project: Project;
                                         )}
                                     </div>
                                 </div>
-                            </button>
+                            </div>
                         ))}
                     </div>
                 </ScrollArea>
@@ -210,12 +244,12 @@ export default function WhatsappWorkspace({ project, user }: { project: Project;
           MAIN AREA (Fenêtre de Chat)
           > Cachée sur mobile si aucun chat n'est actif
       -------------------------------------------------------------------------- */}
-            <div className={`flex-1 flex-col bg-background/95 relative h-full ${!showMobileChat ? 'hidden md:flex' : 'flex'}`}>
+            <div className={`flex-1 w-full min-w-4/6 flex-col bg-background/95 relative h-full ${!showMobileChat ? 'hidden md:flex' : 'flex'}`}>
 
                 {activeClient ? (
                     <>
                         {/* HEADER CHAT */}
-                        <header className="flex items-center justify-between px-3 md:px-6 py-3 md:py-4 border-b bg-background/60 backdrop-blur-md sticky top-0 z-20">
+                        <header className="flex max-w-full items-center justify-center md:justify-between px-3 md:px-6 py-3 md:py-4 border-b bg-background/60 backdrop-blur-md sticky top-0 z-20">
                             <div className="flex items-center gap-2 md:gap-4">
 
                                 {/* 📱 BOUTON RETOUR MOBILE */}
@@ -267,7 +301,7 @@ export default function WhatsappWorkspace({ project, user }: { project: Project;
                                                             className={
                                                                 msg.senderType === "client" ? "bg-background border hidden sm:flex" :
                                                                     msg.senderType === "bot" ? "bg-blue-100 text-blue-600 border-blue-200 hidden sm:flex" :
-                                                                        "bg-transparent hidden sm:flex" // <-- Modification ici pour éviter le double fond avec l'Avatar
+                                                                        "bg-transparent hidden sm:flex"
                                                             }
                                                         >
                                                             {msg.senderType === "client" ? (
@@ -295,8 +329,8 @@ export default function WhatsappWorkspace({ project, user }: { project: Project;
                                                                 className={`px-4 py-2.5 max-w-[90%] sm:max-w-[80%] text-[15px] leading-relaxed shadow-sm transition-all ${msg.senderType === "client"
                                                                     ? "bg-card border border-border/50 text-foreground rounded-2xl rounded-tl-sm"
                                                                     : msg.senderType === "bot"
-                                                                        ? "bg-blue-50/80 dark:bg-blue-950/30 border border-blue-100 dark:border-blue-900 text-foreground rounded-2xl rounded-tr-sm"
-                                                                        : "bg-[#00a884] dark:bg-[#008f6f] text-white rounded-2xl rounded-tr-sm"
+                                                                        ? "bg-blue-50/80 dark:bg-blue-950/30 border border-blue-100 dark:border-blue-900 border-dashed text-foreground rounded-2xl rounded-tr-sm"
+                                                                        : "bg-primary text-white rounded-2xl rounded-tr-sm"
                                                                     }`}
                                                             >
                                                                 {msg.content}
@@ -323,7 +357,7 @@ export default function WhatsappWorkspace({ project, user }: { project: Project;
                         </MessageScrollerProvider>
 
                         {/* ZONE DE SAISIE */}
-                        <div className="p-3 md:p-4 bg-background/80 backdrop-blur-md border-t pb-safe">
+                        <div className="p-3 md:p-4 bg-background/80 backdrop-blur-md border-t mt-auto pb-safe">
                             {activeClient.aiActive && (
                                 <div className="max-w-4xl mx-auto mb-2 md:mb-3 flex items-start md:items-center justify-center gap-2 text-[11px] md:text-xs font-medium text-amber-600 bg-amber-50 dark:bg-amber-950/30 py-2 px-3 md:px-4 rounded-lg text-center">
                                     <ShieldAlert className="h-4 w-4 shrink-0 mt-0.5 md:mt-0" />
@@ -345,12 +379,9 @@ export default function WhatsappWorkspace({ project, user }: { project: Project;
                                     <Button
                                         type="submit"
                                         size="icon"
+                                        variant={input.trim() ? "default" : "ghost"}
                                         disabled={!input.trim() || isSending}
-                                        className={`absolute right-1.5 md:right-2 rounded-full md:rounded-xl h-9 w-9 md:h-10 md:w-10 transition-all ${input.trim()
-                                            ? "bg-[#00a884] text-white hover:bg-[#008f6f] shadow-md"
-                                            : "bg-muted text-muted-foreground hover:bg-muted"
-                                            }`}
-                                    >
+                                        className='absolute right-1.5 md:right-2 rounded-full md:rounded-xl h-9 w-9 md:h-10 md:w-10 transition-all'>
                                         <Send className="h-4 w-4 ml-0.5 md:ml-1" />
                                         <span className="sr-only">Envoyer sur WhatsApp</span>
                                     </Button>

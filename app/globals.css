@@ -168,4 +168,8 @@
   pre {
     font-family: var(--font-mono);
   }
+  [data-radix-scroll-area-viewport] > div {
+    display: block !important;
+    min-width: 100%;
+  }
 }

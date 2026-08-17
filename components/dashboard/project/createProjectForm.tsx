@@ -104,7 +104,7 @@ export default function CreateProjectForm() {
             playHaptic("error");
             // On récupère le message d'erreur du serveur s'il existe, sinon on met un message générique
             const errorMessage = error instanceof Error
-                ? error.message
+                ? "Une erreur c'est produite lors de la creation du project."
                 : "Une erreur réseau s'est produite.";
 
             toast.error(errorMessage, {

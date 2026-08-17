@@ -79,7 +79,7 @@ export default async function ProfilePage() {
   });
 
   return (
-    <div className="max-w-5xl mx-auto p-6 space-y-8 animate-in fade-in duration-500">
+    <div className="max-w-5xl mx-auto p-10 md:p-12 space-y-8 animate-in fade-in duration-500">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Profil Utilisateur</h1>
         <p className="text-muted-foreground mt-2">

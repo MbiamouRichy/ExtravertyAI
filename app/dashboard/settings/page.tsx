@@ -41,7 +41,7 @@ export default function SettingsPage() {
 
             <div className="flex flex-col md:flex-row gap-8">
                 {/* Sidebar Navigation */}
-                <aside className="w-full md:w-64 flex-shrink-0">
+                <aside className="w-full md:w-64 shrink-0">
                     <nav className="flex md:flex-col gap-1 overflow-x-auto pb-4 md:pb-0">
                         {menuItems.map((item) => {
                             const Icon = item.icon;
@@ -207,7 +207,7 @@ export default function SettingsPage() {
                                         </button>
                                         {/* Thème Système */}
                                         <button className="flex flex-col items-center gap-3 border-2 border-transparent hover:border-neutral-200 focus:border-neutral-900 rounded-lg p-4 transition-all">
-                                            <div className="w-full h-24 bg-gradient-to-r from-neutral-100 to-neutral-900 rounded-md border shadow-sm flex items-center justify-center">
+                                            <div className="w-full h-24 bg-linear-to-r from-neutral-100 to-neutral-900 rounded-md border shadow-sm flex items-center justify-center">
                                                 <div className="w-1/2 h-1/2 bg-neutral-500 rounded shadow-sm"></div>
                                             </div>
                                             <span className="font-medium text-sm">Système</span>

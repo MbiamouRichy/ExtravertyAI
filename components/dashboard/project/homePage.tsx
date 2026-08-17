@@ -28,7 +28,7 @@ export interface CustomProjectProps {
 
 export default function HomeProjectsPage({ projects }: CustomProjectProps) {
   return (
-    <div className="flex w-full flex-col overflow-x-hidden justify-center md:mx-auto max-w-7xl space-y-6 md:space-y-8 p-4 sm:p-6 md:p-8">
+    <div className="flex w-full flex-col overflow-x-hidden justify-center md:mx-auto max-w-7xl space-y-6 md:space-y-8 p-4 sm:p-6 md:p-14">
 
       {/* En-tête de page (Responsive) */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">

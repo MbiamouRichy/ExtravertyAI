@@ -4,7 +4,7 @@ import { Separator } from "@/components/ui/separator";
 
 export default function ProfileLoading() {
     return (
-        <div className="w-full max-w-5xl mx-auto p-6 space-y-8 animate-in fade-in duration-500">
+        <div className="w-full max-w-5xl mx-auto p-10 md:p-12 space-y-8 animate-in fade-in duration-500">
             {/* En-tête de page */}
             <div>
                 <Skeleton className="h-9 w-full md:w-50" /> {/* Titre */}

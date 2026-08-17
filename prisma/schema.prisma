@@ -10,17 +10,22 @@ datasource db {
   provider = "postgresql"
 }
 
+// ------------------------------------------------------
+// 📦 ENUMS EXISTANTS ET NOUVEAUX
+// ------------------------------------------------------
+
 enum InstanceStatus {
   disconnected
   connecting
+  qr_ready     // NOUVEAU: En attente de scan du QR Code
   connected
 }
 
 enum ProjectStatus {
   trialing   // Phase de test par le client (Statut par défaut)
-  active    // Abonnement payé, en production
-  paused    // Mis en pause temporairement
-  inactive  // Abonnement annulé / non payé
+  active     // Abonnement payé, en production
+  paused     // Mis en pause temporairement
+  inactive   // Abonnement annulé / non payé
 }
 
 enum Role {
@@ -41,35 +46,135 @@ enum Plan {
   pro
 }
 
+// --- NOUVEAUX ENUMS (CRM & WHATSAPP) ---
+
+enum SenderType {
+  CLIENT
+  BOT
+  AGENT
+}
+
+enum MessageStatus {
+  PENDING
+  SENT
+  DELIVERED
+  READ
+  FAILED
+}
+
+enum MessageType {
+  TEXT
+  IMAGE
+  AUDIO
+  VIDEO
+  DOCUMENT
+  TEMPLATE
+  OTHER
+}
+
 // ------------------------------------------------------
-// 🏢 MODÈLE PROJET (Le cœur de la facturation)
+// 🏢 MODÈLE PROJET (Le cœur de la facturation & Configuration)
 // ------------------------------------------------------
 model Project {
-  id             String         @id @default(cuid())
-  name           String
-  numero         String        
-  status         ProjectStatus  @default(trialing)
+  id                   String         @id @default(cuid())
+  name                 String
+  numero               String        
+  status               ProjectStatus  @default(trialing)
   
-  // Instances API WhatsApp
-  instanceName   String         @unique
-  instanceStatus InstanceStatus @default(disconnected)
-  plan           Plan           @default(starter)
-  messageCount   Int  @default(0)
-  aLlmessagesCount   Int  @default(0)
+  // --- Instances API WhatsApp (Evolution API) ---
+  instanceName         String         @unique
+  instanceToken        String?        @unique // SÉCURITÉ: Authentifie les webhooks provenant d'Evolution API
+  instanceStatus       InstanceStatus @default(disconnected)
+  
+  plan                 Plan           @default(starter)
+  messageCount         Int            @default(0)
+  aLlmessagesCount     Int            @default(0)
 
-  // 💳 FACTURATION STRIPE (Rattachée au projet)
-  stripeCustomerId       String?   @unique
-  stripeSubscriptionId   String?   @unique
-  stripePriceId          String?
+  // --- 💳 FACTURATION STRIPE ---
+  stripeCustomerId     String?        @unique
+  stripeSubscriptionId String?        @unique
+  stripePriceId        String?
   stripeCurrentPeriodEnd DateTime?
 
-  // 👥 SYSTÈME MULTI-TENANT (Membres du projet)
-  members        ProjectMembership[]
+  // --- 👥 RELATIONS CRM ---
+  members              ProjectMembership[]
+  contacts             Contact[]      // Les prospects WhatsApp du projet
+  messages             Message[]      // Tous les messages liés à ce projet
 
   // Dates
-  createdAt      DateTime       @default(now())
-  updatedAt      DateTime       @updatedAt
-  expiredAt      DateTime?    
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
+  expiredAt            DateTime?    
+  
+  @@map("project")
+}
+
+// ------------------------------------------------------
+// 📞 CRM : CONTACTS (Les prospects WhatsApp)
+// ------------------------------------------------------
+model Contact {
+  id          String    @id @default(cuid())
+  phone       String    // Numéro classique (ex: 24107123456)
+  
+  // --- Identifiants Evolution API ---
+  remoteJid   String    // Identifiant exact WhatsApp (ex: 24107123456@s.whatsapp.net)
+  pushName    String?   // Pseudo public WhatsApp du prospect
+  
+  name        String?   // Nom assigné par l'agent ou l'IA dans l'interface
+  aiActive    Boolean   @default(true) // Handover: False si un agent a pris le relais
+  
+  // --- Relations ---
+  projectId   String
+  project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  messages    Message[]
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // SÉCURITÉ & PERF: Un contact (JID) est unique par projet. Indexé pour recherche rapide.
+  @@unique([projectId, remoteJid])
+  @@index([projectId])
+  @@map("contact")
+}
+
+// ------------------------------------------------------
+// 💬 CRM : MESSAGES (Historique des conversations)
+// ------------------------------------------------------
+model Message {
+  id           String        @id @default(cuid())
+  
+  // --- Traçabilité Evolution API ---
+  evolutionId  String?       @unique // ID officiel 'key.id' renvoyé par Evolution API (crucial pour les accusés de lecture)
+  fromMe       Boolean       @default(false)
+  
+  // --- Contenu ---
+  content      String        @db.Text
+  type         MessageType   @default(TEXT)
+  mediaUrl     String?       // URL du fichier si c'est un média
+  
+  senderType   SenderType
+  status       MessageStatus @default(PENDING)
+  errorMessage String?       @db.Text // Stocke le log d'erreur si status == FAILED
+
+  // --- Relations ---
+  contactId    String
+  contact      Contact       @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  projectId    String
+  project      Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  // SÉCURITÉ: Si l'agent est supprimé, on garde le message (SetNull)
+  agentId      String?
+  agent        User?         @relation(fields: [agentId], references: [id], onDelete: SetNull)
+
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  // INDEXATION PRO-GRADE : Vitale pour charger le chat sans latence
+  @@index([projectId])
+  @@index([contactId, createdAt(sort: Desc)])
+  @@index([evolutionId])
+  @@map("message")
 }
 
 // ------------------------------------------------------
@@ -79,13 +184,12 @@ model ProjectMembership {
   id        String   @id @default(cuid())
   userId    String
   projectId String
-  role      Role     @default(OWNER) // Celui qui crée le projet en est le OWNER
+  role      Role     @default(OWNER)
   createdAt DateTime @default(now())
 
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
-  // Un utilisateur ne peut avoir qu'un seul rôle par projet
   @@unique([userId, projectId])
   @@index([userId])
   @@index([projectId])
@@ -103,16 +207,14 @@ model User {
   image         String?
   theme         Theme     @default(system)
   
-  // Sécurité : Rôle global sur la plateforme ExtravertyAI
   globalRole    Role      @default(USER) 
 
-  // Les projets auxquels l'utilisateur a accès
   memberships   ProjectMembership[]
+  messagesSent  Message[] // Historique des messages envoyés manuellement par cet utilisateur
 
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   
-  // Relations Better Auth
   sessions      Session[]
   accounts      Account[]
 

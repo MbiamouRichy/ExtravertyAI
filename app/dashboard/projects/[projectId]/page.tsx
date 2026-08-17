@@ -5,6 +5,7 @@ import type { Metadata } from "next";
 import prisma from "@/lib/prisma";
 import ProjectWorkspace from "@/components/dashboard/project/whatsappSendMessageForm";
 
+
 // Typage Next.js 15 : params et searchParams sont des Promises
 type PageProps = {
   params: Promise<{ projectId: string }>;
@@ -43,14 +44,12 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 // 2. RENDU DE LA PAGE
 export default async function ProjectPage({ params, searchParams }: PageProps) {
-  // 🚨 FIX : Résolution asynchrone requise par Next 15
+
   const resolvedParams = await params;
   const resolvedSearchParams = await searchParams;
 
   const projectId = resolvedParams.projectId;
   const isSuccess = resolvedSearchParams.success === "true";
-
-  console.log("isSuccess:", isSuccess);
 
   const session = await getSession();
   if (!session?.user?.id) {
@@ -64,6 +63,6 @@ export default async function ProjectPage({ params, searchParams }: PageProps) {
   }
 
   return (
-    <ProjectWorkspace project={project} user={session.user} />
+    <ProjectWorkspace project={project} user={session.user} isSuccess={isSuccess} />
   );
 }

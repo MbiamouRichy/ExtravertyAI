@@ -4,32 +4,24 @@ import Stripe from "stripe";
 import prisma from "@/lib/prisma";
 import { stripe } from "@/lib/stripe";
 
-// Mise à jour des interfaces pour inclure le statut et le trial
-interface CustomSession {
-  metadata?: { projectId?: string };
-  subscription?: string;
-}
-
-interface CustomInvoice {
-  subscription?: string;
-  status: string;
-}
-
-interface CustomSubscription {
-  id: string;
-  customer: string;
-  status: string;
+// Utilisation de `type` avec `&` au lieu de `interface extends` pour éviter les conflits
+type ExtendedSubscription = Stripe.Subscription & {
+  current_period_end: number;
   trial_end: number | null;
-  current_period_end?: number; // Rendu optionnel pour éviter le crash
-  billing_cycle_anchor?: number; // Ajout du fallback
-  items: { data: { price: { id: string } }[] };
-  metadata?: { projectId?: string };
-}
+};
+
+type ExtendedInvoice = Stripe.Invoice & {
+  subscription: string | Stripe.Subscription | null;
+};
 
 export async function POST(req: Request) {
   const body = await req.text();
   const headersList = await headers();
-  const signature = headersList.get("Stripe-Signature") as string;
+  const signature = headersList.get("Stripe-Signature");
+
+  if (!signature) {
+    return new NextResponse("Missing Stripe Signature", { status: 400 });
+  }
 
   let event: Stripe.Event;
 
@@ -49,7 +41,7 @@ export async function POST(req: Request) {
   try {
     switch (event.type) {
       case "checkout.session.completed": {
-        const session = event.data.object as unknown as CustomSession;
+        const session = event.data.object as Stripe.Checkout.Session;
         const projectId = session.metadata?.projectId;
 
         if (!projectId) {
@@ -59,72 +51,75 @@ export async function POST(req: Request) {
           break;
         }
 
-        const subscription = (await stripe.subscriptions.retrieve(
+        if (!session.subscription) break;
+
+        const subscription = await stripe.subscriptions.retrieve(
           session.subscription as string,
-        )) as unknown as CustomSubscription;
+        );
 
-        const projectStatus =
-          subscription.status === "trialing" ? "trialing" : "active";
-        console.log("Stripe Sub:", subscription);
+        const sub = subscription as unknown as ExtendedSubscription;
+        const projectStatus = sub.status === "trialing" ? "trialing" : "active";
 
-        // 🔒 Sécurisation de la date de fin de période
         const currentPeriodEnd =
-          subscription.current_period_end ||
-          subscription.trial_end ||
-          subscription.billing_cycle_anchor ||
+          sub.current_period_end ||
+          sub.trial_end ||
           Math.floor(Date.now() / 1000);
+
+        const customerId =
+          typeof sub.customer === "string" ? sub.customer : sub.customer?.id;
 
         await prisma.project.update({
           where: { id: projectId },
           data: {
             status: projectStatus,
-            stripeCustomerId: subscription.customer,
-            stripeSubscriptionId: subscription.id,
-            stripePriceId: subscription.items.data[0].price.id,
+            stripeCustomerId: customerId,
+            stripeSubscriptionId: sub.id,
+            stripePriceId: sub.items?.data[0]?.price?.id,
             stripeCurrentPeriodEnd: new Date(currentPeriodEnd * 1000),
-            expiredAt: subscription.trial_end
-              ? new Date(subscription.trial_end * 1000)
-              : null,
+            expiredAt: sub.trial_end ? new Date(sub.trial_end * 1000) : null,
           },
         });
+
         console.log(`✅ [Stripe] Checkout complet pour le projet ${projectId}`);
         break;
       }
 
       case "invoice.payment_succeeded": {
-        const invoice = event.data.object as unknown as CustomInvoice;
-        const subscriptionId = invoice.subscription;
+        const invoice = event.data.object as unknown as ExtendedInvoice;
+        const rawSubscription = invoice.subscription;
 
-        if (!subscriptionId) break;
+        if (!rawSubscription) break;
+
+        const subIdString =
+          typeof rawSubscription === "string"
+            ? rawSubscription
+            : rawSubscription.id;
 
         const projectExists = await prisma.project.findUnique({
-          where: { stripeSubscriptionId: subscriptionId },
+          where: { stripeSubscriptionId: subIdString },
           select: { id: true },
         });
 
         if (!projectExists) {
           console.warn(
-            `⏳ [Stripe] Invoice traitée avant le checkout. Ignoré (Race Condition évitée). ID: ${subscriptionId}`,
+            `⏳ [Stripe] Invoice traitée avant le checkout. Ignoré. ID: ${subIdString}`,
           );
           break;
         }
 
-        const subscription = (await stripe.subscriptions.retrieve(
-          subscriptionId,
-        )) as unknown as CustomSubscription;
+        const subscription = await stripe.subscriptions.retrieve(subIdString);
+        const sub = subscription as unknown as ExtendedSubscription;
 
-        // 🔒 Sécurisation
         const currentPeriodEnd =
-          subscription.current_period_end ||
-          subscription.trial_end ||
-          subscription.billing_cycle_anchor ||
+          sub.current_period_end ||
+          sub.trial_end ||
           Math.floor(Date.now() / 1000);
 
         await prisma.project.update({
-          where: { stripeSubscriptionId: subscription.id },
+          where: { stripeSubscriptionId: sub.id },
           data: {
             status: "active",
-            stripePriceId: subscription.items.data[0].price.id,
+            stripePriceId: sub.items?.data[0]?.price?.id,
             stripeCurrentPeriodEnd: new Date(currentPeriodEnd * 1000),
             expiredAt: null,
           },
@@ -133,7 +128,7 @@ export async function POST(req: Request) {
       }
 
       case "customer.subscription.updated": {
-        const subEvent = event.data.object as unknown as CustomSubscription;
+        const subEvent = event.data.object as unknown as ExtendedSubscription;
 
         const projectExists = await prisma.project.findUnique({
           where: { stripeSubscriptionId: subEvent.id },
@@ -142,31 +137,26 @@ export async function POST(req: Request) {
 
         if (!projectExists) break;
 
-        const subscription = (await stripe.subscriptions.retrieve(
-          subEvent.id,
-        )) as unknown as CustomSubscription;
-
         let newStatus: "trialing" | "active" | "paused" | "inactive" = "active";
-        if (subscription.status === "trialing") newStatus = "trialing";
-        if (
-          subscription.status === "past_due" ||
-          subscription.status === "unpaid"
-        )
-          newStatus = "paused";
-        if (subscription.status === "canceled") newStatus = "inactive";
 
-        // 🔒 Sécurisation
+        if (subEvent.status === "trialing") newStatus = "trialing";
+        if (subEvent.status === "past_due" || subEvent.status === "unpaid") {
+          newStatus = "paused";
+        }
+        if (subEvent.status === "canceled") {
+          newStatus = "inactive";
+        }
+
         const currentPeriodEnd =
-          subscription.current_period_end ||
-          subscription.trial_end ||
-          subscription.billing_cycle_anchor ||
+          subEvent.current_period_end ||
+          subEvent.trial_end ||
           Math.floor(Date.now() / 1000);
 
         await prisma.project.update({
-          where: { stripeSubscriptionId: subscription.id },
+          where: { stripeSubscriptionId: subEvent.id },
           data: {
             status: newStatus,
-            stripePriceId: subscription.items.data[0].price.id,
+            stripePriceId: subEvent.items?.data[0]?.price?.id,
             stripeCurrentPeriodEnd: new Date(currentPeriodEnd * 1000),
           },
         });
@@ -174,7 +164,7 @@ export async function POST(req: Request) {
       }
 
       case "customer.subscription.deleted": {
-        const subscription = event.data.object as unknown as CustomSubscription;
+        const subscription = event.data.object as Stripe.Subscription;
 
         try {
           await prisma.project.update({
@@ -194,7 +184,7 @@ export async function POST(req: Request) {
       }
 
       default:
-        console.log(`ℹ️ [Stripe] Événement non traité : ${event.type}`);
+        console.log(`ℹ️ [Stripe] Événement ignoré : ${event.type}`);
     }
   } catch (error) {
     const errorMessage =

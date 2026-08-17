@@ -2,7 +2,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 
 export default function ProjectsLoading() {
     return (
-        <div className="flex w-full flex-col mx-auto max-w-7xl space-y-6 md:space-y-8 p-4 sm:p-6 md:p-8">
+        <div className="flex w-full flex-col mx-auto max-w-7xl space-y-6 md:space-y-8 p-4 sm:p-6 md:p-14">
 
             {/* En-tête de page (Reprend exactement le layout flex/col->row) */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -10,10 +10,10 @@ export default function ProjectsLoading() {
                     {/* Skeleton du Titre */}
                     <Skeleton className="h-8 w-32 md:h-9" />
                     {/* Skeleton du Sous-titre */}
-                    <Skeleton className="h-4 w-[280px] sm:w-[350px] md:w-[450px]" />
+                    <Skeleton className="h-4 w-70 sm:w-87.5 md:w-112.5" />
                 </div>
                 {/* Skeleton du Bouton "Nouveau projet" */}
-                <Skeleton className="h-10 w-full md:w-[160px] shrink-0 rounded-md" />
+                <Skeleton className="h-10 w-full md:w-40 shrink-0 rounded-md" />
             </div>
 
             <div className="animate-in fade-in duration-500">
@@ -60,7 +60,7 @@ export default function ProjectsLoading() {
                     {/* Toolbar du tableau (Recherche + Bouton d'affichage) */}
                     <div className="flex items-center justify-between gap-4">
                         <Skeleton className="h-10 w-full max-w-sm rounded-md" />
-                        <Skeleton className="h-10 w-[110px] rounded-md ml-auto" />
+                        <Skeleton className="h-10 w-27.5 rounded-md ml-auto" />
                     </div>
 
                     {/* Conteneur du tableau */}

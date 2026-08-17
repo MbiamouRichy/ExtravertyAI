@@ -5,7 +5,8 @@ import { getSession } from "@/lib/auth-server";
 
 export async function getProjects() {
   const session = await getSession();
-  // Correction : On retourne un tableau vide plutôt que de faire crasher l'application
+
+  // On retourne un tableau vide plutôt que de faire crasher l'application
   if (!session?.user?.id) return [];
 
   try {
@@ -19,7 +20,7 @@ export async function getProjects() {
             id: true,
             name: true,
             numero: true,
-            status: true,
+            status: true, // Le typage de l'enum (active, trialing, etc.) est géré automatiquement par Prisma
             plan: true,
             messageCount: true,
             aLlmessagesCount: true,
@@ -42,7 +43,8 @@ export async function getProjectById(projectId: string) {
   if (!projectId) return null;
 
   const session = await getSession();
-  // Correction : On retourne 'null' pour que le composant de page puisse rediriger proprement
+
+  // On retourne 'null' pour que le composant de page puisse rediriger proprement
   if (!session?.user?.id) return null;
 
   try {
@@ -66,6 +68,7 @@ export async function getProjectById(projectId: string) {
             aLlmessagesCount: true,
             expiredAt: true,
             instanceName: true,
+            instanceToken: true, // 🔒 NOUVEAU : Ajout du token de sécurité de l'instance
             instanceStatus: true,
             stripeCurrentPeriodEnd: true,
           },
@@ -79,7 +82,12 @@ export async function getProjectById(projectId: string) {
       return null;
     }
 
-    return memberShip.project;
+    // Optionnel : On peut aussi injecter le rôle de l'utilisateur dans l'objet retourné
+    // si le frontend a besoin de savoir s'il est OWNER, ADMIN, etc.
+    return {
+      ...memberShip.project,
+      userRole: memberShip.role,
+    };
   } catch (error) {
     console.error("Erreur lors de la récupération du projet:", error);
     return null;
