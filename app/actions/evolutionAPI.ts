@@ -127,3 +127,99 @@ export async function deleteEvolutionInstance(
     throw error;
   }
 }
+
+const getEnvVars = () => {
+  if (!EVOLUTION_API_URL || !EVOLUTION_API_TOKEN) {
+    throw new Error(
+      "Variables d'environnement Evolution API manquantes ou mal configurées.",
+    );
+  }
+
+  return { EVOLUTION_API_URL, EVOLUTION_API_TOKEN };
+};
+
+export async function getEvolutionInstanceConnect(instanceName: string) {
+  const { EVOLUTION_API_URL, EVOLUTION_API_TOKEN } = getEnvVars();
+
+  // Encodage strict
+  const safeInstanceName = encodeURIComponent(instanceName.trim());
+
+  const response = await fetch(
+    `${EVOLUTION_API_URL}/instance/connect/${safeInstanceName}`,
+    {
+      method: "GET",
+      headers: {
+        apikey: EVOLUTION_API_TOKEN,
+      },
+      cache: "no-store",
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(
+      `Erreur réseau (${response.status}) lors de la récupération du statut pour ${safeInstanceName}`,
+    );
+  }
+
+  return response.json();
+}
+
+export async function requestEvolutionPairingCode(
+  instanceName: string,
+  phoneNumber: string,
+): Promise<{ code: string; [key: string]: unknown }> {
+  const { EVOLUTION_API_URL, EVOLUTION_API_TOKEN } = getEnvVars();
+  const safeInstanceName = encodeURIComponent(instanceName.trim());
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 8000);
+
+  try {
+    const response = await fetch(
+      `${EVOLUTION_API_URL}/instance/connect/${safeInstanceName}?number=${phoneNumber}`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: EVOLUTION_API_TOKEN,
+        },
+        cache: "no-store",
+        signal: controller.signal,
+      },
+    );
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      const apiMessage =
+        typeof errorData.message === "string"
+          ? errorData.message
+          : "Échec de la récupération du code de couplage.";
+      throw new Error(apiMessage);
+    }
+
+    const data = await response.json();
+
+    if (!data || typeof data.code !== "string") {
+      throw new Error(
+        "La structure de la réponse de l'API Evolution est invalide.",
+      );
+    }
+
+    return data;
+  } catch (error: unknown) {
+    clearTimeout(timeoutId);
+
+    if (error instanceof Error) {
+      if (error.name === "AbortError") {
+        throw new Error(
+          "Le serveur WhatsApp met trop de temps à répondre (Timeout).",
+        );
+      }
+      throw new Error(`[EvolutionAPI] ${error.message}`);
+    }
+
+    throw new Error("Erreur critique inconnue lors du couplage.");
+  }
+}

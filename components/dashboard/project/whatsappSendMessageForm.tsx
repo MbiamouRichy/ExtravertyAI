@@ -228,7 +228,7 @@ export default function WhatsappWorkspace({ project, user, isSuccess }: { projec
                                             {client.lastMessage}
                                         </p>
                                         {client.unread > 0 && (
-                                            <Badge className="bg-emerald-500 text-white px-1.5 min-w-[20px] flex justify-center rounded-full">
+                                            <Badge className="bg-emerald-500 text-white px-1.5 min-w-5 flex justify-center rounded-full">
                                                 {client.unread}
                                             </Badge>
                                         )}

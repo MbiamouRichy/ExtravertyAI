@@ -8,7 +8,7 @@ import { stripe } from "@/lib/stripe";
 import {
   createEvolutionInstance,
   deleteEvolutionInstance,
-} from "./evolutiomAPI";
+} from "./evolutionAPI";
 
 const STRIPE_PRICE_MAPPING: Record<
   "starter" | "business" | "pro",
