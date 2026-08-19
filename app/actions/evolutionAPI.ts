@@ -1,17 +1,31 @@
 const EVOLUTION_API_URL = process.env.EVOLUTION_API_URL;
 const EVOLUTION_API_TOKEN = process.env.EVOLUTION_API_KEY;
+const WEBHOOK_SECRET = process.env.EVOLUTION_WEBHOOK_SECRET;
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL;
 
 export async function createEvolutionInstance(
   instanceName: string,
   number: string,
 ) {
-  if (!EVOLUTION_API_URL || !EVOLUTION_API_TOKEN) {
+  if (!EVOLUTION_API_URL || !EVOLUTION_API_TOKEN || !WEBHOOK_SECRET) {
     throw new Error(
       "Les variables d'environnement EvolutionAPI sont manquantes.",
     );
   }
-  const cleanNumero = number.replace(/\D/g, "");
 
+  // Utilisation de NEXT_PUBLIC_APP_URL ou VERCEL_URL selon l'environnement
+  if (!APP_URL) {
+    throw new Error(
+      "L'URL de l'application (NEXT_PUBLIC_APP_URL) est manquante pour configurer le webhook.",
+    );
+  }
+
+  const webhookUrl = `${APP_URL}/api/webhooks/evolution?secret=${WEBHOOK_SECRET}`;
+  const events = ["CONNECTION_UPDATE", "MESSAGES_UPSERT"];
+  const cleanNumero = number.replace(/\D/g, "");
+  const instanceToken = `token-${instanceName}`; // Sécurise cela selon ta logique
+
+  // 1. CRÉATION DE L'INSTANCE
   const response = await fetch(`${EVOLUTION_API_URL}/instance/create`, {
     method: "POST",
     headers: {
@@ -20,7 +34,7 @@ export async function createEvolutionInstance(
     },
     body: JSON.stringify({
       instanceName: instanceName,
-      token: `token-${instanceName}`, // Sécurise cela selon ta logique
+      token: instanceToken,
       integration: "WHATSAPP-BAILEYS",
       qrcode: false,
       pairingCode: true,
@@ -35,9 +49,46 @@ export async function createEvolutionInstance(
     );
   }
 
-  return response.json();
-}
+  const instanceData = await response.json();
 
+  // 2. CONFIGURATION DU WEBHOOK SUR L'INSTANCE CRÉÉE
+  try {
+    const webhookResponse = await fetch(
+      `${EVOLUTION_API_URL}/webhook/set/${instanceName}`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: EVOLUTION_API_TOKEN,
+        },
+        body: JSON.stringify({
+          webhook: {
+            enabled: true,
+            url: webhookUrl,
+            webhookByEvents: false,
+            events: events,
+          },
+        }),
+      },
+    );
+
+    if (!webhookResponse.ok) {
+      console.warn(
+        `[Evolution API] Attention: L'instance ${instanceName} a été créée, mais la configuration du webhook a échoué.`,
+      );
+      // On ne jette pas d'erreur bloquante ici, car l'instance existe,
+      // mais on logue l'avertissement pour le debugging.
+    }
+  } catch (error) {
+    console.error(
+      `[Evolution API] Erreur réseau lors de la configuration du webhook pour ${instanceName}:`,
+      error,
+    );
+  }
+
+  // On retourne les données de l'instance pour que tu puisses l'enregistrer dans Prisma
+  return instanceData;
+}
 export async function deleteEvolutionInstance(
   instanceName: string,
 ): Promise<boolean> {

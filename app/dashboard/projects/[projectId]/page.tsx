@@ -6,6 +6,8 @@ import prisma from "@/lib/prisma";
 import ProjectWorkspace from "@/components/dashboard/project/whatsappSendMessageForm";
 import QRCodeScanner from "@/components/dashboard/project/qrCodeScanner";
 
+export const dynamic = "force-dynamic";
+
 type PageProps = {
   params: Promise<{ projectId: string }>;
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
@@ -54,7 +56,7 @@ export default async function ProjectPage({ params, searchParams }: PageProps) {
   if (!project) return redirect("/dashboard/projects");
 
   // FAILLE CORRIGÉE : La condition logique est maintenant stricte et correcte
-  if (project.instanceStatus === "qr_ready" || project.instanceStatus === "connecting") {
+  if (project.instanceStatus === "qr_ready" || project.instanceStatus === "connecting" || project.instanceStatus === "disconnected") {
     return <QRCodeScanner projectId={projectId} />;
   }
 

@@ -125,7 +125,7 @@ export const ProjectsTableColumns: ColumnDef<CustomProjectProps["projects"][0]>[
             const isNearLimit = percentage >= 90;
 
             return (
-                <div className="flex w-full min-w-[130px] flex-col gap-1.5">
+                <div className="flex w-full min-w-32.5 flex-col gap-1.5">
                     <div className="flex items-center justify-between text-xs">
                         <span className="text-muted-foreground">
                             {used.toLocaleString('fr-FR')} / {limit.toLocaleString('fr-FR')}
@@ -183,14 +183,16 @@ export const ProjectsTableColumns: ColumnDef<CustomProjectProps["projects"][0]>[
                             <MoreHorizontal className="h-4 w-4" />
                         </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
+                    <DropdownMenuContent align="end" className="w-fit min-w-40">
                         <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                        <DropdownMenuItem>
-                            <Settings className="mr-2 h-4 w-4" />
-                            Gerer
+                        <DropdownMenuItem className="cursor-pointer shrink-0" asChild>
+                            <Link href={`/dashboard/projects/${project.id}/settings`}>
+                                <Settings className="mr-2 h-4 w-4" />
+                                Paramètres
+                            </Link>
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem>
+                        <DropdownMenuItem className="cursor-pointer shrink" asChild>
                             <Link href={`/dashboard/projects/${project.id}`}>
                                 <Eye className="mr-2 h-4 w-4" />
                                 Ouvrir
