@@ -7,11 +7,11 @@ export async function processWhatsAppMessage(projectId: string) {
     where: { id: projectId },
     data: {
       messageCount: { increment: 1 },
-      // aLlmessagesCount NE CHANGE PAS, c'est la limite imposée par le plan.
+      // allmessagesCount NE CHANGE PAS, c'est la limite imposée par le plan.
     },
     select: {
       messageCount: true,
-      aLlmessagesCount: true, // On récupère le plafond pour faire la vérification
+      allmessagesCount: true, // On récupère le plafond pour faire la vérification
       status: true,
       stripeSubscriptionId: true,
     },
@@ -37,13 +37,13 @@ export async function processWhatsAppMessage(projectId: string) {
     }
   }
 
-  // 3. SCÉNARIO B : Client Actif (Vérification contre aLlmessagesCount)
+  // 3. SCÉNARIO B : Client Actif (Vérification contre allmessagesCount)
   if (
     project.status === "active" &&
-    project.messageCount >= project.aLlmessagesCount
+    project.messageCount >= project.allmessagesCount
   ) {
     console.log(
-      `[PROJET ${projectId}] Quota mensuel de ${project.aLlmessagesCount} messages atteint.`,
+      `[PROJET ${projectId}] Quota mensuel de ${project.allmessagesCount} messages atteint.`,
     );
 
     // Le quota est atteint. Vous devez renvoyer un signal pour dire à n8n

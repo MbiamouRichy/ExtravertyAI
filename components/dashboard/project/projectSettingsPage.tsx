@@ -4,10 +4,10 @@
 import React, { useState } from "react";
 import {
     Activity, Download, Trash2, Zap,
-    Smartphone, MessageSquare, BarChart3
+    Smartphone, MessageSquare, BarChart3,
+    Cog,
 } from "lucide-react";
 
-// Imports Shadcn UI (vérifie que tes chemins correspondent à ta configuration)
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -52,70 +52,88 @@ export default function ProjectSettingsPage() {
     const usagePercentage = Math.round((project.messagesUsed / project.messagesLimit) * 100);
 
     return (
-        <div className="max-w-7xl w-full mx-auto p-6 space-y-8 animate-in fade-in duration-500">
+        // UX: Réduction du padding sur mobile (p-4) et augmentation sur desktop (md:p-6)
+        <div className="max-w-7xl w-full mx-auto p-4 md:p-6 space-y-6 md:space-y-8 animate-in fade-in duration-500">
 
             {/* HEADER */}
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold tracking-tight text-foreground">Paramètres de l&apos;Instance</h1>
-                    <p className="text-muted-foreground mt-1">Gérez votre numéro WhatsApp, vos automatisations et vos limites.</p>
+                    <div className="inline-flex gap-2 items-center">
+                        <Cog className="shrink-0 w-6 h-6 md:w-8 md:h-8 text-primary" />
+                        <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground">
+                            Paramètres
+                        </h1>
+                    </div>
+                    <p className="text-sm md:text-base text-muted-foreground mt-1">
+                        Gérez votre numéro WhatsApp, vos automatisations et limites.
+                    </p>
                 </div>
-                <Button className="gap-2" variant="default">
-                    <Zap className="w-4 h-4" />
+                {/* UX: Bouton pleine largeur sur très petit écran pour faciliter le clic (Touch Target) */}
+                <Button className="w-full sm:w-auto gap-2 shadow-sm" variant="default">
+                    <Zap className="w-4 h-4 fill-current" />
                     Upgrade Plan
                 </Button>
             </div>
 
-            <Separator />
+            <Separator className="hidden md:block" />
 
-            <div className="flex flex-col md:flex-row gap-8">
-                {/* SIDEBAR NAVIGATION */}
-                <nav className="w-full md:w-64 flex flex-col gap-1">
-                    <TabButton active={activeTab === "general"} onClick={() => setActiveTab("general")} icon={<Activity className="w-4 h-4" />} label="Vue d'ensemble" />
-                    <TabButton active={activeTab === "whatsapp"} onClick={() => setActiveTab("whatsapp")} icon={<Smartphone className="w-4 h-4" />} label="Instance WhatsApp" />
-                    <TabButton active={activeTab === "export"} onClick={() => setActiveTab("export")} icon={<Download className="w-4 h-4" />} label="Export & Données" />
-                    <TabButton active={activeTab === "danger"} onClick={() => setActiveTab("danger")} icon={<Trash2 className="w-4 h-4" />} label="Zone de Danger" isDanger />
-                </nav>
+            <div className="flex flex-col md:flex-row gap-6 md:gap-8">
+
+                {/* NAVIGATION - Optimisée Mobile (Horizontal Scroll + Sticky) */}
+                <div className="sticky top-0 z-10 -mx-4 px-4 py-2 md:p-0 md:mx-0 bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60 md:static md:bg-transparent md:z-auto">
+                    {/* 
+						UX: 
+						- flex-row sur mobile avec overflow-x-auto pour un scroll horizontal naturel.
+						- masquage de la scrollbar pour un design épuré (hide-scrollbar).
+						- flex-col sur md pour redevenir une sidebar classique.
+					*/}
+                    <nav className="flex md:flex-col gap-2 overflow-x-auto pb-1 md:pb-0 w-full md:w-64 shrink-0 snap-x snap-mandatory [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+                        <TabButton active={activeTab === "general"} onClick={() => setActiveTab("general")} icon={<Activity className="w-4 h-4" />} label="Vue d'ensemble" />
+                        <TabButton active={activeTab === "whatsapp"} onClick={() => setActiveTab("whatsapp")} icon={<Smartphone className="w-4 h-4" />} label="Instance WhatsApp" />
+                        <TabButton active={activeTab === "export"} onClick={() => setActiveTab("export")} icon={<Download className="w-4 h-4" />} label="Export & Données" />
+                        <TabButton active={activeTab === "danger"} onClick={() => setActiveTab("danger")} icon={<Trash2 className="w-4 h-4" />} label="Zone de Danger" isDanger />
+                    </nav>
+                </div>
 
                 {/* CONTENT AREA */}
-                <main className="flex-1 space-y-6">
+                <main className="flex-1 space-y-6 min-w-0"> {/* min-w-0 évite les débordements flex sur mobile */}
 
                     {/* VUE D'ENSEMBLE */}
                     {activeTab === "general" && (
                         <div className="space-y-6">
-                            <Card className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                                <CardHeader className="pb-3">
-                                    <div className="flex items-center justify-between">
+                            <Card className="shadow-sm animate-in fade-in slide-in-from-bottom-2 duration-300">
+                                <CardHeader className="pb-4">
+                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-4">
                                         <CardTitle className="text-lg flex items-center gap-2">
                                             <Activity className="w-5 h-5 text-primary" />
                                             Utilisation du forfait
                                         </CardTitle>
-                                        <Badge variant="secondary">{project.plan}</Badge>
+                                        <Badge variant="secondary" className="w-fit">{project.plan}</Badge>
                                     </div>
                                     <CardDescription>
-                                        Renouvellement des crédits prévu le <span className="font-medium text-foreground">{project.renewalDate}</span>
+                                        Renouvellement le <span className="font-medium text-foreground">{project.renewalDate}</span>
                                     </CardDescription>
                                 </CardHeader>
                                 <CardContent>
-                                    <div className="flex justify-between text-sm font-medium mb-2">
-                                        <span>Messages automatisés</span>
+                                    <div className="flex justify-between text-sm font-medium mb-3">
+                                        <span className="text-muted-foreground">Messages automatisés</span>
                                         <span>{project.messagesUsed.toLocaleString()} / {project.messagesLimit.toLocaleString()}</span>
                                     </div>
-                                    <Progress value={usagePercentage} className={`h-2 ${usagePercentage > 85 ? "bg-red-100 [&>div]:bg-red-600" : ""}`} />
+                                    <Progress value={usagePercentage} className={`h-2.5 ${usagePercentage > 85 ? "bg-red-100 dark:bg-red-950/50 [&>div]:bg-red-600" : ""}`} />
                                 </CardContent>
                             </Card>
 
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                <StatCard title="Messages (7 jrs)" value={project.stats.week} icon={<BarChart3 className="w-4 h-4 text-muted-foreground" />} />
-                                <StatCard title="Messages (30 jrs)" value={project.stats.month} icon={<MessageSquare className="w-4 h-4 text-muted-foreground" />} />
-                                <StatCard title="Messages (Année)" value={project.stats.year} icon={<Activity className="w-4 h-4 text-muted-foreground" />} />
+                            <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
+                                <StatCard title="7 jours" value={project.stats.week} icon={<BarChart3 className="w-4 h-4 text-muted-foreground" />} />
+                                <StatCard title="30 jours" value={project.stats.month} icon={<MessageSquare className="w-4 h-4 text-muted-foreground" />} />
+                                <StatCard title="Année" value={project.stats.year} icon={<Activity className="w-4 h-4 text-muted-foreground" />} />
                             </div>
                         </div>
                     )}
 
                     {/* INSTANCE WHATSAPP */}
                     {activeTab === "whatsapp" && (
-                        <Card className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                        <Card className="shadow-sm animate-in fade-in slide-in-from-bottom-2 duration-300">
                             <CardHeader>
                                 <CardTitle>Comportement de l&apos;instance</CardTitle>
                                 <CardDescription>
@@ -123,30 +141,30 @@ export default function ProjectSettingsPage() {
                                 </CardDescription>
                             </CardHeader>
                             <CardContent className="space-y-6">
-                                <ToggleSetting title="Toujours en ligne" description="Force le statut WhatsApp à 'En ligne' en permanence." defaultChecked={true} />
+                                <ToggleSetting title="Toujours en ligne" description="Force le statut WhatsApp à 'En ligne'." defaultChecked={true} />
                                 <Separator />
-                                <ToggleSetting title="Marquer comme lu (Blue Ticks)" description="Envoie automatiquement les accusés de lecture dès réception d'un message." defaultChecked={false} />
+                                <ToggleSetting title="Marquer comme lu" description="Envoie les accusés de lecture dès réception." defaultChecked={false} />
                                 <Separator />
-                                <ToggleSetting title="Indicateur de frappe" description="Simule l'action 'est en train d'écrire...' avant chaque réponse de l'Agent IA." defaultChecked={true} />
+                                <ToggleSetting title="Indicateur de frappe" description="Simule 'est en train d'écrire...' avant la réponse." defaultChecked={true} />
                             </CardContent>
                         </Card>
                     )}
 
                     {/* ONGLET : EXPORT */}
                     {activeTab === "export" && (
-                        <Card className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                        <Card className="shadow-sm animate-in fade-in slide-in-from-bottom-2 duration-300">
                             <CardHeader>
-                                <CardTitle>Exportation des prospects</CardTitle>
-                                <CardDescription>Téléchargez l&apos;historique complet de vos contacts et conversations.</CardDescription>
+                                <CardTitle>Exportation des données</CardTitle>
+                                <CardDescription>Téléchargez l&apos;historique complet de vos contacts.</CardDescription>
                             </CardHeader>
                             <CardContent className="flex flex-col sm:flex-row gap-4">
-                                <Button variant="outline" className="flex-1 flex items-center justify-center gap-2">
-                                    <Download className="w-5 h-5 text-gray-600 dark:text-gray-300" />
-                                    <span className="font-medium">Exporter en CSV</span>
+                                <Button variant="outline" className="w-full flex-1 gap-2 h-12! sm:h-10">
+                                    <Download className="w-4 h-4" />
+                                    <span className="font-medium">Export CSV</span>
                                 </Button>
-                                <Button variant="outline" className="flex-1 flex items-center justify-center gap-2">
-                                    <Download className="w-5 h-5 text-gray-600 dark:text-gray-300" />
-                                    <span className="font-medium">Exporter en Excel</span>
+                                <Button variant="outline" className="w-full flex-1 gap-2 h-12! sm:h-10">
+                                    <Download className="w-4 h-4" />
+                                    <span className="font-medium">Export Excel</span>
                                 </Button>
                             </CardContent>
                         </Card>
@@ -154,21 +172,34 @@ export default function ProjectSettingsPage() {
 
                     {/* ONGLET : DANGER ZONE */}
                     {activeTab === "danger" && (
-                        <Card className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                            <CardHeader>
-                                <CardTitle>Supprimer le projet</CardTitle>
-                                <CardDescription>
-                                    Cette action déconnectera immédiatement l&apos;instance WhatsApp, supprimera tous les historiques de conversation et détruira les données des prospects. Cette action est irréversible.
-                                </CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                                <Button variant="destructive" className="w-full flex items-center justify-center gap-2" onClick={() => alert("Fonctionnalité de suppression à implémenter")}>
-                                    Supprimer définitivement
+                        <Card className="border-destructive/20 shadow-sm animate-in fade-in slide-in-from-bottom-2 duration-300">
+                            <CardContent className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-6">
+                                <div className="space-y-1 flex-1">
+                                    <h3 className="font-semibold text-destructive">Désactiver le projet</h3>
+                                    <p className="text-sm text-muted-foreground">
+                                        Déconnecte immédiatement l&apos;instance WhatsApp. Réactivation possible.
+                                    </p>
+                                </div>
+                                <Button variant="destructive" className="w-full sm:w-auto" onClick={() => alert("À implémenter")}>
+                                    Désactiver
+                                </Button>
+                            </CardContent>
+
+                            <Separator className="my-4" />
+
+                            <CardContent className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6">
+                                <div className="space-y-1 flex-1">
+                                    <h3 className="font-semibold text-destructive">Supprimer le projet</h3>
+                                    <p className="text-sm text-muted-foreground">
+                                        Détruit toutes les données de prospects. Action irréversible.
+                                    </p>
+                                </div>
+                                <Button variant="destructive" className="w-full sm:w-auto" onClick={() => alert("À implémenter")}>
+                                    Supprimer
                                 </Button>
                             </CardContent>
                         </Card>
                     )}
-
                 </main>
             </div>
         </div>
@@ -181,7 +212,12 @@ function TabButton({ active, onClick, icon, label, isDanger = false }: TabButton
     return (
         <Button
             variant={active ? (isDanger ? "destructive" : "secondary") : "ghost"}
-            className={`w-full justify-start gap-3 ${active && !isDanger ? "bg-secondary text-secondary-foreground" : ""} ${isDanger && !active ? "text-destructive hover:text-destructive hover:bg-destructive/10" : ""}`}
+            className={`
+				w-auto md:w-full justify-start gap-2 whitespace-nowrap shrink-0 snap-center rounded-full md:rounded-md transition-all
+				${active && !isDanger ? "bg-secondary text-secondary-foreground shadow-sm" : ""} 
+				${isDanger && !active ? "text-destructive hover:text-destructive hover:bg-destructive/10" : ""}
+				${!active ? "text-muted-foreground hover:text-foreground" : ""}
+			`}
             onClick={onClick}
         >
             {icon}
@@ -192,15 +228,15 @@ function TabButton({ active, onClick, icon, label, isDanger = false }: TabButton
 
 function StatCard({ title, value, icon }: StatCardProps) {
     return (
-        <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
+        <Card className="shadow-sm">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-4 md:p-6">
+                <CardTitle className="text-xs md:text-sm font-medium text-muted-foreground line-clamp-1">
                     {title}
                 </CardTitle>
                 {icon}
             </CardHeader>
-            <CardContent>
-                <div className="text-2xl font-bold">{value.toLocaleString()}</div>
+            <CardContent className="p-4 pt-0 md:p-6 md:pt-0">
+                <div className="text-xl md:text-2xl font-bold">{value.toLocaleString()}</div>
             </CardContent>
         </Card>
     );
@@ -210,12 +246,12 @@ function ToggleSetting({ title, description, defaultChecked = false }: ToggleSet
     const [checked, setChecked] = useState<boolean>(defaultChecked);
 
     return (
-        <div className="flex items-center justify-between space-x-4">
+        <div className="flex items-center justify-between gap-4">
             <div className="flex flex-col space-y-1">
                 <p className="text-sm font-medium leading-none">{title}</p>
                 <p className="text-sm text-muted-foreground">{description}</p>
             </div>
-            <Switch checked={checked} onCheckedChange={setChecked} />
+            <Switch checked={checked} onCheckedChange={setChecked} className="shrink-0" />
         </div>
     );
 }
