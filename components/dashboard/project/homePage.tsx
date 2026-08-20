@@ -19,7 +19,7 @@ export interface CustomProjectProps {
     status: string;
     plan: string;
     messageCount: number;
-    aLlmessagesCount: number;
+    allMessagesCount: number;
     expiredAt: Date | null;
     instanceStatus: string | null;
     stripeCurrentPeriodEnd: Date | null;

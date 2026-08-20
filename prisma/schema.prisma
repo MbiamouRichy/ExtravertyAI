@@ -88,7 +88,7 @@ model Project {
   
   plan                 Plan           @default(starter)
   messageCount         Int            @default(0)
-  aLlmessagesCount     Int            @default(0)
+  allMessagesCount     Int            @default(0)
 
   // --- 💳 FACTURATION STRIPE ---
   stripeCustomerId     String?        @unique
@@ -155,7 +155,7 @@ model Message {
   senderType   SenderType
   status       MessageStatus @default(PENDING)
   errorMessage String?       @db.Text // Stocke le log d'erreur si status == FAILED
-
+  source      String?  @default("unknown") // "android", "ios", "ai"
   // --- Relations ---
   contactId    String
   contact      Contact       @relation(fields: [contactId], references: [id], onDelete: Cascade)

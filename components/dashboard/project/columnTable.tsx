@@ -115,7 +115,7 @@ export const ProjectsTableColumns: ColumnDef<CustomProjectProps["projects"][0]>[
         cell: ({ row }) => {
             // Récupération sécurisée des valeurs
             const used = row.original.messageCount || 0;
-            const limit = row.original.aLlmessagesCount || 0; // Attention à ton "L" majuscule ici !
+            const limit = row.original.allMessagesCount || 0; // Attention à ton "L" majuscule ici !
             console.log(`Calcul de l'utilisation pour le projet ${row.original.id}: used=${used}, limit=${limit}`); // Log pour debug
             // Calcul du pourcentage (avec protection contre la division par zéro)
             // Math.min évite de dépasser 100% si jamais used > limit pour une raison quelconque
