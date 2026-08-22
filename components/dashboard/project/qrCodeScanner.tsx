@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
+import CustomCard from "@/components/ui/customCard";
 
 const fetcher = (projectId: string) => getConnectionData(projectId);
 
@@ -130,7 +131,7 @@ export default function WhatsAppConnect({ projectId }: { projectId: string }) {
 
     // --- ÉTAT : SÉLECTION DE LA MÉTHODE ---
     return (
-        <div className="w-full max-w-md mx-auto my-auto p-6 md:p-8 flex flex-col items-center bg-card border rounded-xl shadow-sm">
+        <CustomCard className="w-full max-w-md mx-auto my-auto p-6 md:p-8 flex flex-col items-center bg-card border shadow-sm">
             <div className="w-full text-center mb-6">
                 <h3 className="text-xl font-semibold mb-2 tracking-tight">
                     Associer votre appareil
@@ -258,6 +259,6 @@ export default function WhatsAppConnect({ projectId }: { projectId: string }) {
                 <Lock className="w-3.5 h-3.5" />
                 <span>Tunnel chiffré de bout en bout</span>
             </div>
-        </div>
+        </CustomCard>
     );
 }

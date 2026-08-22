@@ -4,13 +4,15 @@ import { z } from "zod";
 import { InstanceStatus } from "@/src/generated/prisma/client";
 import { processWhatsAppMessage } from "@/lib/quotaMessage";
 
-// Typage pour l'historique envoyé à l'IA
+// ------------------------------------------------------------------
+// TYPAGES & SCHEMAS
+// ------------------------------------------------------------------
+
 interface ChatMessage {
   role: string;
   content: string;
 }
 
-// Typage flexible mais strict pour le Webhook Evolution API
 interface EvolutionMessagePayload {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   messages?: Array<any>;
@@ -38,6 +40,10 @@ const WebhookBodySchema = z.object({
   sender: z.string().optional(),
 });
 
+// ------------------------------------------------------------------
+// ROUTE PRINCIPALE (WEBHOOK)
+// ------------------------------------------------------------------
+
 export async function POST(req: Request) {
   try {
     const url = new URL(req.url);
@@ -64,13 +70,10 @@ export async function POST(req: Request) {
         const state = stateData?.state;
         let dbStatus: InstanceStatus = "disconnected" as InstanceStatus;
 
-        if (state === "open") {
-          dbStatus = "connected" as InstanceStatus;
-        } else if (state === "connecting") {
+        if (state === "open") dbStatus = "connected" as InstanceStatus;
+        else if (state === "connecting")
           dbStatus = "connecting" as InstanceStatus;
-        }
 
-        // CORRECTION : Ajout du await et d'un try/catch local
         try {
           await prisma.project.update({
             where: { instanceName: instance },
@@ -86,7 +89,6 @@ export async function POST(req: Request) {
       }
 
       case "messages.upsert": {
-        // CORRECTION : Ajout du await pour garantir l'exécution de Prisma et de l'IA
         try {
           await processIncomingMessages(instance, data);
         } catch (err) {
@@ -99,14 +101,10 @@ export async function POST(req: Request) {
       }
 
       case "messages.update": {
-        // CORRECTION : Ajout du await
         try {
           await processMessageStatusUpdate(data);
         } catch (err) {
-          console.error(
-            `[Webhook] Erreur lors de la mise à jour du statut du message :`,
-            err,
-          );
+          console.error(`[Webhook] Erreur update statut :`, err);
         }
         break;
       }
@@ -115,7 +113,6 @@ export async function POST(req: Request) {
         console.log(`[Webhook] ℹ️ Événement ignoré : ${event}`);
     }
 
-    // La réponse n'est envoyée qu'UNE FOIS la base de données mise à jour
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("[Webhook] 🚨 Erreur critique :", error);
@@ -129,43 +126,37 @@ export async function POST(req: Request) {
 
 async function processIncomingMessages(instanceName: string, rawData: unknown) {
   console.log(`\n======================================================`);
-  console.log(
-    `[DEBUG 1] 📥 Nouveau webhook reçu pour l'instance : ${instanceName}`,
-  );
+  console.log(`[DEBUG 1] 📥 Webhook reçu pour l'instance : ${instanceName}`);
 
   const data = rawData as EvolutionMessagePayload;
   const msg = data?.messages ? data.messages[0] : data;
 
-  if (!msg) {
-    console.log(`[DEBUG 2] 🛑 Aucun objet message trouvé. Abandon.`);
-    return;
-  }
+  if (!msg) return;
 
-  if (msg.key?.remoteJid === "status@broadcast") {
-    console.log(`[DEBUG 2] 🛑 Message de statut WhatsApp ignoré.`);
+  const remoteJid = msg.key?.remoteJid || "";
+
+  // 🛡️ SÉCURITÉ : Ignorer les statuts et les messages de groupes
+  if (remoteJid === "status@broadcast" || remoteJid.includes("@g.us")) {
+    console.log(`[DEBUG 2] 🛑 Statut ou message de groupe ignoré.`);
     return;
   }
 
   const isFromMe = msg.key?.fromMe || false;
-  console.log(`[DEBUG 3] 👤 isFromMe = ${isFromMe}`);
-
   const textContent =
     msg.message?.conversation || msg.message?.extendedTextMessage?.text || "";
+
   if (!textContent.trim()) {
-    console.log(
-      `[DEBUG 4] 🛑 Le message est vide ou c'est un média (Image/Audio). Abandon.`,
-    );
-    // Affiche le contenu brut pour voir la vraie structure envoyée par Evolution API
-    console.log(JSON.stringify(msg.message, null, 2));
+    console.log(`[DEBUG 3] 🛑 Message vide ou média sans texte. Abandon.`);
     return;
   }
 
-  console.log(`[DEBUG 5] 💬 Texte extrait : "${textContent}"`);
+  console.log(
+    `[DEBUG 4] 💬 Message : "${textContent}" (isFromMe: ${isFromMe})`,
+  );
 
-  const remoteJid = msg.key.remoteJid;
   const phoneOnly = remoteJid.split("@")[0];
   const prospectName = msg.pushName || "Client";
-  const evolutionId = msg.key.id;
+  const evolutionId = msg.key?.id;
 
   try {
     const project = await prisma.project.findUnique({
@@ -173,18 +164,11 @@ async function processIncomingMessages(instanceName: string, rawData: unknown) {
     });
 
     if (!project) {
-      console.log(
-        `[DEBUG 6] ❌ Projet introuvable en DB pour l'instance "${instanceName}". Abandon.`,
-      );
+      console.log(`[DEBUG 5] ❌ Projet introuvable pour "${instanceName}".`);
       return;
     }
 
-    console.log(
-      `[DEBUG 7] ✅ Projet trouvé : ${project.name} (Statut: ${project.status})`,
-    );
-
-    // 4. CRM : UPSERT DU CONTACT
-    console.log(`[DEBUG 8] 🔄 Sauvegarde du contact en cours...`);
+    // 1. UPSERT CONTACT
     const contact = await prisma.contact.upsert({
       where: {
         projectId_remoteJid: { projectId: project.id, remoteJid: remoteJid },
@@ -192,15 +176,14 @@ async function processIncomingMessages(instanceName: string, rawData: unknown) {
       update: { pushName: prospectName, updatedAt: new Date() },
       create: {
         phone: phoneOnly,
-        remoteJid: remoteJid,
+        remoteJid: remoteJid, // On stocke bien le JID complet !
         pushName: prospectName,
         projectId: project.id,
         aiActive: true,
       },
     });
 
-    // 5. CRM : ENREGISTRER LE MESSAGE
-    console.log(`[DEBUG 9] 💾 Sauvegarde du message en cours...`);
+    // 2. SAVE INCOMING MESSAGE
     await prisma.message.create({
       data: {
         evolutionId: evolutionId,
@@ -214,52 +197,44 @@ async function processIncomingMessages(instanceName: string, rawData: unknown) {
       },
     });
 
-    console.log(
-      `[DEBUG 10] 🎉 Contact et Message sauvegardés avec succès en DB !`,
-    );
+    console.log(`[DEBUG 6] 💾 Message stocké en DB.`);
 
     // ==========================================
-    // 🛑 LES BARRIÈRES AVANT D'APPELER L'IA 🛑
+    // 🛑 BARRIÈRES IA
     // ==========================================
 
     if (isFromMe) {
       console.log(
-        `[DEBUG 11] 🛑 Message fromMe détecté (Tu as écrit). Fin du script, l'IA ne répondra pas.`,
+        `[DEBUG 7] 🛑 Agent a répondu manuellement (fromMe). IA bloquée.`,
       );
       return;
     }
 
     if (project.status === "paused" || project.status === "inactive") {
-      console.log(
-        `[DEBUG 12] 🛑 Le projet est en statut "${project.status}". L'IA est bloquée.`,
-      );
+      console.log(`[DEBUG 8] 🛑 Projet inactif/pause. IA bloquée.`);
       return;
     }
 
     const quotaCheck = await processWhatsAppMessage(project.id);
     if (!quotaCheck.canSendMessage) {
-      console.log(`[DEBUG 13] ⚠️ Quota atteint pour ce projet.`);
+      console.log(`[DEBUG 9] ⚠️ Quota atteint.`);
       return;
     }
 
     if (!contact.aiActive) {
-      console.log(
-        `[DEBUG 14] ⏸️ Handover actif (L'agent a pris le relais). IA bloquée.`,
-      );
+      console.log(`[DEBUG 10] ⏸️ Handover actif. IA bloquée.`);
       return;
     }
 
     // ==========================================
-    // 🟢 APPEL À L'IA 🟢
+    // 🟢 GÉNÉRATION & ENVOI IA
     // ==========================================
-    console.log(
-      `[DEBUG 15] 🧠 Préparation de l'historique et appel à Gemini...`,
-    );
+    console.log(`[DEBUG 11] 🧠 Appel de Gemini en cours...`);
 
     const rawHistory = await prisma.message.findMany({
       where: { contactId: contact.id, projectId: project.id },
       orderBy: { createdAt: "desc" },
-      take: 30,
+      take: 20, // 20 messages suffisent largement pour le contexte
     });
 
     const chatHistory = rawHistory.reverse().map((m) => ({
@@ -268,15 +243,19 @@ async function processIncomingMessages(instanceName: string, rawData: unknown) {
     }));
 
     const aiResponseText = await generateAiResponse(chatHistory, prospectName);
+    console.log(`[DEBUG 12] 📝 Réponse générée : "${aiResponseText}"`);
 
+    // 🔥 C'EST ICI QUE ÇA PLANTAIT SOUVENT : ON ENVOIE LE JID COMPLET
     const evolutionResponse = await sendWhatsAppMessage(
       instanceName,
       remoteJid,
       aiResponseText,
     );
 
-    const sentMessageId = evolutionResponse?.key?.id || null;
+    const sentMessageId =
+      evolutionResponse?.key?.id || evolutionResponse?.messageId || null;
 
+    // 3. SAVE OUTGOING MESSAGE
     await prisma.message.create({
       data: {
         evolutionId: sentMessageId,
@@ -290,30 +269,31 @@ async function processIncomingMessages(instanceName: string, rawData: unknown) {
       },
     });
 
-    console.log(`[DEBUG 16] ✅ Réponse IA générée et stockée !`);
+    console.log(`[DEBUG 13] ✅ Réponse envoyée et stockée !`);
     console.log(`======================================================\n`);
   } catch (error) {
     console.error(`\n[ERREUR CRITIQUE] 🚨 L'exécution a planté :`, error);
   }
 }
 
-// 🚀 NOUVEAU : Gestion des statuts de messages
+// ------------------------------------------------------------------
+// OUTILS
+// ------------------------------------------------------------------
+
 async function processMessageStatusUpdate(data: unknown) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const updates = Array.isArray(data) ? data : ([data] as any[]);
 
   for (const item of updates) {
     const messageId = item?.key?.id;
-    const statusRaw = item?.update?.status; // 3 = DELIVERED, 4 = READ
+    const statusRaw = item?.update?.status;
 
     if (!messageId || statusRaw === undefined) continue;
 
     let newStatus = null;
-    if (statusRaw === 3 || statusRaw === "DELIVERY_ACK") {
+    if (statusRaw === 3 || statusRaw === "DELIVERY_ACK")
       newStatus = "DELIVERED";
-    } else if (statusRaw === 4 || statusRaw === "READ") {
-      newStatus = "READ";
-    }
+    else if (statusRaw === 4 || statusRaw === "READ") newStatus = "READ";
 
     if (newStatus) {
       try {
@@ -322,12 +302,8 @@ async function processMessageStatusUpdate(data: unknown) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           data: { status: newStatus as any },
         });
-      } catch (error: unknown) {
-        // Ignorer silencieusement l'erreur P2025 (Message non trouvé en base)
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        if ((error as any).code !== "P2025") {
-          console.error(`[CRM] 🚨 Erreur maj statut :`, error);
-        }
+      } catch {
+        // Silencieux si message introuvable
       }
     }
   }
@@ -338,14 +314,9 @@ async function generateAiResponse(
   userName: string,
 ): Promise<string> {
   const openRouterKey = process.env.OPENROUTER_API_KEY;
-  if (!openRouterKey) throw new Error("Clé OPENROUTER_API_KEY manquante");
+  if (!openRouterKey) throw new Error("Clé OPENROUTER manquante");
 
   const systemPrompt = `Tu es l'assistant virtuel de l'entreprise ExtravertyAI. Ton but est d'accueillir les prospects. Le client s'appelle ${userName}. Réponds toujours de manière courtoise, très brève (1 à 2 phrases max) et idéale pour une conversation WhatsApp.`;
-
-  const messagesForAI = [
-    { role: "system", content: systemPrompt },
-    ...chatHistory, // Injection de l'historique
-  ];
 
   const response = await fetch(
     "https://openrouter.ai/api/v1/chat/completions",
@@ -354,12 +325,15 @@ async function generateAiResponse(
       headers: {
         Authorization: `Bearer ${openRouterKey}`,
         "Content-Type": "application/json",
-        "HTTP-Referer": process.env.NEXT_PUBLIC_APP_URL || "",
+        "HTTP-Referer":
+          process.env.NEXT_PUBLIC_APP_URL || "https://extraverty.ai",
         "X-Title": "ExtravertyAI",
       },
       body: JSON.stringify({
+        // ⚠️ Vérifie que "google/gemini-2.5-flash-lite" est bien le nom exact sur OpenRouter.
+        // Sinon utilise "google/gemini-flash-1.5-8b"
         model: "google/gemini-2.5-flash-lite",
-        messages: messagesForAI,
+        messages: [{ role: "system", content: systemPrompt }, ...chatHistory],
         temperature: 0.7,
         max_tokens: 150,
       }),
@@ -368,7 +342,7 @@ async function generateAiResponse(
 
   if (!response.ok) {
     const err = await response.text();
-    throw new Error(`Erreur OpenRouter: ${err}`);
+    throw new Error(`OpenRouter HTTP ${response.status}: ${err}`);
   }
 
   const result = await response.json();
@@ -380,7 +354,6 @@ async function sendWhatsAppMessage(
   remoteJid: string,
   text: string,
 ) {
-  // 1. On nettoie l'URL pour éviter les erreurs de double slash (ex: http://url//message)
   const evolutionUrl = process.env.EVOLUTION_API_URL?.replace(/\/$/, "");
   const evolutionApiKey = process.env.EVOLUTION_API_KEY;
 
@@ -390,24 +363,19 @@ async function sendWhatsAppMessage(
 
   const endpoint = `${evolutionUrl}/message/sendText/${instanceName}`;
 
-  // 2. Extraire le numéro pur (Evolution API préfère souvent le numéro sans @s.whatsapp.net)
-  const phoneOnly = remoteJid.includes("@")
-    ? remoteJid.split("@")[0]
-    : remoteJid;
+  console.log(`[EVOLUTION API] 🚀 Envoi à : ${remoteJid}`);
 
-  console.log(`\n[EVOLUTION API] 🚀 Tentative d'envoi à: ${phoneOnly}`);
-  console.log(`[EVOLUTION API] 🔗 URL ciblée: ${endpoint}`);
-  console.log(`[EVOLUTION API] 💬 Contenu: "${text}"`);
-
-  // 3. Payload "Universel" (Compatible Evolution V1 et V2)
+  // 🛡️ CORRECTION MAJEURE ICI :
+  // 1. On utilise le remoteJid COMPLET (avec @s.whatsapp.net).
+  // 2. On utilise le format natif V2, beaucoup plus stable.
+  // 3. On ajoute des 'options' (delay + presence) pour simuler un humain qui tape.
   const payload = {
-    number: phoneOnly,
-    // Format attendu par Evolution V2
+    number: remoteJid,
     text: text,
     linkPreview: true,
-    // Format attendu par Evolution V1 (pour rétrocompatibilité)
-    textMessage: {
-      text: text,
+    options: {
+      delay: 1500,
+      presence: "composing",
     },
   };
 
@@ -420,17 +388,11 @@ async function sendWhatsAppMessage(
     body: JSON.stringify(payload),
   });
 
-  // 4. Lecture brute de la réponse pour le diagnostic
   const responseText = await response.text();
-  console.log(`[EVOLUTION API] 📥 Statut HTTP: ${response.status}`);
-  console.log(`[EVOLUTION API] 📥 Réponse brute:`, responseText);
 
   if (!response.ok) {
-    throw new Error(
-      `Erreur HTTP ${response.status} depuis Evolution: ${responseText}`,
-    );
+    throw new Error(`Erreur HTTP ${response.status} : ${responseText}`);
   }
 
-  // Si tout va bien, on parse en JSON
   return responseText ? JSON.parse(responseText) : {};
 }

@@ -1,3 +1,4 @@
+import { DecorIcon } from "@/components/ui/decor-icon"
 import { Skeleton } from "@/components/ui/skeleton"
 
 export default function ProjectsLoading() {
@@ -64,8 +65,13 @@ export default function ProjectsLoading() {
                     </div>
 
                     {/* Conteneur du tableau */}
-                    <div className="rounded-md border bg-card overflow-hidden">
-
+                    <div className="relative border bg-card overflow-hidden">
+                        <div className="absolute -inset-y-6 -left-px w-px bg-border" />
+                        <div className="absolute -inset-y-6 -right-px w-px bg-border" />
+                        <div className="absolute -inset-x-6 -top-px h-px bg-border" />
+                        <div className="absolute -inset-x-6 -bottom-px h-px bg-border" />
+                        <DecorIcon position="top-left" />
+                        <DecorIcon position="bottom-right" />
                         {/* Header du tableau */}
                         <div className="flex items-center bg-muted/50 border-b px-4 py-3 gap-4">
                             <Skeleton className="h-4 w-[15%] shrink-0" /> {/* Projet */}

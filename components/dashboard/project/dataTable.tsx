@@ -29,6 +29,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Settings2, Search, ChevronLeft, ChevronRight } from "lucide-react"
+import { DecorIcon } from "@/components/ui/decor-icon";
 
 interface DataTableProps<TData, TValue> {
     columns: ColumnDef<TData, TValue>[]
@@ -109,7 +110,13 @@ export function ProjectsTable<TData, TValue>({
                 </DropdownMenu>
             </div>
 
-            <div className="rounded-md border bg-card">
+            <div className="relative border bg-card">
+                <div className="absolute -inset-y-6 -left-px w-px bg-border" />
+                <div className="absolute -inset-y-6 -right-px w-px bg-border" />
+                <div className="absolute -inset-x-6 -top-px h-px bg-border" />
+                <div className="absolute -inset-x-6 -bottom-px h-px bg-border" />
+                <DecorIcon position="top-left" />
+                <DecorIcon position="bottom-right" />
                 <Table>
                     <TableHeader>
                         {table.getHeaderGroups().map((headerGroup) => (

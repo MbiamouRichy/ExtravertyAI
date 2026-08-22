@@ -1,6 +1,6 @@
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
-import { DecorIcon } from "@/components/decor-icon";
+import { DecorIcon } from "@/components/ui/decor-icon";
 // Assurez-vous d'adapter le chemin de votre DecorIcon selon votre architecture
 
 export default function Loading() {
@@ -8,7 +8,7 @@ export default function Loading() {
         <div className="relative flex h-screen w-full items-center justify-center overflow-hidden px-6 md:px-8">
             <div
                 className={cn(
-                    "relative flex w-full max-w-sm flex-col justify-between p-6 md:p-8",
+                    "relative flex w-full max-w-sm flex-col justify-between p-6 md:p-8 animate-in fade-in slide-in-from-bottom-2 duration-300",
                     "dark:bg-[radial-gradient(50%_80%_at_20%_0%,--theme(--color-foreground/.1),transparent)]"
                 )}
             >

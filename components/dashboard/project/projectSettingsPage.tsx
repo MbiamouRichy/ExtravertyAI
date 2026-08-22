@@ -14,6 +14,7 @@ import { Switch } from "@/components/ui/switch";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import CustomCard from "@/components/ui/customCard";
 
 // --- TYPESCRIPT INTERFACES ---
 interface TabButtonProps {
@@ -101,7 +102,7 @@ export default function ProjectSettingsPage() {
                     {/* VUE D'ENSEMBLE */}
                     {activeTab === "general" && (
                         <div className="space-y-6">
-                            <Card className="shadow-sm animate-in fade-in slide-in-from-bottom-2 duration-300">
+                            <CustomCard className="shadow-sm p-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
                                 <CardHeader className="pb-4">
                                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-4">
                                         <CardTitle className="text-lg flex items-center gap-2">
@@ -121,7 +122,7 @@ export default function ProjectSettingsPage() {
                                     </div>
                                     <Progress value={usagePercentage} className={`h-2.5 ${usagePercentage > 85 ? "bg-red-100 dark:bg-red-950/50 [&>div]:bg-red-600" : ""}`} />
                                 </CardContent>
-                            </Card>
+                            </CustomCard>
 
                             <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
                                 <StatCard title="7 jours" value={project.stats.week} icon={<BarChart3 className="w-4 h-4 text-muted-foreground" />} />
@@ -133,7 +134,7 @@ export default function ProjectSettingsPage() {
 
                     {/* INSTANCE WHATSAPP */}
                     {activeTab === "whatsapp" && (
-                        <Card className="shadow-sm animate-in fade-in slide-in-from-bottom-2 duration-300">
+                        <CustomCard className="shadow-sm p-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
                             <CardHeader>
                                 <CardTitle>Comportement de l&apos;instance</CardTitle>
                                 <CardDescription>
@@ -147,12 +148,12 @@ export default function ProjectSettingsPage() {
                                 <Separator />
                                 <ToggleSetting title="Indicateur de frappe" description="Simule 'est en train d'écrire...' avant la réponse." defaultChecked={true} />
                             </CardContent>
-                        </Card>
+                        </CustomCard>
                     )}
 
                     {/* ONGLET : EXPORT */}
                     {activeTab === "export" && (
-                        <Card className="shadow-sm animate-in fade-in slide-in-from-bottom-2 duration-300">
+                        <CustomCard className="shadow-sm p-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
                             <CardHeader>
                                 <CardTitle>Exportation des données</CardTitle>
                                 <CardDescription>Téléchargez l&apos;historique complet de vos contacts.</CardDescription>
@@ -167,12 +168,12 @@ export default function ProjectSettingsPage() {
                                     <span className="font-medium">Export Excel</span>
                                 </Button>
                             </CardContent>
-                        </Card>
+                        </CustomCard>
                     )}
 
                     {/* ONGLET : DANGER ZONE */}
                     {activeTab === "danger" && (
-                        <Card className="border-destructive/20 shadow-sm animate-in fade-in slide-in-from-bottom-2 duration-300">
+                        <CustomCard className="border-destructive/20 p-4 shadow-sm animate-in fade-in slide-in-from-bottom-2 duration-300">
                             <CardContent className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-6">
                                 <div className="space-y-1 flex-1">
                                     <h3 className="font-semibold text-destructive">Désactiver le projet</h3>
@@ -198,7 +199,7 @@ export default function ProjectSettingsPage() {
                                     Supprimer
                                 </Button>
                             </CardContent>
-                        </Card>
+                        </CustomCard>
                     )}
                 </main>
             </div>
@@ -228,7 +229,7 @@ function TabButton({ active, onClick, icon, label, isDanger = false }: TabButton
 
 function StatCard({ title, value, icon }: StatCardProps) {
     return (
-        <Card className="shadow-sm">
+        <Card className="shadow-sm rounded-none">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-4 md:p-6">
                 <CardTitle className="text-xs md:text-sm font-medium text-muted-foreground line-clamp-1">
                     {title}

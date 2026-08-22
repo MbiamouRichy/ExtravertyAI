@@ -4,6 +4,7 @@ import { Plus, Smartphone, FolderOpen, Settings, CreditCardIcon } from "lucide-r
 import Link from "next/link"
 import { ProjectsTable } from "./dataTable"
 import { ProjectsTableColumns } from "./columnTable"
+import CustomCard from "@/components/ui/customCard"
 
 const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "outline" | "destructive" }> = {
   active: { label: "Actif", variant: "default" },
@@ -71,13 +72,13 @@ export default function HomeProjectsPage({ projects }: CustomProjectProps) {
         ) : (
           <div className="animate-in fade-in duration-500">
             {/* VUE MOBILE : Affichage en Cartes */}
-            <div className="grid grid-cols-1 gap-4 md:hidden">
+            <div className="grid grid-cols-1 my-4 gap-4 md:hidden">
               {projects.map((project) => {
                 const statusInfo = statusConfig[project.status] || { label: "Inconnu", variant: "outline" };
                 return (
-                  <div
+                  <CustomCard
                     key={project.id}
-                    className="flex flex-col p-5 rounded-xl border border-border bg-card shadow-sm space-y-4"
+                    className="flex flex-col p-4 border bg-card shadow-sm space-y-4"
                   >
                     <div className="flex items-start justify-between gap-2">
                       <Link href={`/dashboard/projects/${project.id}`} title={project.name} className="font-semibold text-base text-foreground truncate">
@@ -150,7 +151,7 @@ export default function HomeProjectsPage({ projects }: CustomProjectProps) {
                         </Button>
                       </div>
                     </div>
-                  </div>
+                  </CustomCard>
                 )
               })}
             </div>

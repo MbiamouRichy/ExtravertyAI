@@ -29,7 +29,12 @@ import {
 } from "@/components/ui/message";
 import confetti from "canvas-confetti";
 import { useEffect } from "react";
-// --- TYPES ---
+import { toast } from "sonner";
+import { sendWhatsAppMessage } from "@/app/actions/sendWhatsAppMessage";
+
+// ------------------------------------------------------
+// 📦 TYPES & INTERFACES
+// ------------------------------------------------------
 type Project = { id: string; name: string };
 type User = { id: string; name?: string | null; image?: string | null };
 
@@ -48,45 +53,10 @@ type ChatMessage = {
     senderType: "client" | "bot" | "agent";
     content: string;
     timestamp: Date;
-    status: "sent" | "delivered" | "read";
+    status: "sent" | "delivered" | "read" | "failed"; // Ajout du statut 'failed' pour l'UI
 };
 
-// --- MOCK DATA : SCÉNARIO DE 25 MESSAGES ---
-const generateConversation = (): ChatMessage[] => {
-    const baseTime = new Date();
-    baseTime.setHours(10, 0, 0, 0); // Début à 10h00
-
-    const addMin = (mins: number) => new Date(baseTime.getTime() + mins * 60000);
-
-    return [
-        { id: "1", senderType: "client", content: "Bonjour, je cherche une solution pour mon service client.", timestamp: addMin(0), status: "read" },
-        { id: "2", senderType: "bot", content: "Bonjour Marc ! Bienvenue chez ExtravertyAI. 👋 Je suis l'assistant virtuel. Que recherchez-vous exactement ?", timestamp: addMin(1), status: "read" },
-        { id: "3", senderType: "client", content: "J'ai une agence immobilière et je reçois trop de messages WhatsApp pour des demandes de visites.", timestamp: addMin(3), status: "read" },
-        { id: "4", senderType: "client", content: "Je n'arrive plus à suivre.", timestamp: addMin(3), status: "read" },
-        { id: "5", senderType: "bot", content: "C'est un cas d'usage parfait pour notre IA ! Nous pouvons automatiser la qualification des prospects, vérifier leurs critères (budget, localisation) et même planifier les visites automatiquement.", timestamp: addMin(4), status: "read" },
-        { id: "6", senderType: "client", content: "Ah super. Comment ça marche concrètement ?", timestamp: addMin(6), status: "read" },
-        { id: "7", senderType: "bot", content: "Vous connectez simplement votre numéro WhatsApp à notre plateforme. L'IA s'occupe de répondre en fonction de vos directives 24h/24 et 7j/7. Vous pouvez reprendre la main à tout moment depuis ce tableau de bord.", timestamp: addMin(7), status: "read" },
-        { id: "8", senderType: "client", content: "Et si le client pose une question trop complexe ?", timestamp: addMin(10), status: "read" },
-        { id: "9", senderType: "bot", content: "Excellente question. Si l'IA ne connaît pas la réponse, elle met la conversation en pause et vous notifie. Un agent humain peut alors intervenir.", timestamp: addMin(11), status: "read" },
-        { id: "10", senderType: "client", content: "Génial. Vous avez une intégration avec HubSpot ?", timestamp: addMin(15), status: "read" },
-        { id: "11", senderType: "bot", content: "Oui, nous avons une intégration native HubSpot. Les contacts et les historiques de chat y sont synchronisés en temps réel.", timestamp: addMin(15), status: "read" },
-        { id: "12", senderType: "client", content: "Quel est le prix pour environ 1000 conversations par mois ?", timestamp: addMin(20), status: "read" },
-        { id: "13", senderType: "bot", content: "Pour 1000 conversations, notre plan Pro à 99€/mois est le plus adapté. Souhaitez-vous démarrer un essai gratuit de 14 jours ?", timestamp: addMin(21), status: "read" },
-        { id: "14", senderType: "client", content: "Oui, comment je fais ?", timestamp: addMin(25), status: "read" },
-        { id: "15", senderType: "bot", content: "Super ! Cliquez sur ce lien pour créer votre compte : https://extraverty.ai/register", timestamp: addMin(25), status: "read" },
-        { id: "16", senderType: "client", content: "Le lien m'affiche une erreur 404.", timestamp: addMin(28), status: "read" },
-        { id: "17", senderType: "bot", content: "Je suis désolé pour ce désagrément. Pouvez-vous essayer depuis un ordinateur ou rafraîchir la page ?", timestamp: addMin(29), status: "read" },
-        { id: "18", senderType: "client", content: "Toujours pareil, ça bloque à l'étape du paiement Stripe.", timestamp: addMin(32), status: "read" },
-        { id: "19", senderType: "bot", content: "Je comprends. Je mets l'IA en pause et je transfère votre demande à un membre de notre équipe technique. Un instant svp.", timestamp: addMin(33), status: "read" },
-        { id: "20", senderType: "agent", content: "Bonjour Marc, je suis Richy, le support technique. Je vois que vous rencontrez un souci avec le lien de paiement.", timestamp: addMin(40), status: "read" },
-        { id: "21", senderType: "client", content: "Bonjour Richy, oui ça tourne dans le vide après avoir validé ma carte.", timestamp: addMin(41), status: "read" },
-        { id: "22", senderType: "agent", content: "Je viens de vérifier nos logs. Il y a eu un micro-coupure avec notre fournisseur Stripe. Je viens de générer un lien de paiement direct et sécurisé pour vous.", timestamp: addMin(43), status: "read" },
-        { id: "23", senderType: "agent", content: "Voici le lien direct : https://buy.stripe.com/test_123456", timestamp: addMin(43), status: "delivered" },
-        { id: "24", senderType: "client", content: "Merci, je teste ça tout de suite.", timestamp: addMin(45), status: "delivered" },
-        { id: "25", senderType: "client", content: "C'est bon, le paiement est passé ! Mon numéro WhatsApp est en train de se connecter.", timestamp: addMin(48), status: "delivered" }
-    ];
-};
-
+// --- MOCK DATA ---
 const MOCK_CLIENTS: ChatClient[] = [
     { id: "c1", name: "Marc Dubois", phone: "+33 6 12 34 56 78", lastMessage: "C'est bon, le paiement est passé !", timestamp: "10:48", unread: 2, aiActive: false },
     { id: "c2", name: "Sophie Martin", phone: "+33 7 89 01 23 45", lastMessage: "Merci pour l'information.", timestamp: "09:15", unread: 0, aiActive: true },
@@ -94,80 +64,146 @@ const MOCK_CLIENTS: ChatClient[] = [
 ];
 
 const MOCK_MESSAGES: Record<string, ChatMessage[]> = {
-    "c1": generateConversation(),
-    "c2": [], // Vidé pour l'exemple
+    "c1": [], // Tronqué pour la clarté
+    "c2": [],
     "c3": []
 };
 
-export default function WhatsappWorkspace({ project, user, isSuccess }: { project: Project; user: User; isSuccess: boolean }) {
+// ------------------------------------------------------
+// 🎨 COMPOSANT PRINCIPAL
+// ------------------------------------------------------
+interface WorkspaceProps {
+    project: Project;
+    user: User;
+    isSuccess: boolean;
+}
+
+export default function WhatsappWorkspace({ project, user, isSuccess }: WorkspaceProps) {
     const [clients] = useState<ChatClient[]>(MOCK_CLIENTS);
     const [activeClientId, setActiveClientId] = useState<string | null>(clients[0].id);
     const [messages, setMessages] = useState<ChatMessage[]>(MOCK_MESSAGES[clients[0].id] || []);
     const [input, setInput] = useState("");
     const [isSending, setIsSending] = useState(false);
 
-
-    useEffect(() => {
-        if (isSuccess) {
-            const duration = 5 * 1000;
-            const animationEnd = Date.now() + duration;
-            const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 0 };
-
-            const randomInRange = (min: number, max: number) =>
-                Math.random() * (max - min) + min;
-
-            const interval = window.setInterval(() => {
-                const timeLeft = animationEnd - Date.now();
-                if (timeLeft <= 0) {
-                    return clearInterval(interval);
-                }
-                const particleCount = 50 * (timeLeft / duration);
-
-                confetti({
-                    ...defaults,
-                    particleCount,
-                    origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 },
-                });
-                confetti({
-                    ...defaults,
-                    particleCount,
-                    origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 },
-                });
-            }, 250);
-
-            // Nettoyage de l'intervalle si le composant est démonté
-            return () => clearInterval(interval);
-        }
-    }, [isSuccess]);
     // 📱 ÉTAT RESPONSIVE : Définit si on affiche le chat sur mobile
     const [showMobileChat, setShowMobileChat] = useState<boolean>(false);
 
+    // ------------------------------------------------------
+    // ✨ GESTION DES CONFETTIS (Avec nettoyage sécurisé)
+    // ------------------------------------------------------
+    useEffect(() => {
+        if (!isSuccess) return;
+
+        const duration = 5 * 1000;
+        const animationEnd = Date.now() + duration;
+        const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 0 };
+
+        const randomInRange = (min: number, max: number) => Math.random() * (max - min) + min;
+
+        const interval = window.setInterval(() => {
+            const timeLeft = animationEnd - Date.now();
+
+            if (timeLeft <= 0) {
+                return clearInterval(interval);
+            }
+
+            const particleCount = 50 * (timeLeft / duration);
+            confetti({
+                ...defaults,
+                particleCount,
+                origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 },
+            });
+            confetti({
+                ...defaults,
+                particleCount,
+                origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 },
+            });
+        }, 250);
+
+        // CLEANUP: Stoppe l'intervalle si le composant est démonté avant les 5 secondes
+        return () => clearInterval(interval);
+    }, [isSuccess]);
+
+    // ------------------------------------------------------
+    // 🔄 GESTION DES SÉLECTIONS DE CLIENT
+    // ------------------------------------------------------
     const activeClient = clients.find(c => c.id === activeClientId);
 
     const handleSelectClient = (clientId: string) => {
         setActiveClientId(clientId);
         setMessages(MOCK_MESSAGES[clientId] || []);
-        setShowMobileChat(true); // Bascule sur la vue chat en mobile
+        setShowMobileChat(true);
     };
 
-    const handleSend = (e: React.FormEvent) => {
+    // ------------------------------------------------------
+    // 🚀 ENVOI DU MESSAGE (Optimistic UI)
+    // ------------------------------------------------------
+    const handleSend = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!input.trim() || isSending) return;
 
-        const newMessage: ChatMessage = {
-            id: Date.now().toString(),
+        const messageContent = input.trim();
+        if (!messageContent || isSending || !activeClient || !project || !user) return;
+
+        setInput(""); // Vidage immédiat pour la réactivité
+        setIsSending(true);
+
+        // 1. OPTIMISTIC UI : Création du message temporaire
+        const tempId = `temp-${Date.now()}`;
+        const optimisticMessage: ChatMessage = {
+            id: tempId,
             senderType: "agent",
-            content: input,
+            content: messageContent,
             timestamp: new Date(),
             status: "sent"
         };
 
-        setMessages((prev) => [...prev, newMessage]);
-        setInput("");
-        setIsSending(true);
+        setMessages((prev) => [...prev, optimisticMessage]);
 
-        // Simulation API
-        setTimeout(() => setIsSending(false), 500);
+        try {
+            // 2. APPEL SÉCURISÉ AU BACKEND
+            const result = await sendWhatsAppMessage({
+                projectId: project.id,
+                contactId: activeClient.id,
+                content: messageContent,
+            });
+
+            // 3. GESTION D'ERREUR DU BACKEND
+            if (!result.success || !result.message) {
+                throw new Error(result.error || "Erreur inconnue");
+            }
+
+            // 4. SUCCÈS : Mise à jour avec le vrai ID de la base de données
+            setMessages((prev) =>
+                prev.map((msg) =>
+                    msg.id === tempId
+                        ? {
+                            ...msg,
+                            id: result.message.id,
+                            status: "delivered"
+                        }
+                        : msg
+                )
+            );
+
+        } catch (error: unknown) {
+            const errorMessage = error instanceof Error ? error.message : "Erreur réseau";
+            console.error("Erreur d'envoi:", errorMessage);
+            toast.error(errorMessage);
+
+            // EN CAS D'ERREUR : Marquer le message comme "failed" plutôt que de le supprimer (meilleure UX)
+            setMessages((prev) =>
+                prev.map((msg) =>
+                    msg.id === tempId
+                        ? { ...msg, status: "failed" }
+                        : msg
+                )
+            );
+
+            // On redonne le texte à l'agent pour qu'il puisse retenter sans retaper
+            setInput(messageContent);
+        } finally {
+            setIsSending(false);
+        }
     };
 
     return (

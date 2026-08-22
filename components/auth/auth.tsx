@@ -15,7 +15,7 @@ import {
 	InputGroupInput,
 } from "@/components/ui/input-group";
 import { AuthDivider } from "@/components/dashboard/auth-divider";
-import { DecorIcon } from "@/components/decor-icon";
+import { DecorIcon } from "@/components/ui/decor-icon";
 import { AtSignIcon, Eye, EyeOff, KeySquareIcon, Loader } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useHaptics } from "@/lib/webHaptics";
@@ -102,7 +102,7 @@ export function AuthPage({ callbackUrl }: { callbackUrl: string }) {
 		<div className="relative flex h-screen w-full items-center justify-center overflow-hidden px-6 md:px-8">
 			<div
 				className={cn(
-					"relative flex w-full max-w-sm flex-col justify-between p-6 md:p-8",
+					"relative flex w-full max-w-sm flex-col justify-between p-6 md:p-8 animate-in fade-in slide-in-from-bottom-2 duration-300",
 					"dark:bg-[radial-gradient(50%_80%_at_20%_0%,--theme(--color-foreground/.1),transparent)]"
 				)}
 			>
@@ -113,7 +113,7 @@ export function AuthPage({ callbackUrl }: { callbackUrl: string }) {
 				<DecorIcon position="top-left" />
 				<DecorIcon position="bottom-right" />
 
-				<div className="w-full max-w-sm animate-in space-y-8">
+				<div className="w-full max-w-sm space-y-8">
 					<div className="flex flex-col space-y-1">
 						<h1 className="font-bold text-2xl tracking-wide">Rejoignez-nous!</h1>
 						<p className="text-base text-muted-foreground">
