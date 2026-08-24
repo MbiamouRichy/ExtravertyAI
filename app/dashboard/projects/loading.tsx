@@ -74,14 +74,14 @@ export default function ProjectsLoading() {
                         <DecorIcon position="bottom-right" />
                         {/* Header du tableau */}
                         <div className="flex items-center bg-muted/50 border-b px-4 py-3 gap-4">
-                            <Skeleton className="h-4 w-[15%] shrink-0" /> {/* Projet */}
+                            <Skeleton className="h-4 w-[10%] shrink-0" /> {/* Projet */}
                             <Skeleton className="h-4 w-[15%] shrink-0" /> {/* Numéro */}
-                            <Skeleton className="h-4 w-[10%] shrink-0" /> {/* Plan */}
+                            <Skeleton className="h-4 w-[8%] shrink-0" /> {/* Plan */}
                             <Skeleton className="h-4 w-[10%] shrink-0" /> {/* Etat numero */}
-                            <Skeleton className="h-4 w-[15%] shrink-0" /> {/* Statut projet */}
-                            <Skeleton className="h-4 w-[20%] shrink-0" /> {/* utilisation */}
+                            <Skeleton className="h-4 w-[10%] shrink-0" /> {/* Statut projet */}
+                            <Skeleton className="h-4 w-[15%] shrink-0" /> {/* utilisation */}
                             <Skeleton className="h-4 w-[15%] shrink-0" /> {/* Date */}
-                            <Skeleton className="h-4 w-8 shrink-0 ml-auto" /> {/* Actions */}
+                            <Skeleton className="h-4 w-[4%] shrink-0 ml-auto" /> {/* Actions */}
                         </div>
 
                         {/* Lignes du tableau */}
@@ -90,14 +90,14 @@ export default function ProjectsLoading() {
                                 key={`desktop-skeleton-${i}`}
                                 className="flex items-center px-4 py-4 gap-4 border-b border-border/50 last:border-0"
                             >
-                                <Skeleton className="h-4 w-4 rounded-sm shrink-0" />
-                                <Skeleton className="h-5 w-[15%] shrink-0" />
-                                <Skeleton className="h-5 w-[15%] shrink-0" />
-                                <Skeleton className="h-6 w-[10%] rounded-md shrink-0" /> {/* Badge instance */}
-                                <Skeleton className="h-5 w-[15%] shrink-0" />
-                                <Skeleton className="h-5 w-[10%] rounded-full shrink-0" /> {/* Badge statut */}
-                                <Skeleton className="h-5 w-[15%] shrink-0" />
-                                <Skeleton className="h-8 w-8 rounded-md shrink-0 ml-auto" />
+                                <Skeleton className="h-4 w-[10%] shrink-0" /> {/* Projet */}
+                                <Skeleton className="h-4 w-[15%] shrink-0" /> {/* Numéro */}
+                                <Skeleton className="h-4 w-[8%] shrink-0" /> {/* Plan */}
+                                <Skeleton className="h-4 w-[10%] shrink-0" /> {/* Etat numero */}
+                                <Skeleton className="h-4 w-[10%] shrink-0" /> {/* Statut projet */}
+                                <Skeleton className="h-4 w-[15%] shrink-0" /> {/* utilisation */}
+                                <Skeleton className="h-4 w-[15%] shrink-0" /> {/* Date */}
+                                <Skeleton className="h-4 w-[4%] shrink-0 ml-auto" /> {/* Actions */}
                             </div>
                         ))}
                     </div>

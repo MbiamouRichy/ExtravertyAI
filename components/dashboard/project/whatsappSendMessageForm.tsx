@@ -3,7 +3,10 @@
 import { useState } from "react";
 import {
     Send, Bot, User as UserIcon, Search,
-    Phone, CheckCheck, MoreVertical, ShieldAlert, Sparkles, ArrowLeft, MessageCircle
+    Phone, CheckCheck, MoreVertical, ShieldAlert, ArrowLeft, MessageCircle,
+    Check,
+    Play,
+    Pause
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,43 +34,16 @@ import confetti from "canvas-confetti";
 import { useEffect } from "react";
 import { toast } from "sonner";
 import { sendWhatsAppMessage } from "@/app/actions/sendWhatsAppMessage";
+import { ChatClient, ChatMessage, getWorkspaceData } from "@/app/actions/getMessages&Contacts";
+import { useHaptics } from "@/lib/webHaptics";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Kbd, KbdGroup } from "@/components/ui/kbd";
 
 // ------------------------------------------------------
 // 📦 TYPES & INTERFACES
 // ------------------------------------------------------
 type Project = { id: string; name: string };
 type User = { id: string; name?: string | null; image?: string | null };
-
-type ChatClient = {
-    id: string;
-    name: string;
-    phone: string;
-    lastMessage: string;
-    timestamp: string;
-    unread: number;
-    aiActive: boolean;
-};
-
-type ChatMessage = {
-    id: string;
-    senderType: "client" | "bot" | "agent";
-    content: string;
-    timestamp: Date;
-    status: "sent" | "delivered" | "read" | "failed"; // Ajout du statut 'failed' pour l'UI
-};
-
-// --- MOCK DATA ---
-const MOCK_CLIENTS: ChatClient[] = [
-    { id: "c1", name: "Marc Dubois", phone: "+33 6 12 34 56 78", lastMessage: "C'est bon, le paiement est passé !", timestamp: "10:48", unread: 2, aiActive: false },
-    { id: "c2", name: "Sophie Martin", phone: "+33 7 89 01 23 45", lastMessage: "Merci pour l'information.", timestamp: "09:15", unread: 0, aiActive: true },
-    { id: "c3", name: "+241 07 12 34 56", phone: "+241 07 12 34 56", lastMessage: "Je voudrais prendre RDV", timestamp: "Hier", unread: 0, aiActive: true },
-];
-
-const MOCK_MESSAGES: Record<string, ChatMessage[]> = {
-    "c1": [], // Tronqué pour la clarté
-    "c2": [],
-    "c3": []
-};
 
 // ------------------------------------------------------
 // 🎨 COMPOSANT PRINCIPAL
@@ -79,18 +55,56 @@ interface WorkspaceProps {
 }
 
 export default function WhatsappWorkspace({ project, user, isSuccess }: WorkspaceProps) {
-    const [clients] = useState<ChatClient[]>(MOCK_CLIENTS);
-    const [activeClientId, setActiveClientId] = useState<string | null>(clients[0].id);
-    const [messages, setMessages] = useState<ChatMessage[]>(MOCK_MESSAGES[clients[0].id] || []);
+    const [clients, setClients] = useState<ChatClient[]>([]);
+    const [messagesMap, setMessagesMap] = useState<Record<string, ChatMessage[]>>({});
+    const [activeClientId, setActiveClientId] = useState<string | null>(null);
+
     const [input, setInput] = useState("");
     const [isSending, setIsSending] = useState(false);
-
-    // 📱 ÉTAT RESPONSIVE : Définit si on affiche le chat sur mobile
     const [showMobileChat, setShowMobileChat] = useState<boolean>(false);
+    const { playHaptic } = useHaptics();
+    useEffect(() => {
+        let isMounted = true;
 
-    // ------------------------------------------------------
-    // ✨ GESTION DES CONFETTIS (Avec nettoyage sécurisé)
-    // ------------------------------------------------------
+        const fetchData = async () => {
+            const result = await getWorkspaceData(project.id);
+
+            if (isMounted) {
+                if (result.success && result.clients && result.messages) {
+                    setClients(result.clients);
+                    setMessagesMap(result.messages);
+
+                    // CORRECTION : On utilise la version fonctionnelle du setter.
+                    // Cela évite de dépendre de l'état `activeClientId` de l'extérieur.
+                    if (result.clients.length > 0) {
+                        const firstClientId = result.clients[0].id;
+                        setActiveClientId((prev) => {
+                            // Si prev est null (aucun client sélectionné), on met le premier.
+                            // Sinon, on garde le client actuellement sélectionné (prev).
+                            return prev === null ? firstClientId : prev;
+                        });
+                    }
+                } else {
+                    toast.error(result.error || "Erreur de chargement");
+                }
+            }
+        };
+
+        fetchData();
+
+        return () => { isMounted = false; };
+    }, [project.id]);
+
+    // 2. DÉRIVATION DES MESSAGES DU CLIENT ACTIF
+    const activeMessages = activeClientId ? (messagesMap[activeClientId] || []) : [];
+    const activeClient = clients.find(c => c.id === activeClientId);
+
+    const handleSelectClient = (clientId: string) => {
+        setActiveClientId(clientId);
+        setShowMobileChat(true);
+    };
+
+    // 3. GESTION DES CONFETTIS
     useEffect(() => {
         if (!isSuccess) return;
 
@@ -120,86 +134,72 @@ export default function WhatsappWorkspace({ project, user, isSuccess }: Workspac
             });
         }, 250);
 
-        // CLEANUP: Stoppe l'intervalle si le composant est démonté avant les 5 secondes
         return () => clearInterval(interval);
     }, [isSuccess]);
 
-    // ------------------------------------------------------
-    // 🔄 GESTION DES SÉLECTIONS DE CLIENT
-    // ------------------------------------------------------
-    const activeClient = clients.find(c => c.id === activeClientId);
-
-    const handleSelectClient = (clientId: string) => {
-        setActiveClientId(clientId);
-        setMessages(MOCK_MESSAGES[clientId] || []);
-        setShowMobileChat(true);
-    };
-
-    // ------------------------------------------------------
-    // 🚀 ENVOI DU MESSAGE (Optimistic UI)
-    // ------------------------------------------------------
+    // 4. ENVOI DU MESSAGE (Optimistic UI)
     const handleSend = async (e: React.FormEvent) => {
         e.preventDefault();
 
         const messageContent = input.trim();
         if (!messageContent || isSending || !activeClient || !project || !user) return;
 
-        setInput(""); // Vidage immédiat pour la réactivité
+        setInput("");
         setIsSending(true);
 
-        // 1. OPTIMISTIC UI : Création du message temporaire
         const tempId = `temp-${Date.now()}`;
         const optimisticMessage: ChatMessage = {
             id: tempId,
             senderType: "agent",
             content: messageContent,
             timestamp: new Date(),
-            status: "sent"
+            status: "sent",
         };
 
-        setMessages((prev) => [...prev, optimisticMessage]);
+        // CORRECTION 1 : Mise à jour de messagesMap au lieu de setMessages
+        setMessagesMap((prev) => ({
+            ...prev,
+            [activeClient.id]: [...(prev[activeClient.id] || []), optimisticMessage]
+        }));
 
         try {
-            // 2. APPEL SÉCURISÉ AU BACKEND
             const result = await sendWhatsAppMessage({
                 projectId: project.id,
                 contactId: activeClient.id,
                 content: messageContent,
             });
 
-            // 3. GESTION D'ERREUR DU BACKEND
             if (!result.success || !result.message) {
                 throw new Error(result.error || "Erreur inconnue");
             }
 
-            // 4. SUCCÈS : Mise à jour avec le vrai ID de la base de données
-            setMessages((prev) =>
-                prev.map((msg) =>
+            // CORRECTION 2 : Mise à jour du succès dans le dictionnaire messagesMap
+            playHaptic("success");
+            setMessagesMap((prev) => ({
+                ...prev,
+                [activeClient.id]: (prev[activeClient.id] || []).map((msg) =>
                     msg.id === tempId
-                        ? {
-                            ...msg,
-                            id: result.message.id,
-                            status: "delivered"
-                        }
+                        ? { ...msg, id: result.message.id, status: "delivered" }
                         : msg
                 )
-            );
+            }));
 
         } catch (error: unknown) {
             const errorMessage = error instanceof Error ? error.message : "Erreur réseau";
             console.error("Erreur d'envoi:", errorMessage);
+            playHaptic("error");
             toast.error(errorMessage);
 
-            // EN CAS D'ERREUR : Marquer le message comme "failed" plutôt que de le supprimer (meilleure UX)
-            setMessages((prev) =>
-                prev.map((msg) =>
+            // CORRECTION 3 : Mise à jour de l'échec dans le dictionnaire messagesMap
+            setMessagesMap((prev) => ({
+                ...prev,
+                [activeClient.id]: (prev[activeClient.id] || []).map((msg) =>
                     msg.id === tempId
                         ? { ...msg, status: "failed" }
                         : msg
                 )
-            );
+            }));
 
-            // On redonne le texte à l'agent pour qu'il puisse retenter sans retaper
             setInput(messageContent);
         } finally {
             setIsSending(false);
@@ -207,14 +207,14 @@ export default function WhatsappWorkspace({ project, user, isSuccess }: Workspac
     };
 
     return (
-        <div className="flex w-full h-full max-h-[calc(100vh-4rem)] overflow-hidden">
+        <div className="flex w-full h-full max-h-[calc(100vh-4rem)] overflow-hidden!">
 
             {/* -------------------------------------------------------------------------
           SIDEBAR (Liste des clients)
           > Cachée sur mobile si un chat est ouvert (showMobileChat === true)
       -------------------------------------------------------------------------- */}
-            <div className={`w-full md:max-w-2/6 md:border-r flex-col md:bg-muted/10 shrink-0 h-full ${showMobileChat ? 'hidden md:flex' : 'flex'}`}>
-                <div className="py-4 md:px-4 md:border-b md:bg-background/50 md:backdrop-blur-sm">
+            <div className={`w-full md:max-w-2/5 md:border-r flex-col md:bg-muted/10 shrink-0 h-full ${showMobileChat ? 'hidden md:flex' : 'flex'}`}>
+                <div className="py-4 px-3 md:border-b md:bg-background/50 md:backdrop-blur-sm">
                     <h2 className="font-semibold text-lg mb-4 flex items-center gap-2">
                         Boîte de réception
                         <Badge variant="secondary" className="bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20">
@@ -236,9 +236,9 @@ export default function WhatsappWorkspace({ project, user, isSuccess }: Workspac
                             <div
                                 key={client.id}
                                 onClick={() => handleSelectClient(client.id)}
-                                className={`flex items-start gap-3 p-4 text-left w-full transition-colors border-b last:border-0 ${activeClientId === client.id
+                                className={`flex items-start gap-3 p-4 text-left w-full cursor-pointer transition-colors border-b last:border-0 ${activeClientId === client.id
                                     ? "bg-primary/5 border-l-2 border-l-primary"
-                                    : "hover:bg-muted/50 border-l-2 border-l-transparent"
+                                    : "hover:bg-muted/50 border-l-2 border-l-blue-500"
                                     }`}
                             >
                                 <div className="relative">
@@ -248,22 +248,22 @@ export default function WhatsappWorkspace({ project, user, isSuccess }: Workspac
                                         </AvatarFallback>
                                     </Avatar>
                                     {client.aiActive && (
-                                        <span className="absolute -bottom-1 -right-1 bg-blue-500 text-white rounded-full p-0.5 shadow-sm border-2 border-background">
-                                            <Sparkles className="h-3 w-3" />
-                                        </span>
+                                        <div className="absolute size-6 -bottom-1 -right-1 bg-blue-500 text-white rounded-full p-0.5 shadow-sm border-2 border-background">
+                                            <Bot className="h-4 w-4" />
+                                        </div>
                                     )}
                                 </div>
 
-                                <div className="flex-1 min-w-0">
+                                <div className="min-w-0">
                                     <div className="flex justify-between items-baseline mb-1">
                                         <span className="font-semibold text-sm truncate">{client.name}</span>
                                         <span className="text-xs text-muted-foreground whitespace-nowrap ml-2">{client.timestamp}</span>
                                     </div>
-                                    <div className="flex justify-between relative items-center gap-2">
+                                    <div className="flex justify-between shrink-0 relative items-center gap-2">
                                         <p className="text-sm text-muted-foreground truncate line-clamp-1">
                                             {client.lastMessage}
                                         </p>
-                                        {client.unread > 0 && (
+                                        {client.unread === 0 && (
                                             <Badge className="bg-emerald-500 text-white px-1.5 min-w-5 flex justify-center rounded-full">
                                                 {client.unread}
                                             </Badge>
@@ -280,12 +280,12 @@ export default function WhatsappWorkspace({ project, user, isSuccess }: Workspac
           MAIN AREA (Fenêtre de Chat)
           > Cachée sur mobile si aucun chat n'est actif
       -------------------------------------------------------------------------- */}
-            <div className={`flex-1 w-full min-w-4/6 flex-col bg-background/95 relative h-full ${!showMobileChat ? 'hidden md:flex' : 'flex'}`}>
+            <div className={`flex-1 md:max-w-3/5 w-full overflow-hidden flex-col bg-background/95 relative h-full ${!showMobileChat ? 'hidden md:flex' : 'flex'}`}>
 
                 {activeClient ? (
                     <>
                         {/* HEADER CHAT */}
-                        <header className="flex max-w-full items-center justify-center md:justify-between px-3 md:px-6 py-3 md:py-4 border-b bg-background/60 backdrop-blur-md sticky top-0 z-20">
+                        <header className="flex max-w-full items-center justify-between px-1 md:px-6 py-3 md:py-4 border-b bg-background/60 backdrop-blur-md sticky top-0 z-20">
                             <div className="flex items-center gap-2 md:gap-4">
 
                                 {/* 📱 BOUTON RETOUR MOBILE */}
@@ -313,8 +313,23 @@ export default function WhatsappWorkspace({ project, user, isSuccess }: Workspac
                             <div className="flex items-center gap-2 md:gap-3 shrink-0">
                                 <Badge variant={activeClient.aiActive ? "default" : "secondary"} className="gap-1.5 px-2 py-1 text-[10px] md:text-xs">
                                     {activeClient.aiActive ? <Bot className="h-3.5 w-3.5" /> : <UserIcon className="h-3.5 w-3.5" />}
-                                    <span className="hidden sm:inline">{activeClient.aiActive ? "Géré par l'IA" : "Agent Actif"}</span>
+                                    <span className="hidden sm:inline">{activeClient.aiActive ? "Gestion par l'IA activé" : "Gestion par l'IA désactivé"}</span>
                                 </Badge>
+                                <Tooltip delayDuration={1000}>
+                                    <TooltipTrigger asChild>
+                                        <Button variant="ghost" size={"icon-sm"}>
+                                            {activeClient.aiActive ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+                                        </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent className="px-2 py-1" side="right">
+                                        {activeClient.aiActive ? "Desactiver la gestion par l'IA" : "Activer la gestion par l'IA"} {" "}
+                                        <KbdGroup>
+                                            <Kbd>⌘</Kbd>
+                                            <Kbd>e</Kbd>
+                                            <Kbd>a</Kbd>
+                                        </KbdGroup>
+                                    </TooltipContent>
+                                </Tooltip>
                                 <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground">
                                     <MoreVertical className="h-4 w-4" />
                                 </Button>
@@ -323,60 +338,68 @@ export default function WhatsappWorkspace({ project, user, isSuccess }: Workspac
 
                         {/* ZONE DE SCROLL DES MESSAGES */}
                         <MessageScrollerProvider>
-                            <MessageScroller className="flex-1 bg-muted/30 dark:bg-background">
+                            <MessageScroller className="flex-1 min-h-0 relative h-full w-full bg-muted/30 dark:bg-background">
                                 <MessageScrollerViewport className="px-3 md:px-6 py-6">
-                                    <MessageScrollerContent className="max-w-4xl mx-auto">
+                                    <MessageScrollerContent className="w-full mx-auto">
 
                                         <MessageGroup>
-                                            {messages.map((msg, index) => (
-                                                <MessageScrollerItem key={msg.id} scrollAnchor={index === messages.length - 1}>
+                                            {activeMessages.map((msg, index) => (
+                                                <MessageScrollerItem key={msg.id} scrollAnchor={index === activeMessages.length - 1}>
 
                                                     <Message align={msg.senderType === "client" ? "start" : "end"} className="mb-6">
 
                                                         <MessageAvatar
                                                             className={
-                                                                msg.senderType === "client" ? "bg-background border hidden sm:flex" :
-                                                                    msg.senderType === "bot" ? "bg-blue-100 text-blue-600 border-blue-200 hidden sm:flex" :
-                                                                        "bg-transparent hidden sm:flex"
+                                                                msg.senderType === "agent" ? "bg-transparent hidden sm:flex" :
+                                                                    msg.senderType === "bot" ? "bg-blue-100 text-blue-600 border-blue-200 hidden sm:flex" : ""
                                                             }
                                                         >
-                                                            {msg.senderType === "client" ? (
-                                                                <UserIcon className="size-5 rounded-full" />
-                                                            ) : msg.senderType === "bot" ? (
-                                                                <Sparkles className="size-4 rounded-full" />
-                                                            ) : (
+                                                            {msg.senderType === "bot" ? (
+                                                                <div className="h-8 w-8 flex items-center justify-center">
+                                                                    <Bot className="h-4 w-4 text-blue-600" />
+                                                                </div>
+                                                            ) : msg.senderType === "agent" ? (
                                                                 <Avatar className="h-8 w-8 border">
                                                                     <AvatarImage src={user?.image || ""} />
                                                                     <AvatarFallback className="bg-primary text-primary-foreground text-xs">
                                                                         {user?.name ? user.name.substring(0, 2).toUpperCase() : "MOI"}
                                                                     </AvatarFallback>
                                                                 </Avatar>
-                                                            )}
+                                                            ) : null}
                                                         </MessageAvatar>
 
                                                         <MessageContent className={msg.senderType === "client" ? "items-start" : "items-end"}>
                                                             <MessageHeader className="hidden sm:flex">
-                                                                {msg.senderType === "client" ? activeClient.name :
-                                                                    msg.senderType === "bot" ? "ExtravertyAI" :
-                                                                        (user?.name || "Vous")}
+                                                                {
+                                                                    msg.senderType === "bot" ? "Assistant IA" :
+                                                                        msg.senderType === "agent" && (user?.name || "Vous")
+                                                                }
                                                             </MessageHeader>
 
                                                             <div
-                                                                className={`px-4 py-2.5 max-w-[90%] sm:max-w-[80%] text-[15px] leading-relaxed shadow-sm transition-all ${msg.senderType === "client"
-                                                                    ? "bg-card border border-border/50 text-foreground rounded-2xl rounded-tl-sm"
+                                                                className={`px-4 py-2.5 max-w-[90%] sm:max-w-[80%] text-[15px] leading-relaxed transition-all ${msg.senderType === "client"
+                                                                    ? "bg-card border border-border/50 text-foreground shadow-sm  rounded-2xl rounded-tl-sm"
                                                                     : msg.senderType === "bot"
-                                                                        ? "bg-blue-50/80 dark:bg-blue-950/30 border border-blue-100 dark:border-blue-900 border-dashed text-foreground rounded-2xl rounded-tr-sm"
-                                                                        : "bg-primary text-white rounded-2xl rounded-tr-sm"
+                                                                        ? "text-foreground"
+                                                                        : "bg-primary text-white rounded-2xl shadow-sm rounded-tr-sm"
                                                                     }`}
                                                             >
                                                                 {msg.content}
                                                             </div>
 
-                                                            <MessageFooter className="gap-1 mt-0.5 text-[10px] md:text-xs text-muted-foreground/80">
+                                                            <MessageFooter className="gap-1 mt-0.5 text-xs text-muted-foreground/80">
                                                                 {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                                                 {msg.senderType !== "client" && (
-                                                                    <CheckCheck className={`h-3.5 w-3.5 ${msg.status === "read" ? "text-blue-500" : "text-muted-foreground"}`} />
-                                                                )}
+                                                                    <>
+
+                                                                        {msg.status === "sent" ? (
+                                                                            <Check className="h-4 w-4 text-muted-foreground/80" />
+                                                                        ) : (
+                                                                            <CheckCheck className={`h-4 w-4 ${msg.status === "read" ? "text-blue-500" : msg.status === "delivered" && "text-muted-foreground"}`} />
+                                                                        )}
+                                                                    </>
+                                                                )
+                                                                }
                                                             </MessageFooter>
                                                         </MessageContent>
 
@@ -434,7 +457,7 @@ export default function WhatsappWorkspace({ project, user, isSuccess }: Workspac
                         </div>
                         <h2 className="text-xl font-semibold mb-2">Boîte de réception ExtravertyAI</h2>
                         <p className="text-muted-foreground text-sm max-w-sm">
-                            Sélectionnez une conversation dans la liste pour lire l&paos;historique ou reprendre la main sur l&apos;IA.
+                            Sélectionnez une conversation dans la liste pour lire l&apos;historique ou reprendre la main sur l&apos;IA.
                         </p>
                     </div>
                 )}

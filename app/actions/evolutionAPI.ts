@@ -1,3 +1,4 @@
+"use server";
 const EVOLUTION_API_URL = process.env.EVOLUTION_API_URL;
 const EVOLUTION_API_TOKEN = process.env.EVOLUTION_API_KEY;
 const WEBHOOK_SECRET = process.env.EVOLUTION_WEBHOOK_SECRET;
