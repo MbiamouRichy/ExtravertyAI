@@ -3,6 +3,7 @@ import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { InstanceStatus } from "@/src/generated/prisma/client";
 import { processWhatsAppMessage } from "@/lib/quotaMessage";
+import { revalidatePath } from "next/cache";
 
 // ------------------------------------------------------------------
 // TYPAGES & SCHEMAS
@@ -271,6 +272,7 @@ async function processIncomingMessages(instanceName: string, rawData: unknown) {
 
     console.log(`[DEBUG 13] ✅ Réponse envoyée et stockée !`);
     console.log(`======================================================\n`);
+    revalidatePath(`/dashboard/projects/${project.id}`);
   } catch (error) {
     console.error(`\n[ERREUR CRITIQUE] 🚨 L'exécution a planté :`, error);
   }
@@ -302,6 +304,7 @@ async function processMessageStatusUpdate(data: unknown) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           data: { status: newStatus as any },
         });
+        revalidatePath(`/dashboard/projects/`);
       } catch {
         // Silencieux si message introuvable
       }

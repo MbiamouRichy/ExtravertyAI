@@ -22,7 +22,7 @@ export async function createEvolutionInstance(
   }
 
   const webhookUrl = `${APP_URL}/api/webhooks/evolution?secret=${WEBHOOK_SECRET}`;
-  const events = ["CONNECTION_UPDATE", "MESSAGES_UPSERT"];
+  const events = ["CONNECTION_UPDATE", "MESSAGES_UPSERT", "MESSAGES_UPDATE"];
   const cleanNumero = number.replace(/\D/g, "");
   const instanceToken = `token-${instanceName}`; // Sécurise cela selon ta logique
 

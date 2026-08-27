@@ -5,6 +5,7 @@ import type { Metadata } from "next";
 import prisma from "@/lib/prisma";
 import ProjectWorkspace from "@/components/dashboard/project/whatsappSendMessageForm";
 import QRCodeScanner from "@/components/dashboard/project/qrCodeScanner";
+import { getWorkspaceData } from "@/app/actions/getMessages&Contacts";
 
 export const dynamic = "force-dynamic";
 
@@ -55,13 +56,25 @@ export default async function ProjectPage({ params, searchParams }: PageProps) {
   const project = await getProjectById(projectId);
   if (!project) return redirect("/dashboard/projects");
 
+  const ProjectData = await getWorkspaceData(project.id);
+  if (!ProjectData) {
+    return (
+      <div className="flex h-full w-full items-center justify-center p-6">
+        <div className="rounded-lg bg-destructive/10 p-4 text-center border border-destructive/20 text-destructive">
+          <p className="font-semibold">Impossible de charger l&apos;espace de travail.</p>
+          <p className="text-sm">Veuillez rafraîchir la page ou contacter le support.</p>
+        </div>
+      </div>
+    );
+  }
+
   // FAILLE CORRIGÉE : La condition logique est maintenant stricte et correcte
   if (project.instanceStatus === "qr_ready" || project.instanceStatus === "connecting" || project.instanceStatus === "disconnected") {
     return <QRCodeScanner projectId={projectId} />;
   }
 
-  if (project.instanceStatus === "connected") {
-    return <ProjectWorkspace project={project} user={session.user} isSuccess={isSuccess} />;
+  if (project.instanceStatus === "connected" && ProjectData.clients && ProjectData.messages) {
+    return <ProjectWorkspace project={project} user={session.user} isSuccess={isSuccess} clients={ProjectData.clients} messages={ProjectData.messages} />;
   }
 
   // FAILLE CORRIGÉE : Ajout d'un Fallback visuel pour les autres statuts (ex: "disconnected", "initializing")
