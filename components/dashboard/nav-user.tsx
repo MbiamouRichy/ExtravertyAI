@@ -77,10 +77,11 @@ export function NavUser() {
 							<UserCog />
 							Modifier le profil
 						</DropdownMenuItem>
-						<DropdownMenuItem>
-							<SettingsIcon
-							/>
-							Paramètres
+						<DropdownMenuItem asChild className="cursor-pointer">
+							<Link href="/dashboard/user/settings" title="Parametres utilisateur">
+								<SettingsIcon
+								/>
+								Paramètres</Link>
 						</DropdownMenuItem>
 					</DropdownMenuGroup>
 					<DropdownMenuSeparator />

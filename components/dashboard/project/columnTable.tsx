@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge"
 import { ArrowUpDown, MoreHorizontal, Smartphone, Eye, Settings, CreditCardIcon } from "lucide-react"
 import Link from "next/link"
 import { CustomProjectProps } from "./homePage"
+import { StatusIndicator } from "@/components/ui/indicator"
 
 // Dictionnaire de configuration des statuts
 const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "outline" | "destructive" }> = {
@@ -73,17 +74,17 @@ export const ProjectsTableColumns: ColumnDef<CustomProjectProps["projects"][0]>[
                 <div className="flex items-center gap-2">
                     {status === "connected" ? (
                         <>
-                            <div className="h-2 w-2 rounded-full bg-green-500 ring-2 ring-green-500/20" />
+                            <StatusIndicator color="emerald" pulse />
                             <span className="text-xs font-medium">Connecté</span>
                         </>
                     ) : status === "connecting" ? (
                         <>
-                            <div className="h-2 w-2 rounded-full bg-yellow-500 ring-2 ring-yellow-500/20 animate-pulse" />
+                            <StatusIndicator color="sky" pulse />
                             <span className="text-xs font-medium">En cours</span>
                         </>
                     ) : (
                         <>
-                            <div className="h-2 w-2 rounded-full bg-muted-foreground/40" />
+                            <StatusIndicator color="amber" />
                             <span className="text-xs font-medium text-muted-foreground">Déconnecté</span>
                         </>
                     )}
@@ -184,7 +185,7 @@ export const ProjectsTableColumns: ColumnDef<CustomProjectProps["projects"][0]>[
                         </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-fit min-w-40">
-                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                        <DropdownMenuLabel>{project.name}</DropdownMenuLabel>
                         <DropdownMenuItem className="cursor-pointer shrink-0" asChild>
                             <Link href={`/dashboard/projects/${project.id}/settings`}>
                                 <Settings className="mr-2 h-4 w-4" />

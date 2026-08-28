@@ -4,6 +4,8 @@ import { DashboardActivity } from "@/components/dashboard/dashboard-activity";
 import { DashboardInvoices } from "@/components/dashboard/dashboard-invoices";
 import { NetRevenueChart } from "@/components/dashboard/net-revenue-chart";
 import { DashboardStats } from "@/components/dashboard/stats";
+import { ChannelBreakdownChart } from "./chanel-chart";
+import { TeamOnDuty } from "./team-and-duty";
 
 export function Dashboard() {
 	return (
@@ -12,8 +14,10 @@ export function Dashboard() {
 			<NetRevenueChart />
 			<ChannelSalesChart />
 			<DashboardInvoices />
+			<ChannelBreakdownChart />
 			<BillingHealth />
 			<DashboardActivity />
+			<TeamOnDuty />
 		</div>
 	);
 }

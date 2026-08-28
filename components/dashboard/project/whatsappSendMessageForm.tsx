@@ -223,7 +223,7 @@ export default function WhatsappWorkspace({ project, user, isSuccess, clients, m
           SIDEBAR (Liste des clients)
           > Cachée sur mobile si un chat est ouvert (showMobileChat === true)
       -------------------------------------------------------------------------- */}
-            <div className={`w-full md:max-w-2/5 md:border-r flex-col md:bg-muted/10 shrink-0 h-full ${showMobileChat ? 'hidden md:flex' : 'flex'}`}>
+            <div className={`w-full md:max-w-2/6 md:border-r flex-col md:bg-muted/10 shrink-0 h-full ${showMobileChat ? 'hidden md:flex' : 'flex'}`}>
                 <div className="py-4 px-3 md:border-b md:bg-background/50 md:backdrop-blur-sm">
                     <h2 className="font-semibold text-lg mb-4 flex items-center gap-2">
                         Boîte de réception
@@ -235,7 +235,7 @@ export default function WhatsappWorkspace({ project, user, isSuccess, clients, m
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                         <Input
                             placeholder="Rechercher..."
-                            className="pl-9 bg-background shadow-sm rounded-xl h-10"
+                            className="pl-9 bg-background shadow-sm rounded-none h-10"
                         />
                     </div>
                 </div>
@@ -264,7 +264,7 @@ export default function WhatsappWorkspace({ project, user, isSuccess, clients, m
                                     )}
                                 </div>
 
-                                <div className="min-w-0">
+                                <div className="min-w-0 w-full">
                                     <div className="flex justify-between items-baseline mb-1">
                                         <span className="font-semibold text-sm truncate">{client.name}</span>
                                         <span className="text-xs text-muted-foreground whitespace-nowrap ml-2">{client.timestamp}</span>
@@ -290,7 +290,7 @@ export default function WhatsappWorkspace({ project, user, isSuccess, clients, m
           MAIN AREA (Fenêtre de Chat)
           > Cachée sur mobile si aucun chat n'est actif
       -------------------------------------------------------------------------- */}
-            <div className={`flex-1 md:max-w-3/5 w-full overflow-hidden flex-col bg-background/95 relative h-full ${!showMobileChat ? 'hidden md:flex' : 'flex'}`}>
+            <div className={`flex-1 md:max-w-4/6 w-full overflow-hidden flex-col bg-background/95 relative h-full ${!showMobileChat ? 'hidden md:flex' : 'flex'}`}>
 
                 {activeClient ? (
                     <>
@@ -358,7 +358,7 @@ export default function WhatsappWorkspace({ project, user, isSuccess, clients, m
                                                 return (
                                                     <MessageScrollerItem key={msg.id} scrollAnchor={index === activeMessages.length - 1}>
 
-                                                        <Message align={msg.senderType === "client" ? "start" : "end"} className="mb-6">
+                                                        <Message align={msg.senderType === "client" ? "start" : "end"} className="mb-2">
 
                                                             <MessageAvatar
                                                                 className={

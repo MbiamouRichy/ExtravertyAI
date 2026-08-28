@@ -1,10 +1,11 @@
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Plus, Smartphone, FolderOpen, Settings, CreditCardIcon } from "lucide-react"
+import { Plus, Smartphone, FolderOpen, Settings, CreditCardIcon, LinkIcon } from "lucide-react"
 import Link from "next/link"
 import { ProjectsTable } from "./dataTable"
 import { ProjectsTableColumns } from "./columnTable"
 import CustomCard from "@/components/ui/customCard"
+import { StatusIndicator } from "@/components/ui/indicator"
 
 const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "outline" | "destructive" }> = {
   active: { label: "Actif", variant: "default" },
@@ -112,17 +113,17 @@ export default function HomeProjectsPage({ projects }: CustomProjectProps) {
                         <div className="flex items-center gap-1.5 shrink-0">
                           {project.instanceStatus === "connected" ? (
                             <>
-                              <div className="h-2 w-2 rounded-full bg-green-500 ring-2 ring-green-500/20" />
+                              <StatusIndicator color="emerald" pulse />
                               <span className="text-xs font-medium text-foreground">Connecté</span>
                             </>
                           ) : project.instanceStatus === "connecting" ? (
                             <>
-                              <div className="h-2 w-2 rounded-full bg-yellow-500 ring-2 ring-yellow-500/20 animate-pulse" />
+                              <StatusIndicator color="sky" pulse />
                               <span className="text-xs font-medium text-foreground">En cours</span>
                             </>
                           ) : (
                             <>
-                              <div className="h-2 w-2 rounded-full bg-muted-foreground/40" />
+                              <StatusIndicator color="amber" pulse />
                               <span className="text-xs font-medium text-muted-foreground">Déconnecté</span>
                             </>
                           )}
@@ -143,11 +144,16 @@ export default function HomeProjectsPage({ projects }: CustomProjectProps) {
                       </p>
                       <div className="grid grid-cols-2 gap-2 mt-2 pt-3 border-t border-border/50">
                         <Button className="w-full" size="sm">
-                          Renouveler
+                          <Link href={`/dashboard/projects/${project.id}`} title={`Ouvrir ${project.name}`}>
+                            <LinkIcon className="h-4 w-4 mr-2" />
+                            Ouvrir
+                          </Link>
                         </Button>
-                        <Button className="w-full" variant="outline" size="sm">
-                          <Settings className="h-4 w-4 mr-2" />
-                          Gérer
+                        <Button asChild className="w-full" variant="outline" size="sm">
+                          <Link href={`/dashboard/projects/${project.id}/settings`} title={`Gerer ${project.name}`}>
+                            <Settings className="h-4 w-4 mr-2" />
+                            Parametres
+                          </Link>
                         </Button>
                       </div>
                     </div>

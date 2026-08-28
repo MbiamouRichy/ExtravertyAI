@@ -5,6 +5,7 @@ import prisma from "./prisma";
 import { resend } from "./resend";
 import { ResetPasswordTemplate } from "@/components/emailTemplate/resetPasswordTemplate";
 import { ChangeEmailTemplate } from "@/components/emailTemplate/changeEmailTemplate";
+import { DeleteAccountEmailTemplate } from "@/components/emailTemplate/DeleteAccountEmailTemplate";
 
 export const auth = betterAuth({
   baseURL: process.env.NEXT_PUBLIC_BASE_URL as string,
@@ -51,12 +52,23 @@ export const auth = betterAuth({
     },
   },
   user: {
+    deleteUser: {
+      enabled: true,
+      sendDeleteAccountVerification: async ({ user, url }) => {
+        await resend.emails.send({
+          to: user.email,
+          subject: "Approuver la suppression de votre compte",
+          html: DeleteAccountEmailTemplate({ url }),
+          from: "ExtravertyAI <notification@extravertyai.com>",
+        });
+      },
+    },
     changeEmail: {
       enabled: true,
       sendChangeEmailConfirmation: async ({ user, newEmail, url }) => {
         await resend.emails.send({
           to: user.email, // Sent to the CURRENT email
-          subject: "Approve email change",
+          subject: "Approuver un changement d'email",
           html: ChangeEmailTemplate({ newEmail, url }),
           from: "ExtravertyAI <notification@extravertyai.com>",
         });

@@ -49,6 +49,6 @@ export default async function SettingsPage({ params }: PageProps) {
     if (!project) return redirect("/dashboard/projects");
 
     return (
-        <ProjectSettingsPage />
+        <ProjectSettingsPage project={project} />
     );
 }
