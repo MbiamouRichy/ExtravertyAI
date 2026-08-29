@@ -1,4 +1,4 @@
-import { BillingHealth } from "@/components/billing-health";
+import { BillingHealth } from "@/components/dashboard/billing-health";
 import { ChannelSalesChart } from "@/components/dashboard/channel-sales-chart";
 import { DashboardActivity } from "@/components/dashboard/dashboard-activity";
 import { DashboardInvoices } from "@/components/dashboard/dashboard-invoices";
