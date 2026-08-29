@@ -80,6 +80,11 @@ export const auth = betterAuth({
         required: false,
         defaultValue: "USER", // Assurez-vous que ça correspond à votre enum
       },
+      theme: {
+        type: "string",
+        required: false,
+        defaultValue: "system",
+      },
     },
   },
 });

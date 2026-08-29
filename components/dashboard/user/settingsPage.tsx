@@ -69,20 +69,24 @@ export default function SettingsPage() {
                 callbackURL: "/sign-up",
                 fetchOptions: {
                     onSuccess: () => {
-                        toast.success("Votre compte a été supprimé définitivement.");
+                        toast.success("Un email de verification vous ete envoye clique sur le lien qu'il contient pour supprimer votre compte.",
+                            {
+                                position: "top-center"
+                            }
+                        );
                         playHaptic("success")
                     },
-                    onError: (ctx) => {
-                        toast.error(ctx.error.message || "Impossible de supprimer le compte.");
+                    onError: () => {
+                        toast.error("Impossible de supprimer le compte.", { position: "top-center" });
                         playHaptic("error")
-                        setIsDeleting(false);
                     }
                 }
             });
         } catch {
-            toast.error("Une erreur inattendue est survenue.");
-            setIsDeleting(false);
+            toast.error("Une erreur inattendue est survenue.", { position: "top-center" });
             playHaptic("error")
+        } finally {
+            setIsDeleting(false);
         }
     };
 
@@ -167,7 +171,7 @@ export default function SettingsPage() {
                                             className="h-fit flex-col p-3"
                                             onClick={() => handleThemeChange("system")}
                                         >
-                                            <div className="w-full h-24 bg-gradient-to-r from-neutral-100 to-neutral-900 rounded-md border shadow-xs flex items-center justify-center mb-2">
+                                            <div className="w-full h-24 bg-linear-to-r from-neutral-100 to-neutral-900 rounded-md border shadow-xs flex items-center justify-center mb-2">
                                                 <div className="w-1/2 h-1/2 bg-neutral-500 rounded shadow-xs"></div>
                                             </div>
                                             <span className="font-medium text-sm">Système</span>
