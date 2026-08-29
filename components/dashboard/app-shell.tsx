@@ -1,6 +1,5 @@
 import { cn } from "@/lib/utils";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
-import { AppHeader } from "@/components/dashboard/app-header";
 import { AppSidebar } from "@/components/dashboard/app-sidebar";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -8,7 +7,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 		<SidebarProvider className={cn("[--app-wrapper-max-width:90rem]")}>
 			<AppSidebar />
 			<SidebarInset>
-				<AppHeader />
 				<div
 					className={cn(
 						"flex flex-1 flex-col",

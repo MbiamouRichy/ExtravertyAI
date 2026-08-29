@@ -29,7 +29,7 @@ export const ProjectsTableColumns: ColumnDef<CustomProjectProps["projects"][0]>[
         accessorKey: "name",
         header: "Projet",
         cell: ({ row }) => (
-            <Link href={`/dashboard/projects/${row.original.id}`} title={row.original.id} className="font-semibold hover:underline">
+            <Link href={`/projects/${row.original.id}`} title={row.original.id} className="font-semibold hover:underline">
                 {row.original.name}
             </Link>
         ),
@@ -187,14 +187,14 @@ export const ProjectsTableColumns: ColumnDef<CustomProjectProps["projects"][0]>[
                     <DropdownMenuContent align="end" className="w-fit min-w-40">
                         <DropdownMenuLabel>{project.name}</DropdownMenuLabel>
                         <DropdownMenuItem className="cursor-pointer shrink-0" asChild>
-                            <Link href={`/dashboard/projects/${project.id}/settings`}>
+                            <Link href={`/projects/${project.id}/settings`}>
                                 <Settings className="mr-2 h-4 w-4" />
                                 Paramètres
                             </Link>
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem className="cursor-pointer shrink" asChild>
-                            <Link href={`/dashboard/projects/${project.id}`}>
+                            <Link href={`/projects/${project.id}`}>
                                 <Eye className="mr-2 h-4 w-4" />
                                 Ouvrir
                             </Link>

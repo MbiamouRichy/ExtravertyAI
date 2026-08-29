@@ -16,7 +16,7 @@ export default async function SeConnecterPage({ searchParams }: SignInPageProps)
   // Si callbackUrl n'existe pas, on renvoie vers le dashboard par défaut
   const callbackUrl = typeof params?.callbackUrl === "string"
     ? params.callbackUrl
-    : "/dashboard";
+    : "/projects";
 
   return <AuthPage callbackUrl={callbackUrl} />;
 }

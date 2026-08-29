@@ -74,7 +74,7 @@ export default function ProjectSettingsPage({ project }: { project: CustomProjec
             const result = await deleteProjectAction({ projectId: project.id });
             if (result.success) {
                 toast.success("Projet supprimé définitivement.");
-                router.push("/dashboard"); // Redirection obligatoire car le projet n'existe plus
+                router.push("/projects"); // Redirection obligatoire car le projet n'existe plus
             } else {
                 toast.error(result.error || "Erreur lors de la suppression");
             }

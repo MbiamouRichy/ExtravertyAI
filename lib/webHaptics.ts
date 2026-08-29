@@ -20,7 +20,7 @@ export function useHaptics() {
       ]);
     } else {
       haptics.trigger([{ duration: 35 }], { intensity: 1 });
-}
+    }
   };
 
   return { playHaptic };

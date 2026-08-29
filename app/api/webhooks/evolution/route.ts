@@ -272,7 +272,7 @@ async function processIncomingMessages(instanceName: string, rawData: unknown) {
 
     console.log(`[DEBUG 13] ✅ Réponse envoyée et stockée !`);
     console.log(`======================================================\n`);
-    revalidatePath(`/dashboard/projects/${project.id}`);
+    revalidatePath(`/projects/${project.id}`);
   } catch (error) {
     console.error(`\n[ERREUR CRITIQUE] 🚨 L'exécution a planté :`, error);
   }
@@ -304,7 +304,7 @@ async function processMessageStatusUpdate(data: unknown) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           data: { status: newStatus as any },
         });
-        revalidatePath(`/dashboard/projects/`);
+        revalidatePath(`/projects`);
       } catch {
         // Silencieux si message introuvable
       }

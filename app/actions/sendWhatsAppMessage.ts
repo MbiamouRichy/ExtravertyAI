@@ -149,7 +149,7 @@ export async function sendWhatsAppMessage(
       return { ok: true, data: newMessage };
     });
 
-    revalidatePath(`/dashboard/projects/${projectId}`);
+    revalidatePath(`/projects/${projectId}`);
 
     // Retourne le message échoué ET une erreur si !isSuccess
     if (!result.ok) {

@@ -46,7 +46,7 @@ export function NavUser() {
 				</DropdownMenuTrigger>
 				<DropdownMenuContent align="end" className="w-60">
 					<DropdownMenuItem className="flex items-center justify-start gap-2 cursor-pointer" asChild>
-						<Link href="/dashboard/user" className="w-full">
+						<Link href="/projects/user" className="w-full">
 							<DropdownMenuLabel className="flex items-center gap-3">
 								<Avatar className="size-10">
 									<AvatarImage src={user.image ?? undefined} />
@@ -67,7 +67,7 @@ export function NavUser() {
 					<DropdownMenuSeparator />
 					<DropdownMenuGroup>
 						<DropdownMenuItem className="cursor-pointer" asChild>
-							<Link href="/dashboard/user" className="w-full">
+							<Link href="/projects/user" className="w-full">
 								<UserIcon
 								/>
 								Infos générales
@@ -78,7 +78,7 @@ export function NavUser() {
 							Modifier le profil
 						</DropdownMenuItem>
 						<DropdownMenuItem asChild className="cursor-pointer">
-							<Link href="/dashboard/user/settings" title="Parametres utilisateur">
+							<Link href="/projects/user/settings" title="Parametres utilisateur">
 								<SettingsIcon
 								/>
 								Paramètres</Link>
@@ -87,7 +87,7 @@ export function NavUser() {
 					<DropdownMenuSeparator />
 					<DropdownMenuGroup>
 						<DropdownMenuItem className="cursor-pointer" asChild>
-							<Link href="/dashboard/billing" className="w-full">
+							<Link href="/projects/billing" className="w-full">
 								<CreditCardIcon
 								/>
 								Plan & Tarifs

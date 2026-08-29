@@ -158,7 +158,7 @@ export async function disableProject(
       data: { status: newStatus },
     });
 
-    revalidatePath(`/dashboard/projects/${projectId}`);
+    revalidatePath(`/projects/projects/${projectId}`);
     return { success: true };
   } catch (error: unknown) {
     // CORRECTION : Remplacement de "any" par "unknown"
@@ -221,7 +221,7 @@ export async function deleteProjectAction(
       where: { id: projectId },
     });
 
-    revalidatePath("/dashboard");
+    revalidatePath("/projects");
     return { success: true };
   } catch (error: unknown) {
     // CORRECTION : Remplacement de "any" par "unknown"

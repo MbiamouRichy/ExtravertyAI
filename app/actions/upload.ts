@@ -90,7 +90,7 @@ export async function updateProfileAction(data: FormData) {
       },
     });
 
-    revalidatePath("/dashboard", "layout");
+    revalidatePath("/projects", "layout");
     return { success: true };
   } catch (error) {
     // Retourne le message d'erreur spécifique s'il existe, sinon un message générique

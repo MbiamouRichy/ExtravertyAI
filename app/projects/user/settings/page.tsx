@@ -9,7 +9,7 @@ export default async function PageUserSettings() {
     const session = await getSession();
 
     if (!session?.user?.id) {
-        return redirect("/sign-in?callbackUrl=/dashboard/user/settings")
+        return redirect("/sign-in?callbackUrl=/projects/user/settings")
     }
     return (
         <SettingsPage />

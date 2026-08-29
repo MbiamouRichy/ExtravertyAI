@@ -111,14 +111,13 @@ export async function createProjectAndCheckout(data: {
         },
         trial_period_days: 10,
       },
-      success_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/projects/${project.id}?success=true`,
-      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/projects/new?canceled=true`,
+      success_url: `${process.env.NEXT_PUBLIC_APP_URL}/projects/${project.id}?success=true`,
+      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/projects/new?canceled=true`,
     });
 
     if (!checkoutSession.url) throw new Error("URL Stripe non générée");
 
-    revalidatePath("/dashboard");
-    revalidatePath("/dashboard/projects");
+    revalidatePath("/projects");
 
     return { success: true, url: checkoutSession.url };
   } catch (error) {

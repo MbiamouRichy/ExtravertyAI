@@ -5,13 +5,13 @@ import { Button } from "../ui/button";
 import { GoogleIcon, TiktokIcon } from "../social-icon";
 type providerType = Parameters<typeof signIn.social>[0]["provider"];
 
-export function SignInSocialButton({variant: variant = "outline", form: form= "grid", text}: {variant?: "outline" | "default", form?: "grid" | "flex", text?: string}) {
+export function SignInSocialButton({ variant: variant = "outline", form: form = "grid", text }: { variant?: "outline" | "default", form?: "grid" | "flex", text?: string }) {
   const { playHaptic } = useHaptics();
   async function SignInSocial(provider: providerType) {
     await signIn.social(
       {
         provider: provider,
-        callbackURL: "/dashboard",
+        callbackURL: "/projects",
       },
       {
         onError: (error) => {
@@ -40,7 +40,7 @@ export function SignInSocialButton({variant: variant = "outline", form: form= "g
         variant={variant}
         type="button"
       >
-        <GoogleIcon data-icon="inline-start"/>
+        <GoogleIcon data-icon="inline-start" />
         {text} Google
       </Button>
       <Button

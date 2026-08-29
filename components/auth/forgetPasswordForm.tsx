@@ -5,7 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import * as z from "zod";
-import { DecorIcon } from "@/components/decor-icon";
+import { DecorIcon } from "@/components/ui/decor-icon";
 
 import { Button } from "@/components/ui/button";
 

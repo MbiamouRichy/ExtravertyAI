@@ -50,11 +50,11 @@ export default async function ProjectPage({ params, searchParams }: PageProps) {
 
   const session = await getSession();
   if (!session?.user?.id) {
-    return redirect(`/sign-in?callbackUrl=/dashboard/projects/${projectId}`);
+    return redirect(`/sign-in?callbackUrl=/projects/${projectId}`);
   }
 
   const project = await getProjectById(projectId);
-  if (!project) return redirect("/dashboard/projects");
+  if (!project) return redirect("/projects");
 
   const ProjectData = await getWorkspaceData(project.id);
   if (!ProjectData) {

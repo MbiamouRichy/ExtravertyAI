@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 async function NewProjectPage() {
     const session = await getSession();
     if (!session?.user?.id) {
-        return redirect(`/sign-in?callbackUrl=/dashboard/projects/new`);
+        return redirect(`/sign-in?callbackUrl=/projects/new`);
     }
     return (
         <CreateProjectForm />

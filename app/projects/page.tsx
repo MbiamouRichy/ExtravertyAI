@@ -11,7 +11,7 @@ export default async function ProjectsPage() {
   const session = await getSession();
   if (!session?.user) {
     // Si l'utilisateur n'est pas connecté, on le redirige vers la page de connexion
-    return redirect(`/sign-in?callbackUrl=/dashboard/projects`);
+    return redirect(`/sign-in?callbackUrl=/projects`);
   }
   const projects = await getProjects();
   return (

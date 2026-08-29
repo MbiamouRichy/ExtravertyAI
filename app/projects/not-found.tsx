@@ -8,14 +8,14 @@ export default function NotFoundDashboard() {
         <NotFoundPage>
             <div className="flex gap-2">
                 <Button asChild>
-                    <Link title="page d'accueil" href="/dashboard">
+                    <Link title="page d'accueil" href="/projects">
                         <HomeIcon data-icon="inline-start" />
                         Dashboard
                     </Link>
                 </Button>
 
                 <Button asChild variant="outline">
-                    <Link title="page de contact" href="/dashboard/projects">
+                    <Link title="page de contact" href="/projects">
                         <Folder data-icon="inline-start" />{" "}
                         Vos projets
                     </Link>

@@ -140,7 +140,7 @@ export default function ChangeEmailForm({ children }: { children: React.ReactNod
             await authClient.changeEmail(
                 {
                     newEmail: data.newEmail,
-                    callbackURL: "/dashboard/user",
+                    callbackURL: "/projects/user",
                 },
                 {
                     onSuccess: () => {

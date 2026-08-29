@@ -43,7 +43,7 @@ export default function HomeProjectsPage({ projects }: CustomProjectProps) {
           </p>
         </div>
         <Button asChild className="w-full md:w-auto shrink-0 shadow-sm">
-          <Link href="/dashboard/projects/new" title="Créer un projet">
+          <Link href="/projects/new" title="Créer un projet">
             <Plus className="mr-2 h-4 w-4" />
             Nouveau projet
           </Link>
@@ -64,7 +64,7 @@ export default function HomeProjectsPage({ projects }: CustomProjectProps) {
               Créez votre premier projet pour générer une instance API et commencer à automatiser vos communications.
             </p>
             <Button asChild variant="default" className="w-full sm:w-auto">
-              <Link href="/dashboard/projects/new" title="Créer un projet">
+              <Link href="/projects/new" title="Créer un projet">
                 <Plus className="mr-2 h-4 w-4" />
                 Créer mon premier projet
               </Link>
@@ -82,7 +82,7 @@ export default function HomeProjectsPage({ projects }: CustomProjectProps) {
                     className="flex flex-col p-4 border bg-card shadow-sm space-y-4"
                   >
                     <div className="flex items-start justify-between gap-2">
-                      <Link href={`/dashboard/projects/${project.id}`} title={project.name} className="font-semibold text-base text-foreground truncate">
+                      <Link href={`/projects/${project.id}`} title={project.name} className="font-semibold text-base text-foreground truncate">
                         {project.name}
                       </Link>
                       <Badge
@@ -144,13 +144,13 @@ export default function HomeProjectsPage({ projects }: CustomProjectProps) {
                       </p>
                       <div className="grid grid-cols-2 gap-2 mt-2 pt-3 border-t border-border/50">
                         <Button className="w-full" size="sm">
-                          <Link href={`/dashboard/projects/${project.id}`} title={`Ouvrir ${project.name}`}>
+                          <Link href={`/projects/${project.id}`} title={`Ouvrir ${project.name}`}>
                             <LinkIcon className="h-4 w-4 mr-2" />
                             Ouvrir
                           </Link>
                         </Button>
                         <Button asChild className="w-full" variant="outline" size="sm">
-                          <Link href={`/dashboard/projects/${project.id}/settings`} title={`Gerer ${project.name}`}>
+                          <Link href={`/projects/${project.id}/settings`} title={`Gerer ${project.name}`}>
                             <Settings className="h-4 w-4 mr-2" />
                             Parametres
                           </Link>

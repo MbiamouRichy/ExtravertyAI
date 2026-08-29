@@ -24,7 +24,7 @@ export default async function ProfilePage() {
   const sessionData = await getSession();
 
   if (!sessionData?.user?.id) {
-    return redirect(`/sign-in?callbackUrl=/dashboard/user`);
+    return redirect(`/sign-in?callbackUrl=/projects/user`);
   }
 
   const user = sessionData.user;

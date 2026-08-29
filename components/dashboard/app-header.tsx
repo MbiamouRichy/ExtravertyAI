@@ -3,12 +3,12 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { DecorIcon } from "@/components/ui/decor-icon";
 import { AppBreadcrumbs } from "@/components/dashboard/app-breadcrumbs";
-import { CustomSidebarTrigger } from "@/components/dashboard/custom-sidebar-trigger";
 import { NavUser } from "@/components/dashboard/nav-user";
 import { BellIcon, Plus } from "lucide-react";
 import { Notifications } from "./notifications";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 import Link from "next/link";
+import { ConditionalSidebarTrigger } from "./conditional-sidebar-trigger";
 
 
 
@@ -24,18 +24,14 @@ export async function AppHeader() {
 		>
 			<DecorIcon className="hidden md:block" position="bottom-left" />
 			<div className="flex items-center gap-3">
-				<CustomSidebarTrigger />
-				<Separator
-					className="mr-2 h-4 data-[orientation=vertical]:self-center"
-					orientation="vertical"
-				/>
+				<ConditionalSidebarTrigger />
 				<AppBreadcrumbs />
 			</div>
 			<div className="flex items-center gap-3">
 				<Tooltip>
 					<TooltipTrigger asChild className="cursor-pointer">
 						<Button asChild size="icon-sm">
-							<Link href="/dashboard/projects/new" title="Projets">
+							<Link href="/projects/new" title="Projets">
 								<Plus />
 							</Link>
 						</Button>
