@@ -97,6 +97,69 @@ export default function ProfileLoading() {
                             ))}
                         </CardContent>
                     </Card>
+                    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                        <Card>
+                            <CardHeader>
+                                <div className="flex items-center justify-between">
+                                    <div className="space-y-2">
+                                        {/* Titre */}
+                                        <Skeleton className="h-6 w-50" />
+                                        {/* Description */}
+                                        <Skeleton className="h-4 w-75 sm:w-100" />
+                                    </div>
+                                    {/* Emplacement du loader discret */}
+                                    <Skeleton className="w-4 h-4 rounded-full" />
+                                </div>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                    {/* Répétition des 3 blocs de thèmes */}
+                                    {[1, 2, 3].map((item) => (
+                                        <div
+                                            key={item}
+                                            className="flex flex-col p-3 h-fit border rounded-md shadow-xs bg-transparent gap-2"
+                                        >
+                                            {/* Aperçu du thème */}
+                                            <Skeleton className="w-full h-24 rounded-md" />
+                                            {/* Label du thème */}
+                                            <Skeleton className="h-4 w-16 mx-auto mt-1" />
+                                        </div>
+                                    ))}
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </div>
+
+                    {/* --- SECTION SÉCURITÉ & COMPTE (SKELETON) --- */}
+                    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 mt-6">
+                        {/* On garde la subtile teinte rouge en fond pour ne pas avoir de flash de couleur au chargement */}
+                        <Card className="border-destructive/20 bg-destructive/5">
+                            <CardHeader>
+                                <div className="space-y-2">
+                                    {/* Titre avec espace pour l'icône */}
+                                    <div className="flex items-center gap-2">
+                                        <Skeleton className="w-5 h-5 rounded-md" />
+                                        <Skeleton className="h-6 w-37.5" />
+                                    </div>
+                                    {/* Description */}
+                                    <Skeleton className="h-4 w-62.5 sm:w-87.5" />
+                                </div>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 p-4 border border-destructive/20 rounded-lg bg-background">
+                                    <div className="space-y-2 w-full">
+                                        {/* Sous-titre */}
+                                        <Skeleton className="h-5 w-45" />
+                                        {/* Texte explicatif */}
+                                        <Skeleton className="h-4 w-full max-w-100" />
+                                    </div>
+
+                                    {/* Bouton de suppression */}
+                                    <Skeleton className="h-10 w-50 shrink-0 rounded-md" />
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </div>
                 </div>
             </div>
         </div>

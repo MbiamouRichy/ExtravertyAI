@@ -10,15 +10,16 @@ export function ConditionalSidebarTrigger() {
     // Décomposition sécurisée de l'URL pour éviter les faux positifs via Regex
     const segments = pathname?.split("/").filter(Boolean) || [];
 
-    // On vérifie qu'on est dans /projects/[id]
-    // Et on exclut explicitement la route "new" qui ne possède pas de sidebar de projet
-    const isProjectContext =
-        segments[0] === "dashboard" &&
-        segments[1] === "projects" &&
-        segments.length >= 3 &&
-        segments[2] !== "new";
+    // Liste des mots-clés qui suivent "/projects/" mais qui NE SONT PAS des ID de projet
+    const staticRoutes = ["new", "user", "billing"];
 
-    // Si on n'est pas dans un projet, on ne rend rien au DOM (opti UI/UX)
+    // On vérifie qu'on est bien dans un contexte de projet spécifique (ex: /projects/123)
+    const isProjectContext =
+        segments[0] === "projects" &&      // On est dans la section projects
+        segments.length >= 2 &&            // Il y a un ID ou un sous-chemin après
+        !staticRoutes.includes(segments[1]); // Ce sous-chemin n'est pas une route statique
+
+    // Si on n'est pas dans un projet spécifique, on ne rend rien au DOM (opti UI/UX)
     if (!isProjectContext) return null;
 
     return (

@@ -14,7 +14,7 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { UserIcon, SettingsIcon, CreditCardIcon, UserCog, Loader2Icon } from "lucide-react";
+import { UserIcon, CreditCardIcon, UserCog, Loader2Icon } from "lucide-react";
 import Link from "next/link";
 import { ModifierProfile } from "./user/modifierProfile";
 import React from "react";
@@ -31,7 +31,7 @@ export function NavUser() {
 		return <Loader2Icon className="w-6 h-6 animate-spin text-neutral-500" />;
 	}
 	if (!session || !session.user.id) {
-		redirect("/sign-in")
+		return redirect("/sign-in")
 	}
 	const user = session.user
 	return (
@@ -70,18 +70,12 @@ export function NavUser() {
 							<Link href="/projects/user" className="w-full">
 								<UserIcon
 								/>
-								Infos générales
+								Compte
 							</Link>
 						</DropdownMenuItem>
 						<DropdownMenuItem className="cursor-pointer" onSelect={() => setIsModalOpen(true)}>
 							<UserCog />
 							Modifier le profil
-						</DropdownMenuItem>
-						<DropdownMenuItem asChild className="cursor-pointer">
-							<Link href="/projects/user/settings" title="Parametres utilisateur">
-								<SettingsIcon
-								/>
-								Paramètres</Link>
 						</DropdownMenuItem>
 					</DropdownMenuGroup>
 					<DropdownMenuSeparator />

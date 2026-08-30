@@ -15,7 +15,9 @@ import { ChangePasswordDialog } from "@/components/dashboard/user/changePassword
 import ChangeEmailForm from "@/components/dashboard/user/modiferEmail";
 import type { Metadata } from "next";
 import { getInitials } from "@/components/getInitials";
+import UserSettingsPage from "@/components/dashboard/user/settingsPage";
 
+export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "User | ExtravertyAI",
 }
@@ -209,12 +211,13 @@ export default async function ProfilePage() {
                   </div>
 
                   {index === 0 && (
-                    <Badge className="bg-emerald-500 hover:bg-emerald-600">Actuelle</Badge>
+                    <Badge variant="default">Actuelle</Badge>
                   )}
                 </div>
               ))}
             </CardContent>
           </Card>
+          <UserSettingsPage />
         </div>
       </div>
     </div>

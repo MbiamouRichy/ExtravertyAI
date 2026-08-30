@@ -44,6 +44,7 @@ import { useIsMobile } from "@/hooks/use-mobile"
 import { Input } from "@/components/ui/input";
 import { updateProfileAction } from "@/app/actions/upload";
 import { getInitials } from "@/components/getInitials";
+import { useSession } from "@/lib/auth-client";
 
 const formSchema = z.object({
     nom: z
@@ -59,11 +60,9 @@ export function ModifierProfile({ children, open, setOpen, user }: { children?: 
     if (!isMobile) {
         return (
             <Dialog open={open} onOpenChange={setOpen}>
-                {children && (
-                    <DialogTrigger className="cursor-pointer" asChild>
-                        {children}
-                    </DialogTrigger>
-                )}
+                <DialogTrigger className="cursor-pointer" asChild>
+                    {children}
+                </DialogTrigger>
                 <DialogContent className="sm:max-w-106.25">
                     <DialogHeader>
                         <DialogTitle>Modifier le profil</DialogTitle>
@@ -79,11 +78,9 @@ export function ModifierProfile({ children, open, setOpen, user }: { children?: 
 
     return (
         <Drawer open={open} onOpenChange={setOpen}>
-            {children && (
-                <DrawerTrigger className="cursor-pointer" asChild>
-                    {children}
-                </DrawerTrigger>
-            )}
+            <DrawerTrigger className="cursor-pointer" asChild>
+                {children}
+            </DrawerTrigger>
             <DrawerContent>
                 <DrawerHeader className="text-left">
                     <DrawerTitle>Modifier le profil</DrawerTitle>
@@ -104,6 +101,7 @@ function ProfileForm({ className, user }: React.ComponentProps<"form"> & { user:
     const [file, setFile] = useState<File | null>(null);
     const [preview, setPreview] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const { refetch } = useSession();
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setError(null);
@@ -163,6 +161,7 @@ function ProfileForm({ className, user }: React.ComponentProps<"form"> & { user:
             }
 
             playHaptic("success");
+            await refetch()
             toast.success("Informations mises à jour avec succès.", {
                 position: "top-center",
             });
