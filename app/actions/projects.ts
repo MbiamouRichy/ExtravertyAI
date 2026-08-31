@@ -5,7 +5,10 @@ import { getSession } from "@/lib/auth-server";
 import { revalidatePath } from "next/cache";
 import z from "zod";
 import { ProjectStatus } from "@/src/generated/prisma/client";
+import { stripe } from "@/lib/stripe";
+import { deleteEvolutionInstance } from "./evolutionAPI";
 
+// 1. RÉCUPERER TOUS LES PROJETS
 export async function getProjects() {
   const session = await getSession();
 
@@ -42,6 +45,7 @@ export async function getProjects() {
   }
 }
 
+// 2. RÉCUPERER LE PROJET VIA SON ID
 export async function getProjectById(projectId: string) {
   if (!projectId) return null;
 
@@ -100,7 +104,7 @@ const ProjectActionSchema = z.object({
   projectId: z.string().cuid(),
 });
 
-// 1. DÉSACTIVER LE PROJET
+// 3. DÉSACTIVER LE PROJET
 export async function disableProject(
   formData: z.infer<typeof ProjectActionSchema>,
 ) {
@@ -170,7 +174,7 @@ export async function disableProject(
     return { success: false, error: errorMessage };
   }
 }
-// 2. SUPPRIMER LE PROJET (IRRÉVERSIBLE)
+// 4. SUPPRIMER LE PROJET (IRRÉVERSIBLE)
 export async function deleteProjectAction(
   formData: z.infer<typeof ProjectActionSchema>,
 ) {
@@ -200,31 +204,58 @@ export async function deleteProjectAction(
     if (!membership || !membership.project)
       throw new Error("Projet introuvable");
 
-    // SÉCURITÉ : La suppression doit être encore plus stricte (souvent réservée au seul OWNER)
     if (membership.role !== "OWNER") {
       throw new Error("Seul le propriétaire peut supprimer le projet.");
     }
 
-    // 1. NETTOYAGE EXTERNE : Supprimer l'instance sur Evolution API
-    /*
-    if (membership.project.instanceName) {
-      await fetch(`${process.env.EVOLUTION_API_URL}/instance/delete/${membership.project.instanceName}`, {
-        method: "DELETE",
-        headers: { "apikey": process.env.EVOLUTION_API_KEY! }
-      });
-    }
-    */
+    const project = membership.project;
 
-    // 2. SUPPRESSION EN BASE DE DONNÉES
-    // Note : Prisma gérera la suppression en cascade de membership, contacts, etc. SI configuré.
+    // --- ÉTAPE 1 : COUPER LA FACTURATION STRIPE ---
+    if (project.stripeSubscriptionId) {
+      try {
+        await stripe.subscriptions.cancel(project.stripeSubscriptionId);
+      } catch (stripeError) {
+        console.error("Erreur annulation Stripe:", stripeError);
+        // On continue, l'abonnement est peut-être déjà annulé.
+      }
+    }
+
+    // --- ÉTAPE 2 : NETTOYER EVOLUTION API ---
+    if (project.instanceName) {
+      try {
+        // 1. Déconnecter proprement WhatsApp (Logout)
+        // Ajout d'un .catch silencieux sur le fetch pour que même un crash réseau pur ne bloque pas
+        await fetch(
+          `${process.env.EVOLUTION_API_URL}/instance/logout/${project.instanceName}`,
+          {
+            method: "DELETE",
+            headers: { apikey: process.env.EVOLUTION_API_KEY! },
+          },
+        ).catch(() => {});
+
+        // 2. Supprimer l'instance (ta fonction a déjà un timeout et gère le 404)
+        await deleteEvolutionInstance(project.instanceName);
+      } catch (evoError) {
+        // CORRECTION MAJEURE : On loggue, mais ON NE BLOQUE PAS.
+        console.error(
+          "Erreur nettoyage Evolution API (orphelin potentiel):",
+          evoError,
+        );
+        // Si l'instance reste bloquée sur ton serveur, c'est ton problème d'admin à nettoyer plus tard,
+        // pas celui de l'utilisateur qui a le droit de voir son projet supprimé.
+      }
+    }
+
+    // --- ÉTAPE 3 : SUPPRESSION EN BASE DE DONNÉES ---
     await prisma.project.delete({
       where: { id: projectId },
     });
 
-    revalidatePath("/projects");
+    // Optionnel mais recommandé : purger depuis la racine pour éviter le bug de cache du header
+    revalidatePath("/", "layout");
+
     return { success: true };
   } catch (error: unknown) {
-    // CORRECTION : Remplacement de "any" par "unknown"
     const errorMessage =
       error instanceof Error ? error.message : "Erreur lors de la suppression";
     console.error("Erreur deleteProjectAction:", errorMessage);

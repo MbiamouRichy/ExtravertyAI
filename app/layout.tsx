@@ -9,7 +9,6 @@ import {
 import { Analytics } from "@vercel/analytics/next";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { getUser } from "@/lib/auth-server";
 
 const robotoMonoRobotoMono = Roboto_Mono({
   subsets: [
@@ -43,8 +42,7 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const user = await getUser()
-  const userTheme = user?.theme || "system";
+
   return (
     <html
       lang="fr"
@@ -60,8 +58,8 @@ export default async function RootLayout({
       <body suppressHydrationWarning>
         <ThemeProvider
           attribute="class"
-          defaultTheme={userTheme}
-          enableSystem={userTheme === "system"}
+          defaultTheme="system"
+          enableSystem
           disableTransitionOnChange
         >
           <TooltipProvider>{children}</TooltipProvider>

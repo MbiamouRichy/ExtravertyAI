@@ -60,7 +60,7 @@ export default function UserSettingsPage() {
         try {
             // Utilisation du client better-auth pour supprimer l'utilisateur
             await authClient.deleteUser({
-                callbackURL: "/sign-up",
+                callbackURL: "/goodbye",
                 fetchOptions: {
                     onSuccess: () => {
                         toast.success("Un email de verification vous ete envoye clique sur le lien qu'il contient pour supprimer votre compte.",
@@ -182,8 +182,11 @@ export default function UserSettingsPage() {
                                             disabled={isDeleting}
                                             onClick={handleDeleteAccount}
                                         >
-                                            {isDeleting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
-                                            Oui, supprimer mon compte
+                                            {isDeleting ? <>
+                                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                                En cour...
+                                            </> : "Oui, supprimer mon compte"}
+
                                         </Button>
                                     </AlertDialogFooter>
                                 </AlertDialogContent>

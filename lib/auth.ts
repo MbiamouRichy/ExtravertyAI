@@ -6,12 +6,79 @@ import { resend } from "./resend";
 import { ResetPasswordTemplate } from "@/components/emailTemplate/resetPasswordTemplate";
 import { ChangeEmailTemplate } from "@/components/emailTemplate/changeEmailTemplate";
 import { DeleteAccountEmailTemplate } from "@/components/emailTemplate/DeleteAccountEmailTemplate";
+import { stripe } from "./stripe";
+import { deleteEvolutionInstance } from "@/app/actions/evolutionAPI";
 
 export const auth = betterAuth({
   baseURL: process.env.NEXT_PUBLIC_BASE_URL as string,
   database: prismaAdapter(prisma, {
     provider: "postgresql",
   }),
+
+  databaseHooks: {
+    user: {
+      delete: {
+        before: async (user) => {
+          try {
+            // 1. Récupérer tous les projets où l'utilisateur est le PROPRIÉTAIRE (OWNER)
+            const memberships = await prisma.projectMembership.findMany({
+              where: {
+                userId: user.id,
+                role: "OWNER", // On ne supprime que les projets dont il est le maître
+              },
+              include: {
+                project: true,
+              },
+            });
+
+            // 2. Boucler sur chaque projet pour nettoyer les services externes
+            for (const membership of memberships) {
+              const project = membership.project;
+
+              // A. Annuler l'abonnement Stripe
+              if (project.stripeSubscriptionId) {
+                try {
+                  await stripe.subscriptions.cancel(
+                    project.stripeSubscriptionId,
+                  );
+                } catch (e) {
+                  console.error(
+                    `[Stripe] Erreur résiliation projet ${project.id}:`,
+                    e,
+                  );
+                }
+              }
+
+              // B. Supprimer l'instance WhatsApp via ton fichier evolutionAPI.ts
+              if (project.instanceName) {
+                try {
+                  await deleteEvolutionInstance(project.instanceName);
+                } catch (e) {
+                  console.error(
+                    `[EvolutionAPI] Erreur suppression instance ${project.instanceName}:`,
+                    e,
+                  );
+                }
+              }
+
+              // C. Supprimer physiquement le projet (ce qui cascade sur les Contacts et Messages)
+              await prisma.project.delete({
+                where: { id: project.id },
+              });
+            }
+          } catch (error) {
+            // On loggue l'erreur mais on ne throw pas pour ne pas bloquer
+            // le droit légal de l'utilisateur (RGPD) à supprimer son compte.
+            console.error(
+              "Erreur critique lors du nettoyage pre-suppression du compte :",
+              error,
+            );
+          }
+        },
+      },
+    },
+  },
+
   account: {
     accountLinking: {
       enabled: true,
