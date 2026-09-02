@@ -25,19 +25,23 @@ export async function AppHeader() {
 			<DecorIcon className="hidden md:block" position="bottom-left" />
 			<div className="flex items-center gap-3">
 				<ConditionalSidebarTrigger />
+				<Separator
+					className="mr-2 h-4 data-[orientation=vertical]:self-center transition-all duration-200"
+					orientation="vertical"
+				/>
 				<AppBreadcrumbs />
 			</div>
 			<div className="flex items-center gap-3">
 				<Tooltip>
 					<TooltipTrigger asChild className="cursor-pointer">
 						<Button asChild size="icon-sm">
-							<Link href="/projects/new" title="Projets">
+							<Link href="/projects/new" title="Nouveau projet">
 								<Plus />
 							</Link>
 						</Button>
 					</TooltipTrigger>
 					<TooltipContent>
-						<p className="text-sm leading-relaxed">Nouveau project</p>
+						<p className="text-sm leading-relaxed">Nouveau projet</p>
 					</TooltipContent>
 				</Tooltip>
 				<Notifications>

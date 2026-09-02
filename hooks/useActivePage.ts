@@ -26,6 +26,7 @@ export function useActivePage() {
 
     // ⚠️ L'ordre est très important ici : du plus spécifique au plus général
     if (pathname.startsWith("/projects/user")) return "User";
+    if (pathname.startsWith("/projects/new")) return "New project";
     if (pathname.startsWith("/projects/billing")) return "Plan";
     if (pathname.startsWith("/projects")) return "Projets";
 

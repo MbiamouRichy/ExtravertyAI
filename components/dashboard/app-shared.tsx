@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { BarChart3Icon, BriefcaseIcon, UsersIcon, PlugIcon, KeyRoundIcon, SettingsIcon, CreditCardIcon, HelpCircleIcon, BookOpenIcon, CogIcon } from "lucide-react";
+import { BarChart3Icon, BriefcaseIcon, UsersIcon, PlugIcon, KeyRoundIcon, SettingsIcon, CreditCardIcon, HelpCircleIcon, BookOpenIcon, FolderEditIcon, LayoutGridIcon } from "lucide-react";
 
 export type SidebarNavItem = {
 	title: string;
@@ -19,6 +19,13 @@ export const navGroups: SidebarNavGroup[] = [
 	{
 		label: "Product",
 		items: [
+			{
+				title: "Dashboard",
+				path: "#/dashboard",
+				icon: (
+					<LayoutGridIcon />
+				),
+			},
 			{
 				title: "Analytics",
 				path: "#/analytics",
@@ -45,11 +52,10 @@ export const navGroups: SidebarNavGroup[] = [
 				show: false,
 			},
 			{
-				title: "User Settings",
-				path: "/projects/user/settings",
+				title: "New project",
+				path: "/projects/new",
 				icon: (
-					<CogIcon
-					/>
+					<FolderEditIcon />
 				),
 				show: false,
 			},

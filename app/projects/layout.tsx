@@ -1,4 +1,4 @@
-import { AppHeader } from "@/components/dashboard/app-header";
+import { AppShell } from "@/components/dashboard/app-shell";
 
 export default function DashboardLayout({
     children,
@@ -7,10 +7,9 @@ export default function DashboardLayout({
 }>) {
 
     return (
-        <>
-            <AppHeader />
+        <AppShell>
             {children}
-        </>
+        </AppShell>
 
     );
 }

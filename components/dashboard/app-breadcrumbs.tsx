@@ -28,7 +28,7 @@ export function AppBreadcrumbs() {
 		<Breadcrumb>
 			<BreadcrumbList>
 				<BreadcrumbItem>
-					<BreadcrumbPage className="flex items-center gap-2 [&>svg]:size-3.5">
+					<BreadcrumbPage className="flex items-center truncate gap-2 [&>svg]:size-3.5">
 						{page.icon}
 						{page.title}
 					</BreadcrumbPage>
