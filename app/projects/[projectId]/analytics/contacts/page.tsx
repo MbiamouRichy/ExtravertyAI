@@ -3,18 +3,43 @@ import { Users, Bot, User } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ContactsTableColumns, ContactTableType } from "@/components/dashboard/project/contacts-column";
 import { ContactsTable } from "@/components/dashboard/project/contacts-table";
+import { getSession } from "@/lib/auth-server";
+import { redirect } from "next/navigation";
+import prisma from "@/lib/prisma";
+import { getProjectById } from "@/app/actions/projects";
+import ProjectNotFoundDialog from "@/components/dashboard/project/projectNotfoundDialog";
 // Ajuste le chemin
 
-export const metadata: Metadata = {
-    title: "CRM Contacts | ExtravertyAI",
-    description: "Gérez vos prospects WhatsApp et suivez les conversations.",
+type ContactsPageProps = {
+    params: Promise<{ projectId: string }>;
 };
 
-interface ContactsPageProps {
-    params: {
-        projectId: string;
+// 1. DYNAMISME DE L'ONGLET
+export async function generateMetadata({ params }: ContactsPageProps): Promise<Metadata> {
+    const resolvedParams = await params;
+    const projectId = resolvedParams.projectId;
+    const session = await getSession();
+
+    if (!session?.user?.id) return { title: "Connexion requise | ExtravertyAI" };
+
+    const projectMembership = await prisma.projectMembership.findUnique({
+        where: {
+            userId_projectId: {
+                userId: session.user.id,
+                projectId: projectId,
+            },
+        },
+        select: { project: { select: { name: true } } },
+    });
+
+    if (!projectMembership) return { title: "Projet introuvable | ExtravertyAI" };
+
+    return {
+        title: `${projectMembership.project.name} - Contacts | ExtravertyAI`,
+        description: `Gérez les contacts pour le projet ${projectMembership.project.name}`,
     };
 }
+
 
 // 🧪 MOCK DATA : À utiliser uniquement pour tester l'UI
 export const mockContacts: ContactTableType[] = [
@@ -75,8 +100,28 @@ export const mockContacts: ContactTableType[] = [
 ];
 // 🚀 Server Component : Chargement ultra-rapide côté serveur
 export default async function ContactsPage({ params }: ContactsPageProps) {
-    const { projectId } = params;
+    const resolvedParams = await params;
+    const projectId = resolvedParams.projectId;
     console.log(projectId)
+
+    const session = await getSession()
+    if (!session?.user?.id) {
+        return redirect(`/sign-in?callbackUrl=/projects/${projectId}/analytics/contacts`)
+    }
+
+    const project = await getProjectById(projectId);
+    if (!project) {
+        return (
+            <div className="flex items-center justify-center min-h-screen bg-background">
+                {/* On affiche directement la modale par-dessus un fond vide */}
+                <ProjectNotFoundDialog open={true} />
+            </div>
+        );
+    }
+    if (project.userRole !== "OWNER" && project.userRole !== "ADMIN") {
+        return redirect(`/projects/${projectId}?error=unauthorized`);
+    }
+
 
     // 1. Récupération des données réelles via Prisma
     // Utilisation d'une requête optimisée sans charger les messages pour la vue globale

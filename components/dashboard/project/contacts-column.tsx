@@ -13,6 +13,8 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { ArrowUpDown, MoreHorizontal, MessageSquare, Bot, User, UserX, Phone } from "lucide-react"
 import Link from "next/link"
+import DeleteContact from "./deleteContact"
+import ToggleContactAi from "./ToggleContactAI"
 
 // Type représentant le modèle Prisma Contact
 export type ContactTableType = {
@@ -136,24 +138,16 @@ export const ContactsTableColumns: ColumnDef<ContactTableType>[] = [
                                 </Link>
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
-                            <DropdownMenuItem className="cursor-pointer">
-                                {contact.aiActive ? (
-                                    <>
-                                        <User className="mr-2 h-4 w-4" />
-                                        Reprendre la main (Désactiver IA)
-                                    </>
-                                ) : (
-                                    <>
-                                        <Bot className="mr-2 h-4 w-4" />
-                                        Déléguer à l&apos;IA
-                                    </>
-                                )}
+                            <DropdownMenuItem className="cursor-pointer" asChild onSelect={(e) => e.preventDefault()}>
+                                <ToggleContactAi projectId={contact.projectId} contact={contact} />
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
-                            <DropdownMenuItem className="cursor-pointer text-destructive focus:text-destructive">
-                                <UserX className="mr-2 h-4 w-4" />
-                                Supprimer le contact
-                            </DropdownMenuItem>
+                            <DeleteContact projectId={contact.projectId} contact={contact}>
+                                <DropdownMenuItem variant="destructive" className="cursor-pointer" onSelect={(e) => e.preventDefault()}>
+                                    <UserX className="mr-2 h-4 w-4" />
+                                    Supprimer le contact
+                                </DropdownMenuItem>
+                            </DeleteContact>
                         </DropdownMenuContent>
                     </DropdownMenu>
                 </div>

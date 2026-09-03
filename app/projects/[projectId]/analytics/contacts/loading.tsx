@@ -67,9 +67,9 @@ export default function ContactsLoading() {
                                 </div>
 
                                 {/* Colonnes secondaires (masquées sur mobile, visibles sur desktop) */}
-                                <Skeleton className="h-4 w-30 hidden md:block" />
-                                <Skeleton className="h-6 w-25 rounded-full hidden md:block" /> {/* Badge IA */}
-                                <Skeleton className="h-4 w-22.5 hidden md:block" />
+                                <Skeleton className="h-4 w-40 hidden md:block" />
+                                <Skeleton className="h-6 w-35 rounded-full hidden md:block" /> {/* Badge IA */}
+                                <Skeleton className="h-4 w-50 hidden md:block" />
 
                                 {/* Colonne Action (toujours visible) */}
                                 <div className="flex justify-end pr-2 w-10">

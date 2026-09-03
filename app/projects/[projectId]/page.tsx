@@ -6,6 +6,8 @@ import prisma from "@/lib/prisma";
 import ProjectWorkspace from "@/components/dashboard/project/whatsappSendMessageForm";
 import QRCodeScanner from "@/components/dashboard/project/qrCodeScanner";
 import { getWorkspaceData } from "@/app/actions/getMessages&Contacts";
+import UnauthorizedDialog from "@/components/dashboard/project/unAuthorizedDialog";
+import ProjectNotFoundDialog from "@/components/dashboard/project/projectNotfoundDialog";
 
 export const dynamic = "force-dynamic";
 
@@ -47,6 +49,7 @@ export default async function ProjectPage({ params, searchParams }: PageProps) {
 
   const projectId = resolvedParams.projectId;
   const isSuccess = resolvedSearchParams.success === "true";
+  const showUnauthorizedError = resolvedSearchParams.error === "unauthorized";
 
   const session = await getSession();
   if (!session?.user?.id) {
@@ -54,7 +57,14 @@ export default async function ProjectPage({ params, searchParams }: PageProps) {
   }
 
   const project = await getProjectById(projectId);
-  if (!project) return redirect("/projects");
+  if (!project) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-background">
+        {/* On affiche directement la modale par-dessus un fond vide */}
+        <ProjectNotFoundDialog open={true} />
+      </div>
+    );
+  }
 
   const ProjectData = await getWorkspaceData(project.id);
   if (!ProjectData) {
@@ -74,7 +84,12 @@ export default async function ProjectPage({ params, searchParams }: PageProps) {
   }
 
   if (project.instanceStatus === "connected" && ProjectData.clients && ProjectData.messages) {
-    return <ProjectWorkspace project={project} user={session.user} isSuccess={isSuccess} clients={ProjectData.clients} messages={ProjectData.messages} />;
+    return (<>
+      {showUnauthorizedError && (
+        <UnauthorizedDialog open={true} />
+      )}
+      <ProjectWorkspace project={project} user={session.user} isSuccess={isSuccess} clients={ProjectData.clients} messages={ProjectData.messages} />;
+    </>)
   }
 
   // FAILLE CORRIGÉE : Ajout d'un Fallback visuel pour les autres statuts (ex: "disconnected", "initializing")

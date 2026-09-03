@@ -13,12 +13,7 @@ import {
     getPaginationRowModel,
     getFilteredRowModel
 } from "@tanstack/react-table"
-import {
-    DropdownMenu,
-    DropdownMenuCheckboxItem,
-    DropdownMenuContent,
-    DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+
 import {
     Table,
     TableBody,
@@ -29,17 +24,18 @@ import {
 } from "@/components/ui/table"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { Settings2, Search, ChevronLeft, ChevronRight, Download } from "lucide-react"
+import { Settings2, Search, ChevronLeft, ChevronRight, Download, ChevronDown, SheetIcon, NotepadTextIcon } from "lucide-react"
+import {
+    DropdownMenu,
+    DropdownMenuCheckboxItem,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { handleExport } from "@/lib/exportFile";
 
-// Notre type d'export sécurisé
-interface ExportableContact {
-    id: string;
-    name: string | null;
-    pushName: string | null;
-    phone: string;
-    aiActive: boolean;
-    createdAt: string | Date;
-}
+
 
 interface ContactsTableProps<TData, TValue> {
     columns: ColumnDef<TData, TValue>[]
@@ -99,32 +95,8 @@ export function ContactsTable<TData, TValue>({
         },
     })
 
-    const handleExport = () => {
-        const rows = table.getFilteredRowModel().rows;
-        const csvContent = [
-            ["ID", "Nom", "Nom WhatsApp", "Telephone", "Statut IA", "Date de creation"],
-            ...rows.map(r => {
-                const rowData = r.original as unknown as ExportableContact;
-                return [
-                    rowData.id,
-                    rowData.name || "",
-                    rowData.pushName || "",
-                    rowData.phone,
-                    rowData.aiActive ? "Oui" : "Non",
-                    new Date(rowData.createdAt).toISOString()
-                ].join(",");
-            })
-        ].join("\n");
 
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.setAttribute("href", url);
-        link.setAttribute("download", `contacts_crm_${new Date().toISOString().slice(0, 10)}.csv`);
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-    };
+
 
     return (
         <div className="space-y-4">
@@ -141,14 +113,30 @@ export function ContactsTable<TData, TValue>({
                     />
                 </div>
                 <div className="flex items-center gap-2 w-full sm:w-auto">
-                    <Button
-                        variant="outline"
-                        onClick={handleExport}
-                        className="flex-1 sm:flex-none flex items-center gap-2 bg-background"
-                    >
-                        <Download className="h-4 w-4" />
-                        <span className="hidden sm:inline">Exporter (CSV)</span>
-                    </Button>
+                    <DropdownMenu>
+                        <DropdownMenuTrigger>
+                            <Button
+                                variant="outline"
+                                className="flex-1 sm:flex-none flex items-center gap-2 bg-background"
+                            >
+                                <Download className="h-4 w-4" />
+                                <span className="hidden sm:inline">Exporter</span>
+                                <ChevronDown className="h-4 w-4" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent>
+                            <DropdownMenuLabel>Exporter vers</DropdownMenuLabel>
+                            <DropdownMenuItem className="cursor-pointer" onClick={() => handleExport("csv", table)}>
+                                <NotepadTextIcon />
+                                Exporter (CSV)
+                            </DropdownMenuItem>
+                            <DropdownMenuItem className="cursor-pointer" onClick={() => handleExport("pdf", table)}>
+                                <SheetIcon />
+                                Exporter (PDF)
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+
 
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -207,7 +195,7 @@ export function ContactsTable<TData, TValue>({
                 </div>
             </div>
 
-            <div className="rounded-md border bg-card text-card-foreground shadow-sm overflow-hidden">
+            <div className="border bg-card text-card-foreground shadow-sm overflow-hidden">
                 <Table>
                     <TableHeader>
                         {table.getHeaderGroups().map((headerGroup) => (

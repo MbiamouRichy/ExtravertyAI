@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import { Dashboard } from "@/components/dashboard/dashboard";
 import { getProjectById } from "@/app/actions/projects";
 import prisma from "@/lib/prisma";
+import ProjectNotFoundDialog from "@/components/dashboard/project/projectNotfoundDialog";
 export const dynamic = "force-dynamic";
 
 type PageProps = {
@@ -48,7 +49,17 @@ export default async function ProjectDashboardPage({ params }: PageProps) {
   }
 
   const project = await getProjectById(projectId);
-  if (!project) return redirect("/projects");
+  if (!project) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-background">
+        {/* On affiche directement la modale par-dessus un fond vide */}
+        <ProjectNotFoundDialog open={true} />
+      </div>
+    );
+  }
+  if (project.userRole !== "OWNER" && project.userRole !== "ADMIN") {
+    return redirect(`/projects/${projectId}?error=unauthorized`);
+  }
   return (
     <Dashboard />
   );
