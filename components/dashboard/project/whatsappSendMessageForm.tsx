@@ -56,6 +56,8 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { Kbd, KbdGroup } from "@/components/ui/kbd";
 import { Bubble, BubbleContent } from "@/components/ui/bubble";
 import StreamedMessage from "./AIGenerateTextBlock";
+import { state } from "@/lib/proxy-state";
+import { useSnapshot } from "valtio";
 
 // ------------------------------------------------------
 // 📦 TYPES & INTERFACES
@@ -76,22 +78,24 @@ interface WorkspaceProps {
 
 export default function WhatsappWorkspace({ project, user, isSuccess, clients, messages }: WorkspaceProps) {
     const [activeClientId, setActiveClientId] = useState<string | null>(null);
-
+    const snap = useSnapshot(state)
     const [input, setInput] = useState("");
     const [isSending, setIsSending] = useState(false);
     const [showMobileChat, setShowMobileChat] = useState<boolean>(false);
     const [messagesMap, setMessagesMap] = useState<Record<string, ChatMessage[]>>(messages);
     const { playHaptic } = useHaptics();
     useEffect(() => {
-        if (clients.length > 0) {
-            const firstClientId = clients[0].id;
-            setActiveClientId((prev) => {
-                // Si prev est null (aucun client sélectionné), on met le premier.
-                // Sinon, on garde le client actuellement sélectionné (prev).
-                return prev === null ? firstClientId : prev;
-            });
+        if (clients.length === 0) return;
+
+        // 1. Priorité au client stocké dans le state Valtio s'il est valide
+        if (snap.activeClient && clients.some((c) => c.id === snap.activeClient)) {
+            setActiveClientId(snap.activeClient);
+            return;
         }
-    }, [project.id, clients]);
+
+        // 2. Sinon, on conserve l'actuel s'il est déjà défini, ou on prend le premier
+        setActiveClientId((prev) => (prev !== null ? prev : clients[0].id));
+    }, [project.id, clients, snap.activeClient]);
 
     // 2. DÉRIVATION DES MESSAGES DU CLIENT ACTIF
     const activeMessages = activeClientId ? (messagesMap[activeClientId] || []) : [];

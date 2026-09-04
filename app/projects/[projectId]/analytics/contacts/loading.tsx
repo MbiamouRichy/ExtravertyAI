@@ -43,7 +43,7 @@ export default function ContactsLoading() {
                 </div>
 
                 {/* Conteneur du tableau */}
-                <div className="rounded-md border bg-card shadow-sm overflow-hidden">
+                <div className="border bg-card shadow-sm overflow-hidden">
                     {/* Header du tableau */}
                     <div className="border-b bg-muted/40 p-4 flex items-center justify-between">
                         <Skeleton className="h-4 w-30" />

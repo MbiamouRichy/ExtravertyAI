@@ -1,6 +1,6 @@
 "use client"
 
-import { ColumnDef } from "@tanstack/react-table"
+import { ColumnDef, Row } from "@tanstack/react-table"
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -12,9 +12,10 @@ import {
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { ArrowUpDown, MoreHorizontal, MessageSquare, Bot, User, UserX, Phone } from "lucide-react"
-import Link from "next/link"
 import DeleteContact from "./deleteContact"
 import ToggleContactAi from "./ToggleContactAI"
+import { useRouter } from "next/navigation"
+import { state } from "@/lib/proxy-state"
 
 // Type représentant le modèle Prisma Contact
 export type ContactTableType = {
@@ -116,42 +117,47 @@ export const ContactsTableColumns: ColumnDef<ContactTableType>[] = [
         id: "actions",
         enableHiding: false,
         header: "", // On s'assure qu'il n'y a pas de titre en haut de cette colonne
-        cell: ({ row }) => {
-            const contact = row.original
-
-            return (
-                // On pousse le bouton tout à droite
-                <div className="flex justify-end">
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" className="h-8 w-8 p-0">
-                                <span className="sr-only">Ouvrir le menu</span>
-                                <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-fit min-w-48">
-                            <DropdownMenuLabel className="truncate">Actions {contact.name || contact.phone}</DropdownMenuLabel>
-                            <DropdownMenuItem className="cursor-pointer" asChild>
-                                <Link href={`/projects/${contact.projectId}/chat/${contact.id}`}>
-                                    <MessageSquare className="mr-2 h-4 w-4" />
-                                    Ouvrir la conversation
-                                </Link>
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem className="cursor-pointer" asChild onSelect={(e) => e.preventDefault()}>
-                                <ToggleContactAi projectId={contact.projectId} contact={contact} />
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DeleteContact projectId={contact.projectId} contact={contact}>
-                                <DropdownMenuItem variant="destructive" className="cursor-pointer" onSelect={(e) => e.preventDefault()}>
-                                    <UserX className="mr-2 h-4 w-4" />
-                                    Supprimer le contact
-                                </DropdownMenuItem>
-                            </DeleteContact>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
-                </div>
-            )
-        },
+        cell: ({ row }) => <ContactRow row={row} />,
     },
 ]
+
+
+function ContactRow({ row }: { row: Row<ContactTableType> }) {
+    const router = useRouter()
+    const contact = row.original
+    const handleNavigateToChat = (projectId: string, contactId: string) => {
+        state.activeClient = contactId;
+        router.push(`/projects/${projectId}`);
+    };
+    return (
+        // On pousse le bouton tout à droite
+        <div className="flex justify-end">
+            <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" className="h-8 w-8 p-0">
+                        <span className="sr-only">Ouvrir le menu</span>
+                        <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
+                    </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-fit min-w-48">
+                    <DropdownMenuLabel className="truncate">Actions {contact.name || contact.phone}</DropdownMenuLabel>
+                    <DropdownMenuItem className="cursor-pointer" onClick={() => handleNavigateToChat(contact.projectId, contact.id)}>
+                        <MessageSquare className="mr-2 h-4 w-4" />
+                        Ouvrir la conversation
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem className="cursor-pointer" asChild onSelect={(e) => e.preventDefault()}>
+                        <ToggleContactAi projectId={contact.projectId} contact={contact} />
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DeleteContact projectId={contact.projectId} contact={contact}>
+                        <DropdownMenuItem variant="destructive" className="cursor-pointer" onSelect={(e) => e.preventDefault()}>
+                            <UserX className="mr-2 h-4 w-4" />
+                            Supprimer le contact
+                        </DropdownMenuItem>
+                    </DeleteContact>
+                </DropdownMenuContent>
+            </DropdownMenu>
+        </div>
+    )
+}
