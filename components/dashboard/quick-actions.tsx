@@ -57,8 +57,8 @@ export function QuickActions({ projectId }: { projectId: string }) {
     return (
         <DashboardCard className="col-span-1">
             <CardHeader>
-                <CardTitle>Quick actions</CardTitle>
-                <CardDescription>Shortcuts to same destinations.</CardDescription>
+                <CardTitle>Actions Rapides</CardTitle>
+                <CardDescription>Raccourcis vers les mêmes destinations.</CardDescription>
             </CardHeader>
             <CardContent>
                 <ItemGroup className="gap-0">
