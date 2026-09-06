@@ -97,7 +97,7 @@ export function TeamOnDuty({
     }
 
     return (
-        <Card className={cn("shadow-none dark:ring-0 rounded-none!", className)} {...props}>
+        <Card className={cn("shadow-none dark:ring-0 bg-background rounded-none!", className)} {...props}>
             <CardHeader className="border-b">
                 <CardTitle>Team on duty</CardTitle>
                 <CardDescription>Who is carrying the queue right now</CardDescription>

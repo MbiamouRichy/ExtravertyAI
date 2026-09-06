@@ -59,7 +59,7 @@ export function CustomSourceMessageChart({
     };
 
     return (
-        <Card className={cn("flex flex-col shadow-sm border-border/60 transition-all relative overflow-hidden", className)}>
+        <Card className={cn("flex flex-col shadow-sm border-border/60 transition-all relative bg-background overflow-hidden", className)}>
 
             {isPending && (
                 <div className="absolute inset-0 z-10 bg-background/60 backdrop-blur-[2px] flex items-center justify-center transition-all duration-300">

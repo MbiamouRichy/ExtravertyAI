@@ -1,6 +1,5 @@
 import { BillingHealth } from "@/components/dashboard/billing-health";
-import { ChannelSalesChart } from "@/components/dashboard/channel-sales-chart";
-import { DashboardActivity } from "@/components/dashboard/dashboard-activity";
+import { DashboardDiscussionRow, DashboardDiscussionsChart } from "@/components/dashboard/new-discussionsChart";
 import { DashboardContacts } from "@/components/dashboard/dashboard-contacts";
 
 import { DashboardStats } from "@/components/dashboard/stats";
@@ -8,23 +7,28 @@ import { TeamOnDuty } from "./team-and-duty";
 import { SourceDatum } from "@/app/actions/getMessagesSources";
 import { SourceMessageChart } from "./source-chart";
 import { DashboardMessageRecu } from "./dashboard-message-stats";
+import { getAiResponseTimeData } from "@/app/actions/ai-metrics";
+import { FirstAiReplyTimeChart } from "./first-reply-time-chart";
 
 export async function Dashboard({ projectId }: { projectId: string }) {
 	// const statsResult = await getMessageSourcesStats(projectId, "7d");
+	const ResponseTimeChartData = await getAiResponseTimeData(projectId);
+	// const { chartData, growthPct } = await getDashboardDiscussionsMetrics(projectId);
 	return (
 		<div className="grid grid-cols-1 gap-px bg-border p-px m-4 md:m-6 md:grid-cols-2 lg:grid-cols-4">
 			<DashboardStats projectId={projectId} />
 			<DashboardMessageRecu projectId={projectId} />
-			<ChannelSalesChart />
-			<DashboardContacts projectId={projectId} />
+			{/* <DashboardDiscussionsChart data={chartData} growthPct={growthPct} /> */}
+			<DashboardDiscussionsChart data={mockDashboardData} growthPct={mockDashboardGrowthPct} />
+			<FirstAiReplyTimeChart className="md:col-span-2" data={ResponseTimeChartData} />
 			<SourceMessageChart
 				data={mockData1Month}
 				totalMessages={mockTotal1Month}
 				trendPercentage={14.2}
 			/>
-			<BillingHealth />
-			<DashboardActivity />
 			<TeamOnDuty />
+			<DashboardContacts projectId={projectId} />
+			<BillingHealth />
 		</div>
 	);
 }
@@ -65,3 +69,15 @@ export const mockDataEmpty: SourceDatum[] = [
 	{ source: "unknown", count: 0, fill: "var(--chart-4)" },
 ];
 export const mockTotalEmpty = 0;
+
+export const mockDashboardData: DashboardDiscussionRow[] = [
+	{ day: "Lun", currentWeek: 45, previousWeek: 30 },
+	{ day: "Mar", currentWeek: 52, previousWeek: 48 },
+	{ day: "Mer", currentWeek: 68, previousWeek: 55 },
+	{ day: "Jeu", currentWeek: 64, previousWeek: 60 },
+	{ day: "Ven", currentWeek: 58, previousWeek: 50 },
+	{ day: "Sam", currentWeek: 25, previousWeek: 20 },
+	{ day: "Dim", currentWeek: 20, previousWeek: 15 },
+];
+
+export const mockDashboardGrowthPct = 19.4; // +19.4%

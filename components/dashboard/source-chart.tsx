@@ -52,12 +52,12 @@ export function SourceMessageChart({
 }: SourceMessageChartProps) {
     return (
         <Card
-            className={cn("flex flex-col shadow-sm border-border/60", className)}
+            className={cn("flex flex-col bg-background shadow-sm border-border/60", className)}
             {...props}
         >
             <CardHeader className="items-center space-y-1.5 pb-4 sm:items-start">
                 <div className="flex w-full flex-wrap items-center justify-between gap-2">
-                    <CardTitle className="text-lg font-semibold tracking-tight">
+                    <CardTitle>
                         Sources des messages
                     </CardTitle>
                     {trendPercentage !== 0 && (
@@ -67,7 +67,7 @@ export function SourceMessageChart({
                         </Delta>
                     )}
                 </div>
-                <CardDescription className="text-sm text-muted-foreground">
+                <CardDescription>
                     Répartition sur les 7 derniers jours ({totalMessages} au total)
                 </CardDescription>
             </CardHeader>
@@ -75,7 +75,7 @@ export function SourceMessageChart({
             <CardContent className="flex-1 pb-6 flex flex-col justify-center">
                 {totalMessages > 0 ? (
                     <ChartContainer
-                        className="mx-auto aspect-square max-h-72 w-full"
+                        className="mx-auto aspect-square max-h-100 w-full"
                         config={chartConfig}
                     >
                         <PieChart accessibilityLayer>
@@ -92,7 +92,7 @@ export function SourceMessageChart({
                                 nameKey="source"
                                 outerRadius={95}
                                 stroke="var(--card)"
-                                strokeWidth={2}
+                                strokeWidth={1}
                                 paddingAngle={3}
                             >
                                 <LabelList
