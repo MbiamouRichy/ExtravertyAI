@@ -2,19 +2,19 @@ import { BillingHealth } from "@/components/dashboard/billing-health";
 import { ChannelSalesChart } from "@/components/dashboard/channel-sales-chart";
 import { DashboardActivity } from "@/components/dashboard/dashboard-activity";
 import { DashboardContacts } from "@/components/dashboard/dashboard-contacts";
-import { NetRevenueChart } from "@/components/dashboard/net-revenue-chart";
+
 import { DashboardStats } from "@/components/dashboard/stats";
 import { TeamOnDuty } from "./team-and-duty";
 import { SourceDatum } from "@/app/actions/getMessagesSources";
 import { SourceMessageChart } from "./source-chart";
+import { DashboardMessageRecu } from "./dashboard-message-stats";
 
-export async function Dashboard() {
-	const projectId = "1"; // Remplacez par l'ID réel du projet ou récupérez-le dynamiquement si nécessaire
+export async function Dashboard({ projectId }: { projectId: string }) {
 	// const statsResult = await getMessageSourcesStats(projectId, "7d");
 	return (
 		<div className="grid grid-cols-1 gap-px bg-border p-px m-4 md:m-6 md:grid-cols-2 lg:grid-cols-4">
-			<DashboardStats />
-			<NetRevenueChart />
+			<DashboardStats projectId={projectId} />
+			<DashboardMessageRecu projectId={projectId} />
 			<ChannelSalesChart />
 			<DashboardContacts projectId={projectId} />
 			<SourceMessageChart

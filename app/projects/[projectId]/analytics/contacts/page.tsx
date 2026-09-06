@@ -102,7 +102,6 @@ export const mockContacts: ContactTableType[] = [
 export default async function ContactsPage({ params }: ContactsPageProps) {
     const resolvedParams = await params;
     const projectId = resolvedParams.projectId;
-    console.log(projectId)
 
     const session = await getSession()
     if (!session?.user?.id) {

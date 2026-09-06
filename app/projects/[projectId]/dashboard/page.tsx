@@ -61,6 +61,6 @@ export default async function ProjectDashboardPage({ params }: PageProps) {
     return redirect(`/projects/${projectId}?error=unauthorized`);
   }
   return (
-    <Dashboard />
+    <Dashboard projectId={projectId} />
   );
 }
