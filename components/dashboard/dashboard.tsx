@@ -1,4 +1,3 @@
-import { BillingHealth } from "@/components/dashboard/billing-health";
 import { DashboardDiscussionRow, DashboardDiscussionsChart } from "@/components/dashboard/new-discussionsChart";
 import { DashboardContacts } from "@/components/dashboard/dashboard-contacts";
 
@@ -9,6 +8,7 @@ import { SourceMessageChart } from "./source-chart";
 import { DashboardMessageRecu } from "./dashboard-message-stats";
 import { getAiResponseTimeData } from "@/app/actions/ai-metrics";
 import { FirstAiReplyTimeChart } from "./first-reply-time-chart";
+import { QuickActions } from "./quick-actions";
 
 export async function Dashboard({ projectId }: { projectId: string }) {
 	// const statsResult = await getMessageSourcesStats(projectId, "7d");
@@ -28,7 +28,7 @@ export async function Dashboard({ projectId }: { projectId: string }) {
 			/>
 			<TeamOnDuty />
 			<DashboardContacts projectId={projectId} />
-			<BillingHealth />
+			<QuickActions projectId={projectId} />
 		</div>
 	);
 }

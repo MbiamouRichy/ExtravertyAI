@@ -33,8 +33,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     if (!projectMembership) return { title: "Projet introuvable | ExtravertyAI" };
 
     return {
-        title: `${projectMembership.project.name} - Contacts | ExtravertyAI`,
-        description: `Gérez les contacts pour le projet ${projectMembership.project.name}`,
+        title: `${projectMembership.project.name} - Analytics | ExtravertyAI`,
+        description: `Gérez les analytics pour le projet ${projectMembership.project.name}`,
     };
 }
 
