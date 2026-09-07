@@ -100,7 +100,7 @@ model Project {
   members              ProjectMembership[]
   contacts             Contact[]      // Les prospects WhatsApp du projet
   messages             Message[]      // Tous les messages liés à ce projet
-
+  invitations          Invitation[]   // Les invitations au projet
   // Dates
   createdAt            DateTime       @default(now())
   updatedAt            DateTime       @updatedAt
@@ -214,7 +214,7 @@ model User {
 
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
-  
+  invitations Invitation[]
   sessions      Session[]
   accounts      Account[]
 
@@ -268,4 +268,25 @@ model Verification {
 
   @@index([identifier])
   @@map("verification")
+}
+
+model Invitation {
+  id        String   @id @default(cuid())
+  email     String
+  projectId String
+  role      Role     @default(USER)
+  token     String   @unique
+  
+  inviterId String
+  inviter   User     @relation(fields: [inviterId], references: [id], onDelete: Cascade)
+  
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  // Un email ne peut avoir qu'une seule invitation active par projet
+  @@unique([email, projectId]) 
+  @@index([token])
+  @@map("invitation")
 }

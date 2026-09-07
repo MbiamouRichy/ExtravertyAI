@@ -21,9 +21,9 @@ import { DashboardCard } from "./dashboard-card";
 export function QuickActions({ projectId }: { projectId: string }) {
     const actions = [
         {
-            title: "Ajouter un membre d'équipe",
-            description: "Créer un nouveau membre d'équipe.",
-            href: `/projects/${projectId}/team/new`,
+            title: "Gérer l'équipe",
+            description: "Manager les membres de l'équipe.",
+            href: `/projects/${projectId}/team`,
             icon: (
                 <UsersIcon aria-hidden="true" />
             ),
