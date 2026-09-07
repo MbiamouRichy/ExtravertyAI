@@ -1,4 +1,5 @@
 import { getProjectById } from "@/app/actions/projects";
+import { getTeamMembers } from "@/app/actions/team";
 import ProjectNotFoundDialog from "@/components/dashboard/project/projectNotfoundDialog";
 import TeamManagement from "@/components/dashboard/project/team-management";
 import { getSession } from "@/lib/auth-server";
@@ -10,6 +11,7 @@ type PageProps = {
     params: Promise<{ projectId: string }>;
 };
 
+export const dynamic = "force-dynamic";
 // 1. DYNAMISME DE L'ONGLET
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
     const resolvedParams = await params;
@@ -57,8 +59,10 @@ export default async function TeamPage({ params }: PageProps) {
     if (project.userRole !== "OWNER" && project.userRole !== "ADMIN") {
         return redirect(`/projects/${projectId}?error=unauthorized`);
     }
+    const data = await getTeamMembers(projectId);
+
 
     return (
-        <TeamManagement projectId={projectId} />
+        <TeamManagement projectId={projectId} data={data} currentUserId={session.user.id} />
     );
 }
