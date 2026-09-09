@@ -25,6 +25,7 @@ import { toast } from "sonner";
 import { updateMemberRole } from "@/app/actions/team";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useRouter } from "next/navigation";
+import { useHaptics } from "@/lib/webHaptics";
 
 interface MemberToEdit {
     id: string; // ProjectMembership ID
@@ -40,6 +41,7 @@ interface ChangeRoleModalProps {
     member: MemberToEdit | null;
     projectId: string;
     currentUserRole: Role;
+    onSuccess: (newRole: Role) => void; // Callback to update the member list after a successful role change
 }
 
 const ROLE_DESCRIPTIONS: Record<Role, string> = {
@@ -54,9 +56,11 @@ export function ChangeRoleModal({
     member,
     projectId,
     currentUserRole,
+    onSuccess
 }: ChangeRoleModalProps) {
     const [selectedRole, setSelectedRole] = useState<Role>(member?.role ?? "USER")
     const [isPending, startTransition] = useTransition();
+    const { playHaptic } = useHaptics();
     const router = useRouter();
     if (!member) return null;
 
@@ -74,10 +78,13 @@ export function ChangeRoleModal({
             });
 
             if (result.success) {
+                playHaptic("success");
                 toast.success(result.message || "Rôle mis à jour avec succès.");
                 router.refresh();
+                onSuccess(selectedRole);
                 onClose();
             } else {
+                playHaptic("error");
                 toast.error(result.error || "Impossible de modifier le rôle.");
             }
         });

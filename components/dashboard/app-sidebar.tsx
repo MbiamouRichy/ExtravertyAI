@@ -1,5 +1,6 @@
 "use client";
 
+import { useParams } from "next/navigation"; // Ajout de useParams
 import { cn } from "@/lib/utils";
 import { LogoIcon } from "@/components/logo";
 import {
@@ -11,7 +12,7 @@ import {
 	SidebarMenuButton,
 	SidebarMenuItem,
 } from "@/components/ui/sidebar";
-import { footerNavLinks, navGroups } from "@/components/dashboard/app-shared";
+import { footerNavLinks, getNavGroups } from "@/components/dashboard/app-shared"; // Import de la fonction
 import { LatestChange } from "@/components/dashboard/latest-change";
 import { NavGroup } from "@/components/dashboard/nav-group";
 import Link from "next/link";
@@ -20,7 +21,15 @@ import { useIsProjectContext } from "./conditional-sidebar-trigger";
 
 export function AppSidebar() {
 	const isProjectContext = useIsProjectContext();
-	if (isProjectContext) {
+
+	// Récupération des paramètres de l'URL
+	const params = useParams();
+	const projectId = params.projectId as string;
+
+	// Génération de la navigation dynamique
+	const navGroups = projectId ? getNavGroups(projectId) : [];
+
+	if (isProjectContext && projectId) {
 		return (
 			<Sidebar
 				className={cn(
@@ -37,6 +46,7 @@ export function AppSidebar() {
 					</SidebarMenuButton>
 				</SidebarHeader>
 				<SidebarContent>
+					{/* Utilisation des navGroups dynamiques */}
 					{navGroups.map((group, index) => (
 						<NavGroup key={`sidebar-group-${index}`} {...group} />
 					))}

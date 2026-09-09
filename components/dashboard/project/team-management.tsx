@@ -1,7 +1,10 @@
 "use client";
 
 import * as React from "react";
-import { useState, useTransition } from "react";
+// 1. Ajout de useEffect
+import { useState, useTransition, useEffect } from "react";
+// 2. Ajout de useRouter pour rafraîchir les données serveur
+import { useRouter } from "next/navigation";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -98,9 +101,16 @@ interface TeamManagementProps {
 }
 
 export default function TeamManagement({ projectId, currentUserId, data }: TeamManagementProps) {
+    const router = useRouter(); // <-- Initialisation du router
+
     // État global
     const [members, setMembers] = useState<TeamMember[]>(data);
     const [searchQuery, setSearchQuery] = useState("");
+
+    // 3. SYNCHRONISATION : Met à jour l'état local si les données serveur (props 'data') changent
+    useEffect(() => {
+        setMembers(data);
+    }, [data]);
 
     // Modal Inviter
     const [isInviteOpen, setIsInviteOpen] = useState(false);
@@ -156,15 +166,18 @@ export default function TeamManagement({ projectId, currentUserId, data }: TeamM
     };
 
     // --- 2. ACTION : INVITER UN MEMBRE ---
-    const onSubmitInvite = (data: InviteFormValues) => {
+    const onSubmitInvite = (formData: InviteFormValues) => { // Renommé formData pour éviter un conflit de nom avec les props `data`
         startInviteTransition(async () => {
-            const res = await inviteTeamMember(data.email, data.role as Role, projectId);
+            const res = await inviteTeamMember(formData.email, formData.role as Role, projectId);
 
             if (res.success) {
                 playHaptic("success");
-                toast.success(`Invitation envoyée à ${data.email}`);
+                toast.success(`Invitation envoyée à ${formData.email}`);
                 setIsInviteOpen(false);
                 form.reset();
+
+                // 4. RAFRAÎCHISSEMENT : Demande à Next.js de recharger les données (ce qui déclenchera le useEffect plus haut)
+                router.refresh();
             } else {
                 playHaptic("error");
                 toast.error(res.error || "Impossible d'envoyer l'invitation.");
@@ -188,14 +201,19 @@ export default function TeamManagement({ projectId, currentUserId, data }: TeamM
             if (res.success) {
                 playHaptic("success");
                 toast.success(`${memberToDelete.name} a été retiré de l'équipe.`);
+                // Mise à jour optimiste (l'UI réagit tout de suite)
                 setMembers((prev) => prev.filter((m) => m.id !== memberToDelete.id));
                 setMemberToDelete(null);
+
+                // On s'assure que le serveur est bien synchro
+                router.refresh();
             } else {
                 playHaptic("error");
                 toast.error(res.error || "Erreur lors de la suppression.");
             }
         });
     };
+
     const rolePriority = {
         OWNER: 1,
         ADMIN: 2,
@@ -204,11 +222,11 @@ export default function TeamManagement({ projectId, currentUserId, data }: TeamM
 
     // Trier les membres en fonction de ce poids
     const sortedMembers = [...filteredMembers].sort((a, b) => {
-        const priorityA = rolePriority[a.role] || 3; // 99 par défaut si le rôle n'est pas reconnu
+        const priorityA = rolePriority[a.role] || 3;
         const priorityB = rolePriority[b.role] || 3;
-
         return priorityA - priorityB;
     });
+
     return (
         <div className="max-w-5xl mx-auto p-6 space-y-8">
             {/* HEADER SECTION */}
@@ -378,9 +396,7 @@ export default function TeamManagement({ projectId, currentUserId, data }: TeamM
                                     </div>
 
                                     {/* RÔLE ET ACTIONS */}
-
-
-                                    {canManageMember && (
+                                    {member.id !== currentUserId && canManageMember && (
                                         <div className="flex items-center gap-4">
                                             <div>{getRoleBadge(member.role)}</div>
                                             {member.role !== "OWNER" && (
@@ -415,7 +431,6 @@ export default function TeamManagement({ projectId, currentUserId, data }: TeamM
                                                 </DropdownMenu>
                                             )}
                                         </div>
-
                                     )}
                                 </div>
                             );
@@ -471,6 +486,18 @@ export default function TeamManagement({ projectId, currentUserId, data }: TeamM
                 member={memberToEditRole}
                 projectId={projectId}
                 currentUserRole={currentUserRole}
+                onSuccess={(selectedRole: Role) => {
+                    // Mise à jour optimiste
+                    setMembers((prev) =>
+                        prev.map((m) =>
+                            m.id === memberToEditRole?.id
+                                ? { ...m, role: selectedRole }
+                                : m
+                        )
+                    );
+                    // On s'assure que le serveur est bien synchro
+                    router.refresh();
+                }}
             />
         </div>
     );

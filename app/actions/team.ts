@@ -96,7 +96,7 @@ export async function removeTeamMember(
       where: { id: membershipId, projectId },
     });
 
-    revalidatePath(`/projects/${projectId}/team`);
+    revalidatePath(`/projects/${projectId}`, "layout");
     return { success: true };
   } catch {
     return { success: false, error: "Erreur lors de la suppression." };
@@ -211,7 +211,7 @@ export async function inviteTeamMember(
       });
     }
 
-    revalidatePath(`/projects/${projectId}/team`);
+    revalidatePath(`/projects/${projectId}`, "layout");
     return { success: true };
   } catch (error) {
     console.error("Erreur invitation:", error);
@@ -325,7 +325,7 @@ export async function updateMemberRole(
       data: { role: newRole },
     });
 
-    revalidatePath(`/projects/${projectId}/team`, "page");
+    revalidatePath(`/projects/${projectId}`, "layout");
     return {
       success: true,
       message: `Le rôle de ${targetMembership.user.name || targetMembership.user.email} a été mis à jour.`,

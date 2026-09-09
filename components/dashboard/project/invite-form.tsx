@@ -1,27 +1,22 @@
 "use client";
 
 import * as React from "react";
-import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
-import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { Controller, useForm } from "react-hook-form";
+import { toast } from "sonner";
 import * as z from "zod";
-import {
-    Eye,
-    EyeOff,
-    CheckCircle2,
-    Loader2,
-    Lock,
-    User,
-    ArrowRight,
-    ShieldCheck,
-    Building2,
-} from "lucide-react";
+import { useRouter } from "next/navigation";
 
+// --- Tes composants UI ---
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
+import {
+    Card,
+    CardContent,
+    CardDescription,
+    CardFooter,
+    CardHeader,
+    CardTitle,
+} from "@/components/ui/card";
 import {
     Field,
     FieldError,
@@ -29,190 +24,214 @@ import {
     FieldLabel,
 } from "@/components/ui/field";
 
-import { toast } from "sonner";
-import { acceptInvitationAndRegister, type InvitationDetails } from "@/app/actions/invite";
+// --- Logique & Auth ---
+// IMPORT TON CLIENT BETTER AUTH ICI (Exemple générique)
+import { authClient } from "@/lib/auth-client";
+import { AtSignIcon, Eye, EyeOff, KeySquareIcon, Loader2, User } from "lucide-react";
+import { consumeInvitation } from "@/app/actions/invite";
+import { Logo } from "@/components/logo";
+import Link from "next/link";
+import { InputGroup, InputGroupInput, InputGroupAddon, InputGroupButton } from "@/components/ui/input-group";
 import { useHaptics } from "@/lib/webHaptics";
 
-const registerSchema = z.object({
-    name: z.string().min(2, "Veuillez entrer votre nom complet."),
+// Schéma de validation pro (Email est ignoré car en lecture seule)
+const formSchema = z.object({
+    name: z
+        .string()
+        .min(2, "Votre nom doit contenir au moins 2 caractères.")
+        .max(50, "Votre nom est trop long."),
     password: z
         .string()
         .min(8, "Le mot de passe doit contenir au moins 8 caractères.")
+        .regex(/[a-z]/, "Doit contenir au moins une lettre minuscule.")
+        .regex(/[0-9]/, "Doit contenir au moins un chiffre."),
 });
 
-type RegisterFormValues = z.infer<typeof registerSchema>;
-
 interface InviteFormProps {
-    invitation: InvitationDetails;
+    email: string;
     token: string;
+    projectName: string;
+    inviterName: string;
 }
 
-export function InviteForm({ invitation, token }: InviteFormProps) {
+export function InviteForm({ email, token, projectName, inviterName }: InviteFormProps) {
     const router = useRouter();
-    const [showPassword, setShowPassword] = useState(false);
-    const [isPending, startTransition] = useTransition();
+    const [isLoading, setIsLoading] = React.useState(false);
+    const [showPassword, setShowPassword] = React.useState(false);
     const { playHaptic } = useHaptics();
-    const form = useForm<RegisterFormValues>({
-        resolver: zodResolver(registerSchema),
+    const form = useForm<z.infer<typeof formSchema>>({
+        resolver: zodResolver(formSchema),
         defaultValues: {
             name: "",
             password: "",
         },
     });
 
-    const onSubmit = (values: RegisterFormValues) => {
-        startTransition(async () => {
-            const res = await acceptInvitationAndRegister({
-                token,
-                name: values.name,
-                password: values.password,
+    async function onSubmit(data: z.infer<typeof formSchema>) {
+        setIsLoading(true);
+
+        try {
+            // 1. Création du compte via Better Auth
+            const { error: signUpError } = await authClient.signUp.email({
+                email: email,
+                password: data.password,
+                name: data.name,
             });
 
-            if (res.success) {
-                playHaptic("success");
-                toast.success("Compte créé avec succès ! Bienvenue à bord.");
-                router.push(`/projects/${res.projectId}`);
-            } else {
-                playHaptic("error");
-                toast.error(res.error || "Une erreur est survenue.");
+            if (signUpError) {
+                throw new Error(signUpError.message || "Erreur lors de la création du compte.");
             }
-        });
-    };
 
-    const getRoleLabel = (role: string) => {
-        switch (role) {
-            case "ADMIN":
-                return "Administrateur";
-            case "OWNER":
-                return "Propriétaire";
-            default:
-                return "Agent / Utilisateur";
+            // 2. Valider l'invitation et lier l'utilisateur au projet
+            const result = await consumeInvitation(token);
+
+            if (!result.success) {
+                throw new Error(result.error);
+            }
+            playHaptic("success");
+            toast.success("Compte créé avec succès !", {
+                description: result.message,
+                position: "top-center",
+            });
+
+            // 3. Redirection vers le projet
+            router.push(`/projects/${result.projectId}`);
+
+        } catch (error: unknown) {
+            const message = error instanceof Error ? error.message : "Une erreur est survenue.";
+            playHaptic("error");
+            toast.error("Une erreur est survenue", {
+                description: message,
+                position: "top-center",
+            });
+            setIsLoading(false);
         }
-    };
+    }
 
     return (
-        <Card className="w-full bg-card/50 max-w-lg">
-            {/* HEADER VISUEL DU PROJET */}
-            <CardHeader className="p-2 md:p-4">
-                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 justify-between mb-4">
-                    <Badge variant="secondary" className="gap-1.5 py-1 px-3 text-xs font-medium">
-                        <CheckCircle2 className="w-3.5 h-3.5" /> Invitation valide
-                    </Badge>
-                    <Badge variant="outline" className="text-xs text-muted-foreground">
-                        {getRoleLabel(invitation.role)}
-                    </Badge>
+        <Card className="w-full sm:max-w-md shadow-lg">
+            <CardHeader className="space-y-2 text-center">
+                <div className="mx-auto mb-2 flex items-center justify-center">
+                    <Link href="/" title="Retour à l'accueil">
+                        <Logo className="h-12 w-12" />
+                    </Link>
                 </div>
-
-                <div className="flex items-center gap-4 pt-1">
-                    <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center border border-primary/20 text-primary">
-                        <Building2 className="w-6 h-6" />
-                    </div>
-                    <div>
-                        <h2 className="text-xl font-bold tracking-tight text-foreground">
-                            {invitation.project.name}
-                        </h2>
-                        <p className="text-xs text-muted-foreground mt-0.5">
-                            Invité(e) par <span className="font-medium text-foreground">{invitation.inviter.name}</span>
-                        </p>
-                    </div>
-                </div>
+                <CardTitle className="text-xl">Rejoindre l&apos;équipe</CardTitle>
+                <CardDescription>
+                    <span className="font-semibold text-foreground">{inviterName}</span> vous a invité à rejoindre le projet <span className="font-semibold text-foreground">{projectName}</span>.
+                </CardDescription>
             </CardHeader>
 
-            <CardContent className="p-2 md:p-4 space-y-6">
-                <div className="space-y-1">
-                    <h3 className="text-lg font-semibold text-foreground">Créez votre compte</h3>
-                    <p className="text-sm text-muted-foreground">
-                        Finalisez votre profil pour accéder à l&apos;espace de travail.
-                    </p>
-                </div>
-
-                <form id="accept-invite-form" onSubmit={form.handleSubmit(onSubmit)}>
+            <CardContent>
+                <form id="invite-form" onSubmit={form.handleSubmit(onSubmit)}>
                     <FieldGroup>
-                        {/* EMAIL (READONLY) */}
+                        {/* EMAIL (Disabled / Read-only) */}
                         <Field>
-                            <FieldLabel className="text-xs font-medium text-muted-foreground">
-                                Adresse email attribuée
-                            </FieldLabel>
-                            <div className="relative">
-                                <Input
-                                    value={invitation.email}
+                            <FieldLabel id="invite-email">Adresse Email</FieldLabel>
+                            <InputGroup>
+                                <InputGroupInput
+                                    id="invite-email"
+                                    aria-invalid={false}
+                                    value={email}
                                     disabled
-                                    readOnly
-                                    className="bg-muted/40 font-medium text-muted-foreground cursor-not-allowed select-none"
+                                    className="bg-muted text-muted-foreground"
                                 />
-                                <ShieldCheck className="absolute right-3 top-2.5 h-4 w-4 text-emerald-500" />
-                            </div>
+                                <InputGroupAddon align="inline-start">
+                                    <AtSignIcon />
+                                </InputGroupAddon>
+                            </InputGroup>
                         </Field>
 
                         {/* NOM COMPLET */}
-                        <Field data-invalid={!!form.formState.errors.name}>
-                            <FieldLabel htmlFor="name">Nom complet</FieldLabel>
-                            <div className="relative">
-                                <User className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                                <Input
-                                    {...form.register("name")}
-                                    id="name"
-                                    placeholder="ex: Paul Mbadinga"
-                                    className="pl-9"
-                                    disabled={isPending}
-                                    autoComplete="name"
-                                />
-                            </div>
-                            {form.formState.errors.name && (
-                                <FieldError errors={[form.formState.errors.name]} />
+                        <Controller
+                            name="name"
+                            control={form.control}
+                            render={({ field, fieldState }) => (
+                                <Field data-invalid={fieldState.invalid}>
+                                    <FieldLabel htmlFor="invite-name">Nom complet</FieldLabel>
+                                    <InputGroup>
+                                        <InputGroupInput
+                                            {...field}
+                                            id="invite-name"
+                                            aria-invalid={fieldState.invalid}
+                                            placeholder="Jean Dupont"
+                                            disabled={isLoading}
+                                            autoComplete="name"
+                                        />
+                                        <InputGroupAddon align="inline-start">
+                                            <User />
+                                        </InputGroupAddon>
+                                    </InputGroup>
+                                    {fieldState.invalid && (
+                                        <FieldError errors={[fieldState.error]} />
+                                    )}
+                                </Field>
                             )}
-                        </Field>
+                        />
 
                         {/* MOT DE PASSE */}
-                        <Field data-invalid={!!form.formState.errors.password}>
-                            <FieldLabel htmlFor="password">Mot de passe</FieldLabel>
-                            <div className="relative">
-                                <Lock className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                                <Input
-                                    {...form.register("password")}
-                                    id="password"
-                                    type={showPassword ? "text" : "password"}
-                                    placeholder="••••••••••••"
-                                    className="pl-9 pr-10"
-                                    disabled={isPending}
-                                    autoComplete="new-password"
-                                />
-                                <button
-                                    type="button"
-                                    onClick={() => setShowPassword(!showPassword)}
-                                    className="absolute right-3 top-2.5 text-muted-foreground hover:text-foreground transition-colors"
-                                >
-                                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                                </button>
-                            </div>
-                            {form.formState.errors.password && (
-                                <FieldError errors={[form.formState.errors.password]} />
+                        <Controller
+                            name="password"
+                            control={form.control}
+                            render={({ field, fieldState }) => (
+                                <Field data-invalid={fieldState.invalid}>
+                                    <FieldLabel htmlFor="invite-password">Mot de passe</FieldLabel>
+
+                                    <InputGroup>
+                                        <InputGroupInput
+                                            {...field}
+                                            id="invite-password"
+                                            aria-invalid={fieldState.invalid}
+                                            placeholder="••••••••"
+                                            disabled={isLoading}
+                                            autoComplete="new-password"
+                                            type={showPassword ? "text" : "password"}
+                                        />
+                                        <InputGroupAddon align="inline-start">
+                                            <KeySquareIcon />
+                                        </InputGroupAddon>
+                                        <InputGroupAddon align="inline-end">
+                                            <InputGroupButton
+                                                variant="ghost"
+                                                size="icon-sm"
+                                                onClick={() => setShowPassword(!showPassword)}
+                                                type="button"
+                                            >
+                                                {showPassword ? (
+                                                    <Eye />
+                                                ) : (
+                                                    <EyeOff />
+                                                )}</InputGroupButton>
+                                        </InputGroupAddon>
+                                    </InputGroup>
+                                    {fieldState.invalid && (
+                                        <FieldError errors={[fieldState.error]} />
+                                    )}
+                                </Field>
                             )}
-                        </Field>
+                        />
                     </FieldGroup>
                 </form>
             </CardContent>
 
-            <CardFooter className="p-2 md:p-4 flex flex-col gap-3">
+            <CardFooter className="flex flex-col space-y-4">
                 <Button
                     type="submit"
-                    form="accept-invite-form"
+                    form="invite-form"
                     className="w-full"
-                    disabled={isPending}
+                    disabled={isLoading}
                 >
-                    {isPending ? (
+                    {isLoading ? (
                         <>
-                            <Loader2 className="w-4 h-4 animate-spin" />
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                             Création du compte...
                         </>
                     ) : (
-                        <>
-                            Rejoindre l&apos;équipe <ArrowRight className="w-4 h-4" />
-                        </>
+                        "Créer mon compte et rejoindre"
                     )}
                 </Button>
-                <p className="text-xs text-center text-muted-foreground">
-                    En rejoignant le projet, vous acceptez les conditions d&apos;utilisation d&apos;ExtravertyAI.
+                <p className="text-center text-xs text-muted-foreground">
+                    En rejoignant ce projet, vous acceptez nos conditions d&apos;utilisation et notre politique de confidentialité.
                 </p>
             </CardFooter>
         </Card>

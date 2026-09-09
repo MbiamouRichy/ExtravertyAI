@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { BarChart3Icon, BriefcaseIcon, UsersIcon, PlugIcon, KeyRoundIcon, SettingsIcon, CreditCardIcon, HelpCircleIcon, BookOpenIcon, FolderEditIcon, LayoutGridIcon } from "lucide-react";
+import { BarChart3Icon, BriefcaseIcon, UsersIcon, SettingsIcon, CreditCardIcon, HelpCircleIcon, BookOpenIcon, FolderEditIcon, LayoutDashboard } from "lucide-react";
 
 export type SidebarNavItem = {
 	title: string;
@@ -15,56 +15,42 @@ export type SidebarNavGroup = {
 	items: SidebarNavItem[];
 };
 
-export const navGroups: SidebarNavGroup[] = [
+// Transformation en fonction pour accepter projectId
+export const getNavGroups = (projectId: string): SidebarNavGroup[] => [
 	{
 		label: "Product",
 		items: [
 			{
 				title: "Dashboard",
-				path: "#/dashboard",
-				icon: (
-					<LayoutGridIcon />
-				),
+				path: `/projects/${projectId}/dashboard`, // Chemin dynamique
+				icon: <LayoutDashboard />,
 			},
 			{
 				title: "Analytics",
-				path: "#/analytics",
-				icon: (
-					<BarChart3Icon
-					/>
-				),
+				path: `/projects/${projectId}/analytics`,
+				icon: <BarChart3Icon />,
 			},
 			{
 				title: "Projets",
-				path: "/projects",
-				icon: (
-					<BriefcaseIcon
-					/>
-				),
+				path: "/projects", // Reste statique si c'est la liste générale
+				icon: <BriefcaseIcon />,
 			},
 			{
 				title: "User",
-				path: "/projects/user",
-				icon: (
-					<UsersIcon
-					/>
-				),
+				path: `/projects/user`,
+				icon: <UsersIcon />,
 				show: false,
 			},
 			{
 				title: "New project",
 				path: "/projects/new",
-				icon: (
-					<FolderEditIcon />
-				),
+				icon: <FolderEditIcon />,
 				show: false,
 			},
 			{
 				title: "Plan",
-				path: "/projects/billing",
-				icon: (
-					<CreditCardIcon />
-				),
+				path: `/projects/${projectId}/billing`,
+				icon: <CreditCardIcon />,
 				show: false,
 			},
 		],
@@ -74,28 +60,19 @@ export const navGroups: SidebarNavGroup[] = [
 		items: [
 			{
 				title: "Team",
-				path: "#/team",
-				icon: (
-					<UsersIcon
-					/>
-				),
+				path: `/projects/${projectId}/team`,
+				icon: <UsersIcon />,
 			},
-			{
-				title: "Integrations",
-				path: "#/integrations",
-				icon: (
-					<PlugIcon
-					/>
-				),
-			},
-			{
-				title: "API Keys",
-				path: "#/api-keys",
-				icon: (
-					<KeyRoundIcon
-					/>
-				),
-			},
+			// {
+			// 	title: "Integrations",
+			// 	path: `/projects/${projectId}/integrations`,
+			// 	icon: <PlugIcon />,
+			// },
+			// {
+			// 	title: "API Keys",
+			// 	path: `/projects/${projectId}/api-keys`,
+			// 	icon: <KeyRoundIcon />,
+			// },
 		],
 	},
 	{
@@ -103,45 +80,35 @@ export const navGroups: SidebarNavGroup[] = [
 		items: [
 			{
 				title: "Settings",
-				path: "#/settings",
-				icon: (
-					<SettingsIcon
-					/>
-				),
+				path: `/projects/${projectId}/settings`,
+				icon: <SettingsIcon />,
 			},
 			{
 				title: "Billing",
-				path: "#/billing",
-				icon: (
-					<CreditCardIcon
-					/>
-				),
+				path: `/projects/${projectId}/billing`,
+				icon: <CreditCardIcon />,
 			},
 		],
 	},
 ];
 
+// Si les liens du footer dépendent aussi du projet, transformez-les en fonction.
+// Sinon, laissez-les en tableau constant.
 export const footerNavLinks: SidebarNavItem[] = [
 	{
 		title: "Help Center",
 		path: "#/help",
-		icon: (
-			<HelpCircleIcon
-			/>
-		),
+		icon: <HelpCircleIcon />,
 	},
 	{
 		title: "Documentation",
 		path: "#/documentation",
-		icon: (
-			<BookOpenIcon
-			/>
-		),
+		icon: <BookOpenIcon />,
 	},
 ];
 
-export const navLinks: SidebarNavItem[] = [
-	...navGroups.flatMap((group) =>
+export const navLinks = (projectId: string): SidebarNavItem[] => [
+	...getNavGroups(projectId).flatMap((group) =>
 		group.items.flatMap((item) =>
 			item.subItems?.length ? [item, ...item.subItems] : [item]
 		)
