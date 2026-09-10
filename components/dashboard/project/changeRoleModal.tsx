@@ -26,6 +26,7 @@ import { updateMemberRole } from "@/app/actions/team";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useRouter } from "next/navigation";
 import { useHaptics } from "@/lib/webHaptics";
+import { getInitials } from "@/components/getInitials";
 
 interface MemberToEdit {
     id: string; // ProjectMembership ID
@@ -92,7 +93,7 @@ export function ChangeRoleModal({
 
     return (
         <Dialog open={isOpen} onOpenChange={(open) => !open && !isPending && onClose()}>
-            <DialogContent className="sm:max-w-121.25 border-border/80 shadow-2xl">
+            <DialogContent className="md:max-w-121.25 border-border/80 shadow-2xl">
                 <DialogHeader className="space-y-3">
                     <div className="flex items-center gap-2">
                         <div className="p-2 rounded-lg bg-primary/10 text-primary">
@@ -108,14 +109,14 @@ export function ChangeRoleModal({
                 </DialogHeader>
 
                 {/* RÉSUMÉ DU MEMBRE */}
-                <div className="flex items-center gap-3 p-3.5 rounded-xl bg-muted/40 border border-border/60 my-2">
+                <div className="flex flex-col md:flex-row items-start md:items-center gap-3 p-3.5 rounded-xl bg-muted/40 border border-border/60 my-2">
                     <Avatar className="h-10 w-10 border border-border">
                         <AvatarImage src={member.image || undefined} alt={member.name || ""} />
                         <AvatarFallback className="bg-primary/10 text-primary font-semibold text-xs">
-                            {member.name ? member.name.substring(0, 2).toUpperCase() : "U"}
+                            {getInitials(member.name || "")}
                         </AvatarFallback>
                     </Avatar>
-                    <div className="flex flex-col min-w-0 flex-1">
+                    <div className="flex flex-col md:min-w-0 flex-1">
                         <span className="font-medium text-sm text-foreground truncate">
                             {member.name || "Utilisateur"}
                         </span>
@@ -186,7 +187,6 @@ export function ChangeRoleModal({
                         type="button"
                         onClick={handleRoleChange}
                         disabled={isPending || selectedRole === member.role}
-                        className="min-w-30"
                     >
                         {isPending ? (
                             <>

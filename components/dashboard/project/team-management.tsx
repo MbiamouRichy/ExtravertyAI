@@ -407,12 +407,13 @@ export default function TeamManagement({ projectId, currentUserId, data }: TeamM
                                                 <span className="inline-flex size-1 rounded-full bg-foreground/30" />
                                                 <span>{member.open || 0} conv. assignées</span>
                                             </div>
+                                            <div className="md:hidden">{getRoleBadge(member.role)}</div>
                                         </div>
                                     </div>
 
                                     {/* RÔLE ET ACTIONS */}
                                     <div className="flex items-center gap-4">
-                                        <div>{getRoleBadge(member.role)}</div>
+                                        <div className="hidden md:block">{getRoleBadge(member.role)}</div>
                                         {member.id !== currentUserId && canManageMember && (
                                             <>
                                                 {member.role !== "OWNER" && (
