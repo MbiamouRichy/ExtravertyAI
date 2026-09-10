@@ -8,16 +8,17 @@ import { Role } from "@/src/generated/prisma/client";
 import { resend } from "@/lib/resend";
 import { ProjectInvitationEmail } from "@/components/emailTemplate/invitationEmail";
 import { ProjectMemberConfirmationEmail } from "@/components/emailTemplate/projectMemberConfirmationEmail";
-import { z } from "zod";
+import z from "zod";
 
 export type TeamMember = {
   id: string;
-  userId: string;
   name: string;
   email: string;
   image: string | null;
   role: Role;
-  createdAt: Date;
+  createdAt: Date | string;
+  status?: "Online" | "Away";
+  open?: number;
 };
 
 // ============================================================================
@@ -80,9 +81,12 @@ export async function getTeamMembers(projectId: string) {
     const isOnline = now - lastActive < FIVE_MINUTES_IN_MS;
 
     return {
-      id: m.user.id,
+      id: m.id,
       name: m.user.name,
+      email: m.user.email,
+      role: m.role,
       image: m.user.image,
+      createdAt: m.createdAt,
       status: isOnline ? ("Online" as const) : ("Away" as const),
       open: countParAgent[m.user.id] || 0, // <-- Le vrai chiffre calculé !
     };

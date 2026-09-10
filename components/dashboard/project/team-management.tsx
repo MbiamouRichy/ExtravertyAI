@@ -80,6 +80,8 @@ import {
 } from "@/app/actions/team";
 import { Role } from "@/src/generated/prisma/client";
 import { ChangeRoleModal } from "./changeRoleModal";
+import { StatusIndicator } from "@/components/ui/indicator";
+import { getInitials } from "@/components/getInitials";
 
 // --- 1. SCHÉMA DE VALIDATION ZOD ---
 const inviteSchema = z.object({
@@ -132,7 +134,7 @@ export default function TeamManagement({ projectId, currentUserId, data }: TeamM
     });
 
     // Rôle de l'utilisateur connecté
-    const currentUserMembership = members.find((m) => m.userId === currentUserId);
+    const currentUserMembership = members.find((m) => m.id === currentUserId);
     const currentUserRole: Role = currentUserMembership?.role ?? "OWNER";
 
     // Filtrage dynamique
@@ -384,54 +386,71 @@ export default function TeamManagement({ projectId, currentUserId, data }: TeamM
                                         <Avatar className="h-10 w-10 border border-border">
                                             <AvatarImage src={member.image || undefined} alt={member.name} />
                                             <AvatarFallback className="bg-primary/10 text-primary font-semibold text-xs">
-                                                {member.name ? member.name.substring(0, 2).toUpperCase() : "U"}
+                                                {getInitials(member.name)}
                                             </AvatarFallback>
                                         </Avatar>
-                                        <div className="flex flex-col">
+                                        <div className="flex flex-col gap-0.5">
                                             <span className="font-medium text-sm text-foreground">
                                                 {member.name || "Utilisateur"}
                                             </span>
                                             <span className="text-xs text-muted-foreground">{member.email}</span>
+
+                                            {/* NOUVEAU : Statut et conversations (comme sur le Dashboard) */}
+                                            <div className="flex items-center gap-2 text-[10px] text-muted-foreground mt-0.5">
+                                                <span className="flex shrink-0 items-center gap-1">
+                                                    <StatusIndicator
+                                                        color={member.status === "Online" ? "emerald" : "amber"}
+                                                        pulse={member.status === "Online"}
+                                                    />
+                                                    {member.status === "Online" ? "En ligne" : "Absent"}
+                                                </span>
+                                                <span className="inline-flex size-1 rounded-full bg-foreground/30" />
+                                                <span>{member.open || 0} conv. assignées</span>
+                                            </div>
                                         </div>
                                     </div>
 
                                     {/* RÔLE ET ACTIONS */}
-                                    {member.id !== currentUserId && canManageMember && (
-                                        <div className="flex items-center gap-4">
-                                            <div>{getRoleBadge(member.role)}</div>
-                                            {member.role !== "OWNER" && (
-                                                <DropdownMenu>
-                                                    <DropdownMenuTrigger asChild>
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="icon"
-                                                            className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                                                        >
-                                                            <MoreHorizontal className="h-4 w-4" />
-                                                            <span className="sr-only">Ouvrir le menu</span>
-                                                        </Button>
-                                                    </DropdownMenuTrigger>
-                                                    <DropdownMenuContent align="end" className="w-fit max-w-xs">
-                                                        <DropdownMenuLabel>Actions sur {member.name}</DropdownMenuLabel>
-                                                        <DropdownMenuSeparator />
-                                                        <DropdownMenuItem
-                                                            onSelect={() => setMemberToEditRole(member)}
-                                                        >
-                                                            Changer le rôle
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuSeparator />
-                                                        <DropdownMenuItem
-                                                            className="text-destructive focus:bg-destructive/10 focus:text-destructive cursor-pointer"
-                                                            onClick={() => setMemberToDelete(member)}
-                                                        >
-                                                            <Trash2 className="w-4 h-4 mr-2" />
-                                                            Retirer de l&apos;équipe
-                                                        </DropdownMenuItem>
-                                                    </DropdownMenuContent>
-                                                </DropdownMenu>
-                                            )}
-                                        </div>
-                                    )}
+                                    <div className="flex items-center gap-4">
+                                        <div>{getRoleBadge(member.role)}</div>
+                                        {member.id !== currentUserId && canManageMember && (
+                                            <>
+                                                {member.role !== "OWNER" && (
+                                                    <DropdownMenu>
+                                                        <DropdownMenuTrigger asChild>
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                                                            >
+                                                                <MoreHorizontal className="h-4 w-4" />
+                                                                <span className="sr-only">Ouvrir le menu</span>
+                                                            </Button>
+                                                        </DropdownMenuTrigger>
+                                                        <DropdownMenuContent align="end" className="w-fit max-w-xs">
+                                                            <DropdownMenuLabel>Actions sur {member.name}</DropdownMenuLabel>
+                                                            <DropdownMenuSeparator />
+                                                            <DropdownMenuItem
+                                                                onSelect={() => setMemberToEditRole(member)}
+                                                            >
+                                                                Changer le rôle
+                                                            </DropdownMenuItem>
+                                                            <DropdownMenuSeparator />
+                                                            <DropdownMenuItem
+                                                                className="text-destructive focus:bg-destructive/10 focus:text-destructive cursor-pointer"
+                                                                onClick={() => setMemberToDelete(member)}
+                                                            >
+                                                                <Trash2 className="w-4 h-4 mr-2" />
+                                                                Retirer de l&apos;équipe
+                                                            </DropdownMenuItem>
+                                                        </DropdownMenuContent>
+                                                    </DropdownMenu>
+                                                )}
+                                            </>
+
+                                        )}
+
+                                    </div>
                                 </div>
                             );
                         })}
