@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { BarChart3Icon, BriefcaseIcon, UsersIcon, SettingsIcon, CreditCardIcon, HelpCircleIcon, BookOpenIcon, FolderEditIcon, LayoutDashboard } from "lucide-react";
+import { BarChart3Icon, BriefcaseIcon, UsersIcon, SettingsIcon, CreditCardIcon, HelpCircleIcon, BookOpenIcon, FolderEditIcon, LayoutDashboard, MessageSquareIcon, UserCogIcon, ContactIcon } from "lucide-react";
 
 export type SidebarNavItem = {
 	title: string;
@@ -22,13 +22,23 @@ export const getNavGroups = (projectId: string): SidebarNavGroup[] => [
 		items: [
 			{
 				title: "Dashboard",
-				path: `/projects/${projectId}/dashboard`, // Chemin dynamique
+				path: `/projects/${projectId}`, // Chemin dynamique
 				icon: <LayoutDashboard />,
 			},
 			{
 				title: "Analytics",
 				path: `/projects/${projectId}/analytics`,
 				icon: <BarChart3Icon />,
+			},
+			{
+				title: "Chat",
+				path: `/projects/${projectId}/chat`, // Chemin dynamique
+				icon: <MessageSquareIcon />,
+			},
+			{
+				title: "Contacts",
+				path: `/projects/${projectId}/contacts`,
+				icon: <ContactIcon />,
 			},
 			{
 				title: "Projets",
@@ -38,7 +48,7 @@ export const getNavGroups = (projectId: string): SidebarNavGroup[] => [
 			{
 				title: "User",
 				path: `/projects/user`,
-				icon: <UsersIcon />,
+				icon: <UserCogIcon />,
 				show: false,
 			},
 			{

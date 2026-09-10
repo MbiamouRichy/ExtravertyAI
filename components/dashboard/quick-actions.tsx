@@ -47,7 +47,7 @@ export function QuickActions({ projectId }: { projectId: string }) {
         {
             title: "Exporter les données",
             description: "Exporter les données du projet.",
-            href: `/projects/${projectId}/analytics/contacts`,
+            href: `/projects/${projectId}/contacts`,
             icon: (
                 <DownloadIcon aria-hidden="true" />
             ),

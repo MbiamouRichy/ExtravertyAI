@@ -1,14 +1,10 @@
-import { getProjectById } from "@/app/actions/projects";
 import { getSession } from "@/lib/auth-server";
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
+import { Dashboard } from "@/components/dashboard/dashboard";
+import { getProjectById } from "@/app/actions/projects";
 import prisma from "@/lib/prisma";
-import ProjectWorkspace from "@/components/dashboard/project/whatsappSendMessageForm";
-import QRCodeScanner from "@/components/dashboard/project/qrCodeScanner";
-import { getWorkspaceData } from "@/app/actions/getMessages&Contacts";
-import UnauthorizedDialog from "@/components/dashboard/project/unAuthorizedDialog";
 import ProjectNotFoundDialog from "@/components/dashboard/project/projectNotfoundDialog";
-
 export const dynamic = "force-dynamic";
 
 type PageProps = {
@@ -37,19 +33,15 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   if (!projectMembership) return { title: "Projet introuvable | ExtravertyAI" };
 
   return {
-    title: `${projectMembership.project.name} | ExtravertyAI`,
-    description: `Espace de travail pour le projet ${projectMembership.project.name}`,
+    title: `${projectMembership.project.name} | Dashboard | ExtravertyAI`,
+    description: `Tableau de board pour le projet ${projectMembership.project.name}`,
   };
 }
 
-// 2. RENDU DE LA PAGE
-export default async function ProjectPage({ params, searchParams }: PageProps) {
+export default async function ProjectDashboardPage({ params }: PageProps) {
   const resolvedParams = await params;
-  const resolvedSearchParams = await searchParams;
 
   const projectId = resolvedParams.projectId;
-  const isSuccess = resolvedSearchParams.success === "true";
-  const showUnauthorizedError = resolvedSearchParams.error === "unauthorized";
 
   const session = await getSession();
   if (!session?.user?.id) {
@@ -65,40 +57,10 @@ export default async function ProjectPage({ params, searchParams }: PageProps) {
       </div>
     );
   }
-
-  const ProjectData = await getWorkspaceData(project.id);
-  if (!ProjectData) {
-    return (
-      <div className="flex h-full w-full items-center justify-center p-6">
-        <div className="rounded-lg bg-destructive/10 p-4 text-center border border-destructive/20 text-destructive">
-          <p className="font-semibold">Impossible de charger l&apos;espace de travail.</p>
-          <p className="text-sm">Veuillez rafraîchir la page ou contacter le support.</p>
-        </div>
-      </div>
-    );
+  if (project.userRole !== "OWNER" && project.userRole !== "ADMIN") {
+    return redirect(`/projects/${projectId}?error=unauthorized`);
   }
-
-  // FAILLE CORRIGÉE : La condition logique est maintenant stricte et correcte
-  if (project.instanceStatus === "qr_ready" || project.instanceStatus === "connecting" || project.instanceStatus === "disconnected") {
-    return <QRCodeScanner projectId={projectId} />;
-  }
-
-  if (project.instanceStatus === "connected" && ProjectData.clients && ProjectData.messages) {
-    return (<>
-      {showUnauthorizedError && (
-        <UnauthorizedDialog open={true} />
-      )}
-      <ProjectWorkspace project={project} user={session.user} isSuccess={isSuccess} clients={ProjectData.clients} messages={ProjectData.messages} />;
-    </>)
-  }
-
-  // FAILLE CORRIGÉE : Ajout d'un Fallback visuel pour les autres statuts (ex: "disconnected", "initializing")
   return (
-    <div className="flex h-[80vh] w-full items-center justify-center">
-      <div className="flex flex-col items-center space-y-4">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-gray-200 border-t-blue-600"></div>
-        <p className="text-sm font-medium text-gray-500">Initialisation de l&apos;instance WhatsApp...</p>
-      </div>
-    </div>
+    <Dashboard projectId={projectId} />
   );
 }

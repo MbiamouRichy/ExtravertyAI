@@ -12,9 +12,13 @@ export function DashboardSkeleton() {
 			<div />
 			<div />
 			<div />
-			<div className="col-span-2 min-h-114! lg:col-span-4" />
+			<div className="col-span-2 min-h-114! lg:col-span-2" />
 			<div className="col-span-2 min-h-92! lg:col-span-2" />
 			<div className="col-span-2 min-h-92! lg:col-span-2" />
+			<div className="col-span-1 min-h-92! lg:col-span-1" />
+			<div className="col-span-1 min-h-92! lg:col-span-1" />
+			<div className="md:col-span-2 min-h-92! lg:col-span-3" />
+			<div className="col-span-1 min-h-92! lg:col-span-1" />
 		</div>
 	);
 }

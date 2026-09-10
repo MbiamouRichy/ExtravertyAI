@@ -7,6 +7,8 @@ import { CustomSourceMessageChart } from "@/components/dashboard/customSourceMes
 import { getMessageSourcesStats } from "@/app/actions/getMessagesSources";
 import { AnalyticsDiscussionsChart } from "@/components/dashboard/AnalyticsNewDiscussionsChart";
 import { AnalyticsDiscussionRow } from "@/app/actions/getDiscussionsMetrics";
+import ProjectNotFoundDialog from "@/components/dashboard/project/projectNotfoundDialog";
+import { getProjectById } from "@/app/actions/projects";
 
 type PageProps = {
     params: Promise<{ projectId: string }>;
@@ -45,6 +47,18 @@ export default async function AnalyticsPage({ params }: PageProps) {
     const session = await getSession()
     if (!session?.user?.id) {
         return redirect(`/sign-in?callbackUrl=/projects/${projectId}/analytics`)
+    }
+    const project = await getProjectById(projectId);
+    if (!project) {
+        return (
+            <div className="flex items-center justify-center min-h-screen bg-background">
+                {/* On affiche directement la modale par-dessus un fond vide */}
+                <ProjectNotFoundDialog open={true} />
+            </div>
+        );
+    }
+    if (project.userRole !== "OWNER" && project.userRole !== "ADMIN") {
+        return redirect(`/projects/${projectId}?error=unauthorized`);
     }
     const statsResult = await getMessageSourcesStats(projectId, "7d");
     // const { chartData, totalCount } = await getAnalyticsDiscussionsMetrics(projectId, "1y");

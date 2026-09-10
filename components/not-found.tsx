@@ -1,3 +1,4 @@
+"use client";
 import { Button } from "@/components/ui/button";
 import {
 	Empty,
@@ -6,10 +7,14 @@ import {
 	EmptyHeader,
 	EmptyTitle,
 } from "@/components/ui/empty";
-import { HomeIcon, PhoneIcon } from "lucide-react";
-import Link from "next/link";
+import { ArrowLeftIcon } from "lucide-react";
+import { useRouter } from "next/navigation";
 
-export function NotFoundPage({ children }: { children?: React.ReactNode }) {
+export function NotFoundPage({ personalButton }: { personalButton: React.ReactNode }) {
+	const router = useRouter();
+	const handleGoBack = () => {
+		router.back();
+	};
 	return (
 		<div className="flex min-h-screen p-4 w-screen items-center justify-center overflow-x-hidden">
 			<Empty className="p-0 md:p-12">
@@ -19,27 +24,20 @@ export function NotFoundPage({ children }: { children?: React.ReactNode }) {
 					</EmptyTitle>
 					<EmptyDescription className="-mt-8 md:text-nowrap text-foreground/80 text-base md:text-lg">
 						La page que vous recherchez n{`'`}existe pas ou a été déplacée.<br />
-						Veuillez vérifier l{`'`}URL ou rechercher une page.
+						Veuillez vérifier l{`'`}URL ou retourner en arrière.
 					</EmptyDescription>
 				</EmptyHeader>
 				<EmptyContent>
-					{children ? children : (
-						<div className="flex gap-2">
-							<Button asChild>
-								<Link title="page d'accueil" href="/">
-									<HomeIcon data-icon="inline-start" />
-									Accueil
-								</Link>
-							</Button>
 
-							<Button asChild variant="outline">
-								<Link title="page de contact" href="/contact">
-									<PhoneIcon data-icon="inline-start" />{" "}
-									Contactez-nous
-								</Link>
-							</Button>
-						</div>
-					)}
+					<div className="flex gap-2">
+						{personalButton}
+
+						<Button variant="outline" onClick={handleGoBack}>
+							<ArrowLeftIcon data-icon="inline-start" />{" "}
+							Retour en arrière
+						</Button>
+					</div>
+
 				</EmptyContent>
 			</Empty>
 		</div>
