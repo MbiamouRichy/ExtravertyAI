@@ -9,11 +9,14 @@ import { DashboardMessageRecu } from "./dashboard-message-stats";
 import { getAiResponseTimeData } from "@/app/actions/ai-metrics";
 import { FirstAiReplyTimeChart } from "./first-reply-time-chart";
 import { QuickActions } from "./quick-actions";
+import { getTeamMembers } from "@/app/actions/team";
 
 export async function Dashboard({ projectId }: { projectId: string }) {
 	// const statsResult = await getMessageSourcesStats(projectId, "7d");
 	const ResponseTimeChartData = await getAiResponseTimeData(projectId);
 	// const { chartData, growthPct } = await getDashboardDiscussionsMetrics(projectId);
+
+	const teamData = await getTeamMembers(projectId);
 	return (
 		<div className="grid grid-cols-1 gap-px bg-border p-px m-4 md:m-6 md:grid-cols-2 lg:grid-cols-4">
 			<DashboardStats projectId={projectId} />
@@ -26,7 +29,7 @@ export async function Dashboard({ projectId }: { projectId: string }) {
 				totalMessages={mockTotal1Month}
 				trendPercentage={14.2}
 			/>
-			<TeamOnDuty />
+			<TeamOnDuty initialTeammates={teamData} projectId={projectId} />
 			<DashboardContacts projectId={projectId} />
 			<QuickActions projectId={projectId} />
 		</div>

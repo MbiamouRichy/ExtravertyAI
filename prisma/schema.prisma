@@ -211,7 +211,7 @@ model User {
 
   memberships   ProjectMembership[]
   messagesSent  Message[] // Historique des messages envoyés manuellement par cet utilisateur
-
+  lastActiveAt  DateTime  @default(now())
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   invitations Invitation[]

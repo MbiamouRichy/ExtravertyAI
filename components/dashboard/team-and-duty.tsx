@@ -7,7 +7,6 @@ import {
     AvatarFallback,
     AvatarImage,
 } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
 import {
     Card,
     CardContent,
@@ -15,102 +14,54 @@ import {
     CardHeader,
     CardTitle,
 } from "@/components/ui/card";
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuLabel,
-    DropdownMenuSeparator,
-    DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { StatusIndicator } from "@/components/ui/indicator";
-import { EllipsisIcon, SendIcon, ListChecksIcon } from "lucide-react";
+import { ArrowRightIcon } from "lucide-react";
+import { Button } from "../ui/button";
+import { getInitials } from "../getInitials";
+import Link from "next/link";
 
-type Teammate = {
-    id: string;
+// On met à jour le type pour accepter null (venant de Prisma pour l'image)
+export type Teammate = {
+    id: string; // Correspondra au userId
     name: string;
     status: "Online" | "Away";
-    /** Conversations currently assigned to this teammate */
     open: number;
-    image?: string;
+    image?: string | null;
 };
 
-const INITIAL_TEAMMATES: readonly Teammate[] = [
-    {
-        id: "amelia",
-        name: "Amelia Park",
-        status: "Online",
-        open: 9,
-        image: "https://avatar.vercel.sh/ameliapark",
-    },
-    {
-        id: "noah",
-        name: "Noah Ibarra",
-        status: "Online",
-        open: 7,
-        image: "https://avatar.vercel.sh/noahi",
-    },
-    {
-        id: "priya",
-        name: "Priya Desai",
-        status: "Away",
-        open: 4,
-        image: "https://avatar.vercel.sh/priyadesai",
-    },
-    {
-        id: "marcus",
-        name: "Marcus Chen",
-        status: "Online",
-        open: 11,
-        image: "https://avatar.vercel.sh/marcuschen",
-    },
-    {
-        id: "emily",
-        name: "Emily Johnson",
-        status: "Away",
-        open: 2,
-        image: "https://avatar.vercel.sh/emilyjohnson",
-    },
-];
-
-function getInitials(name: string) {
-    return name
-        .split(" ")
-        .map((word) => word.charAt(0).toUpperCase())
-        .join("");
+// On ajoute les props pour recevoir les données du serveur
+interface TeamOnDutyProps extends ComponentProps<typeof Card> {
+    initialTeammates: Teammate[];
+    projectId: string
 }
 
+
 export function TeamOnDuty({
+    initialTeammates,
+    projectId,
     className,
     ...props
-}: ComponentProps<typeof Card>) {
-    const [teammates, setTeammates] = useState<Teammate[]>(() => [
-        ...INITIAL_TEAMMATES,
-    ]);
+}: TeamOnDutyProps) {
+    // Le state est maintenant initialisé avec les données de la DB
+    const [teammates] = useState<Teammate[]>(initialTeammates);
 
-    function pullNextConversation(id: string) {
-        setTeammates((prev) =>
-            prev.map((t) =>
-                t.id === id ? { ...t, open: Math.max(0, t.open - 1) } : t
-            )
-        );
-    }
 
     return (
-        <Card className={cn("shadow-none dark:ring-0 bg-background rounded-none!", className)} {...props}>
+        <Card className={cn("shadow-none dark:ring-0 bg-background rounded-none! relative", className)} {...props}>
             <CardHeader className="border-b">
-                <CardTitle>Team on duty</CardTitle>
-                <CardDescription>Who is carrying the queue right now</CardDescription>
+                <CardTitle>Membres d&apos;equipe</CardTitle>
+                <CardDescription>Les personnes qui travaille avec vous sur ce projet.</CardDescription>
             </CardHeader>
-            <CardContent className="p-0">
+            <CardContent className={cn("p-0", teammates.length > 10 && "max-h-72 mask-b-from-50% mask-b-to-100%")}>
                 <ul className="flex flex-col divide-y divide-border">
-                    {teammates.map((t) => (
+                    {teammates.slice(0, 10).map((t) => (
                         <li
                             className="flex items-center gap-2 p-3 first:pt-0 last:pb-0 sm:gap-3"
                             key={t.id}
                         >
                             <Avatar className="size-8">
-                                <AvatarImage alt={t.name} src={t.image} />
+                                {/* Gérer le cas où l'image est null ou undefined */}
+                                <AvatarImage alt={t.name} src={t.image || undefined} />
                                 <AvatarFallback>{getInitials(t.name)}</AvatarFallback>
                             </Avatar>
                             <div className="min-w-0 flex-1 pr-1">
@@ -123,48 +74,24 @@ export function TeamOnDuty({
                                             color={t.status === "Online" ? "emerald" : "amber"}
                                             pulse={t.status === "Online"}
                                         />
-                                        {t.status}
+                                        {t.status === "Online" ? "En ligne" : "Absent"}
                                     </span>
                                     <span className="inline-flex size-1 rounded-full bg-foreground/80" />
-                                    <span className="tabular-nums">{t.open} assigned</span>
+                                    <span>{t.open} conv. assignées</span>
                                 </p>
                             </div>
-                            <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                    <Button
-                                        aria-label={`Actions for ${t.name}`}
-                                        size="icon-xs"
-                                        variant="ghost"
-                                    >
-                                        <EllipsisIcon
-                                        />
-                                    </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end" className="min-w-52">
-                                    <DropdownMenuLabel className="font-normal text-muted-foreground text-xs">
-                                        {t.name}
-                                    </DropdownMenuLabel>
-                                    <DropdownMenuSeparator />
-                                    <DropdownMenuItem className="gap-2">
-                                        <SendIcon className="size-4 opacity-70" />
-                                        Message
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem
-                                        className="gap-2"
-                                        disabled={t.open === 0}
-                                        onSelect={() => {
-                                            pullNextConversation(t.id);
-                                        }}
-                                    >
-                                        <ListChecksIcon className="size-4 opacity-70" />
-                                        Pull next conversation
-                                    </DropdownMenuItem>
-                                </DropdownMenuContent>
-                            </DropdownMenu>
                         </li>
                     ))}
                 </ul>
             </CardContent>
+            <div className="mask-t-from-30% absolute inset-x-0 bottom-0 flex h-1/5  items-center justify-center bg-linear-to-t from-background to-background/0">
+                <Button asChild className="relative" variant="ghost" size="sm">
+                    <Link href={`/projects/${projectId}/team`}>
+                        Voir l&apos;equipe
+                        <ArrowRightIcon className="ml-2 h-4 w-4" aria-hidden="true" />
+                    </Link>
+                </Button>
+            </div>
         </Card>
     );
 }

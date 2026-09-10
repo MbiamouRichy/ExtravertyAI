@@ -36,3 +36,20 @@ export async function updateThemeAction(formData: z.infer<typeof ThemeSchema>) {
     return { success: false, error: errorMessage };
   }
 }
+// Ajuste selon ta méthode d'auth (Better Auth)
+
+export async function updateUserActivity() {
+  const session = await getSession();
+  if (!session?.user?.id) return { success: false };
+
+  try {
+    await prisma.user.update({
+      where: { id: session.user.id },
+      data: { lastActiveAt: new Date() },
+    });
+    return { success: true };
+  } catch (error) {
+    console.error("Erreur lors de la mise à jour de l'activité", error);
+    return { success: false };
+  }
+}

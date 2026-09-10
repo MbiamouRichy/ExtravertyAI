@@ -1,4 +1,5 @@
 import { AppShell } from "@/components/dashboard/app-shell";
+import { ActivityTracker } from "@/components/dashboard/user/activityTracker";
 import { ThemeProvider } from "@/components/ui/theme-provider";
 import { getUser } from "@/lib/auth-server";
 
@@ -15,6 +16,7 @@ export default async function ProjectsLayout({
             <AppShell>
                 {children}
             </AppShell>
+            <ActivityTracker />
         </ThemeProvider>
     );
 }

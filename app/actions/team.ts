@@ -23,34 +23,71 @@ export type TeamMember = {
 // ============================================================================
 // 1. RÉCUPÉRER L'ÉQUIPE (Sécurisé)
 // ============================================================================
-export async function getTeamMembers(projectId: string): Promise<TeamMember[]> {
+export async function getTeamMembers(projectId: string) {
   const session = await getSession();
   if (!session?.user?.id) throw new Error("Non autorisé");
 
-  // SÉCURITÉ : Vérifier que l'utilisateur fait bien partie de CE projet
-  const isMember = await prisma.projectMembership.findUnique({
-    where: { userId_projectId: { userId: session.user.id, projectId } },
-  });
-
-  if (!isMember) throw new Error("Accès refusé à ce projet");
-
+  // 1. Récupérer les membres de l'équipe
   const memberships = await prisma.projectMembership.findMany({
     where: { projectId },
-    include: { user: { select: { name: true, email: true, image: true } } },
+    include: {
+      user: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          image: true,
+          lastActiveAt: true,
+        },
+      },
+    },
     orderBy: { role: "asc" },
   });
 
-  return memberships.map((m) => ({
-    id: m.id,
-    userId: m.userId,
-    name: m.user.name,
-    email: m.user.email,
-    image: m.user.image,
-    role: m.role,
-    createdAt: m.createdAt,
-  }));
-}
+  // 2. Récupérer les conversations actives des dernières 24h
+  // On cherche les combinaisons uniques [agentId + contactId]
+  const hier = new Date(Date.now() - 24 * 60 * 60 * 1000);
+  const conversationsActives = await prisma.message.findMany({
+    where: {
+      projectId,
+      agentId: { not: null },
+      createdAt: { gte: hier },
+    },
+    select: { agentId: true, contactId: true },
+    distinct: ["agentId", "contactId"],
+  });
 
+  // 3. Regrouper le compte de conversations par agent
+  const countParAgent = conversationsActives.reduce(
+    (acc, msg) => {
+      if (msg.agentId) {
+        acc[msg.agentId] = (acc[msg.agentId] || 0) + 1;
+      }
+      return acc;
+    },
+    {} as Record<string, number>,
+  );
+
+  // 4. Formater les données pour le composant
+  const FIVE_MINUTES_IN_MS = 5 * 60 * 1000;
+  const now = Date.now();
+
+  return memberships.map((m) => {
+    // Calcul du statut en ligne
+    const lastActive = m.user.lastActiveAt
+      ? new Date(m.user.lastActiveAt).getTime()
+      : 0;
+    const isOnline = now - lastActive < FIVE_MINUTES_IN_MS;
+
+    return {
+      id: m.user.id,
+      name: m.user.name,
+      image: m.user.image,
+      status: isOnline ? ("Online" as const) : ("Away" as const),
+      open: countParAgent[m.user.id] || 0, // <-- Le vrai chiffre calculé !
+    };
+  });
+}
 // ============================================================================
 // 2. RETIRER UN MEMBRE (Hiérarchie stricte)
 // ============================================================================
