@@ -16,6 +16,7 @@ import DeleteContact from "./deleteContact"
 import ToggleContactAi from "./ToggleContactAI"
 import { useRouter } from "next/navigation"
 import { state } from "@/lib/proxy-state"
+import { getInitials } from "@/components/getInitials"
 
 // Type représentant le modèle Prisma Contact
 export type ContactTableType = {
@@ -37,12 +38,11 @@ export const ContactsTableColumns: ColumnDef<ContactTableType>[] = [
             const name = row.original.name;
             const pushName = row.original.pushName;
             const displayName = name || pushName || "Inconnu";
-            const initial = displayName.charAt(0).toUpperCase();
 
             return (
                 <div className="flex items-center gap-3">
                     <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-neutral-100 border border-neutral-200 dark:bg-neutral-800 dark:border-neutral-700">
-                        <span className="text-xs font-medium text-neutral-600 dark:text-neutral-300">{initial}</span>
+                        <span className="text-xs font-medium text-neutral-600 dark:text-neutral-300">{getInitials(displayName)}</span>
                     </div>
                     {/* min-w-0 permet au texte de se tronquer proprement s'il est trop long */}
                     <div className="flex flex-col min-w-0">

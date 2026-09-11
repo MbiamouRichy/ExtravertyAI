@@ -1,154 +1,184 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { cn } from "@/lib/utils";
-import { LabelList, Pie, PieChart } from "recharts";
-import { Loader2, PieChart as PieChartIcon } from "lucide-react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-// Remplace par ton vrai chemin
-import { getMessageSourcesStats, SourceDatum, TimePeriod } from "@/app/actions/getMessagesSources";
+import { Cell, Pie, PieChart } from "recharts";
+import { PieChart as PieChartIcon } from "lucide-react";
 
-const PERIOD_LABELS: Record<TimePeriod, string> = {
-    "7d": "7 derniers jours",
-    "14d": "14 derniers jours",
-    "21d": "21 derniers jours",
-    "1m": "1 dernier mois",
-    "2m": "2 derniers mois",
-    "3m": "3 derniers mois",
-    "6m": "6 derniers mois",
-    "1y": "1 dernière année",
-};
+import {
+    ChartContainer,
+    ChartTooltip,
+    ChartTooltipContent,
+    type ChartConfig,
+} from "@/components/ui/chart";
+import { AnalyticsCard } from "./analytics-card";
+import { ChartEmptyState } from "./chart-empty-state";
+import {
+    formatNumberFr,
+    formatPctFr,
+    type SourceDatum,
+} from "@/lib/analytics";
 
-const chartConfig = {
-    count: { label: "Messages" },
-    android: { label: "Android", color: "var(--chart-1)" },
-    ios: { label: "iOS", color: "var(--chart-2)" },
-    ai: { label: "IA (Bot)", color: "var(--chart-3)" },
-    unknown: { label: "Autre/Inconnu", color: "var(--chart-4)" },
-};
+const SOURCE_META = new Map<
+    string,
+    { label: string; color: string }
+>([
+    ["android", { label: "Android", color: "var(--chart-1)" }],
+    ["ios", { label: "iOS", color: "var(--chart-2)" }],
+    ["ai", { label: "IA / Bot", color: "var(--chart-3)" }],
+    [
+        "unknown",
+        { label: "Autre / inconnu", color: "var(--chart-4)" },
+    ],
+]);
 
-interface CustomSourceMessageChartProps {
-    projectId: string;
-    initialData: SourceDatum[];
-    initialTotal: number;
-    className?: string;
+interface SourcesChartProps {
+    data: SourceDatum[];
+    total: number;
+    rangeLabel: string;
 }
 
-export function CustomSourceMessageChart({
-    projectId,
-    initialData,
-    initialTotal,
-    className,
-}: CustomSourceMessageChartProps) {
-    const [period, setPeriod] = useState<TimePeriod>("7d");
-    const [data, setData] = useState<SourceDatum[]>(initialData);
-    const [totalMessages, setTotalMessages] = useState(initialTotal);
-    const [isPending, startTransition] = useTransition();
+export function SourcesChart({
+    data,
+    total,
+    rangeLabel,
+}: SourcesChartProps) {
+    const rows = [...data]
+        .sort((a, b) => b.count - a.count)
+        .map((datum, index) => {
+            const meta = SOURCE_META.get(datum.source);
 
-    const handlePeriodChange = (newPeriod: TimePeriod) => {
-        setPeriod(newPeriod);
-        startTransition(async () => {
-            const result = await getMessageSourcesStats(projectId, newPeriod);
-            if (result.success) {
-                setData(result.data);
-                setTotalMessages(result.totalMessages);
-            }
+            return {
+                ...datum,
+                key: `source_${index}`,
+                label: meta?.label ?? datum.source,
+                fill: meta?.color ?? "var(--chart-5)",
+            };
         });
-    };
+
+    const config: ChartConfig = Object.fromEntries(
+        rows.map((row) => [
+            row.key,
+            { label: row.label, color: row.fill },
+        ]),
+    );
 
     return (
-        <Card className={cn("flex flex-col shadow-sm border-border/60 transition-all relative bg-background overflow-hidden", className)}>
+        <AnalyticsCard
+            title="Sources des messages"
+            description={`Origine des messages reçus · ${rangeLabel}`}
+            footer="Une source inconnue indique une origine non renseignée, pas nécessairement une anomalie."
+        >
+            {total === 0 ? (
+                <ChartEmptyState
+                    icon={PieChartIcon}
+                    title="Aucune source disponible"
+                    description="La répartition apparaîtra après réception de messages sur cette période."
+                    className="h-full min-h-72"
+                />
+            ) : (
+                <div className="flex h-full flex-col justify-center gap-5">
+                    <div className="relative mx-auto size-56 max-w-full">
+                        <ChartContainer
+                            config={config}
+                            className="aspect-square size-full"
+                        >
+                            <PieChart accessibilityLayer>
+                                <ChartTooltip
+                                    cursor={false}
+                                    content={
+                                        <ChartTooltipContent hideLabel />
+                                    }
+                                />
 
-            {isPending && (
-                <div className="absolute inset-0 z-10 bg-background/60 backdrop-blur-[2px] flex items-center justify-center transition-all duration-300">
-                    <div className="bg-background shadow-lg rounded-full p-3 flex items-center gap-2 border border-border/50 animate-in zoom-in-95">
-                        <Loader2 className="w-5 h-5 text-primary animate-spin" />
-                        <span className="text-sm font-medium pr-2">Actualisation...</span>
+                                <Pie
+                                    data={rows}
+                                    dataKey="count"
+                                    nameKey="key"
+                                    innerRadius="68%"
+                                    outerRadius="90%"
+                                    paddingAngle={
+                                        rows.filter((row) => row.count > 0)
+                                            .length > 1
+                                            ? 3
+                                            : 0
+                                    }
+                                    cornerRadius={4}
+                                    stroke="var(--card)"
+                                    strokeWidth={3}
+                                    isAnimationActive={false}
+                                >
+                                    {rows.map((row) => (
+                                        <Cell
+                                            key={row.key}
+                                            fill={row.fill}
+                                        />
+                                    ))}
+                                </Pie>
+                            </PieChart>
+                        </ChartContainer>
+
+                        <div
+                            aria-hidden="true"
+                            className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center"
+                        >
+                            <span className="text-3xl font-semibold tracking-tight tabular-nums">
+                                {formatNumberFr(total)}
+                            </span>
+                            <span className="mt-1 text-xs text-muted-foreground">
+                                messages reçus
+                            </span>
+                        </div>
                     </div>
+
+                    <p className="sr-only">
+                        {total.toLocaleString("fr-FR")} messages reçus.
+                    </p>
+
+                    <ul className="space-y-3">
+                        {rows.map((row) => (
+                            <li key={row.key} className="space-y-1.5">
+                                <div className="flex items-center justify-between gap-3 text-xs">
+                                    <span className="flex min-w-0 items-center gap-2">
+                                        <span
+                                            aria-hidden="true"
+                                            className="size-2 shrink-0 rounded-full"
+                                            style={{
+                                                backgroundColor: row.fill,
+                                            }}
+                                        />
+                                        <span className="wrap-break-word text-muted-foreground">
+                                            {row.label}
+                                        </span>
+                                    </span>
+
+                                    <span className="shrink-0 font-medium tabular-nums">
+                                        {formatPctFr(
+                                            (row.count / total) * 100,
+                                        )}
+                                        <span className="ml-2 font-normal text-muted-foreground">
+                                            {row.count.toLocaleString(
+                                                "fr-FR",
+                                            )}
+                                        </span>
+                                    </span>
+                                </div>
+
+                                <div
+                                    aria-hidden="true"
+                                    className="h-1 overflow-hidden rounded-full bg-muted"
+                                >
+                                    <div
+                                        className="h-full rounded-full"
+                                        style={{
+                                            width: `${(row.count / total) * 100}%`,
+                                            backgroundColor: row.fill,
+                                        }}
+                                    />
+                                </div>
+                            </li>
+                        ))}
+                    </ul>
                 </div>
             )}
-
-            <CardHeader className="flex flex-col space-y-4 pb-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
-                <div className="flex flex-col space-y-1.5">
-                    <CardTitle className="text-lg font-semibold tracking-tight">
-                        Sources des messages
-                    </CardTitle>
-                    <CardDescription className="text-muted-foreground text-sm">
-                        Répartition : {PERIOD_LABELS[period].toLowerCase()}
-                    </CardDescription>
-                </div>
-
-                <Select value={period} onValueChange={handlePeriodChange} disabled={isPending}>
-                    <SelectTrigger className="w-42.5 h-9 text-xs font-medium focus:ring-offset-0 focus:ring-1 bg-muted/20">
-                        <SelectValue placeholder="Choisir une période" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        {Object.entries(PERIOD_LABELS).map(([key, label]) => (
-                            <SelectItem key={key} value={key} className="text-xs cursor-pointer">
-                                {label}
-                            </SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
-            </CardHeader>
-
-            <CardContent className="flex-1 pb-6 flex flex-col justify-center">
-                {totalMessages > 0 ? (
-                    <ChartContainer className="mx-auto aspect-square max-h-72 w-full" config={chartConfig}>
-                        <PieChart accessibilityLayer>
-                            <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel />} />
-                            <Pie
-                                data={data}
-                                dataKey="count"
-                                nameKey="source"
-                                cornerRadius={2}
-                                innerRadius={40}
-                                outerRadius={95}
-                                stroke="var(--card)"
-                                strokeWidth={2}
-                                paddingAngle={3}
-                            >
-                                <LabelList
-                                    className="fill-background font-bold text-[11px]"
-                                    dataKey="count"
-                                    position="inside"
-                                    stroke="none"
-                                    // 🛡️ CORRECTION ICI : On utilise "any" pour satisfaire le typage interne de Recharts
-                                    // 🛡️ Typage strict avec "unknown" au lieu de "any"
-                                    formatter={(val: unknown) => {
-                                        // 1. On rejette le vide et les cas de division par zéro
-                                        if (totalMessages === 0 || val == null) return "";
-
-                                        // 2. Type Guard : on s'assure que "val" est bien transformable en nombre
-                                        if (typeof val !== "number" && typeof val !== "string") return "";
-
-                                        // 3. Conversion sécurisée
-                                        const numericValue = Number(val);
-                                        if (isNaN(numericValue)) return "";
-
-                                        // 4. Calcul final
-                                        const percent = ((numericValue / totalMessages) * 100).toFixed(0);
-                                        return percent !== "0" ? `${percent}%` : "";
-                                    }}
-                                />
-                            </Pie>
-                            <ChartLegend className="mt-8 flex-wrap justify-center gap-x-6 gap-y-2" content={<ChartLegendContent nameKey="source" />} />
-                        </PieChart>
-                    </ChartContainer>
-                ) : (
-                    <div className="flex flex-col aspect-square max-h-70 w-full items-center justify-center text-center animate-in fade-in zoom-in-95 duration-500">
-                        <div className="bg-muted/30 p-4 rounded-full mb-3 ring-1 ring-border/50">
-                            <PieChartIcon className="w-8 h-8 text-muted-foreground/60" strokeWidth={1.5} />
-                        </div>
-                        <p className="text-sm font-medium text-foreground">Aucune donnée</p>
-                        <p className="text-xs text-muted-foreground mt-1 max-w-50">
-                            Les messages reçus sur cette période apparaîtront ici.
-                        </p>
-                    </div>
-                )}
-            </CardContent>
-        </Card>
+        </AnalyticsCard>
     );
 }

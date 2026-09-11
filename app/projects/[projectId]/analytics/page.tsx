@@ -1,108 +1,200 @@
-import { getSession } from "@/lib/auth-server";
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { Metadata } from "next";
-import prisma from "@/lib/prisma";
-import { AnalyticsMessageRecuChart } from "@/components/dashboard/analytics-message-recu";
-import { CustomSourceMessageChart } from "@/components/dashboard/customSourceMessagesChart";
-import { getMessageSourcesStats } from "@/app/actions/getMessagesSources";
-import { AnalyticsDiscussionsChart } from "@/components/dashboard/AnalyticsNewDiscussionsChart";
-import { AnalyticsDiscussionRow } from "@/app/actions/getDiscussionsMetrics";
+
+import { getAnalyticsAccess } from "@/lib/analytics-access";
+import { getAnalyticsOverview } from "@/app/actions/analytics";
+import { parseAnalyticsPeriod } from "@/lib/analytics";
+
 import ProjectNotFoundDialog from "@/components/dashboard/project/projectNotfoundDialog";
-import { getProjectById } from "@/app/actions/projects";
+import { AnalyticsHeader } from "@/components/dashboard/analytics-header";
+import { AnalyticsKpiGrid } from "@/components/dashboard/kpi-cards";
+import { VolumeChart } from "@/components/dashboard/volume-chart";
+import { SourcesChart } from "@/components/dashboard/customSourceMessagesChart";
+import { MessageStatusCard } from "@/components/dashboard/message-status-card";
+import { TopContactsCard } from "@/components/dashboard/top-contacts-card";
+import { AnalyticsMessageRecuChart } from "@/components/dashboard/analytics-message-recu";
+import { AnalyticsDiscussionsChart } from "@/components/dashboard/AnalyticsNewDiscussionsChart";
 
 type PageProps = {
     params: Promise<{ projectId: string }>;
+    searchParams: Promise<{
+        [key: string]: string | string[] | undefined;
+    }>;
 };
 
-// 1. DYNAMISME DE L'ONGLET
-export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-    const resolvedParams = await params;
-    const projectId = resolvedParams.projectId;
-    const session = await getSession();
+export async function generateMetadata({
+    params,
+}: PageProps): Promise<Metadata> {
+    const { projectId } = await params;
+    const access = await getAnalyticsAccess(projectId);
 
-    if (!session?.user?.id) return { title: "Connexion requise | ExtravertyAI" };
-
-    const projectMembership = await prisma.projectMembership.findUnique({
-        where: {
-            userId_projectId: {
-                userId: session.user.id,
-                projectId: projectId,
-            },
-        },
-        select: { project: { select: { name: true } } },
-    });
-
-    if (!projectMembership) return { title: "Projet introuvable | ExtravertyAI" };
+    if (access.status !== "authorized") {
+        return {
+            title: "Analytics | ExtravertyAI",
+            robots: { index: false, follow: false },
+        };
+    }
 
     return {
-        title: `${projectMembership.project.name} - Analytics | ExtravertyAI`,
-        description: `Gérez les analytics pour le projet ${projectMembership.project.name}`,
+        title: `${access.projectName} · Analytics | ExtravertyAI`,
+        description:
+            "Analysez les échanges, les nouveaux contacts et les statuts de vos messages.",
+        robots: { index: false, follow: false },
     };
 }
 
-export default async function AnalyticsPage({ params }: PageProps) {
-    const resolvedParams = await params;
-    const projectId = resolvedParams.projectId;
+export default async function AnalyticsPage({
+    params,
+    searchParams,
+}: PageProps) {
+    const [{ projectId }, sp] = await Promise.all([
+        params,
+        searchParams,
+    ]);
 
-    const session = await getSession()
-    if (!session?.user?.id) {
-        return redirect(`/sign-in?callbackUrl=/projects/${projectId}/analytics`)
+    const access = await getAnalyticsAccess(projectId);
+    const projectPath = `/projects/${encodeURIComponent(projectId)}`;
+
+    if (access.status === "unauthenticated") {
+        const callbackUrl = `${projectPath}/analytics`;
+
+        redirect(
+            `/sign-in?${new URLSearchParams({ callbackUrl }).toString()}`,
+        );
     }
-    const project = await getProjectById(projectId);
-    if (!project) {
+
+    if (access.status === "not-found") {
         return (
-            <div className="flex items-center justify-center min-h-screen bg-background">
-                {/* On affiche directement la modale par-dessus un fond vide */}
+            <div className="flex min-h-[60vh] items-center justify-center p-6">
                 <ProjectNotFoundDialog open={true} />
             </div>
         );
     }
-    if (project.userRole !== "OWNER" && project.userRole !== "ADMIN") {
-        return redirect(`/projects/${projectId}?error=unauthorized`);
+
+    if (access.status === "forbidden") {
+        redirect(`${projectPath}?error=unauthorized`);
     }
-    const statsResult = await getMessageSourcesStats(projectId, "7d");
-    // const { chartData, totalCount } = await getAnalyticsDiscussionsMetrics(projectId, "1y");
+
+    const period = parseAnalyticsPeriod(sp.period);
+    const overview = await getAnalyticsOverview(projectId, period);
+
+    const sourcesTotal = overview.sources.reduce(
+        (sum, source) => sum + source.count,
+        0,
+    );
+
+    const statusesTotal = overview.statuses.reduce(
+        (sum, status) => sum + status.count,
+        0,
+    );
+
     return (
-        <>
-            <AnalyticsMessageRecuChart projectId={projectId} range="1y" />
-            <CustomSourceMessageChart
-                initialData={statsResult.data}
-                initialTotal={statsResult.totalMessages}
-                projectId={projectId}
-                className="mt-6"
-            />
-            <AnalyticsDiscussionsChart
-                data={mockAnalyticsData1Month}
-                total={mockAnalyticsTotal}
-                periodLabel="30 derniers jours"
-            />
-            {/* <AnalyticsDiscussionsChart
-                data={chartData}
-                total={totalCount}
-                periodLabel={"1y"}
-            /> */}
-        </>
-    )
+        <div className="min-w-0 bg-muted/20">
+            <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-6 p-4 sm:p-6 xl:gap-8 xl:p-8">
+                <AnalyticsHeader
+                    projectName={access.projectName}
+                    period={period}
+                    rangeLabel={overview.rangeLabel}
+                    volumeSeries={overview.volumeSeries}
+                    discussionsSeries={overview.discussionsSeries}
+                />
+
+                <section aria-labelledby="analytics-kpis-title">
+                    <h2 id="analytics-kpis-title" className="sr-only">
+                        Indicateurs clés
+                    </h2>
+
+                    <AnalyticsKpiGrid kpis={overview.kpis} />
+                </section>
+
+                <section
+                    aria-labelledby="analytics-activity-title"
+                    className="space-y-4"
+                >
+                    <div className="flex flex-wrap items-end justify-between gap-2">
+                        <div>
+                            <h2
+                                id="analytics-activity-title"
+                                className="text-base font-semibold tracking-tight"
+                            >
+                                Activité & acquisition
+                            </h2>
+                            <p className="mt-1 text-sm text-muted-foreground">
+                                Comprendre le volume et l’origine des échanges.
+                            </p>
+                        </div>
+
+                        <span className="text-xs text-muted-foreground">
+                            Regroupements en UTC
+                        </span>
+                    </div>
+
+                    <div className="grid min-w-0 gap-4 xl:grid-cols-3">
+                        <div className="min-w-0 xl:col-span-2">
+                            <VolumeChart
+                                data={overview.volumeSeries}
+                                rangeLabel={overview.rangeLabel}
+                            />
+                        </div>
+
+                        <SourcesChart
+                            data={overview.sources}
+                            total={sourcesTotal}
+                            rangeLabel={overview.rangeLabel}
+                        />
+                    </div>
+
+                    <div className="grid min-w-0 gap-4 lg:grid-cols-2">
+                        <AnalyticsMessageRecuChart
+                            data={overview.volumeSeries}
+                            rangeLabel={overview.rangeLabel}
+                        />
+
+                        <AnalyticsDiscussionsChart
+                            data={overview.discussionsSeries}
+                            rangeLabel={overview.rangeLabel}
+                        />
+                    </div>
+                </section>
+
+                <section
+                    aria-labelledby="analytics-quality-title"
+                    className="space-y-4"
+                >
+                    <div>
+                        <h2
+                            id="analytics-quality-title"
+                            className="text-base font-semibold tracking-tight"
+                        >
+                            Livraison & contacts
+                        </h2>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                            Suivre les statuts et identifier les contacts actifs.
+                        </p>
+                    </div>
+
+                    <div className="grid min-w-0 gap-4 xl:grid-cols-3">
+                        <MessageStatusCard
+                            statuses={overview.statuses}
+                            total={statusesTotal}
+                            rangeLabel={overview.rangeLabel}
+                        />
+
+                        <div className="min-w-0 xl:col-span-2">
+                            <TopContactsCard
+                                contacts={overview.topContacts}
+                                rangeLabel={overview.rangeLabel}
+                            />
+                        </div>
+                    </div>
+                </section>
+
+                <p className="text-xs leading-relaxed text-muted-foreground">
+                    Fenêtre glissante. Les premiers et derniers regroupements
+                    peuvent être partiels. Les évolutions comparent une période
+                    précédente de même durée.
+                </p>
+            </div>
+        </div>
+    );
 }
-
-
-export const mockAnalyticsData1Month: AnalyticsDiscussionRow[] = [
-    { date: "2026-08-08", count: 42 }, { date: "2026-08-09", count: 38 },
-    { date: "2026-08-10", count: 65 }, { date: "2026-08-11", count: 72 },
-    { date: "2026-08-12", count: 80 }, { date: "2026-08-13", count: 76 },
-    { date: "2026-08-14", count: 68 }, { date: "2026-08-15", count: 45 },
-    { date: "2026-08-16", count: 40 }, { date: "2026-08-17", count: 75 },
-    { date: "2026-08-18", count: 85 }, { date: "2026-08-19", count: 92 },
-    { date: "2026-08-20", count: 88 }, { date: "2026-08-21", count: 70 },
-    { date: "2026-08-22", count: 48 }, { date: "2026-08-23", count: 42 },
-    { date: "2026-08-24", count: 82 }, { date: "2026-08-25", count: 95 },
-    { date: "2026-08-26", count: 105 }, { date: "2026-08-27", count: 98 },
-    { date: "2026-08-28", count: 85 }, { date: "2026-08-29", count: 55 },
-    { date: "2026-08-30", count: 50 }, { date: "2026-08-31", count: 90 },
-    { date: "2026-09-01", count: 110 }, { date: "2026-09-02", count: 125 },
-    { date: "2026-09-03", count: 118 }, { date: "2026-09-04", count: 105 },
-    { date: "2026-09-05", count: 65 }, { date: "2026-09-06", count: 58 },
-];
-
-export const mockAnalyticsTotal = mockAnalyticsData1Month.reduce((acc, curr) => acc + curr.count, 0); // ~2232
-

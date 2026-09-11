@@ -46,17 +46,17 @@ export default function ContactsLoading() {
                 <div className="border bg-card shadow-sm overflow-hidden">
                     {/* Header du tableau */}
                     <div className="border-b bg-muted/40 p-4 flex items-center justify-between">
-                        <Skeleton className="h-4 w-30" />
-                        <Skeleton className="h-4 w-25 hidden md:block" />
-                        <Skeleton className="h-4 w-20 hidden md:block" />
-                        <Skeleton className="h-4 w-20 hidden md:block" />
-                        <Skeleton className="h-4 w-7.5" />
+                        <Skeleton className="h-4 w-[10%]" />
+                        <Skeleton className="h-4 ml-[10%] w-[20%] hidden md:block" />
+                        <Skeleton className="h-4 w-[25%] hidden md:block" />
+                        <Skeleton className="h-4 w-[15%] hidden md:block" />
+                        <Skeleton className="h-4 w-[5%]" />
                     </div>
 
                     {/* Lignes du tableau (on en simule 5 pour remplir l'écran) */}
                     <div className="divide-y divide-neutral-200 dark:divide-neutral-800">
                         {[...Array(5)].map((_, i) => (
-                            <div key={i} className="p-3 py-4 flex items-center justify-between transition-colors">
+                            <div key={i} className="p-4 py-4 flex items-center justify-between transition-colors">
                                 {/* Colonne Identité avec l'Avatar de secours (responsive : toujours visible) */}
                                 <div className="flex items-center gap-3 w-full max-w-62.5">
                                     <Skeleton className="h-8 w-8 rounded-full shrink-0" />
