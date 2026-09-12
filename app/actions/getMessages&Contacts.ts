@@ -78,6 +78,12 @@ export async function getWorkspaceData(
             type: true,
             createdAt: true,
             status: true,
+            outboundJob: {
+              select: {
+                state: true,
+                requestId: true,
+              },
+            },
           },
         },
       },
@@ -127,6 +133,8 @@ export async function getWorkspaceData(
             : `Pièce jointe (${message.type}) — aperçu non disponible.`,
         timestamp: message.createdAt.toISOString(),
         status: normalizeChatStatus(message.status),
+        outboundState: message.outboundJob?.state ?? null,
+        clientRequestId: message.outboundJob?.requestId ?? null,
       }));
     }
 

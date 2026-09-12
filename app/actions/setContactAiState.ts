@@ -61,6 +61,7 @@ export async function setContactAiState(
       },
       data: {
         aiActive: enabled,
+        aiVersion: { increment: 1 },
       },
     });
 

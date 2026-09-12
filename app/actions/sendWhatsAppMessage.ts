@@ -1,175 +1,253 @@
 "use server";
 
 import { z } from "zod";
-import prisma from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+
+import prisma from "@/lib/prisma";
 import { getSession } from "@/lib/auth-server";
 import { notifyChatChanged } from "@/lib/chat-realtime";
 
 const SendMessageSchema = z.object({
   projectId: z.string().cuid(),
   contactId: z.string().cuid(),
-  content: z
-    .string()
-    .trim()
-    .min(1, "Le message ne peut pas être vide")
-    .max(4096),
+  requestId: z.string().uuid(),
+  content: z.string().trim().min(1).max(4096),
 });
 
-interface EvoResponse {
-  key?: { id?: string };
-  [key: string]: unknown;
-}
+class SendRejected extends Error {}
 
 export async function sendWhatsAppMessage(
-  formData: z.infer<typeof SendMessageSchema>,
+  input: z.infer<typeof SendMessageSchema>,
 ) {
+  const session = await getSession();
+
+  if (!session?.user?.id) {
+    return {
+      success: false as const,
+      error: "Connexion requise.",
+    };
+  }
+
+  const parsed = SendMessageSchema.safeParse(input);
+
+  if (!parsed.success) {
+    return {
+      success: false as const,
+      error: "Demande invalide.",
+    };
+  }
+
+  const agentId = session.user.id;
+  const { projectId, contactId, requestId, content } = parsed.data;
+
   try {
-    const session = await getSession();
-    if (!session?.user?.id)
-      return { success: false, error: "Utilisateur non authentifié" };
+    const result = await prisma.$transaction(async (tx) => {
+      // Tous les enqueue/reset de quota doivent respecter ce verrou.
+      const locked = await tx.$queryRaw<
+        Array<{ id: string; databaseNow: Date }>
+      >`
+                SELECT id, clock_timestamp() AS "databaseNow"
+                FROM "project"
+                WHERE id = ${projectId}
+                FOR UPDATE
+            `;
 
-    const agentId = session.user.id;
-    const parsed = SendMessageSchema.safeParse(formData);
-    if (!parsed.success) return { success: false, error: "Données invalides" };
+      if (!locked[0]) {
+        throw new SendRejected("Projet indisponible.");
+      }
 
-    const { projectId, contactId, content } = parsed.data;
-
-    const membership = await prisma.projectMembership.findUnique({
-      where: { userId_projectId: { userId: agentId, projectId: projectId } },
-      include: {
-        project: {
-          select: { status: true, instanceName: true, instanceStatus: true },
+      const membership = await tx.projectMembership.findUnique({
+        where: {
+          userId_projectId: {
+            userId: agentId,
+            projectId,
+          },
         },
-      },
-    });
-
-    if (!membership)
-      return { success: false, error: "Accès non autorisé au projet" };
-
-    const { status, instanceName, instanceStatus } = membership.project;
-
-    if (status === "inactive" || status === "paused") {
-      return { success: false, error: "Le projet est suspendu ou inactif." };
-    }
-
-    if (!instanceName || instanceStatus !== "connected") {
-      return {
-        success: false,
-        error: "L’instance WhatsApp n’est pas connectée.",
-      };
-    }
-
-    const contact = await prisma.contact.findUnique({
-      where: { id: contactId, projectId: projectId },
-      select: { id: true, remoteJid: true, aiActive: true },
-    });
-
-    if (!contact) return { success: false, error: "Contact introuvable." };
-
-    const EVO_API_URL = process.env.EVOLUTION_API_URL;
-    const EVO_API_KEY = process.env.EVOLUTION_API_KEY;
-    if (!EVO_API_URL || !EVO_API_KEY) throw new Error("SERVER_CONFIG_ERROR");
-
-    let isSuccess = false;
-    let evoData: EvoResponse | null = null;
-    const endpoint =
-      `${EVO_API_URL.replace(/\/+$/, "")}/message/sendText/` +
-      encodeURIComponent(instanceName);
-    try {
-      const response = await fetch(endpoint, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", apikey: EVO_API_KEY },
-        body: JSON.stringify({ number: contact.remoteJid, text: content }),
-        signal: AbortSignal.timeout(15_000),
-        cache: "no-store",
+        select: { role: true },
       });
 
-      isSuccess = response.ok;
-      const rawText = await response.text();
-      try {
-        evoData = JSON.parse(rawText) as EvoResponse;
-      } catch {
-        evoData = { rawResponse: rawText };
+      if (!membership) {
+        throw new SendRejected("Accès refusé.");
       }
-    } catch {
-      return {
-        success: false,
-        uncertain: true,
-        error:
-          "Confirmation indisponible. Le message peut avoir été envoyé. Vérifiez la conversation avant de réessayer.",
-      };
-    }
 
-    // CORRECTION : On ne throw plus d'erreur dans la transaction pour éviter le Rollback
-    const result = await prisma.$transaction(async (tx) => {
-      if (!isSuccess) {
-        const failedMsg = await tx.message.create({
-          data: {
-            content,
-            senderType: "AGENT",
-            status: "FAILED",
-            errorMessage: "PROVIDER_REJECTED",
-            source: "web_dashboard",
-            contactId,
+      // Règle conservée depuis ton application :
+      // tous les membres peuvent envoyer.
+      // Si USER est un rôle de lecture seule chez toi,
+      // ajoute ici une vérification OWNER / ADMIN.
+      const existing = await tx.outboundJob.findUnique({
+        where: {
+          projectId_requestId: {
             projectId,
-            agentId,
-            fromMe: true,
-            type: "TEXT",
+            requestId,
           },
-        });
-        return { ok: false, data: failedMsg };
+        },
+        include: { message: true },
+      });
+
+      if (existing) {
+        if (
+          existing.message.agentId !== agentId ||
+          existing.message.contactId !== contactId ||
+          existing.message.content !== content
+        ) {
+          throw new SendRejected(
+            "Cet identifiant de demande a déjà été utilisé.",
+          );
+        }
+
+        return {
+          message: existing.message,
+          state: existing.state,
+        };
       }
 
-      const newMessage = await tx.message.create({
+      const project = await tx.project.findUniqueOrThrow({
+        where: { id: projectId },
+        select: {
+          status: true,
+          instanceStatus: true,
+        },
+      });
+
+      if (project.status !== "active" && project.status !== "trialing") {
+        throw new SendRejected("Le projet n’est pas actif.");
+      }
+
+      if (project.instanceStatus !== "connected") {
+        throw new SendRejected("WhatsApp n’est pas connecté.");
+      }
+
+      const contactLock = await tx.$queryRaw<Array<{ id: string }>>`
+                SELECT id
+                FROM "contact"
+                WHERE id = ${contactId}
+                  AND "projectId" = ${projectId}
+                FOR UPDATE
+            `;
+
+      if (!contactLock[0]) {
+        throw new SendRejected("Contact indisponible.");
+      }
+
+      const now = locked[0].databaseNow;
+
+      const period = await tx.quotaPeriod.findFirst({
+        where: {
+          projectId,
+          isCurrent: true,
+          kind: project.status,
+          startsAt: { lte: now },
+          endsAt: { gt: now },
+        },
+      });
+
+      if (!period) {
+        throw new SendRejected(
+          "La période de quota est indisponible ou expirée.",
+        );
+      }
+
+      const quota = await tx.quotaPeriod.updateMany({
+        where: {
+          id: period.id,
+          used: { lt: period.limit },
+        },
         data: {
+          used: { increment: 1 },
+        },
+      });
+
+      if (quota.count !== 1) {
+        throw new SendRejected("Le quota de messages est atteint.");
+      }
+
+      const message = await tx.message.create({
+        data: {
+          projectId,
+          contactId,
+          agentId,
           content,
           senderType: "AGENT",
-          status: "SENT",
-          source: "web_dashboard",
-          contactId,
-          projectId,
-          agentId,
-          evolutionId: evoData?.key?.id || null,
-          fromMe: true,
+          status: "PENDING",
           type: "TEXT",
+          fromMe: true,
+          source: "web_dashboard",
         },
       });
 
-      if (contact.aiActive) {
-        await tx.contact.update({
-          where: { id: contact.id },
-          data: { aiActive: false },
-        });
-      }
-
-      await tx.project.update({
-        where: { id: projectId },
-        data: { messageCount: { increment: 1 } },
+      const job = await tx.outboundJob.create({
+        data: {
+          projectId,
+          messageId: message.id,
+          requestId,
+          quotaPeriodId: period.id,
+        },
       });
 
-      return { ok: true, data: newMessage };
+      // Prise en main dès l'acceptation durable de l'envoi manuel.
+      // Cela invalide aussi les générations IA portant une ancienne version.
+      await tx.contact.update({
+        where: { id: contactId },
+        data: {
+          aiActive: false,
+          aiVersion: { increment: 1 },
+          lastMessageAt: message.createdAt,
+        },
+      });
+
+      // Champ de compatibilité pour tes écrans existants.
+      // La référence d'admission reste QuotaPeriod.used.
+      await tx.project.update({
+        where: { id: projectId },
+        data: {
+          messageCount: period.used + 1,
+        },
+      });
+
+      return {
+        message,
+        state: job.state,
+      };
     });
 
-    revalidatePath(`/projects/${projectId}/chat`);
-    await notifyChatChanged(projectId);
+    // Une erreur de notification ne doit pas transformer un enqueue
+    // déjà validé en faux échec.
+    try {
+      revalidatePath(`/projects/${projectId}/chat`);
+      await notifyChatChanged(projectId);
+    } catch {
+      console.error("[chat] Notification après enqueue indisponible.");
+    }
 
-    // Retourne le message échoué ET une erreur si !isSuccess
-    if (!result.ok) {
+    return {
+      success: true as const,
+      queued: true,
+      requestId,
+      outboundState: result.state,
+      message: {
+        id: result.message.id,
+        status: result.message.status,
+        timestamp: result.message.createdAt.toISOString(),
+      },
+    };
+  } catch (error) {
+    if (error instanceof SendRejected) {
       return {
-        success: false,
-        error: "Échec de l'envoi via WhatsApp.",
-        message: result.data,
+        success: false as const,
+        error: error.message,
       };
     }
 
-    return { success: true, message: result.data };
-  } catch (error: unknown) {
-    console.error("[sendWhatsAppMessage Error]:", error);
-    let friendlyErrorMessage = "Une erreur inattendue est survenue.";
-    if (error instanceof Error && error.message === "SERVER_CONFIG_ERROR") {
-      friendlyErrorMessage = "Erreur de configuration interne du serveur.";
-    }
-    return { success: false, error: friendlyErrorMessage };
+    console.error("[chat] Résultat de l’enregistrement non confirmé.");
+
+    // Une perte de connexion à PostgreSQL lors du commit peut aussi
+    // laisser le client dans le doute sur l'enregistrement.
+    return {
+      success: false as const,
+      uncertain: true,
+      requestId,
+      error:
+        "Enregistrement non confirmé. Réutilisez la même demande pour vérifier son résultat.",
+    };
   }
 }

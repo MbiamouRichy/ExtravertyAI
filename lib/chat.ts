@@ -6,6 +6,13 @@ export type ChatMessageStatus =
   | "failed"
   | "unknown";
 
+export type OutboundState =
+  | "QUEUED"
+  | "DISPATCHING"
+  | "ACCEPTED"
+  | "UNCERTAIN"
+  | "CANCELLED";
+
 export type ChatClient = {
   id: string;
   name: string;
@@ -26,6 +33,8 @@ export type ChatMessage = {
   content: string;
   timestamp: string;
   status: ChatMessageStatus;
+  outboundState?: OutboundState | null;
+  clientRequestId?: string | null;
 };
 
 export type WorkspaceDataResponse =

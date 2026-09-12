@@ -9,10 +9,8 @@ import {
     useMemo,
     useRef,
     useState,
-    useTransition,
     type FormEvent,
 } from "react";
-import { useRouter } from "next/navigation";
 import {
     ArrowLeft,
     Bot,
@@ -237,9 +235,19 @@ function ChatBubble({
     onRestore: (content: string) => void;
 }) {
     const incoming = message.senderType === "client";
-    const failed = message.status === "failed";
-    const uncertain = message.status === "uncertain";
+    const visualStatus: DisplayMessage["status"] =
+        message.status === "read" || message.status === "delivered"
+            ? message.status
+            : message.outboundState === "UNCERTAIN"
+                ? "uncertain"
+                : message.outboundState === "DISPATCHING"
+                    ? "sending"
+                    : message.outboundState === "CANCELLED"
+                        ? "failed"
+                        : message.status;
 
+    const failed = visualStatus === "failed";
+    const uncertain = visualStatus === "uncertain";
     // Les données ne contiennent pas l'identité de l'agent :
     // on n'attribue pas tous les anciens messages à l'utilisateur courant.
     const author =
@@ -252,6 +260,8 @@ function ChatBubble({
                     : "Agent";
 
     const date = new Date(message.timestamp);
+
+
 
     return (
         <article
@@ -308,7 +318,7 @@ function ChatBubble({
                         {timeFormatter.format(date)}
                     </time>
 
-                    {!incoming && <DeliveryStatus status={message.status} />}
+                    {!incoming && <DeliveryStatus status={visualStatus} />}
                 </div>
 
                 {uncertain && (
@@ -585,7 +595,8 @@ export default function WhatsappWorkspace({
 
         const contactId = activeClient.id;
         const content = (drafts[contactId] ?? "").trim();
-
+        const requestId = crypto.randomUUID();
+        const localId = `local-${requestId}`;
         if (
             !content ||
             content.length > MAX_MESSAGE_LENGTH ||
@@ -601,8 +612,6 @@ export default function WhatsappWorkspace({
 
         sendLocks.current.add(contactId);
         setSendingIds((previous) => [...previous, contactId]);
-
-        const localId = `local-${crypto.randomUUID()}`;
 
         const optimisticMessage: LocalMessage = {
             id: localId,
@@ -629,9 +638,10 @@ export default function WhatsappWorkspace({
         setAnnouncement("Envoi du message en cours.");
 
         try {
-            const rawResult: unknown = await sendWhatsAppMessage({
+            const rawResult = await sendWhatsAppMessage({
                 projectId: project.id,
                 contactId,
+                requestId,
                 content,
             });
 
