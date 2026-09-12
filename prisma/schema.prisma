@@ -134,6 +134,7 @@ model Contact {
   // SÉCURITÉ & PERF: Un contact (JID) est unique par projet. Indexé pour recherche rapide.
   @@unique([projectId, remoteJid])
   @@index([projectId])
+  @@index([projectId, updatedAt, id])
   @@map("contact")
 }
 
@@ -174,6 +175,7 @@ model Message {
   @@index([projectId])
   @@index([contactId, createdAt(sort: Desc)])
   @@index([evolutionId])
+  @@index([projectId, contactId, createdAt, id])
   @@map("message")
 }
 

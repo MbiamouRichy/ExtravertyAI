@@ -1,264 +1,560 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import useSWR from "swr";
 import Image from "next/image";
-import { getConnectionData, generatePairingCode } from "@/app/actions/instance-actions";
-import {
-    ShieldCheck,
-    AlertCircle,
-    Loader2,
-    Smartphone,
-    Lock,
-    CheckCircle2,
-    QrCode,
-    Hash,
-    RefreshCcw
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
-import CustomCard from "@/components/ui/customCard";
+import {
+    AlertCircle,
+    ArrowRight,
+    Check,
+    CheckCircle2,
+    Copy,
+    Hash,
+    Loader2,
+    QrCode,
+    RefreshCw,
+    Smartphone,
+} from "lucide-react";
 
-const fetcher = (projectId: string) => getConnectionData(projectId);
+import {
+    getConnectionData,
+    generatePairingCode,
+} from "@/app/actions/instance-actions";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
-export default function WhatsAppConnect({ projectId }: { projectId: string }) {
-    const [method, setMethod] = useState<"qr" | "phone">("qr");
+type ConnectionData = Awaited<ReturnType<typeof getConnectionData>>;
+type Method = "qr" | "phone";
+
+const fetchConnection = ([, projectId]: readonly [string, string]) =>
+    getConnectionData(projectId);
+
+function normalizeQrImage(value: unknown): string | null {
+    if (typeof value !== "string") return null;
+
+    // On n'affiche pas une URL distante arbitraire comme secret de connexion.
+    // Ce composant attend une image PNG/JPEG en data URL.
+    if (
+        value.length > 2_000_000 ||
+        !/^data:image\/(?:png|jpeg);base64,[a-zA-Z0-9+/=\r\n]+$/.test(value)
+    ) {
+        return null;
+    }
+
+    return value;
+}
+
+export default function QRCodeScanner({
+    projectId,
+}: {
+    projectId: string;
+}) {
+    // Le key isole les secrets locaux si le projet change.
+    return <ConnectionPanel key={projectId} projectId={projectId} />;
+}
+
+function ConnectionPanel({ projectId }: { projectId: string }) {
+    const router = useRouter();
+
+    const [method, setMethod] = useState<Method>("qr");
     const [pairingCode, setPairingCode] = useState<string | null>(null);
-    const [isGeneratingCode, setIsGeneratingCode] = useState(false);
+    const [generating, setGenerating] = useState(false);
     const [actionError, setActionError] = useState<string | null>(null);
-    const router = useRouter()
+    const [copied, setCopied] = useState(false);
+    const [opening, setOpening] = useState(false);
 
-    const { data, error } = useSWR(projectId, fetcher, {
-        refreshInterval: (currentData) =>
-            currentData?.status === "connected" || currentData?.status === "error" ? 0 : 3000,
-        revalidateOnFocus: false,
-    });
+    const generationLock = useRef(false);
+    const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const mounted = useRef(true);
 
-    const handleRequestPairingCode = async () => {
-        setActionError(null);
-        setIsGeneratingCode(true);
+    const { data, error, isLoading, isValidating, mutate } =
+        useSWR<ConnectionData>(
+            ["whatsapp-connection", projectId] as const,
+            fetchConnection,
+            {
+                refreshInterval: (current) =>
+                    current?.status === "connected" ? 0 : 3000,
+                refreshWhenHidden: false,
+                refreshWhenOffline: false,
+                revalidateOnFocus: true,
+                revalidateOnReconnect: true,
+                dedupingInterval: 1000,
+                errorRetryCount: 3,
+                errorRetryInterval: 5000,
+            },
+        );
 
-        const res = await generatePairingCode(projectId);
+    const connected = data?.status === "connected";
+    const unavailable = !!error || data?.status === "error";
+    const qrImage = !unavailable
+        ? normalizeQrImage(data?.qrCodeBase64)
+        : null;
 
-        // CORRECTION TS ICI : On vérifie que pairingCode est bien une string
-        if (res.success && typeof res.pairingCode === "string") {
-            const formattedCode = res.pairingCode.match(/.{1,4}/g)?.join("-") || res.pairingCode;
-            setPairingCode(formattedCode);
-        } else {
-            setActionError(res.error || "Échec de la génération du code.");
-        }
-
-        setIsGeneratingCode(false);
-    };
-
-    // --- REDIRECTION AUTOMATIQUE LORS DE LA CONNEXION ---
     useEffect(() => {
-        if (data?.status === "connected") {
-            const timer = setTimeout(() => {
-                // Adapte cette route selon la structure de ton application (ex: /projects/${projectId}/messages)
-                router.refresh();
-            }, 1500); // Petit délai de 1.5s pour laisser l'utilisateur voir le message de succès
+        mounted.current = true;
 
-            return () => clearTimeout(timer);
+        return () => {
+            mounted.current = false;
+
+            if (copyTimer.current) {
+                clearTimeout(copyTimer.current);
+            }
+        };
+    }, []);
+
+    useEffect(() => {
+        if (!connected) return;
+
+        setPairingCode(null);
+
+        const timer = setTimeout(() => {
+            setOpening(true);
+            router.refresh();
+        }, 700);
+
+        return () => clearTimeout(timer);
+    }, [connected, router]);
+
+    async function requestPairingCode() {
+        if (generationLock.current || connected) return;
+
+        generationLock.current = true;
+        setGenerating(true);
+        setActionError(null);
+        setCopied(false);
+
+        // Un ancien code peut être invalidé par la nouvelle demande.
+        setPairingCode(null);
+
+        try {
+            const result = await generatePairingCode(projectId);
+
+            if (!mounted.current) return;
+
+            if (
+                !result.success ||
+                typeof result.pairingCode !== "string" ||
+                !result.pairingCode.trim()
+            ) {
+                setActionError(
+                    "Impossible de générer le code. Vérifiez le numéro configuré pour ce projet.",
+                );
+                return;
+            }
+
+            const normalized = result.pairingCode
+                .replace(/[\s-]/g, "")
+                .toUpperCase();
+
+            if (!/^[A-Z0-9]{4,32}$/.test(normalized)) {
+                setActionError("Le serveur a retourné un code invalide.");
+                return;
+            }
+
+            setPairingCode(normalized);
+            void mutate();
+        } catch {
+            if (mounted.current) {
+                setActionError(
+                    "La demande n’a pas abouti. Vous pouvez réessayer.",
+                );
+            }
+        } finally {
+            generationLock.current = false;
+
+            if (mounted.current) {
+                setGenerating(false);
+            }
         }
-    }, [data?.status, projectId, router]);
+    }
 
-    // --- ÉTAT : ERREUR GLOBALE ---
-    if (error || data?.status === "error") {
+    async function copyPairingCode() {
+        if (!pairingCode) return;
+
+        try {
+            await navigator.clipboard.writeText(pairingCode);
+
+            if (!mounted.current) return;
+
+            setCopied(true);
+
+            if (copyTimer.current) {
+                clearTimeout(copyTimer.current);
+            }
+
+            copyTimer.current = setTimeout(() => {
+                if (mounted.current) setCopied(false);
+            }, 2000);
+        } catch {
+            setActionError(
+                "La copie est indisponible. Vous pouvez sélectionner le code manuellement.",
+            );
+        }
+    }
+
+    if (connected) {
         return (
-            <div className="w-full max-w-md my-auto mx-auto p-6 flex flex-col items-center text-center bg-card border rounded-xl shadow-sm">
-                <div className="w-12 h-12 bg-red-50 text-red-500 dark:bg-red-500/10 rounded-full flex items-center justify-center mb-4">
-                    <AlertCircle className="w-6 h-6" />
+            <section
+                aria-labelledby="connection-success-title"
+                className="mx-auto w-full max-w-2xl rounded-2xl border border-border/70 bg-card p-6 text-center shadow-sm sm:p-10"
+            >
+                <div className="mx-auto mb-5 flex size-16 items-center justify-center rounded-2xl border border-emerald-500/20 bg-emerald-500/10">
+                    <CheckCircle2
+                        aria-hidden="true"
+                        className="size-8 text-emerald-700 dark:text-emerald-400"
+                        strokeWidth={1.7}
+                    />
                 </div>
-                <h3 className="text-lg font-semibold mb-1">
-                    Une erreur est survenue
-                </h3>
-                <p className="text-sm text-muted-foreground">
-                    Le pont de sécurité n&apos;a pas pu être établi. Veuillez réessayer.
+
+                <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
+                    Connexion établie
                 </p>
+
+                <h2
+                    id="connection-success-title"
+                    className="mt-2 text-2xl font-semibold tracking-tight"
+                >
+                    WhatsApp est connecté
+                </h2>
+
+                <p className="mx-auto mt-3 max-w-sm text-sm leading-relaxed text-muted-foreground">
+                    L’instance de votre projet est prête.
+                    Votre espace de conversation va s’ouvrir automatiquement.
+                </p>
+
+                <div
+                    role="status"
+                    className="mt-6 flex items-center justify-center gap-2 text-xs text-muted-foreground"
+                >
+                    <Loader2
+                        aria-hidden="true"
+                        className="size-4 animate-spin motion-reduce:animate-none"
+                    />
+                    {opening
+                        ? "Ouverture des conversations…"
+                        : "Préparation de votre espace…"}
+                </div>
+
                 <Button
+                    type="button"
+                    variant="outline"
+                    className="mt-5 gap-2 rounded-xl"
                     onClick={() => router.refresh()}
                 >
-                    Réessayer...
+                    Ouvrir les conversations
+                    <ArrowRight aria-hidden="true" className="size-4" />
                 </Button>
-            </div>
+            </section>
         );
     }
 
-    // --- ÉTAT : CHARGEMENT INITIAL ---
-    if (!data) {
-        return (
-            <div className="w-full max-w-md my-auto mx-auto p-8 flex flex-col items-center text-center bg-card border rounded-xl shadow-sm">
-                <div className="relative w-16 h-16 flex items-center justify-center mb-6">
-                    <div className="absolute inset-0 border-2 border-muted-foreground/20 rounded-full"></div>
-                    <Loader2 className="w-8 h-8 animate-spin text-primary" />
-                </div>
-                <h3 className="text-sm font-medium mb-1">
-                    Génération du jeton sécurisé
-                </h3>
-                <p className="text-xs text-muted-foreground animate-pulse">
-                    Établissement du tunnel crypté en cours...
-                </p>
-            </div>
-        );
-    }
+    const steps =
+        method === "qr"
+            ? [
+                "Ouvrez WhatsApp sur votre téléphone.",
+                "Accédez à « Appareils connectés », puis « Connecter un appareil ».",
+                "Scannez le QR code affiché à droite.",
+            ]
+            : [
+                "Ouvrez WhatsApp sur le téléphone du numéro configuré pour ce projet.",
+                "Accédez à « Appareils connectés », puis « Connecter un appareil ».",
+                "Choisissez la liaison avec un numéro de téléphone, puis saisissez le code.",
+            ];
 
-    // --- ÉTAT : CONNECTÉ (SUCCÈS) ---
-    if (data.status === "connected") {
-        return (
-            <div className="w-full max-w-md mx-auto my-auto p-8 flex flex-col items-center text-center bg-card border rounded-xl shadow-sm relative overflow-hidden">
-                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-32 bg-green-500/10 blur-3xl rounded-full"></div>
-                <div className="relative z-10 w-16 h-16 bg-green-50 dark:bg-green-500/10 text-green-600 rounded-full flex items-center justify-center mb-4 border border-green-200 dark:border-green-900/50">
-                    <ShieldCheck className="w-8 h-8" />
-                </div>
-                <h3 className="text-lg font-bold mb-2">
-                    Appareil Authentifié
-                </h3>
-                <p className="text-sm text-muted-foreground mb-4">
-                    Votre compte WhatsApp est désormais sécurisé et relié à l&apos;infrastructure d&apos;ExtravertyAI.
-                </p>
-                <div className="flex items-center gap-1.5 text-green-600 dark:text-green-400 text-xs font-medium border border-green-200 dark:border-green-900 px-3 py-1.5 rounded-full bg-green-50 dark:bg-green-500/10">
-                    <CheckCircle2 className="w-3.5 h-3.5" />
-                    <p>Pont de données actif</p>
-                </div>
-                <div className="flex items-center gap-2 mt-2 text-green-600 dark:text-green-400 text-xs font-medium border border-green-200 dark:border-green-900 px-3.5 py-2 rounded-full bg-green-50 dark:bg-green-500/10">
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    <span>Ouverture du module de discussion</span>
-                </div>
-            </div>
-        );
-    }
-
-    // --- ÉTAT : SÉLECTION DE LA MÉTHODE ---
     return (
-        <CustomCard className="w-full max-w-md mx-auto my-auto p-6 md:p-8 flex flex-col items-center bg-card border shadow-sm">
-            <div className="w-full text-center mb-6">
-                <h3 className="text-xl font-semibold mb-2 tracking-tight">
-                    Associer votre appareil
-                </h3>
+        <section
+            aria-labelledby="whatsapp-connect-title"
+            className="mx-auto w-full max-w-4xl overflow-hidden rounded-2xl border border-border/70 bg-card shadow-sm"
+        >
+            <header className="border-b border-border/70 px-5 py-5 sm:px-7">
+                <div className="flex items-start gap-3">
+                    <div className="flex size-11 shrink-0 items-center justify-center rounded-xl border bg-muted/30">
+                        <Smartphone
+                            aria-hidden="true"
+                            className="size-5 text-muted-foreground"
+                        />
+                    </div>
 
-                <div className="flex items-center justify-between bg-muted p-1 rounded-lg mt-4 border">
-                    <Button
-                        onClick={() => setMethod("qr")}
-                        variant={method === "qr" ? "outline" : "ghost"}
-                        className="w-1/2 shadow-none"
-                    >
-                        <QrCode className="w-4 h-4 mr-2" /> QR Code
-                    </Button>
-                    <Button
-                        onClick={() => setMethod("phone")}
-                        variant={method === "phone" ? "outline" : "ghost"}
-                        className="w-1/2 shadow-none"
-                    >
-                        <Hash className="w-4 h-4 mr-2" /> Numéro
-                    </Button>
+                    <div>
+                        <h2
+                            id="whatsapp-connect-title"
+                            className="text-lg font-semibold tracking-tight"
+                        >
+                            Associer votre compte WhatsApp
+                        </h2>
+
+                        <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+                            Choisissez une méthode, puis validez la connexion
+                            depuis votre téléphone.
+                        </p>
+                    </div>
                 </div>
-            </div>
+            </header>
 
-            <div className="flex flex-col items-center gap-4 w-full animate-in fade-in slide-in-from-bottom-2 duration-300 py-2">
+            <div className="grid md:grid-cols-[1fr_1.05fr]">
+                <div className="space-y-6 border-b border-border/70 bg-muted/20 p-5 sm:p-7 md:border-b-0 md:border-r">
+                    <fieldset>
+                        <legend className="mb-3 text-xs font-semibold text-muted-foreground">
+                            Méthode de connexion
+                        </legend>
 
-                <div className="flex items-start gap-3 bg-muted/50 p-4 rounded-xl border mb-2 w-full">
-                    <Smartphone className="w-5 h-5 text-muted-foreground shrink-0 mt-0.5" />
-                    <p className="text-sm text-muted-foreground leading-relaxed text-left">
-                        Ouvrez WhatsApp &gt; <strong>Appareils connectés</strong> &gt;{" "}
-                        <b>Connecter un appareil</b>, puis scannez ce code.
+                        <div className="grid grid-cols-2 gap-1 rounded-xl border bg-background p-1">
+                            {[
+                                {
+                                    value: "qr" as const,
+                                    label: "QR code",
+                                    icon: QrCode,
+                                },
+                                {
+                                    value: "phone" as const,
+                                    label: "Code de liaison",
+                                    icon: Hash,
+                                },
+                            ].map(({ value, label, icon: Icon }) => (
+                                <button
+                                    key={value}
+                                    type="button"
+                                    aria-pressed={method === value}
+                                    onClick={() => {
+                                        setMethod(value);
+                                        setActionError(null);
+                                    }}
+                                    className={cn(
+                                        "flex min-h-11 items-center justify-center gap-2 rounded-lg px-2 text-xs font-medium",
+                                        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                                        method === value
+                                            ? "bg-primary text-primary-foreground shadow-sm"
+                                            : "text-muted-foreground hover:bg-muted",
+                                    )}
+                                >
+                                    <Icon
+                                        aria-hidden="true"
+                                        className="size-4 shrink-0"
+                                    />
+                                    {label}
+                                </button>
+                            ))}
+                        </div>
+                    </fieldset>
+
+                    <ol className="space-y-5">
+                        {steps.map((step, index) => (
+                            <li key={step} className="flex gap-3">
+                                <span
+                                    aria-hidden="true"
+                                    className="flex size-7 shrink-0 items-center justify-center rounded-full border bg-background text-xs font-semibold tabular-nums"
+                                >
+                                    {index + 1}
+                                </span>
+
+                                <p className="pt-1 text-sm leading-relaxed text-muted-foreground">
+                                    {step}
+                                </p>
+                            </li>
+                        ))}
+                    </ol>
+
+                    <p className="text-xs leading-relaxed text-muted-foreground">
+                        Le nom des options peut varier selon votre version
+                        de WhatsApp.
                     </p>
                 </div>
 
-                {/* --- VUE : QR CODE (EMBELLIE) --- */}
-                {method === "qr" && (
-                    <div className="relative my-6 flex items-center justify-center">
-                        {/* Coins de scan - Ajustés pour correspondre à l'image_912c86.png */}
-                        <div className="absolute -top-2 -left-2 w-6 h-6 border-t-2 border-l-2 border-foreground rounded-tl-lg"></div>
-                        <div className="absolute -top-2 -right-2 w-6 h-6 border-t-2 border-r-2 border-foreground rounded-tr-lg"></div>
-                        <div className="absolute -bottom-2 -left-2 w-6 h-6 border-b-2 border-l-2 border-foreground rounded-bl-lg"></div>
-                        <div className="absolute -bottom-2 -right-2 w-6 h-6 border-b-2 border-r-2 border-foreground rounded-br-lg"></div>
+                <div className="flex min-h-97.5 flex-col items-center justify-center p-5 sm:p-7">
+                    {unavailable ? (
+                        <div className="w-full max-w-sm text-center">
+                            <div className="mx-auto mb-4 flex size-12 items-center justify-center rounded-2xl bg-destructive/10">
+                                <AlertCircle
+                                    aria-hidden="true"
+                                    className="size-5 text-destructive"
+                                />
+                            </div>
 
-                        <div className="relative w-64 h-64 bg-white rounded-xl shadow-md border border-zinc-200 flex items-center justify-center p-3">
-                            {data.qrCodeBase64 ? (
-                                <div className="relative w-full h-full">
-                                    <Image
-                                        src={data.qrCodeBase64}
-                                        alt="QR Code d'authentification WhatsApp"
-                                        fill
-                                        className="object-contain"
-                                        unoptimized
+                            <h3 className="text-base font-semibold">
+                                Connexion temporairement indisponible
+                            </h3>
+
+                            <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                                Nous tentons de récupérer l’état de l’instance.
+                                Vous pouvez aussi relancer la vérification.
+                            </p>
+
+                            <Button
+                                type="button"
+                                variant="outline"
+                                disabled={isValidating}
+                                onClick={() => void mutate()}
+                                className="mt-5 gap-2 rounded-xl"
+                            >
+                                <RefreshCw
+                                    aria-hidden="true"
+                                    className={cn(
+                                        "size-4",
+                                        isValidating &&
+                                        "animate-spin motion-reduce:animate-none",
+                                    )}
+                                />
+                                Réessayer
+                            </Button>
+                        </div>
+                    ) : method === "qr" ? (
+                        <>
+                            <div className="w-full max-w-68 rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
+                                <div className="relative aspect-square w-full">
+                                    {qrImage ? (
+                                        <Image
+                                            src={qrImage}
+                                            alt="QR code de connexion WhatsApp. Scannez-le depuis les appareils connectés."
+                                            fill
+                                            sizes="240px"
+                                            unoptimized
+                                            className="object-contain"
+                                        />
+                                    ) : (
+                                        <div
+                                            role="status"
+                                            className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-center"
+                                        >
+                                            <Loader2
+                                                aria-hidden="true"
+                                                className="size-7 animate-spin text-zinc-500 motion-reduce:animate-none"
+                                            />
+                                            <p className="text-xs text-zinc-600">
+                                                {isLoading
+                                                    ? "Connexion à votre instance…"
+                                                    : "Préparation du QR code…"}
+                                            </p>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            <p
+                                role="status"
+                                className="mt-5 flex items-center gap-2 text-xs text-muted-foreground"
+                            >
+                                <Loader2
+                                    aria-hidden="true"
+                                    className="size-3.5 animate-spin motion-reduce:animate-none"
+                                />
+                                En attente de validation sur le téléphone
+                            </p>
+
+                            <p className="mt-2 max-w-xs text-center text-xs leading-relaxed text-muted-foreground">
+                                L’affichage se met à jour automatiquement lorsque
+                                le serveur fournit un nouveau QR code.
+                            </p>
+                        </>
+                    ) : (
+                        <div className="w-full max-w-sm">
+                            <div className="mb-5 text-center">
+                                <div className="mx-auto mb-4 flex size-12 items-center justify-center rounded-2xl border bg-muted/30">
+                                    <Hash
+                                        aria-hidden="true"
+                                        className="size-5 text-muted-foreground"
                                     />
                                 </div>
-                            ) : (
-                                <div className="flex flex-col items-center justify-center text-zinc-400">
-                                    <Loader2 className="w-8 h-8 animate-spin mb-3 text-zinc-300" />
-                                    <span className="text-xs font-medium">
-                                        Création du code...
-                                    </span>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                )}
 
-                {/* --- VUE : NUMÉRO DE TÉLÉPHONE (PAIRING CODE) --- */}
-                {method === "phone" && (
-                    <div className="w-full mt-2">
-                        {actionError ? (
-                            <div className="w-full border border-red-200 bg-red-50 dark:bg-red-500/10 dark:border-red-900/50 text-red-600 dark:text-red-400 p-3 rounded-lg mb-4 text-sm flex items-start gap-2">
-                                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-                                <p>{actionError}</p>
-                            </div>
-                        ) : !pairingCode ? (
-                            <div className="w-full text-center">
-                                <div className="flex items-start gap-3 p-4 rounded-xl border bg-muted/50 mb-6">
-                                    <Hash className="w-5 h-5 text-muted-foreground shrink-0 mt-0.5" />
-                                    <p className="text-sm text-muted-foreground leading-relaxed text-left">
-                                        Un code sera généré pour le numéro WhatsApp configuré dans les paramètres de ce projet.
-                                    </p>
-                                </div>
+                                <h3 className="text-base font-semibold">
+                                    Connexion par code
+                                </h3>
 
-                                <Button
-                                    onClick={handleRequestPairingCode}
-                                    disabled={isGeneratingCode}
-                                    className="w-full"
-                                >
-                                    {isGeneratingCode ? (
-                                        <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Génération...</>
-                                    ) : (
-                                        "Générer le code de couplage"
-                                    )}
-                                </Button>
-                            </div>
-                        ) : (
-                            <div className="w-full flex flex-col items-center">
-                                <div className="border bg-card rounded-xl p-6 w-full text-center relative group shadow-sm">
-                                    <span className="block text-xs font-semibold tracking-widest text-muted-foreground uppercase mb-3">
-                                        Votre Code
-                                    </span>
-                                    <span className="text-3xl md:text-4xl font-mono font-bold tracking-[0.2em] text-foreground">
-                                        {pairingCode}
-                                    </span>
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        onClick={handleRequestPairingCode}
-                                        className="absolute top-2 right-2 h-8 w-8 text-muted-foreground hover:text-foreground"
-                                        title="Générer un nouveau code"
-                                    >
-                                        <RefreshCcw className="w-4 h-4" />
-                                    </Button>
-                                </div>
-                                <p className="text-xs text-muted-foreground mt-5 flex items-center gap-2 animate-pulse">
-                                    <Loader2 className="w-3 h-3 animate-spin" /> En attente de validation par l&apos;appareil...
+                                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                                    Le code sera associé au numéro WhatsApp
+                                    configuré pour ce projet.
                                 </p>
                             </div>
-                        )}
-                    </div>
-                )}
+
+                            {pairingCode && (
+                                <div className="mb-4 rounded-xl border bg-muted/20 p-4 text-center">
+                                    <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                                        Code à saisir sur le téléphone
+                                    </p>
+
+                                    <p
+                                        dir="ltr"
+                                        className="mt-3 select-all break-all font-mono text-2xl font-semibold tracking-widest"
+                                    >
+                                        {pairingCode.match(/.{1,4}/g)?.join("-")}
+                                    </p>
+
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="sm"
+                                        className="mt-3 gap-2 rounded-lg"
+                                        onClick={copyPairingCode}
+                                    >
+                                        {copied ? (
+                                            <Check
+                                                aria-hidden="true"
+                                                className="size-4"
+                                            />
+                                        ) : (
+                                            <Copy
+                                                aria-hidden="true"
+                                                className="size-4"
+                                            />
+                                        )}
+                                        {copied ? "Code copié" : "Copier le code"}
+                                    </Button>
+                                </div>
+                            )}
+
+                            {actionError && (
+                                <p
+                                    role="alert"
+                                    className="mb-4 rounded-xl border border-destructive/20 bg-destructive/5 p-3 text-xs leading-relaxed text-destructive"
+                                >
+                                    {actionError}
+                                </p>
+                            )}
+
+                            <Button
+                                type="button"
+                                disabled={generating}
+                                onClick={requestPairingCode}
+                                className="h-11 w-full gap-2 rounded-xl"
+                                variant={pairingCode ? "outline" : "default"}
+                            >
+                                {generating && (
+                                    <Loader2
+                                        aria-hidden="true"
+                                        className="size-4 animate-spin motion-reduce:animate-none"
+                                    />
+                                )}
+
+                                {generating
+                                    ? "Génération…"
+                                    : pairingCode
+                                        ? "Générer un nouveau code"
+                                        : "Générer le code"}
+                            </Button>
+
+                            {pairingCode && (
+                                <p
+                                    role="status"
+                                    className="mt-4 text-center text-xs text-muted-foreground"
+                                >
+                                    En attente de confirmation sur votre téléphone…
+                                </p>
+                            )}
+                        </div>
+                    )}
+                </div>
             </div>
 
-            {/* Badge de sécurité global */}
-            <div className="flex items-center gap-1.5 text-xs text-muted-foreground pt-6 w-full justify-center border-t mt-4">
-                <Lock className="w-3.5 h-3.5" />
-                <span>Tunnel chiffré de bout en bout</span>
-            </div>
-        </CustomCard>
+            <footer className="border-t border-border/70 px-5 py-4 sm:px-7">
+                <p className="text-xs leading-relaxed text-muted-foreground">
+                    <strong className="font-medium text-foreground">
+                        Gardez ces codes privés.
+                    </strong>{" "}
+                    Le QR code et le code de liaison permettent d’associer un
+                    appareil à votre compte. Ne les partagez pas, même avec
+                    une personne se présentant comme le support.
+                </p>
+            </footer>
+        </section>
     );
 }

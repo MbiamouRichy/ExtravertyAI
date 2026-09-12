@@ -4,6 +4,7 @@ import { z } from "zod";
 import prisma from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/auth-server";
+import { notifyChatChanged } from "@/lib/chat-realtime";
 
 const SendMessageSchema = z.object({
   projectId: z.string().cuid(),
@@ -52,10 +53,10 @@ export async function sendWhatsAppMessage(
       return { success: false, error: "Le projet est suspendu ou inactif." };
     }
 
-    if (instanceStatus !== "connected") {
+    if (!instanceName || instanceStatus !== "connected") {
       return {
         success: false,
-        error: "L'instance WhatsApp n'est pas connectée.",
+        error: "L’instance WhatsApp n’est pas connectée.",
       };
     }
 
@@ -72,17 +73,17 @@ export async function sendWhatsAppMessage(
 
     let isSuccess = false;
     let evoData: EvoResponse | null = null;
-    let rawErrorLog = "";
-
+    const endpoint =
+      `${EVO_API_URL.replace(/\/+$/, "")}/message/sendText/` +
+      encodeURIComponent(instanceName);
     try {
-      const response = await fetch(
-        `${EVO_API_URL}/message/sendText/${instanceName}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json", apikey: EVO_API_KEY },
-          body: JSON.stringify({ number: contact.remoteJid, text: content }),
-        },
-      );
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", apikey: EVO_API_KEY },
+        body: JSON.stringify({ number: contact.remoteJid, text: content }),
+        signal: AbortSignal.timeout(15_000),
+        cache: "no-store",
+      });
 
       isSuccess = response.ok;
       const rawText = await response.text();
@@ -91,12 +92,13 @@ export async function sendWhatsAppMessage(
       } catch {
         evoData = { rawResponse: rawText };
       }
-    } catch (networkError: unknown) {
-      isSuccess = false;
-      rawErrorLog =
-        networkError instanceof Error
-          ? networkError.message
-          : "Erreur réseau inconnue";
+    } catch {
+      return {
+        success: false,
+        uncertain: true,
+        error:
+          "Confirmation indisponible. Le message peut avoir été envoyé. Vérifiez la conversation avant de réessayer.",
+      };
     }
 
     // CORRECTION : On ne throw plus d'erreur dans la transaction pour éviter le Rollback
@@ -107,7 +109,7 @@ export async function sendWhatsAppMessage(
             content,
             senderType: "AGENT",
             status: "FAILED",
-            errorMessage: JSON.stringify(evoData || rawErrorLog),
+            errorMessage: "PROVIDER_REJECTED",
             source: "web_dashboard",
             contactId,
             projectId,
@@ -149,7 +151,8 @@ export async function sendWhatsAppMessage(
       return { ok: true, data: newMessage };
     });
 
-    revalidatePath(`/projects/${projectId}`);
+    revalidatePath(`/projects/${projectId}/chat`);
+    await notifyChatChanged(projectId);
 
     // Retourne le message échoué ET une erreur si !isSuccess
     if (!result.ok) {

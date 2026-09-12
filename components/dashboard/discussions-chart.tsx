@@ -22,7 +22,7 @@ interface DiscussionsChartProps {
     rangeLabel: string;
 }
 
-export function DiscussionsChart({ data, rangeLabel }: DiscussionsChartProps) {
+export function NewDiscussionsChart({ data, rangeLabel }: DiscussionsChartProps) {
     const total = data.reduce((acc, point) => acc + point.count, 0);
 
     return (

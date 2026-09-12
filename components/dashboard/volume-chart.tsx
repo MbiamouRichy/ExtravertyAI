@@ -15,6 +15,7 @@ export function VolumeChart({
             title="Volume des échanges"
             description={`Messages entrants et sortants · ${rangeLabel}`}
             data={data}
+            kind="step"
             metrics={[
                 {
                     key: "received",
@@ -29,7 +30,7 @@ export function VolumeChart({
                 },
             ]}
             emptyTitle="Aucun échange sur cette période"
-            emptyDescription="Essayez une période plus large pour consulter votre historique."
+            emptyDescription="Les échanges apparaîtront ici lorsqu’ils seront disponibles."
         />
     );
 }

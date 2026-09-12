@@ -4,6 +4,7 @@ import { z } from "zod";
 import { InstanceStatus } from "@/src/generated/prisma/client";
 import { processWhatsAppMessage } from "@/lib/quotaMessage";
 import { revalidatePath } from "next/cache";
+import { notifyChatChanged } from "@/lib/chat-realtime";
 
 // ------------------------------------------------------------------
 // TYPAGES & SCHEMAS
@@ -103,7 +104,7 @@ export async function POST(req: Request) {
 
       case "messages.update": {
         try {
-          await processMessageStatusUpdate(data);
+          await processMessageStatusUpdate(instance, data);
         } catch (err) {
           console.error(`[Webhook] Erreur update statut :`, err);
         }
@@ -197,6 +198,7 @@ async function processIncomingMessages(instanceName: string, rawData: unknown) {
         projectId: project.id,
       },
     });
+    await notifyChatChanged(project.id);
 
     console.log(`[DEBUG 6] 💾 Message stocké en DB.`);
 
@@ -282,33 +284,63 @@ async function processIncomingMessages(instanceName: string, rawData: unknown) {
 // OUTILS
 // ------------------------------------------------------------------
 
-async function processMessageStatusUpdate(data: unknown) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const updates = Array.isArray(data) ? data : ([data] as any[]);
+const StatusUpdateSchema = z.object({
+  key: z.object({
+    id: z.string().min(1).max(250),
+  }),
+  update: z.object({
+    status: z.union([z.number(), z.string()]),
+  }),
+});
 
-  for (const item of updates) {
-    const messageId = item?.key?.id;
-    const statusRaw = item?.update?.status;
+async function processMessageStatusUpdate(instanceName: string, data: unknown) {
+  const project = await prisma.project.findUnique({
+    where: { instanceName },
+    select: { id: true },
+  });
 
-    if (!messageId || statusRaw === undefined) continue;
+  if (!project) return;
 
-    let newStatus = null;
-    if (statusRaw === 3 || statusRaw === "DELIVERY_ACK")
-      newStatus = "DELIVERED";
-    else if (statusRaw === 4 || statusRaw === "READ") newStatus = "READ";
+  const updates = Array.isArray(data) ? data : [data];
+  let changed = false;
 
-    if (newStatus) {
-      try {
-        await prisma.message.update({
-          where: { evolutionId: messageId },
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          data: { status: newStatus as any },
-        });
-        revalidatePath(`/projects`);
-      } catch {
-        // Silencieux si message introuvable
-      }
+  for (const raw of updates) {
+    const parsed = StatusUpdateSchema.safeParse(raw);
+    if (!parsed.success) continue;
+
+    const { key, update } = parsed.data;
+
+    // Mapping conservé depuis TON payload actuel.
+    // À vérifier sur des payloads réels de ta version Evolution.
+    if (update.status === 4 || update.status === "READ") {
+      const result = await prisma.message.updateMany({
+        where: {
+          projectId: project.id,
+          evolutionId: key.id,
+          senderType: { in: ["BOT", "AGENT"] },
+          status: { in: ["PENDING", "SENT", "DELIVERED"] },
+        },
+        data: { status: "READ" },
+      });
+
+      changed ||= result.count > 0;
+    } else if (update.status === 3 || update.status === "DELIVERY_ACK") {
+      const result = await prisma.message.updateMany({
+        where: {
+          projectId: project.id,
+          evolutionId: key.id,
+          senderType: { in: ["BOT", "AGENT"] },
+          status: { in: ["PENDING", "SENT"] },
+        },
+        data: { status: "DELIVERED" },
+      });
+
+      changed ||= result.count > 0;
     }
+  }
+
+  if (changed) {
+    await notifyChatChanged(project.id);
   }
 }
 

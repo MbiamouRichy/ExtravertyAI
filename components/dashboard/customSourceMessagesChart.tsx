@@ -93,7 +93,7 @@ export function SourcesChart({
                                     data={rows}
                                     dataKey="count"
                                     nameKey="key"
-                                    innerRadius="68%"
+                                    innerRadius="55%"
                                     outerRadius="90%"
                                     paddingAngle={
                                         rows.filter((row) => row.count > 0)

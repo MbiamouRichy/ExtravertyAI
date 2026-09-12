@@ -2,148 +2,153 @@
 
 import prisma from "@/lib/prisma";
 import { getSession } from "@/lib/auth-server";
-import { format, isToday, isYesterday } from "date-fns";
-import { fr } from "date-fns/locale";
+import {
+  normalizeChatStatus,
+  type ChatClient,
+  type ChatMessage,
+  type WorkspaceDataResponse,
+} from "@/lib/chat";
 
-// Tes types pour le typage du retour
-export type ChatClient = {
-  id: string;
-  name: string;
-  phone: string;
-  lastMessage: string;
-  timestamp: string;
-  unread: number;
-  aiActive: boolean;
-};
+// Compatibilité pour les imports de types existants.
+export type { ChatClient, ChatMessage } from "@/lib/chat";
 
-export type ChatMessage = {
-  id: string;
-  senderType: "client" | "bot" | "agent"; // En minuscules pour matcher ton front
-  content: string;
-  timestamp: Date;
-  status: "sent" | "delivered" | "read" | "failed";
-};
-
-type WorkspaceDataResponse = {
-  success: boolean;
-  clients?: ChatClient[];
-  messages?: Record<string, ChatMessage[]>;
-  error?: string;
-};
-
-// Fonction utilitaire pour formater la date du dernier message (ex: "10:48", "Hier", "12 oct.")
-const formatMessageDate = (date: Date): string => {
-  if (isToday(date)) return format(date, "HH:mm");
-  if (isYesterday(date)) return "Hier";
-  return format(date, "dd MMM", { locale: fr });
-};
+const CONTACT_LIMIT = 100;
+const MESSAGE_LIMIT = 50;
 
 export async function getWorkspaceData(
   projectId: string,
 ): Promise<WorkspaceDataResponse> {
-  try {
-    // 1. SÉCURITÉ : Vérifier l'authentification
-    const session = await getSession();
-    if (!session?.user?.id) {
-      return { success: false, error: "Non authentifié." };
-    }
-    const userId = session.user.id;
+  if (
+    typeof projectId !== "string" ||
+    projectId.length === 0 ||
+    projectId.length > 200
+  ) {
+    return {
+      success: false,
+      error: "Espace de travail indisponible.",
+    };
+  }
 
-    // 2. SÉCURITÉ : Vérifier si l'utilisateur a accès à ce projet
+  try {
+    const session = await getSession();
+
+    if (!session?.user?.id) {
+      return {
+        success: false,
+        error: "Connexion requise.",
+      };
+    }
+
     const membership = await prisma.projectMembership.findUnique({
       where: {
-        userId_projectId: { userId, projectId },
+        userId_projectId: {
+          userId: session.user.id,
+          projectId,
+        },
       },
+      select: { userId: true },
     });
 
     if (!membership) {
-      return { success: false, error: "Accès refusé au projet." };
+      return {
+        success: false,
+        error: "Espace de travail indisponible.",
+      };
     }
 
-    // 3. RÉCUPÉRATION DES CONTACTS avec leur dernier message
-    const rawContacts = await prisma.contact.findMany({
+    const rows = await prisma.contact.findMany({
       where: { projectId },
-      orderBy: { updatedAt: "desc" }, // Les contacts les plus récents en premier
-      include: {
-        // On récupère les 50 derniers messages pour chaque contact
+      orderBy: [{ updatedAt: "desc" }, { id: "asc" }],
+      take: CONTACT_LIMIT + 1,
+      select: {
+        id: true,
+        name: true,
+        pushName: true,
+        phone: true,
+        aiActive: true,
+        createdAt: true,
         messages: {
-          orderBy: { createdAt: "desc" },
-          take: 50,
-        },
-        // OPTIONNEL : Si tu veux gérer les non-lus, tu peux compter les messages PENDING du client
-        _count: {
+          where: { projectId },
+          orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+          take: MESSAGE_LIMIT,
           select: {
-            messages: {
-              where: { status: "PENDING", senderType: "CLIENT" },
-            },
+            id: true,
+            senderType: true,
+            content: true,
+            type: true,
+            createdAt: true,
+            status: true,
           },
         },
       },
     });
 
-    const clients: ChatClient[] = [];
-    const messagesMap: Record<string, ChatMessage[]> = {};
+    const contactsLimited = rows.length > CONTACT_LIMIT;
+    const contacts = rows.slice(0, CONTACT_LIMIT);
 
-    // 4. MAPPING : Transformer les données Prisma pour le Frontend
-    rawContacts.forEach((contact) => {
-      // Le dernier message est le premier de la liste car on a fait un orderBy "desc"
-      const lastMsg = contact.messages[0];
+    const clients: ChatClient[] = [];
+    const messages: Record<string, ChatMessage[]> = {};
+
+    for (const contact of contacts) {
+      const lastMessage = contact.messages[0];
 
       clients.push({
         id: contact.id,
-        name: contact.name || contact.pushName || contact.phone, // Fallback si pas de nom
+        name:
+          contact.name?.trim() ||
+          contact.pushName?.trim() ||
+          contact.phone ||
+          "Contact",
         phone: contact.phone,
-        lastMessage: lastMsg
-          ? lastMsg.type === "TEXT"
-            ? lastMsg.content
-            : `[${lastMsg.type}]`
-          : "Nouvelle conversation",
-        timestamp: lastMsg
-          ? formatMessageDate(lastMsg.createdAt)
-          : formatMessageDate(contact.createdAt),
-        unread: contact._count.messages || 0, // Utilise le compteur de non-lus
         aiActive: contact.aiActive,
+        lastActivityAt: (
+          lastMessage?.createdAt ?? contact.createdAt
+        ).toISOString(),
+        lastMessage: lastMessage
+          ? lastMessage.type === "TEXT"
+            ? lastMessage.content
+            : `Pièce jointe · ${lastMessage.type}`
+          : "Aucun message",
       });
 
-      // On mappe l'historique des messages pour ce contact (et on remet dans l'ordre chronologique)
-      messagesMap[contact.id] = contact.messages.reverse().map((msg) => ({
-        id: msg.id,
-        // Mapping des Enums Prisma vers les strings attendues par ton Front
+      messages[contact.id] = [...contact.messages].reverse().map((message) => ({
+        id: message.id,
         senderType:
-          msg.senderType === "CLIENT"
+          message.senderType === "CLIENT"
             ? "client"
-            : msg.senderType === "BOT"
+            : message.senderType === "BOT"
               ? "bot"
-              : "agent",
-        content: msg.content,
-        timestamp: msg.createdAt,
-        status:
-          msg.status === "FAILED"
-            ? "failed"
-            : msg.status === "READ"
-              ? "read"
-              : msg.status === "DELIVERED"
-                ? "delivered"
-                : "sent",
+              : message.senderType === "AGENT"
+                ? "agent"
+                : "system",
+        content:
+          message.type === "TEXT"
+            ? message.content
+            : `Pièce jointe (${message.type}) — aperçu non disponible.`,
+        timestamp: message.createdAt.toISOString(),
+        status: normalizeChatStatus(message.status),
       }));
-    });
+    }
 
-    // On retrie les clients pour que ceux qui ont le message le plus récent soient en haut
-    clients.sort((a, b) => {
-      if (!a.timestamp && !b.timestamp) return 0;
-      if (!a.timestamp) return 1;
-      if (!b.timestamp) return -1;
-      // Un tri basique sur string de date, idéalement il faudrait trier sur le raw timestamp
-      return -1; // Remplacer par un vrai tri de date si nécessaire
-    });
+    clients.sort(
+      (a, b) =>
+        new Date(b.lastActivityAt).getTime() -
+          new Date(a.lastActivityAt).getTime() || a.id.localeCompare(b.id),
+    );
 
     return {
       success: true,
       clients,
-      messages: messagesMap,
+      messages,
+      contactsLimited,
     };
-  } catch (error) {
-    console.error("Erreur getWorkspaceData:", error);
-    return { success: false, error: "Erreur lors du chargement des données." };
+  } catch {
+    // Ne pas journaliser les messages ou les informations des contacts.
+    console.error("[chat] Échec du chargement de l’espace de travail.");
+
+    return {
+      success: false,
+      error: "Impossible de charger les conversations.",
+    };
   }
 }

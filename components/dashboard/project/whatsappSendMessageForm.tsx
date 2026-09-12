@@ -1,35 +1,40 @@
 "use client";
-
-import { useState } from "react";
 import {
-    Send, Bot, User as UserIcon, Search,
-    Phone, CheckCheck, MoreVertical, ShieldAlert, ArrowLeft, MessageCircle,
+    useChatContacts,
+    useChatMessages,
+    useChatRealtime,
+} from "@/hooks/use-chat-data";
+import {
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+    useTransition,
+    type FormEvent,
+} from "react";
+import { useRouter } from "next/navigation";
+import {
+    ArrowLeft,
+    Bot,
     Check,
-    Play,
+    CheckCheck,
+    CircleAlert,
+    Clock3,
+    Loader2,
+    MessageCircle,
     Pause,
-    PaperclipIcon,
-    PlusIcon,
-    XCircle
+    Play,
+    RefreshCw,
+    Search,
+    Send,
+    UserRound,
+    X,
 } from "lucide-react";
+import { toast } from "sonner";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuSeparator,
-    DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-
-import {
-    InputGroup,
-    InputGroupAddon,
-    InputGroupButton,
-    InputGroupInput,
-} from "@/components/ui/input-group"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
     MessageScrollerProvider,
     MessageScroller,
@@ -38,474 +43,1354 @@ import {
     MessageScrollerItem,
     MessageScrollerButton,
 } from "@/components/ui/message-scroller";
-import {
-    MessageGroup,
-    Message,
-    MessageAvatar,
-    MessageContent,
-    MessageHeader,
-    MessageFooter,
-} from "@/components/ui/message";
-import confetti from "canvas-confetti";
-import { useEffect } from "react";
-import { toast } from "sonner";
+
 import { sendWhatsAppMessage } from "@/app/actions/sendWhatsAppMessage";
-import { ChatClient, ChatMessage } from "@/app/actions/getMessages&Contacts";
-import { useHaptics } from "@/lib/webHaptics";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { Kbd, KbdGroup } from "@/components/ui/kbd";
-import { Bubble, BubbleContent } from "@/components/ui/bubble";
-import StreamedMessage from "./AIGenerateTextBlock";
-import { state } from "@/lib/proxy-state";
-import { useSnapshot } from "valtio";
+import { setContactAiState } from "@/app/actions/setContactAiState";
+import {
+    normalizeChatStatus,
+    type ChatClient,
+    type ChatMessage,
+    type ChatMessageStatus,
+} from "@/lib/chat";
+import { cn } from "@/lib/utils";
 
-// ------------------------------------------------------
-// 📦 TYPES & INTERFACES
-// ------------------------------------------------------
-type Project = { id: string; name: string };
-type User = { id: string; name?: string | null; image?: string | null };
-
-// ------------------------------------------------------
-// 🎨 COMPOSANT PRINCIPAL
-// ------------------------------------------------------
-interface WorkspaceProps {
-    project: Project;
-    user: User;
+type WorkspaceProps = {
+    project: {
+        id: string;
+        name: string;
+    };
+    user: {
+        id: string;
+        name?: string | null;
+    };
     isSuccess: boolean;
-    clients: ChatClient[];
-    messages: Record<string, ChatMessage[]>
+    canManageAi: boolean;
+};
+
+type Filter = "all" | "ai" | "manual";
+
+type LocalMessage = Omit<ChatMessage, "status"> & {
+    localId: string;
+    status: ChatMessageStatus | "sending" | "uncertain";
+};
+
+type DisplayMessage = ChatMessage | LocalMessage;
+
+type SendResult = {
+    success: boolean;
+    uncertain: boolean;
+    id?: string;
+    status: ChatMessageStatus;
+};
+
+const MAX_MESSAGE_LENGTH = 4096;
+
+// UTC explicite pour éviter des différences SSR/hydratation.
+// Tu peux remplacer ceci par le fuseau configuré pour le projet.
+const timeFormatter = new Intl.DateTimeFormat("fr-FR", {
+    timeZone: "UTC",
+    hour: "2-digit",
+    minute: "2-digit",
+});
+
+const dateFormatter = new Intl.DateTimeFormat("fr-FR", {
+    timeZone: "UTC",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+});
+
+const previewDateFormatter = new Intl.DateTimeFormat("fr-FR", {
+    timeZone: "UTC",
+    day: "2-digit",
+    month: "short",
+});
+
+function initials(name: string): string {
+    return (
+        name
+            .trim()
+            .split(/\s+/)
+            .slice(0, 2)
+            .map((part) => part[0]?.toUpperCase() ?? "")
+            .join("") || "?"
+    );
 }
 
-export default function WhatsappWorkspace({ project, user, isSuccess, clients, messages }: WorkspaceProps) {
-    const [activeClientId, setActiveClientId] = useState<string | null>(null);
-    const snap = useSnapshot(state)
-    const [input, setInput] = useState("");
-    const [isSending, setIsSending] = useState(false);
-    const [showMobileChat, setShowMobileChat] = useState<boolean>(false);
-    const [messagesMap, setMessagesMap] = useState<Record<string, ChatMessage[]>>(messages);
-    const { playHaptic } = useHaptics();
-    useEffect(() => {
-        if (clients.length === 0) return;
+function normalizeSearch(value: string): string {
+    return value
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase()
+        .trim();
+}
 
-        // 1. Priorité au client stocké dans le state Valtio s'il est valide
-        if (snap.activeClient && clients.some((c) => c.id === snap.activeClient)) {
-            setActiveClientId(snap.activeClient);
+function isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === "object" && value !== null;
+}
+
+function parseSendResult(value: unknown): SendResult {
+    if (!isRecord(value) || typeof value.success !== "boolean") {
+        throw new Error("Réponse non confirmée.");
+    }
+
+    const message = isRecord(value.message) ? value.message : undefined;
+
+    return {
+        success: value.success,
+        uncertain: value.uncertain === true,
+        id: typeof message?.id === "string" ? message.id : undefined,
+        status: normalizeChatStatus(message?.status),
+    };
+}
+
+function AiLabel({ active }: { active: boolean }) {
+    const Icon = active ? Bot : UserRound;
+
+    return (
+        <span
+            className={cn(
+                "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium",
+                active
+                    ? "border-primary/20 bg-primary/5 text-primary"
+                    : "border-border bg-muted/50 text-muted-foreground",
+            )}
+        >
+            <Icon aria-hidden="true" className="size-3.5" />
+            {active ? "IA activée" : "IA désactivée"}
+        </span>
+    );
+}
+
+function DeliveryStatus({
+    status,
+}: {
+    status: DisplayMessage["status"];
+}) {
+    const meta = {
+        sending: {
+            label: "Envoi en cours",
+            icon: Loader2,
+        },
+        uncertain: {
+            label: "Confirmation indisponible",
+            icon: CircleAlert,
+        },
+        pending: {
+            label: "En attente",
+            icon: Clock3,
+        },
+        sent: {
+            label: "Envoyé",
+            icon: Check,
+        },
+        delivered: {
+            label: "Distribué",
+            icon: CheckCheck,
+        },
+        read: {
+            label: "Lu",
+            icon: CheckCheck,
+        },
+        failed: {
+            label: "Échec",
+            icon: CircleAlert,
+        },
+        unknown: {
+            label: "Statut non disponible",
+            icon: Clock3,
+        },
+    }[status];
+
+    const Icon = meta.icon;
+
+    return (
+        <span
+            className={cn(
+                "inline-flex items-center gap-1",
+                status === "read" && "text-sky-700 dark:text-sky-400",
+                status === "failed" && "text-destructive",
+                status === "uncertain" &&
+                "text-amber-700 dark:text-amber-400",
+            )}
+        >
+            <Icon
+                aria-hidden="true"
+                className={cn(
+                    "size-3.5",
+                    status === "sending" &&
+                    "animate-spin motion-reduce:animate-none",
+                )}
+            />
+            <span>{meta.label}</span>
+        </span>
+    );
+}
+
+function ChatBubble({
+    message,
+    contactName,
+    onRestore,
+}: {
+    message: DisplayMessage;
+    contactName: string;
+    onRestore: (content: string) => void;
+}) {
+    const incoming = message.senderType === "client";
+    const failed = message.status === "failed";
+    const uncertain = message.status === "uncertain";
+
+    // Les données ne contiennent pas l'identité de l'agent :
+    // on n'attribue pas tous les anciens messages à l'utilisateur courant.
+    const author =
+        message.senderType === "client"
+            ? contactName
+            : message.senderType === "bot"
+                ? "Assistant IA"
+                : message.senderType === "system"
+                    ? "Système"
+                    : "Agent";
+
+    const date = new Date(message.timestamp);
+
+    return (
+        <article
+            aria-label={`Message de ${author}`}
+            className={cn(
+                "flex w-full",
+                incoming ? "justify-start" : "justify-end",
+            )}
+        >
+            <div className="min-w-0 max-w-[92%] sm:max-w-[78%]">
+                <div
+                    className={cn(
+                        "mb-1.5 flex items-center gap-1.5 px-1 text-[11px] font-medium text-muted-foreground",
+                        !incoming && "justify-end",
+                    )}
+                >
+                    {message.senderType === "bot" && (
+                        <Bot aria-hidden="true" className="size-3.5" />
+                    )}
+                    {author}
+                </div>
+
+                <div
+                    className={cn(
+                        "rounded-2xl border px-4 py-3 text-sm leading-relaxed shadow-sm",
+                        incoming
+                            ? "rounded-tl-md border-border/70 bg-card"
+                            : message.senderType === "bot"
+                                ? "rounded-tr-md border-violet-500/20 bg-violet-500/5"
+                                : "rounded-tr-md border-primary/15 bg-primary/5",
+                        failed && "border-destructive/30 bg-destructive/5",
+                        uncertain && "border-amber-500/30",
+                    )}
+                >
+                    {/* React échappe le texte : aucun HTML brut ni faux streaming. */}
+                    <p
+                        dir="auto"
+                        className="whitespace-pre-wrap wrap-anywhere"
+                    >
+                        {message.content}
+                    </p>
+                </div>
+
+                <div
+                    className={cn(
+                        "mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 px-1 text-[10px] text-muted-foreground",
+                        !incoming && "justify-end",
+                    )}
+                >
+                    <time
+                        dateTime={date.toISOString()}
+                        title={`${dateFormatter.format(date)} · UTC`}
+                    >
+                        {timeFormatter.format(date)}
+                    </time>
+
+                    {!incoming && <DeliveryStatus status={message.status} />}
+                </div>
+
+                {uncertain && (
+                    <p className="mt-2 max-w-sm text-xs leading-relaxed text-amber-700 dark:text-amber-400">
+                        Actualisez avant de renvoyer : le message peut avoir
+                        été accepté malgré l’absence de confirmation.
+                    </p>
+                )}
+
+                {failed && (
+                    <button
+                        type="button"
+                        onClick={() => onRestore(message.content)}
+                        className="mt-2 rounded text-xs font-medium text-destructive underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    >
+                        Remettre en brouillon
+                    </button>
+                )}
+            </div>
+        </article>
+    );
+}
+
+
+export default function WhatsappWorkspace({
+    project,
+    user,
+    isSuccess,
+    canManageAi,
+}: WorkspaceProps) {
+    const [activeId, setActiveId] = useState<string | null>(null);
+    const [selectedClient, setSelectedClient] = useState<ChatClient | null>(null);
+    const [mobileChat, setMobileChat] = useState(false);
+
+    const [search, setSearch] = useState("");
+    const [filter, setFilter] = useState<Filter>("all");
+
+    const contactsQuery = useChatContacts(project.id, search, filter);
+    const historyQuery = useChatMessages(project.id, activeId);
+
+    const clients = contactsQuery.items;
+
+    const messages = useMemo<Record<string, ChatMessage[]>>(
+        () => (activeId ? { [activeId]: historyQuery.items } : {}),
+        [activeId, historyQuery.items],
+    );
+
+    function refresh() {
+        void contactsQuery.mutate();
+        void historyQuery.mutate();
+    }
+
+    const { connected: realtimeConnected } = useChatRealtime(
+        project.id,
+        refresh,
+    );
+
+    const refreshing =
+        contactsQuery.isValidating || historyQuery.isValidating;
+
+    const [drafts, setDrafts] = useState<Record<string, string>>({});
+    const [localMessages, setLocalMessages] = useState<
+        Record<string, LocalMessage[]>
+    >({});
+    const [sendingIds, setSendingIds] = useState<string[]>([]);
+
+    const [aiOverrides, setAiOverrides] = useState<Record<string, boolean>>({});
+    const [aiBusyId, setAiBusyId] = useState<string | null>(null);
+    const [showWelcome, setShowWelcome] = useState(isSuccess);
+
+    const sendLocks = useRef(new Set<string>());
+    const aiLock = useRef(false);
+    const searchRef = useRef<HTMLInputElement>(null);
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
+    const contactButtonRefs = useRef(
+        new Map<string, HTMLButtonElement>(),
+    );
+
+    const [announcement, setAnnouncement] = useState("");
+
+
+    // Retire les substitutions IA dès que le serveur les a confirmées.
+    useEffect(() => {
+        setAiOverrides((previous) => {
+            const next = { ...previous };
+            let changed = false;
+
+            for (const client of clients) {
+                if (
+                    Object.prototype.hasOwnProperty.call(next, client.id) &&
+                    next[client.id] === client.aiActive
+                ) {
+                    delete next[client.id];
+                    changed = true;
+                }
+            }
+
+            return changed ? next : previous;
+        });
+    }, [clients]);
+
+    // Retire les messages locaux dès que leur ID apparaît côté serveur.
+    useEffect(() => {
+        setLocalMessages((previous) => {
+            let changed = false;
+            const next = { ...previous };
+
+            for (const [contactId, entries] of Object.entries(previous)) {
+                const serverIds = new Set(
+                    (messages[contactId] ?? []).map((message) => message.id),
+                );
+
+                const remaining = entries.filter(
+                    (message) => !serverIds.has(message.id),
+                );
+
+                if (remaining.length !== entries.length) {
+                    next[contactId] = remaining;
+                    changed = true;
+                }
+            }
+
+            return changed ? next : previous;
+        });
+    }, [messages]);
+
+    useEffect(() => {
+        if (activeId || clients.length === 0) return;
+
+        setActiveId(clients[0].id);
+        setSelectedClient(clients[0]);
+    }, [activeId, clients]);
+
+    useEffect(() => {
+        if (!activeId) return;
+
+        const updated = clients.find((client) => client.id === activeId);
+
+        if (updated) {
+            setSelectedClient(updated);
+        }
+    }, [activeId, clients]);
+    const visibleClients = useMemo(() => {
+        const textQuery = normalizeSearch(search);
+        const phoneQuery = search.replace(/\D/g, "");
+
+        return clients
+            .map((client) => {
+                const local = localMessages[client.id] ?? [];
+                const latest = local[local.length - 1];
+
+                const useLocal =
+                    latest &&
+                    new Date(latest.timestamp).getTime() >=
+                    new Date(client.lastActivityAt).getTime();
+
+                return {
+                    ...client,
+                    aiActive: aiOverrides[client.id] ?? client.aiActive,
+                    lastMessage: useLocal
+                        ? latest.content
+                        : client.lastMessage,
+                    lastActivityAt: useLocal
+                        ? latest.timestamp
+                        : client.lastActivityAt,
+                };
+            })
+            .filter((client) => {
+                const matchesFilter =
+                    filter === "all" ||
+                    (filter === "ai" && client.aiActive) ||
+                    (filter === "manual" && !client.aiActive);
+
+                const matchesSearch =
+                    !textQuery ||
+                    normalizeSearch(client.name).includes(textQuery) ||
+                    normalizeSearch(client.phone).includes(textQuery) ||
+                    (phoneQuery.length > 0 &&
+                        client.phone
+                            .replace(/\D/g, "")
+                            .includes(phoneQuery));
+
+                return matchesFilter && matchesSearch;
+            })
+            .sort(
+                (a, b) =>
+                    new Date(b.lastActivityAt).getTime() -
+                    new Date(a.lastActivityAt).getTime() ||
+                    a.id.localeCompare(b.id),
+            );
+    }, [clients, search, filter, aiOverrides, localMessages]);
+
+    const activeClient =
+        clients.find((client) => client.id === activeId) ??
+        (selectedClient?.id === activeId ? selectedClient : undefined);
+    const aiActive = activeClient
+        ? (aiOverrides[activeClient.id] ?? activeClient.aiActive)
+        : false;
+
+    const draft = activeId ? (drafts[activeId] ?? "") : "";
+    const isSending = !!activeId && sendingIds.includes(activeId);
+
+    const activeMessages = useMemo<DisplayMessage[]>(() => {
+        if (!activeId) return [];
+
+        const serverMessages = messages[activeId] ?? [];
+        const serverIds = new Set(
+            serverMessages.map((message) => message.id),
+        );
+
+        const pendingMessages = (localMessages[activeId] ?? []).filter(
+            (message) => !serverIds.has(message.id),
+        );
+
+        return [...serverMessages, ...pendingMessages].sort(
+            (a, b) =>
+                new Date(a.timestamp).getTime() -
+                new Date(b.timestamp).getTime() ||
+                a.id.localeCompare(b.id),
+        );
+    }, [activeId, messages, localMessages]);
+
+    useEffect(() => {
+        const element = textareaRef.current;
+        if (!element) return;
+
+        element.style.height = "auto";
+        element.style.height = `${Math.min(element.scrollHeight, 160)}px`;
+    }, [draft, activeId, mobileChat]);
+
+    function selectClient(id: string) {
+        const client = clients.find((item) => item.id === id);
+
+        if (!client) return;
+
+        setSelectedClient(client);
+        setActiveId(id);
+        setMobileChat(true);
+
+        if (window.matchMedia("(min-width: 768px)").matches) {
+            requestAnimationFrame(() => textareaRef.current?.focus());
+        }
+    }
+
+    function goBack() {
+        setMobileChat(false);
+
+        requestAnimationFrame(() => {
+            if (activeId) {
+                contactButtonRefs.current.get(activeId)?.focus();
+            }
+        });
+    }
+
+    function updateLocalMessage(
+        contactId: string,
+        localId: string,
+        patch: Partial<Pick<LocalMessage, "id" | "status">>,
+    ) {
+        setLocalMessages((previous) => ({
+            ...previous,
+            [contactId]: (previous[contactId] ?? []).map((message) =>
+                message.localId === localId
+                    ? { ...message, ...patch }
+                    : message,
+            ),
+        }));
+    }
+
+    async function handleSend(event: FormEvent<HTMLFormElement>) {
+        event.preventDefault();
+
+        if (!activeClient) return;
+
+        const contactId = activeClient.id;
+        const content = (drafts[contactId] ?? "").trim();
+
+        if (
+            !content ||
+            content.length > MAX_MESSAGE_LENGTH ||
+            sendLocks.current.has(contactId)
+        ) {
             return;
         }
 
-        // 2. Sinon, on conserve l'actuel s'il est déjà défini, ou on prend le premier
-        setActiveClientId((prev) => (prev !== null ? prev : clients[0].id));
-    }, [project.id, clients, snap.activeClient]);
+        if (!navigator.onLine) {
+            toast.error("Vous êtes hors ligne. Votre brouillon est conservé.");
+            return;
+        }
 
-    // 2. DÉRIVATION DES MESSAGES DU CLIENT ACTIF
-    const activeMessages = activeClientId ? (messagesMap[activeClientId] || []) : [];
-    const activeClient = clients.find(c => c.id === activeClientId);
+        sendLocks.current.add(contactId);
+        setSendingIds((previous) => [...previous, contactId]);
 
-    const handleSelectClient = (clientId: string) => {
-        setActiveClientId(clientId);
-        setShowMobileChat(true);
-    };
+        const localId = `local-${crypto.randomUUID()}`;
 
-    // 3. GESTION DES CONFETTIS
-    useEffect(() => {
-        if (!isSuccess) return;
-
-        const duration = 5 * 1000;
-        const animationEnd = Date.now() + duration;
-        const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 0 };
-
-        const randomInRange = (min: number, max: number) => Math.random() * (max - min) + min;
-
-        const interval = window.setInterval(() => {
-            const timeLeft = animationEnd - Date.now();
-
-            if (timeLeft <= 0) {
-                return clearInterval(interval);
-            }
-
-            const particleCount = 50 * (timeLeft / duration);
-            confetti({
-                ...defaults,
-                particleCount,
-                origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 },
-            });
-            confetti({
-                ...defaults,
-                particleCount,
-                origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 },
-            });
-        }, 250);
-
-        return () => clearInterval(interval);
-    }, [isSuccess]);
-
-    // 4. ENVOI DU MESSAGE (Optimistic UI)
-
-    const handleSend = async (e: React.FormEvent) => {
-        e.preventDefault();
-
-        const messageContent = input.trim();
-        if (!messageContent || isSending || !activeClient || !project || !user) return;
-
-        setInput("");
-        setIsSending(true);
-
-        const tempId = `temp-${Date.now()}`;
-        const optimisticMessage: ChatMessage = {
-            id: tempId,
+        const optimisticMessage: LocalMessage = {
+            id: localId,
+            localId,
             senderType: "agent",
-            content: messageContent,
-            timestamp: new Date(),
-            status: "sent",
+            content,
+            timestamp: new Date().toISOString(),
+            status: "sending",
         };
 
-        setMessagesMap((prev) => ({
-            ...prev,
-            [activeClient.id]: [...(prev[activeClient.id] || []), optimisticMessage]
+        setDrafts((previous) => ({
+            ...previous,
+            [contactId]: "",
         }));
 
+        setLocalMessages((previous) => ({
+            ...previous,
+            [contactId]: [
+                ...(previous[contactId] ?? []),
+                optimisticMessage,
+            ],
+        }));
+
+        setAnnouncement("Envoi du message en cours.");
+
         try {
-            const result = await sendWhatsAppMessage({
+            const rawResult: unknown = await sendWhatsAppMessage({
                 projectId: project.id,
-                contactId: activeClient.id,
-                content: messageContent,
+                contactId,
+                content,
+            });
+
+            const result = parseSendResult(rawResult);
+            if (result.uncertain) {
+                updateLocalMessage(contactId, localId, {
+                    status: "uncertain",
+                });
+
+                setAnnouncement(
+                    "Confirmation indisponible. Le message peut avoir été envoyé.",
+                );
+
+                refresh();
+                return;
+            }
+            if (!result.success) {
+                updateLocalMessage(contactId, localId, {
+                    ...(result.id ? { id: result.id } : {}),
+                    status: "failed",
+                });
+
+                setAnnouncement("L’envoi a échoué.");
+                toast.error("Le message n’a pas pu être envoyé.");
+                return;
+            }
+
+            if (!result.id) {
+                // Ne pas conclure à un échec : le serveur a peut-être envoyé.
+                updateLocalMessage(contactId, localId, {
+                    status: "uncertain",
+                });
+
+                setAnnouncement("Confirmation d’envoi indisponible.");
+                refresh();
+                return;
+            }
+
+            updateLocalMessage(contactId, localId, {
+                id: result.id,
+                // On n'invente pas de statut « distribué ».
+                status: result.status,
+            });
+
+            setAnnouncement("Réponse du serveur reçue.");
+            refresh();
+        } catch {
+            // Une rupture réseau n'est pas la preuve que l'envoi a échoué.
+            updateLocalMessage(contactId, localId, {
+                status: "uncertain",
+            });
+
+            setAnnouncement(
+                "Confirmation indisponible. Vérifiez avant de renvoyer.",
+            );
+
+            toast.error(
+                "Confirmation indisponible. Actualisez avant de renvoyer.",
+            );
+        } finally {
+            sendLocks.current.delete(contactId);
+            setSendingIds((previous) =>
+                previous.filter((id) => id !== contactId),
+            );
+        }
+    }
+
+    async function toggleAi() {
+        if (!activeClient || !canManageAi || aiLock.current) return;
+
+        const contactId = activeClient.id;
+        const nextState = !aiActive;
+
+        aiLock.current = true;
+        setAiBusyId(contactId);
+
+        try {
+            const result = await setContactAiState({
+                projectId: project.id,
+                contactId,
+                enabled: nextState,
             });
 
             if (!result.success) {
-                // CORRECTION : On vérifie explicitement que result.message et result.message.id existent
-                if (result.message && "id" in result.message) {
-                    const failedMessageId = result.message.id as string; // Typage explicite
-                    setMessagesMap((prev) => ({
-                        ...prev,
-                        [activeClient.id]: (prev[activeClient.id] || []).map((msg) =>
-                            msg.id === tempId ? { ...msg, id: failedMessageId, status: "failed" } : msg
-                        )
-                    }));
-                }
-                throw new Error(result.error || "Erreur inconnue lors de l'envoi");
+                toast.error(result.error);
+                return;
             }
 
-            // CORRECTION : Pour le succès, on s'assure aussi que TypeScript sait que le message est là
-            if (!result.message || !("id" in result.message)) {
-                throw new Error("Réponse invalide du serveur (ID manquant)");
-            }
-
-            const successMessageId = result.message.id as string;
-
-            playHaptic("success");
-            setMessagesMap((prev) => ({
-                ...prev,
-                [activeClient.id]: (prev[activeClient.id] || []).map((msg) =>
-                    msg.id === tempId
-                        ? { ...msg, id: successMessageId, status: "delivered" }
-                        : msg
-                )
+            setAiOverrides((previous) => ({
+                ...previous,
+                [contactId]: result.enabled,
             }));
 
-        } catch (error: unknown) {
-            const errorMessage = error instanceof Error ? error.message : "Erreur réseau";
-            console.error("Erreur d'envoi:", errorMessage);
-            playHaptic("error");
-            toast.error(errorMessage);
-
-            setMessagesMap((prev) => ({
-                ...prev,
-                [activeClient.id]: (prev[activeClient.id] || []).map((msg) =>
-                    msg.id === tempId ? { ...msg, status: "failed" } : msg
-                )
-            }));
-
-            setInput(messageContent);
+            toast.success(
+                result.enabled ? "IA activée." : "IA désactivée.",
+            );
+            refresh();
+        } catch {
+            toast.error(
+                "Modification non confirmée. Actualisez pour vérifier le réglage.",
+            );
         } finally {
-            setIsSending(false);
+            aiLock.current = false;
+            setAiBusyId(null);
         }
-    };
+    }
+
+    function restoreDraft(content: string) {
+        if (!activeId) return;
+
+        if ((drafts[activeId] ?? "").trim()) {
+            toast.info(
+                "Un brouillon existe déjà. Il a été conservé.",
+            );
+            return;
+        }
+
+        setDrafts((previous) => ({
+            ...previous,
+            [activeId]: content,
+        }));
+
+        textareaRef.current?.focus();
+    }
+
     return (
-        <div className="flex w-full h-full max-h-[calc(100vh-4rem)] overflow-hidden!">
+        <div className="h-[calc(100dvh-var(--app-header-height,4rem))] min-h-0 w-full overflow-hidden bg-muted/20 p-0 sm:p-3 xl:p-5">
+            <div className="mx-auto flex h-full min-h-0 w-full max-w-450 overflow-hidden border-border/70 bg-background sm:rounded-2xl sm:border sm:shadow-sm">
+                {/* Liste des conversations */}
+                <aside
+                    aria-label="Conversations"
+                    className={cn(
+                        "w-full min-h-0 shrink-0 flex-col border-r border-border/70 bg-card md:w-80 xl:w-96",
+                        mobileChat ? "hidden md:flex" : "flex",
+                    )}
+                >
+                    <header className="space-y-4 border-b border-border/70 p-4 xl:p-5">
+                        <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                                <p className="truncate text-xs font-medium text-muted-foreground">
+                                    {project.name}
+                                </p>
+                                <h1 className="mt-1 text-xl font-semibold tracking-tight">
+                                    Conversations
+                                </h1>
+                            </div>
 
-            {/* -------------------------------------------------------------------------
-          SIDEBAR (Liste des clients)
-          > Cachée sur mobile si un chat est ouvert (showMobileChat === true)
-      -------------------------------------------------------------------------- */}
-            <div className={`w-full md:max-w-2/6 md:border-r flex-col md:bg-muted/10 shrink-0 h-full ${showMobileChat ? 'hidden md:flex' : 'flex'}`}>
-                <div className="py-4 px-3 md:border-b md:bg-background/50 md:backdrop-blur-sm">
-                    <h2 className="font-semibold text-lg mb-4 flex items-center gap-2">
-                        Boîte de réception
-                        <Badge variant="secondary" className="bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20">
-                            {project.name}
-                        </Badge>
-                    </h2>
-                    <div className="relative">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input
-                            placeholder="Rechercher..."
-                            className="pl-9 bg-background shadow-sm rounded-none h-10"
-                        />
-                    </div>
-                </div>
-
-                <ScrollArea className="max-w-full flex-1 h-full">
-                    <div className="flex flex-col w-full py-4">
-                        {clients.map((client) => (
-                            <div
-                                key={client.id}
-                                onClick={() => handleSelectClient(client.id)}
-                                className={`flex items-start gap-3 p-4 text-left w-full cursor-pointer transition-colors border-b last:border-0 ${activeClientId === client.id
-                                    ? "bg-primary/5 border-l-2 border-l-primary"
-                                    : "hover:bg-muted/50 border-l-2 border-l-blue-500"
-                                    }`}
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="size-10 shrink-0 rounded-xl"
+                                disabled={refreshing}
+                                aria-label="Actualiser les conversations"
+                                onClick={refresh}
                             >
-                                <div className="relative">
-                                    <Avatar className="h-12 w-12 border">
-                                        <AvatarFallback className="bg-muted text-muted-foreground font-medium">
-                                            {client.name.substring(0, 2).toUpperCase()}
+                                <RefreshCw
+                                    aria-hidden="true"
+                                    className={cn(
+                                        "size-4",
+                                        refreshing &&
+                                        "animate-spin motion-reduce:animate-none",
+                                    )}
+                                />
+                            </Button>
+                        </div>
+
+                        <div className="relative">
+                            <label htmlFor="chat-search" className="sr-only">
+                                Rechercher par nom ou téléphone
+                            </label>
+
+                            <Search
+                                aria-hidden="true"
+                                className="pointer-events-none absolute left-3 top-3 size-4 text-muted-foreground"
+                            />
+
+                            <Input
+                                ref={searchRef}
+                                id="chat-search"
+                                value={search}
+                                onChange={(event) =>
+                                    setSearch(event.target.value)
+                                }
+                                placeholder="Nom ou téléphone…"
+                                className="h-10 rounded-xl bg-muted/30 pl-9 pr-10 shadow-none"
+                                autoComplete="off"
+                            />
+
+                            {search && (
+                                <button
+                                    type="button"
+                                    aria-label="Effacer la recherche"
+                                    onClick={() => {
+                                        setSearch("");
+                                        searchRef.current?.focus();
+                                    }}
+                                    className="absolute right-0 top-0 flex size-10 items-center justify-center rounded-xl text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                >
+                                    <X aria-hidden="true" className="size-4" />
+                                </button>
+                            )}
+                        </div>
+
+                        <div
+                            role="group"
+                            aria-label="Filtrer les conversations"
+                            className="flex gap-1 rounded-xl bg-muted/50 p-1"
+                        >
+                            {(
+                                [
+                                    ["all", "Toutes"],
+                                    ["ai", "IA activée"],
+                                    ["manual", "IA désactivée"],
+                                ] as const
+                            ).map(([value, label]) => (
+                                <button
+                                    key={value}
+                                    type="button"
+                                    aria-pressed={filter === value}
+                                    onClick={() => setFilter(value)}
+                                    className={cn(
+                                        "min-h-9 flex-1 rounded-lg px-2 text-xs font-medium transition-colors",
+                                        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none",
+                                        filter === value
+                                            ? "bg-background text-foreground shadow-sm"
+                                            : "text-muted-foreground hover:text-foreground",
+                                    )}
+                                >
+                                    {label}
+                                </button>
+                            ))}
+                        </div>
+                    </header>
+
+                    <div className="flex items-center justify-between px-5 py-3 text-[11px] text-muted-foreground">
+                        <span>
+                            {visibleClients.length} conversation
+                            {visibleClients.length > 1 ? "s" : ""}
+                        </span>
+                        <span>Heures en UTC</span>
+                    </div>
+
+                    <nav
+                        aria-label="Liste des contacts"
+                        className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-2 pb-3"
+                    >
+                        {visibleClients.length === 0 ? (
+                            <div className="px-6 py-12 text-center">
+                                <Search
+                                    aria-hidden="true"
+                                    className="mx-auto mb-3 size-6 text-muted-foreground"
+                                />
+                                <p className="text-sm font-medium">
+                                    {clients.length === 0
+                                        ? "Aucune conversation"
+                                        : "Aucun résultat"}
+                                </p>
+                                <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+                                    {clients.length === 0
+                                        ? "Vos contacts apparaîtront après les premiers échanges."
+                                        : "Essayez un autre nom, un numéro ou un autre filtre."}
+                                </p>
+                            </div>
+                        ) : (
+                            <ul className="space-y-1">
+                                {visibleClients.map((client) => {
+                                    const selected = activeId === client.id;
+                                    const hasDraft = !!drafts[client.id]?.trim();
+
+                                    return (
+                                        <li key={client.id}>
+                                            <button
+                                                ref={(element) => {
+                                                    if (element) {
+                                                        contactButtonRefs.current.set(
+                                                            client.id,
+                                                            element,
+                                                        );
+                                                    } else {
+                                                        contactButtonRefs.current.delete(
+                                                            client.id,
+                                                        );
+                                                    }
+                                                }}
+                                                type="button"
+                                                aria-current={
+                                                    selected ? "true" : undefined
+                                                }
+                                                onClick={() =>
+                                                    selectClient(client.id)
+                                                }
+                                                className={cn(
+                                                    "flex w-full items-start gap-3 rounded-xl border p-3 text-left",
+                                                    "transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none",
+                                                    selected
+                                                        ? "border-primary/15 bg-primary/5"
+                                                        : "border-transparent hover:bg-muted/50",
+                                                )}
+                                            >
+                                                <div className="relative shrink-0">
+                                                    <Avatar className="size-11 border border-border/60">
+                                                        <AvatarFallback className="bg-muted text-xs font-semibold">
+                                                            {initials(client.name)}
+                                                        </AvatarFallback>
+                                                    </Avatar>
+
+                                                    {client.aiActive && (
+                                                        <span className="absolute -bottom-1 -right-1 flex size-5 items-center justify-center rounded-full border-2 border-card bg-primary text-primary-foreground">
+                                                            <Bot
+                                                                aria-hidden="true"
+                                                                className="size-3"
+                                                            />
+                                                            <span className="sr-only">
+                                                                IA activée
+                                                            </span>
+                                                        </span>
+                                                    )}
+                                                </div>
+
+                                                <div className="min-w-0 flex-1">
+                                                    <div className="flex items-center justify-between gap-2">
+                                                        <span className="truncate text-sm font-semibold">
+                                                            {client.name}
+                                                        </span>
+                                                        <time
+                                                            dateTime={
+                                                                client.lastActivityAt
+                                                            }
+                                                            className="shrink-0 text-[10px] tabular-nums text-muted-foreground"
+                                                        >
+                                                            {previewDateFormatter.format(
+                                                                new Date(
+                                                                    client.lastActivityAt,
+                                                                ),
+                                                            )}
+                                                        </time>
+                                                    </div>
+
+                                                    <p className="mt-1 truncate text-xs leading-relaxed text-muted-foreground">
+                                                        {hasDraft ? (
+                                                            <>
+                                                                <span className="font-medium text-amber-700 dark:text-amber-400">
+                                                                    Brouillon :{" "}
+                                                                </span>
+                                                                {drafts[client.id]}
+                                                            </>
+                                                        ) : (
+                                                            client.lastMessage
+                                                        )}
+                                                    </p>
+                                                </div>
+                                            </button>
+                                        </li>
+                                    );
+                                })}
+                            </ul>
+                        )}
+                        {contactsQuery.hasMore && (
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                className="my-3 h-10 w-full rounded-xl text-xs"
+                                disabled={contactsQuery.isValidating}
+                                onClick={() => void contactsQuery.loadMore()}
+                            >
+                                {contactsQuery.isValidating
+                                    ? "Chargement…"
+                                    : "Afficher plus de contacts"}
+                            </Button>
+                        )}
+                    </nav>
+
+                    <footer className="flex items-center gap-2 border-t bg-muted/20 px-4 py-3 text-[11px] text-muted-foreground">
+                        <span
+                            aria-hidden="true"
+                            className={cn(
+                                "size-1.5 rounded-full",
+                                realtimeConnected
+                                    ? "bg-emerald-500"
+                                    : "bg-amber-500",
+                            )}
+                        />
+                        {realtimeConnected
+                            ? "Mises à jour en direct"
+                            : "Synchronisation automatique"}
+
+                        {(contactsQuery.error || historyQuery.error) && (
+                            <p
+                                role="status"
+                                className="border-b border-amber-500/20 bg-amber-500/5 px-4 py-2 text-xs text-amber-800 dark:text-amber-300"
+                            >
+                                Synchronisation temporairement interrompue.
+                                Les données déjà chargées restent affichées.
+                            </p>
+                        )}
+
+                    </footer>
+                </aside>
+
+                {/* Conversation active */}
+                <section
+                    aria-label="Conversation active"
+                    className={cn(
+                        "min-h-0 min-w-0 flex-1 flex-col",
+                        mobileChat ? "flex" : "hidden md:flex",
+                    )}
+                >
+                    {activeClient ? (
+                        <>
+                            <header className="flex min-h-20 shrink-0 items-center justify-between gap-3 border-b border-border/70 bg-card px-3 py-3 sm:px-5">
+                                <div className="flex min-w-0 items-center gap-3">
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        className="size-10 shrink-0 rounded-xl md:hidden"
+                                        onClick={goBack}
+                                        aria-label="Revenir aux conversations"
+                                    >
+                                        <ArrowLeft
+                                            aria-hidden="true"
+                                            className="size-5"
+                                        />
+                                    </Button>
+
+                                    <Avatar className="hidden size-10 shrink-0 border sm:flex">
+                                        <AvatarFallback className="text-xs font-semibold">
+                                            {initials(activeClient.name)}
                                         </AvatarFallback>
                                     </Avatar>
-                                    {client.aiActive && (
-                                        <div className="absolute size-6 -bottom-1 -right-1 bg-blue-500 text-white rounded-full p-0.5 shadow-sm border-2 border-background">
-                                            <Bot className="h-4 w-4" />
+
+                                    <div className="min-w-0">
+                                        <h2 className="truncate text-sm font-semibold sm:text-base">
+                                            {activeClient.name}
+                                        </h2>
+
+                                        <p className="mt-1 truncate text-xs tabular-nums text-muted-foreground">
+                                            {activeClient.phone}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div className="flex shrink-0 items-center gap-2">
+                                    <div className="hidden lg:block">
+                                        <AiLabel active={aiActive} />
+                                    </div>
+
+                                    {canManageAi ? (
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            disabled={aiBusyId !== null}
+                                            onClick={toggleAi}
+                                            className="h-10 gap-2 rounded-xl px-3 text-xs"
+                                            aria-label={
+                                                aiActive
+                                                    ? "Désactiver l’IA pour ce contact"
+                                                    : "Activer l’IA pour ce contact"
+                                            }
+                                        >
+                                            {aiBusyId === activeClient.id ? (
+                                                <Loader2
+                                                    aria-hidden="true"
+                                                    className="size-4 animate-spin motion-reduce:animate-none"
+                                                />
+                                            ) : aiActive ? (
+                                                <Pause
+                                                    aria-hidden="true"
+                                                    className="size-4"
+                                                />
+                                            ) : (
+                                                <Play
+                                                    aria-hidden="true"
+                                                    className="size-4"
+                                                />
+                                            )}
+
+                                            <span className="hidden sm:inline">
+                                                {aiActive
+                                                    ? "Désactiver l’IA"
+                                                    : "Activer l’IA"}
+                                            </span>
+                                        </Button>
+                                    ) : (
+                                        <div className="lg:hidden">
+                                            <AiLabel active={aiActive} />
                                         </div>
                                     )}
                                 </div>
+                            </header>
 
-                                <div className="min-w-0 w-full">
-                                    <div className="flex justify-between items-baseline mb-1">
-                                        <span className="font-semibold text-sm truncate">{client.name}</span>
-                                        <span className="text-xs text-muted-foreground whitespace-nowrap ml-2">{client.timestamp}</span>
-                                    </div>
-                                    <div className="flex justify-between shrink-0 relative items-center gap-2">
-                                        <p className="text-sm text-muted-foreground truncate line-clamp-1">
-                                            {client.lastMessage}
-                                        </p>
-                                        {client.unread > 0 && (
-                                            <Badge className="bg-emerald-500 text-white px-1.5 min-w-5 flex justify-center rounded-full">
-                                                {client.unread}
-                                            </Badge>
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </ScrollArea>
-            </div>
-
-            {/* -------------------------------------------------------------------------
-          MAIN AREA (Fenêtre de Chat)
-          > Cachée sur mobile si aucun chat n'est actif
-      -------------------------------------------------------------------------- */}
-            <div className={`flex-1 md:max-w-4/6 w-full overflow-hidden flex-col bg-background/95 relative h-full ${!showMobileChat ? 'hidden md:flex' : 'flex'}`}>
-
-                {activeClient ? (
-                    <>
-                        {/* HEADER CHAT */}
-                        <header className="flex max-w-full items-center justify-between px-1 md:px-6 py-3 md:py-4 border-b bg-background/60 backdrop-blur-md sticky top-0 z-20">
-                            <div className="flex items-center gap-2 md:gap-4">
-
-                                {/* 📱 BOUTON RETOUR MOBILE */}
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="md:hidden mr-1 shrink-0"
-                                    onClick={() => setShowMobileChat(false)}
-                                >
-                                    <ArrowLeft className="h-5 w-5" />
-                                </Button>
-
-                                <Avatar className="h-10 w-10 border shadow-sm shrink-0">
-                                    <AvatarFallback>{activeClient.name.substring(0, 2).toUpperCase()}</AvatarFallback>
-                                </Avatar>
-                                <div className="min-w-0">
-                                    <h2 className="text-base font-semibold tracking-tight truncate">{activeClient.name}</h2>
-                                    <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-                                        <Phone className="h-3 w-3 shrink-0" />
-                                        <span className="truncate">{activeClient.phone}</span>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="flex items-center gap-2 md:gap-3 shrink-0">
-                                <Badge variant={activeClient.aiActive ? "default" : "secondary"} className="gap-1.5 px-2 py-1 text-[10px] md:text-xs">
-                                    {activeClient.aiActive ? <Bot className="h-3.5 w-3.5" /> : <UserIcon className="h-3.5 w-3.5" />}
-                                    <span className="hidden sm:inline">{activeClient.aiActive ? "Gestion par l'IA activé" : "Gestion par l'IA désactivé"}</span>
-                                </Badge>
-                                <Tooltip delayDuration={1000}>
-                                    <TooltipTrigger asChild>
-                                        <Button variant="ghost" size={"icon-sm"}>
-                                            {activeClient.aiActive ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
-                                        </Button>
-                                    </TooltipTrigger>
-                                    <TooltipContent className="px-2 py-1" side="right">
-                                        {activeClient.aiActive ? "Desactiver la gestion par l'IA" : "Activer la gestion par l'IA"} {" "}
-                                        <KbdGroup>
-                                            <Kbd>⌘</Kbd>
-                                            <Kbd>e</Kbd>
-                                            <Kbd>a</Kbd>
-                                        </KbdGroup>
-                                    </TooltipContent>
-                                </Tooltip>
-                                <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground">
-                                    <MoreVertical className="h-4 w-4" />
-                                </Button>
-                            </div>
-                        </header>
-
-                        {/* ZONE DE SCROLL DES MESSAGES */}
-                        <MessageScrollerProvider>
-                            <MessageScroller className="flex-1 min-h-0 relative h-full w-full bg-muted/30 dark:bg-background">
-                                <MessageScrollerViewport className="px-3 md:px-6 py-6">
-                                    <MessageScrollerContent className="w-full mx-auto">
-
-                                        <MessageGroup>
-                                            {activeMessages.map((msg, index) => {
-                                                const isLastMessage = index === activeMessages.length - 1;
-                                                return (
-                                                    <MessageScrollerItem key={msg.id} scrollAnchor={index === activeMessages.length - 1}>
-
-                                                        <Message align={msg.senderType === "client" ? "start" : "end"} className="mb-2">
-
-                                                            <MessageAvatar
-                                                                className={
-                                                                    msg.senderType === "agent" ? "bg-transparent hidden sm:flex" :
-                                                                        msg.senderType === "bot" ? "bg-blue-100 text-blue-600 border-blue-200 hidden sm:flex" : ""
-                                                                }
-                                                            >
-                                                                {msg.senderType === "bot" ? (
-                                                                    <div className="h-8 w-8 flex items-center justify-center">
-                                                                        <Bot className="h-4 w-4 text-blue-600" />
-                                                                    </div>
-                                                                ) : msg.senderType === "agent" ? (
-                                                                    <Avatar className="h-8 w-8 border">
-                                                                        <AvatarImage src={user?.image || ""} />
-                                                                        <AvatarFallback className="bg-primary text-primary-foreground text-xs">
-                                                                            {user?.name ? user.name.substring(0, 2).toUpperCase() : "MOI"}
-                                                                        </AvatarFallback>
-                                                                    </Avatar>
-                                                                ) : null}
-                                                            </MessageAvatar>
-
-                                                            <MessageContent className={msg.senderType === "client" ? "items-start" : "items-end"}>
-                                                                <MessageHeader className="hidden sm:flex">
-                                                                    {
-                                                                        msg.senderType === "bot" ? "Assistant IA" :
-                                                                            msg.senderType === "agent" && (user?.name || "Vous")
-                                                                    }
-                                                                </MessageHeader>
-                                                                <Bubble variant={msg.status === "failed" ? "destructive" : msg.senderType === "client" ? "default" : msg.senderType === "bot" ? "ghost" : "tinted"} align={msg.senderType === "client" ? "start" : "end"} className="max-w-[80%]">
-                                                                    <BubbleContent>
-                                                                        {msg.senderType === "bot" && isLastMessage ? (
-                                                                            <StreamedMessage content={msg.content} />
-                                                                        ) : (
-                                                                            msg.content
-                                                                        )}
-                                                                    </BubbleContent>
-                                                                </Bubble>
-                                                                <MessageFooter className={msg.status === "failed" ? "text-destructive" : "text-muted-foreground/80"}>
-                                                                    {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                                                    {msg.senderType !== "client" && (
-                                                                        <>
-
-                                                                            {msg.status === "sent" ? (
-                                                                                <Check className="h-4 w-4 ml-1.5 text-muted-foreground/80" />
-                                                                            ) :
-                                                                                msg.status === "failed" ? (
-                                                                                    <XCircle className="h-4 w-4 ml-1.5 text-destructive" />
-                                                                                ) : (
-                                                                                    <CheckCheck className={`h-4 w-4 ml-1.5 ${msg.status === "read" ? "text-blue-500" : msg.status === "delivered" && "text-muted-foreground"}`} />
-                                                                                )}
-                                                                            <span className={msg.status === "failed" ? "text-destructive" : ""}>
-                                                                                {msg.status === "sent" ? "Envoyé" :
-                                                                                    msg.status === "delivered" ? "Reçu" :
-                                                                                        msg.status === "read" ? "Lu" :
-                                                                                            msg.status === "failed" ? "Échoué" : ""}
-                                                                            </span>
-                                                                        </>
-                                                                    )
-                                                                    }
-                                                                </MessageFooter>
-                                                            </MessageContent>
-
-                                                        </Message>
-                                                    </MessageScrollerItem>
-                                                )
-                                            })}
-                                        </MessageGroup>
-
-                                    </MessageScrollerContent>
-                                </MessageScrollerViewport>
-
-                                <MessageScrollerButton direction="end" />
-                            </MessageScroller>
-                        </MessageScrollerProvider>
-
-                        {/* ZONE DE SAISIE */}
-                        <div className="p-3 md:p-4 bg-background/80 backdrop-blur-md border-t mt-auto pb-safe">
-                            {activeClient.aiActive && (
-                                <div className="max-w-4xl mx-auto mb-2 md:mb-3 flex items-start md:items-center justify-center gap-2 text-xs md:text-sm font-medium text-muted-foreground bg-muted py-2 px-3 md:px-4 rounded-lg text-center">
-                                    <ShieldAlert className="h-4 w-4 shrink-0 mt-0.5 md:mt-0" />
-                                    <span>Si vous envoyez un message, l&apos;IA sera automatiquement mise en pause.</span>
+                            {showWelcome && (
+                                <div className="flex items-center justify-between gap-3 border-b bg-primary/5 px-4 py-3 text-xs">
+                                    <span>
+                                        Votre espace de conversation est prêt.
+                                    </span>
+                                    <button
+                                        type="button"
+                                        aria-label="Fermer le message de bienvenue"
+                                        onClick={() => setShowWelcome(false)}
+                                        className="flex size-8 shrink-0 items-center justify-center rounded-md focus-visible:ring-2 focus-visible:ring-ring"
+                                    >
+                                        <X aria-hidden="true" className="size-4" />
+                                    </button>
                                 </div>
                             )}
-                            <div className="max-w-4xl mx-auto">
-                                <form
-                                    onSubmit={handleSend}
-                                >
-                                    <InputGroup>
-                                        <InputGroupInput
-                                            value={input}
-                                            onChange={(e) => setInput(e.target.value)}
-                                            placeholder="Message..."
-                                            disabled={isSending} />
-                                        <InputGroupAddon align="block-end" className="pt-1">
-                                            <DropdownMenu>
-                                                <DropdownMenuTrigger>
-                                                    <InputGroupButton aria-label="Add files" type="button" size="icon-sm" variant="outline">
-                                                        <PlusIcon />
-                                                    </InputGroupButton>
-                                                </DropdownMenuTrigger>
 
-                                                <DropdownMenuContent
-                                                    align="start"
-                                                    side="top"
-                                                    className="w-44"
-                                                >
-                                                    <DropdownMenuItem>
-                                                        <PaperclipIcon />
-                                                        Add Photos & Files
-                                                    </DropdownMenuItem>
-                                                    <DropdownMenuSeparator />
-                                                </DropdownMenuContent>
-                                            </DropdownMenu>
-                                            <InputGroupButton
-                                                type="submit"
-                                                size="icon-sm"
-                                                className="ml-auto"
-                                                variant={input.trim() ? "default" : "ghost"}
-                                                disabled={!input.trim() || isSending}>
-                                                <Send className="h-4 w-4" />
-                                                <span className="sr-only">Envoyer sur WhatsApp</span>
-                                            </InputGroupButton>
-                                        </InputGroupAddon>
-                                    </InputGroup>
-                                </form>
+                            <div className="min-h-0 flex-1 bg-muted/20">
+                                <MessageScrollerProvider key={activeClient.id}>
+                                    <MessageScroller className="h-full">
+                                        <MessageScrollerViewport className="px-3 py-5 sm:px-6">
+                                            {historyQuery.hasMore && (
+                                                <div className="flex justify-center">
+                                                    <Button
+                                                        type="button"
+                                                        variant="outline"
+                                                        size="sm"
+                                                        className="rounded-full text-xs"
+                                                        disabled={historyQuery.isValidating}
+                                                        onClick={() => void historyQuery.loadMore()}
+                                                    >
+                                                        {historyQuery.isValidating
+                                                            ? "Chargement…"
+                                                            : "Afficher les messages précédents"}
+                                                    </Button>
+                                                </div>
+                                            )}
+                                            <MessageScrollerContent className="mx-auto min-h-full w-full max-w-4xl gap-5">
+                                                <p className="text-center text-[11px] leading-relaxed text-muted-foreground">
+                                                    Jusqu’à 50 messages récents chargés
+                                                    {" "}· Heures en UTC
+                                                </p>
+
+                                                {historyQuery.isLoading ? (
+                                                    <div role="status" className="py-12 text-center text-sm text-muted-foreground">
+                                                        Chargement de la conversation…
+                                                    </div>
+                                                ) : activeMessages.length === 0 ? (
+                                                    <div className="flex flex-1 flex-col items-center justify-center px-6 py-12 text-center">
+                                                        <MessageCircle
+                                                            aria-hidden="true"
+                                                            className="mb-4 size-8 text-muted-foreground"
+                                                        />
+                                                        <h3 className="text-sm font-semibold">
+                                                            Aucun message à afficher
+                                                        </h3>
+                                                        <p className="mt-2 max-w-xs text-xs leading-relaxed text-muted-foreground">
+                                                            Envoyez un message à ce contact
+                                                            ou actualisez pour charger les
+                                                            derniers échanges.
+                                                        </p>
+                                                    </div>
+                                                ) : (
+                                                    activeMessages.map(
+                                                        (message, index) => {
+                                                            const day =
+                                                                message.timestamp.slice(
+                                                                    0,
+                                                                    10,
+                                                                );
+                                                            const previousDay =
+                                                                activeMessages[
+                                                                    index - 1
+                                                                ]?.timestamp.slice(0, 10);
+
+                                                            return (
+                                                                <MessageScrollerItem
+                                                                    key={
+                                                                        "localId" in message
+                                                                            ? message.localId
+                                                                            : message.id
+                                                                    }
+                                                                    scrollAnchor={
+                                                                        index ===
+                                                                        activeMessages.length -
+                                                                        1
+                                                                    }
+                                                                >
+                                                                    {day !== previousDay && (
+                                                                        <div className="mb-5 mt-2 flex justify-center">
+                                                                            <span className="rounded-full border border-border/60 bg-background px-3 py-1 text-[10px] font-medium text-muted-foreground">
+                                                                                {dateFormatter.format(
+                                                                                    new Date(
+                                                                                        message.timestamp,
+                                                                                    ),
+                                                                                )}
+                                                                            </span>
+                                                                        </div>
+                                                                    )}
+
+                                                                    <ChatBubble
+                                                                        message={message}
+                                                                        contactName={
+                                                                            activeClient.name
+                                                                        }
+                                                                        onRestore={
+                                                                            restoreDraft
+                                                                        }
+                                                                    />
+                                                                </MessageScrollerItem>
+                                                            );
+                                                        },
+                                                    )
+                                                )}
+                                            </MessageScrollerContent>
+                                        </MessageScrollerViewport>
+
+                                        <MessageScrollerButton
+                                            direction="end"
+                                            aria-label="Aller aux derniers messages"
+                                        />
+                                    </MessageScroller>
+                                </MessageScrollerProvider>
                             </div>
-                        </div>
 
-                    </>
-                ) : (
-                    // ÉTAT VIDE (Sur Desktop uniquement, si aucun client n'est sélectionné)
-                    <div className="flex-1 flex flex-col items-center justify-center bg-muted/5 p-6 text-center h-full">
-                        <div className="h-20 w-20 bg-muted rounded-full flex items-center justify-center mb-6">
-                            <MessageCircle className="h-10 w-10 text-muted-foreground/50" />
+                            <footer className="shrink-0 border-t border-border/70 bg-card px-3 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-5 sm:pt-4">
+                                <div className="mx-auto max-w-4xl">
+                                    {aiActive && (
+                                        <div className="mb-3 flex items-start gap-2 rounded-xl border border-amber-500/20 bg-amber-500/5 px-3 py-2">
+                                            <Bot
+                                                aria-hidden="true"
+                                                className="mt-0.5 size-4 shrink-0 text-amber-700 dark:text-amber-400"
+                                            />
+                                            <p className="text-xs leading-relaxed text-muted-foreground">
+                                                L’IA est activée et peut également
+                                                répondre à ce contact.
+                                                {canManageAi &&
+                                                    " Désactivez-la pour prendre la main."}
+                                            </p>
+                                        </div>
+                                    )}
+
+                                    <form
+                                        onSubmit={handleSend}
+                                        className="overflow-hidden rounded-2xl border border-border bg-background shadow-sm focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/20"
+                                    >
+                                        <label
+                                            htmlFor="chat-message"
+                                            className="sr-only"
+                                        >
+                                            Message pour {activeClient.name}
+                                        </label>
+
+                                        <textarea
+                                            ref={textareaRef}
+                                            id="chat-message"
+                                            value={draft}
+                                            rows={2}
+                                            maxLength={MAX_MESSAGE_LENGTH}
+                                            onChange={(event) => {
+                                                const value = event.target.value;
+
+                                                setDrafts((previous) => ({
+                                                    ...previous,
+                                                    [activeClient.id]: value,
+                                                }));
+                                            }}
+                                            onKeyDown={(event) => {
+                                                // Entrée reste une nouvelle ligne.
+                                                // Ctrl/Cmd + Entrée envoie.
+                                                if (
+                                                    event.key === "Enter" &&
+                                                    (event.ctrlKey ||
+                                                        event.metaKey) &&
+                                                    !event.nativeEvent.isComposing
+                                                ) {
+                                                    event.preventDefault();
+                                                    event.currentTarget.form?.requestSubmit();
+                                                }
+                                            }}
+                                            placeholder="Écrire un message…"
+                                            aria-describedby="chat-composer-help"
+                                            className="block min-h-20 max-h-40 w-full resize-none bg-transparent px-4 pt-3 pb-2 text-base leading-relaxed outline-none placeholder:text-muted-foreground sm:text-sm"
+                                        />
+
+                                        <div className="flex items-center justify-between gap-3 px-3 pb-3">
+                                            <div
+                                                id="chat-composer-help"
+                                                className="min-w-0 text-[10px] leading-relaxed text-muted-foreground"
+                                            >
+                                                <span className="hidden sm:block">
+                                                    Ctrl / ⌘ + Entrée pour envoyer
+                                                </span>
+                                                <span className="tabular-nums">
+                                                    {draft.length} /{" "}
+                                                    {MAX_MESSAGE_LENGTH}
+                                                </span>
+                                            </div>
+
+                                            <Button
+                                                type="submit"
+                                                disabled={
+                                                    !draft.trim() ||
+                                                    isSending ||
+                                                    draft.length >
+                                                    MAX_MESSAGE_LENGTH
+                                                }
+                                                className="h-10 shrink-0 gap-2 rounded-xl px-4"
+                                            >
+                                                {isSending ? (
+                                                    <Loader2
+                                                        aria-hidden="true"
+                                                        className="size-4 animate-spin motion-reduce:animate-none"
+                                                    />
+                                                ) : (
+                                                    <Send
+                                                        aria-hidden="true"
+                                                        className="size-4"
+                                                    />
+                                                )}
+                                                {isSending
+                                                    ? "Envoi…"
+                                                    : "Envoyer"}
+                                            </Button>
+                                        </div>
+                                    </form>
+
+                                    <p className="px-1 py-2 text-[10px] leading-relaxed text-muted-foreground">
+                                        Connecté en tant que {user.name || "membre"}
+                                        {" "}· Brouillons conservés uniquement
+                                        pendant l’ouverture de cette page.
+                                    </p>
+                                </div>
+                            </footer>
+                        </>
+                    ) : (
+                        <div className="flex h-full flex-col items-center justify-center px-6 text-center">
+                            <div className="mb-5 rounded-2xl border bg-muted/30 p-5">
+                                <MessageCircle
+                                    aria-hidden="true"
+                                    className="size-8 text-muted-foreground"
+                                    strokeWidth={1.5}
+                                />
+                            </div>
+
+                            <h2 className="text-xl font-semibold tracking-tight">
+                                Votre espace de conversation
+                            </h2>
+
+                            <p className="mt-3 max-w-sm text-sm leading-relaxed text-muted-foreground">
+                                Consultez vos échanges, répondez à vos contacts
+                                et gérez l’activation de l’IA au même endroit.
+                            </p>
                         </div>
-                        <h2 className="text-xl font-semibold mb-2">Boîte de réception ExtravertyAI</h2>
-                        <p className="text-muted-foreground text-sm max-w-sm">
-                            Sélectionnez une conversation dans la liste pour lire l&apos;historique ou reprendre la main sur l&apos;IA.
-                        </p>
-                    </div>
-                )}
+                    )}
+                </section>
             </div>
 
+            <p
+                role="status"
+                aria-live="polite"
+                aria-atomic="true"
+                className="sr-only"
+            >
+                {refreshing
+                    ? "Actualisation des conversations."
+                    : announcement}
+            </p>
         </div>
     );
 }

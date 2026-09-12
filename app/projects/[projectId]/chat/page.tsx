@@ -1,104 +1,164 @@
+import type { Metadata } from "next";
+import { redirect } from "next/navigation";
+import { MessageCircle, WifiOff } from "lucide-react";
+
 import { getProjectById } from "@/app/actions/projects";
 import { getSession } from "@/lib/auth-server";
-import { redirect } from "next/navigation";
-import type { Metadata } from "next";
-import prisma from "@/lib/prisma";
+
 import ProjectWorkspace from "@/components/dashboard/project/whatsappSendMessageForm";
 import QRCodeScanner from "@/components/dashboard/project/qrCodeScanner";
-import { getWorkspaceData } from "@/app/actions/getMessages&Contacts";
 import UnauthorizedDialog from "@/components/dashboard/project/unAuthorizedDialog";
 import ProjectNotFoundDialog from "@/components/dashboard/project/projectNotfoundDialog";
+import { ChatRefreshButton } from "@/components/dashboard/project/chat-refresh-button";
 
 export const dynamic = "force-dynamic";
 
 type PageProps = {
   params: Promise<{ projectId: string }>;
-  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+  searchParams: Promise<{
+    [key: string]: string | string[] | undefined;
+  }>;
 };
 
-// 1. DYNAMISME DE L'ONGLET
-export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-  const resolvedParams = await params;
-  const projectId = resolvedParams.projectId;
-  const session = await getSession();
-
-  if (!session?.user?.id) return { title: "Connexion requise | ExtravertyAI" };
-
-  const projectMembership = await prisma.projectMembership.findUnique({
-    where: {
-      userId_projectId: {
-        userId: session.user.id,
-        projectId: projectId,
-      },
-    },
-    select: { project: { select: { name: true } } },
-  });
-
-  if (!projectMembership) return { title: "Projet introuvable | ExtravertyAI" };
+export async function generateMetadata({
+  params,
+}: PageProps): Promise<Metadata> {
+  const { projectId } = await params;
+  const project = await getProjectById(projectId);
 
   return {
-    title: `${projectMembership.project.name} | ExtravertyAI`,
-    description: `Espace de travail pour le projet ${projectMembership.project.name}`,
+    title: project
+      ? `${project.name} · Conversations | ExtravertyAI`
+      : "Conversations | ExtravertyAI",
+    description: "Espace de gestion des conversations WhatsApp.",
+    robots: { index: false, follow: false },
   };
 }
 
-// 2. RENDU DE LA PAGE
-export default async function ProjectPage({ params, searchParams }: PageProps) {
-  const resolvedParams = await params;
-  const resolvedSearchParams = await searchParams;
-
-  const projectId = resolvedParams.projectId;
-  const isSuccess = resolvedSearchParams.success === "true";
-  const showUnauthorizedError = resolvedSearchParams.error === "unauthorized";
+export default async function ChatPage({
+  params,
+  searchParams,
+}: PageProps) {
+  const [{ projectId }, query] = await Promise.all([
+    params,
+    searchParams,
+  ]);
 
   const session = await getSession();
+
   if (!session?.user?.id) {
-    return redirect(`/sign-in?callbackUrl=/projects/${projectId}`);
+    const callbackUrl =
+      `/projects/${encodeURIComponent(projectId)}/chat`;
+
+    redirect(
+      `/sign-in?${new URLSearchParams({ callbackUrl }).toString()}`,
+    );
   }
 
   const project = await getProjectById(projectId);
+
   if (!project) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-background">
-        {/* On affiche directement la modale par-dessus un fond vide */}
+      <div className="flex min-h-[60dvh] items-center justify-center p-6">
         <ProjectNotFoundDialog open={true} />
       </div>
     );
   }
 
-  const ProjectData = await getWorkspaceData(project.id);
-  if (!ProjectData) {
+  const canManageAi =
+    project.userRole === "OWNER" || project.userRole === "ADMIN";
+
+  const requiresConnection =
+    project.instanceStatus === "qr_ready" ||
+    project.instanceStatus === "connecting" ||
+    project.instanceStatus === "disconnected";
+
+  if (requiresConnection) {
     return (
-      <div className="flex h-full w-full items-center justify-center p-6">
-        <div className="rounded-lg bg-destructive/10 p-4 text-center border border-destructive/20 text-destructive">
-          <p className="font-semibold">Impossible de charger l&apos;espace de travail.</p>
-          <p className="text-sm">Veuillez rafraîchir la page ou contacter le support.</p>
+      <div className="mx-auto w-full max-w-3xl space-y-6 p-4 sm:p-8">
+        <header className="space-y-2">
+          <p className="text-sm text-muted-foreground">
+            {project.name}
+          </p>
+          <h1 className="text-2xl font-semibold tracking-tight">
+            Connecter WhatsApp
+          </h1>
+          <p className="text-sm leading-relaxed text-muted-foreground">
+            Connectez votre instance pour accéder aux conversations.
+            Ne partagez pas le QR code de connexion.
+          </p>
+        </header>
+
+        {canManageAi ? (
+          <div className="overflow-hidden rounded-2xl border bg-card shadow-sm">
+            <QRCodeScanner projectId={project.id} />
+          </div>
+        ) : (
+          <div className="rounded-2xl border bg-card p-6">
+            <WifiOff
+              aria-hidden="true"
+              className="mb-3 size-5 text-muted-foreground"
+            />
+            <p className="text-sm font-medium">
+              Une reconnexion est nécessaire
+            </p>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Demandez à un administrateur de reconnecter WhatsApp.
+            </p>
+          </div>
+        )}
+
+        <ChatRefreshButton />
+      </div>
+    );
+  }
+
+  if (project.instanceStatus !== "connected") {
+    return (
+      <div className="flex min-h-[60dvh] items-center justify-center p-6">
+        <div
+          role="status"
+          className="w-full max-w-md rounded-2xl border bg-card p-6 text-center shadow-sm"
+        >
+          <MessageCircle
+            aria-hidden="true"
+            className="mx-auto mb-4 size-8 text-muted-foreground"
+          />
+          <h1 className="text-lg font-semibold">
+            Instance non disponible
+          </h1>
+          <p className="mb-5 mt-2 text-sm leading-relaxed text-muted-foreground">
+            La connexion WhatsApp n’est pas encore prête.
+            Actualisez pour vérifier son état.
+          </p>
+          <ChatRefreshButton />
         </div>
       </div>
     );
   }
 
-  // FAILLE CORRIGÉE : La condition logique est maintenant stricte et correcte
-  if (project.instanceStatus === "qr_ready" || project.instanceStatus === "connecting" || project.instanceStatus === "disconnected") {
-    return <QRCodeScanner projectId={projectId} />;
-  }
-
-  if (project.instanceStatus === "connected" && ProjectData.clients && ProjectData.messages) {
-    return (<>
-      {showUnauthorizedError && (
+  return (
+    <>
+      {query.error === "unauthorized" && (
         <UnauthorizedDialog open={true} />
       )}
-      <ProjectWorkspace project={project} user={session.user} isSuccess={isSuccess} clients={ProjectData.clients} messages={ProjectData.messages} />;
-    </>)
-  }
 
-  // FAILLE CORRIGÉE : Ajout d'un Fallback visuel pour les autres statuts (ex: "disconnected", "initializing")
-  return (
-    <div className="flex h-[80vh] w-full items-center justify-center">
-      <div className="flex flex-col items-center space-y-4">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-gray-200 border-t-blue-600"></div>
-        <p className="text-sm font-medium text-gray-500">Initialisation de l&apos;instance WhatsApp...</p>
-      </div>
-    </div>
+      <ProjectWorkspace
+        key={project.id}
+        project={{
+          id: project.id,
+          name: project.name,
+        }}
+        user={{
+          id: session.user.id,
+          name: session.user.name,
+        }}
+        isSuccess={query.success === "true"}
+        canManageAi={
+          project.userRole === "OWNER" ||
+          project.userRole === "ADMIN"
+        }
+      />
+    </>
   );
 }

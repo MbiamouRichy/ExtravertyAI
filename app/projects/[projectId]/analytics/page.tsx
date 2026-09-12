@@ -90,7 +90,7 @@ export default async function AnalyticsPage({
 
     return (
         <div className="min-w-0 bg-muted/20">
-            <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-6 p-4 sm:p-6 xl:gap-8 xl:p-8">
+            <div className="mx-auto flex w-full max-w-400 flex-col gap-6 p-4 sm:p-6 xl:gap-8 xl:p-8">
                 <AnalyticsHeader
                     projectName={access.projectName}
                     period={period}
