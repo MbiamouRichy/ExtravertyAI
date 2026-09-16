@@ -1,27 +1,34 @@
-import CreateProjectForm from '@/components/dashboard/project/createProjectForm'
-import PaymentCanceledDialog from '@/components/dashboard/project/paymentCanceledDialog';
-import { getSession } from '@/lib/auth-server';
 import type { Metadata } from "next";
-import { redirect } from 'next/navigation';
-import { Suspense } from 'react';
+import { redirect } from "next/navigation";
+import { Suspense } from "react";
+
+import CreateProjectForm from "@/components/dashboard/project/createProjectForm";
+import PaymentCanceledDialog from "@/components/dashboard/project/paymentCanceledDialog";
+import { getSession } from "@/lib/auth-server";
 
 export const metadata: Metadata = {
-    title: "New Project | ExtravertyAI",
-}
+  title: "Créer un projet | ExtravertyAI",
+  description: "Configurez votre projet WhatsApp et choisissez votre forfait.",
+  robots: {
+    index: false,
+    follow: false,
+  },
+};
 
-async function NewProjectPage() {
-    const session = await getSession();
-    if (!session?.user?.id) {
-        return redirect(`/sign-in?callbackUrl=/projects/new`);
-    }
-    return (
-        <>
-            <CreateProjectForm />
-            <Suspense fallback={null}>
-                <PaymentCanceledDialog />
-            </Suspense>
-        </>
-    )
-}
+export default async function NewProjectPage() {
+  const session = await getSession();
 
-export default NewProjectPage
+  if (!session?.user?.id) {
+    redirect(`/sign-in?callbackUrl=${encodeURIComponent("/projects/new")}`);
+  }
+
+  return (
+    <>
+      <CreateProjectForm />
+
+      <Suspense fallback={null}>
+        <PaymentCanceledDialog />
+      </Suspense>
+    </>
+  );
+}

@@ -1,187 +1,259 @@
-import Footer from "@/components/website/footer";
-import { Header } from "@/components/website/header";
-import { DecorIcon } from "@/components/ui/decor-icon"
-import { FullWidthDivider } from "@/components/ui/full-width-divider"
 import type { Metadata } from "next";
+import Link from "next/link";
+import {
+  ArrowRight,
+  ArrowUpRight,
+  MessageCircle,
+  Sparkles,
+  Users,
+  CheckCheck,
+  Globe2,
+  CircleDot,
+} from "lucide-react";
+import { Header } from "@/components/website/header";
+import Footer from "@/components/website/footer";
 
 export const metadata: Metadata = {
-    title: "ExtravertyAI - A propos",
-    description:
-        "ExtravertyAI est un assistant de support client alimenté par l'IA qui fournit des réponses rapides et précises aux questions des clients, améliorant ainsi l'expérience client et le nombre de ventes.",
+  title: "À propos — La relation client, plus simplement | ExtravertyAI",
+  description:
+    "ExtravertyAI aide les entreprises à mieux accueillir leurs clients sur WhatsApp, grâce à une IA qui travaille avec leurs équipes.",
+  alternates: { canonical: "/apropos" },
 };
-
-const Listes = [
-    "Assurer une prise en charge instantanée des requêtes clients.",
-    "Traiter de manière autonome les questions fréquentes(FAQ).",
-    "Qualifier rigoureusement les prospects entrants.",
-    "Accompagner et fluidifier le parcours d’achat.",
-    "Collecter et structurer les données clients essentielles.",
-    "Automatiser l’ensemble du support client de premier niveau."
-]
 export const dynamic = "force-static";
+const principles = [
+  {
+    icon: MessageCircle,
+    title: "Partir de votre réalité",
+    text: "Une boutique, un service, une équipe : chaque activité a son rythme. Nous commençons par comprendre vos échanges et vos besoins.",
+  },
+  {
+    icon: Sparkles,
+    title: "Rendre l’IA utile",
+    text: "Moins de questions répétitives à traiter. Des conversations regroupées. Une technologie qui simplifie le quotidien de votre équipe.",
+  },
+  {
+    icon: Users,
+    title: "Garder la main",
+    text: "L’automatisation accompagne la relation. Votre équipe peut reprendre une conversation et suspendre les réponses de l’assistant.",
+  },
+];
+export default function AboutPage() {
+  return (
+    <>
+      <Header />
+      <main
+        id="main-content"
+        className="mx-auto max-w-7xl px-5 pt-32 sm:px-8 lg:px-12 lg:pt-40"
+      >
+        <section className="grid items-end gap-8 border-b pb-14 lg:grid-cols-[1.4fr_1fr] lg:gap-16 lg:pb-20">
+          <div>
+            <p className="mb-7 flex items-center gap-2 text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
+              <span className="size-2 rounded-full bg-primary" /> Notre
+              conviction
+            </p>
+            <h1 className="text-5xl! leading-[1.06]! tracking-[-0.055em]! sm:text-6xl! lg:text-7xl!">
+              La technologie
+              <br />
+              avance.
+              <br />
+              <span className="text-foreground dark:text-foreground">
+                La relation reste.
+              </span>
+            </h1>
+          </div>
+          <div className="max-w-md pb-2">
+            <p className="text-xl leading-relaxed">
+              Nous construisons ExtravertyAI pour que les entreprises passent
+              moins de temps à répéter, et plus de temps à créer du lien.
+            </p>
+            <p className="mt-5 leading-relaxed text-muted-foreground">
+              Nous aidons les professionnels à faire de
+              WhatsApp un espace de travail plus simple, avec une IA au service
+              de leur équipe.
+            </p>
+            <Link
+              href="/contact"
+              className="mt-7 inline-flex min-h-11 items-center gap-3 font-medium text-foreground dark:text-foreground"
+            >
+              Faisons connaissance <ArrowUpRight className="size-5" />
+            </Link>
+          </div>
+        </section>
 
-function Apropos() {
-    return (
-        <>
-            <Header />
-            <main className='relative h-full overflow-hidden'>
-
-                <div className='relative w-full max-w-7xl border-x pt-26 mx-auto '>
-                    <DecorIcon className="size-4" position="top-left" />
-                    <DecorIcon className="size-4" position="top-right" />
-                    <DecorIcon className="size-4" position="bottom-left" />
-                    <DecorIcon className="size-4" position="bottom-right" />
-
-                    <FullWidthDivider className="-top-px" />
-                    <div className="w-full max-w-5xl md:mx-auto space-y-16 py-12 px-4 md:px-6">
-                        {/* --- SECTION 1 : PRÉSENTATION & MISSION --- */}
-                        <section className="flex flex-col gap-6">
-                            <div className="space-y-2">
-                                <h2 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground">
-                                    PRÉSENTATION & MISSION
-                                </h2>
-                                <div className="h-1 w-12 bg-primary rounded-full"></div>
-                            </div>
-
-                            <div className="max-w-3xl space-y-4 text-base md:text-lg text-muted-foreground leading-relaxed">
-                                <p>
-                                    ExtravertyAI est une <span className="font-semibold text-foreground">agence technologique</span> spécialisée dans l&apos;<span className="font-semibold text-foreground">intégration de solutions d&apos;automatisation intelligente sur WhatsApp</span> à destination des entreprises.
-                                </p>
-                                <p>
-                                    Notre mission consiste à accompagner les organisations dans <span className="font-semibold text-foreground">l&apos;optimisation de leur réactivité commerciale</span>, l&apos;accroissement de leurs ventes et la rationalisation de leur gestion client, en garantissant <span className="font-semibold text-foreground">une disponibilité opérationnelle continue, 24h/24 et 7j/7.</span>
-                                </p>
-                                <p>
-                                    De manière concrète, nous déployons un <span className="font-semibold text-foreground">assistant virtuel</span> doté d&apos;intelligence artificielle capable de :
-                                </p>
-                            </div>
-
-                            {/* Transformation de la liste en grille pour une meilleure lisibilité */}
-                            <ul className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
-                                {Listes.map((item, index) => (
-                                    <li key={index} className="flex items-start gap-3 text-sm md:text-base text-muted-foreground bg-muted/30 p-3 rounded-lg">
-                                        <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-foreground shrink-0"></span>
-                                        <span>{item}</span>
-                                    </li>
-                                ))}
-                            </ul>
-                        </section>
-
-                        {/* --- SECTION 2 : FLEXIBILITÉ & OFFRES --- */}
-                        <section className="flex flex-col gap-6">
-                            <div className="space-y-2">
-                                <h2 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground">
-                                    FLEXIBILITÉ & OFFRES
-                                </h2>
-                                <div className="h-1 w-12 bg-primary rounded-full"></div>
-                            </div>
-
-                            <p className="max-w-3xl text-base md:text-lg text-muted-foreground leading-relaxed">
-                                Nos solutions sur mesure s&apos;adaptent précisément aux exigences de divers secteurs d&apos;activité : <span className="font-semibold text-foreground">commerce de détail, e-commerce, restauration, prestations de services, coaching ou encore immobilier.</span> Pour répondre aux objectifs stratégiques de chaque structure, nous proposons trois niveaux d&apos;accompagnement :
-                            </p>
-
-                            {/* Mise en valeur des offres sous forme de cartes */}
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-4">
-                                <div className="flex flex-col p-6 rounded-xl border bg-background text-card-foreground shadow-sm transition-all hover:shadow-md">
-                                    <h3 className="font-bold text-lg mb-2">STARTER</h3>
-                                    <p className="text-sm text-muted-foreground">Conçu pour initier sereinement la transition vers l&apos;automatisation.</p>
-                                </div>
-                                <div className="flex flex-col p-6 rounded-xl border border-primary/20 bg-card text-card-foreground shadow-sm transition-all hover:shadow-md relative overflow-hidden">
-                                    <h3 className="font-bold text-lg mb-2 text-primary">PRO</h3>
-                                    <p className="text-sm text-muted-foreground">Développé pour accélérer la performance commerciale et optimiser les volumes de ventes.</p>
-                                </div>
-                                <div className="flex flex-col p-6 rounded-xl border bg-background text-card-foreground shadow-sm transition-all hover:shadow-md">
-                                    <h3 className="font-bold text-lg mb-2">BUSINESS</h3>
-                                    <p className="text-sm text-muted-foreground">Une infrastructure d&apos;automatisation avancée, complète et interconnectée.</p>
-                                </div>
-                            </div>
-
-                            <div className="p-4 mt-2 bg-muted rounded-lg border-l-4 border-foreground">
-                                <p className="text-sm md:text-base font-medium text-foreground">
-                                    L&apos;objectif fondamental est de transformer WhatsApp en un canal stratégique de vente et de support, performant, structuré et entièrement automatisé.
-                                </p>
-                            </div>
-                        </section>
-
-                        {/* --- SECTION 3 : PROCESSUS OPÉRATIONNEL --- */}
-                        <section className="flex flex-col gap-8">
-
-                            <div className="space-y-4">
-                                <div className="space-y-2">
-                                    <h2 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground">
-                                        PROCESSUS OPÉRATIONNEL
-                                    </h2>
-                                    <div className="h-1 w-12 bg-primary rounded-full"></div>
-                                </div>
-                                <p className="text-base md:text-lg text-muted-foreground">
-                                    Le déploiement de notre solution s&apos;articule autour d&apos;un parcours d&apos;intégration fluide :
-                                </p>
-                            </div>
-
-                            {/* Amélioration visuelle des étapes du processus */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                <ol className="space-y-6 relative border-l border-muted-foreground/20 ml-3 md:ml-0 md:border-none">
-                                    {[
-                                        { title: "Connexion", desc: "Liaison sécurisée du compte WhatsApp de l’entreprise à notre infrastructure." },
-                                        { title: "Configuration", desc: "Paramétrage de l’assistant IA et modélisation des connaissances selon la spécificité de votre activité." },
-                                        { title: "Test et validation", desc: "Mise à disposition du système dans un environnement de test sécurisé pour validation des scénarios." },
-                                        { title: "Déploiement", desc: "Prise en charge immédiate, automatisée et intelligente des flux de prospects et de clients." }
-                                    ].map((step, index) => (
-                                        <li key={index} className="relative pl-6 md:pl-0">
-                                            {/* Point indicateur pour mobile / Numéro pour Desktop */}
-                                            <span className="absolute -left-1.25 top-1.5 h-2.5 w-2.5 rounded-full bg-foreground md:static md:inline-flex md:h-8 md:w-8 md:items-center md:justify-center md:bg-muted md:text-foreground md:font-bold md:mr-3">
-                                                <span className="hidden md:block">{index + 1}</span>
-                                            </span>
-                                            <span className="text-foreground font-semibold text-base">{step.title} : </span>
-                                            <span className="text-muted-foreground text-sm md:text-base">{step.desc}</span>
-                                        </li>
-                                    ))}
-                                </ol>
-
-                                <div className="bg-card border rounded-xl p-6 shadow-sm">
-                                    <h3 className="text-lg font-semibold mb-4 border-b pb-2">Champs de compétences :</h3>
-                                    <ul className="space-y-3">
-                                        {[
-                                            "Analyse et réponse précise aux sollicitations.",
-                                            "Évaluation et segmentation des prospects.",
-                                            "Conduite naturelle vers l'acte d'achat.",
-                                            "Gestion autonome des rendez-vous.",
-                                            "Centralisation des informations stratégiques.",
-                                            "Passation fluide vers un conseiller humain si nécessaire."
-                                        ].map((skill, idx) => (
-                                            <li key={idx} className="flex items-start gap-2 text-sm text-muted-foreground">
-                                                <svg className="w-4 h-4 text-foreground mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                                </svg>
-                                                <span>{skill}</span>
-                                            </li>
-                                        ))}
-                                    </ul>
-                                </div>
-                            </div>
-                        </section>
-
-                        {/* --- SECTION 4 : TECHNOLOGIE & INNOVATION --- */}
-                        <section className="flex flex-col gap-4 py-8">
-                            <div className="space-y-2">
-                                <h2 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground">
-                                    TECHNOLOGIE & INNOVATION
-                                </h2>
-                                <div className="h-1 w-12 bg-primary rounded-full"></div>
-                            </div>
-
-                            <p className="max-w-3xl text-base md:text-lg text-muted-foreground leading-relaxed">
-                                Nous exploitons le plein potentiel des derniers modèles de langage (LLM) les plus performants du marché. Cette expertise de pointe garantit des interactions d&apos;une grande fluidité, contextuelles et d&apos;un niveau de qualité optimal.
-                            </p>
-                        </section>
-                    </div>
-                    <FullWidthDivider className="-bottom-px" />
-                    <Footer />
-
+        <section
+          aria-labelledby="mission-title"
+          className="grid gap-10 py-16 lg:grid-cols-2 lg:items-center lg:gap-20 lg:py-24"
+        >
+          <div>
+            <p className="mb-4 text-xs uppercase tracking-[0.18em] text-muted-foreground">
+              01 / Le point de départ
+            </p>
+            <h2
+              id="mission-title"
+              className="text-3xl font-semibold leading-tight tracking-tight sm:text-4xl"
+            >
+              Derrière chaque message,
+              <br />
+              il y a une personne.
+            </h2>
+            <p className="mt-6 leading-relaxed text-muted-foreground">
+              Une question sur votre activité. Un client qui hésite. Une demande
+              qui arrive après une longue journée. Pour les entreprises, ces
+              petits échanges comptent.
+            </p>
+            <p className="mt-4 leading-relaxed text-muted-foreground">
+              Notre ambition est simple : vous aider à accueillir ces demandes,
+              à suivre les conversations et à passer le relais à la bonne
+              personne quand cela compte.
+            </p>
+            <div className="mt-8 flex items-center gap-3 border-t pt-6 text-sm font-medium">
+              <Globe2 className="size-5 text-foreground dark:text-foreground" />{" "}
+              Une équipe à distance. Un outil conçu pour votre quotidien.
+            </div>
+          </div>
+          <figure className="relative overflow-hidden rounded-3xl bg-muted p-6 dark:bg-muted sm:p-10">
+            <figcaption className="mb-8 flex items-center justify-between text-xs font-medium uppercase tracking-widest text-muted-foreground dark:text-muted-foreground">
+              <span>Une conversation, une équipe</span>
+              <MessageCircle className="size-4" />
+            </figcaption>
+            <div className="space-y-4">
+              <div className="mr-10 rounded-2xl rounded-bl-sm bg-card p-4 text-sm text-card-foreground shadow-sm">
+                <p className="mb-1 text-xs font-semibold text-muted-foreground">
+                  Votre client
+                </p>
+                Bonjour, j’aimerais en savoir plus sur vos services.
+              </div>
+              <div className="ml-8 rounded-2xl rounded-br-sm bg-primary p-5 text-sm text-primary-foreground">
+                <p className="mb-2 flex items-center gap-2 text-xs font-semibold text-primary-foreground">
+                  <Sparkles className="size-3.5" /> Votre assistant
+                </p>
+                Bonjour et bienvenue ! Quel service vous intéresse ?
+                <div className="mt-3 flex justify-end">
+                  <CheckCheck className="size-4 text-primary-foreground" />
                 </div>
-            </main>
-        </>
+              </div>
+              <div className="mx-auto flex w-fit items-center gap-2 rounded-full border border-border px-4 py-2 text-xs text-muted-foreground dark:border-border dark:text-muted-foreground">
+                <Users className="size-3.5" /> Votre équipe peut prendre le
+                relais
+              </div>
+            </div>
+            <p className="mt-8 text-xs text-muted-foreground dark:text-muted-foreground">
+              Illustration du parcours de conversation
+            </p>
+          </figure>
+        </section>
 
-    )
+        <section
+          aria-labelledby="principles-title"
+          className="border-y py-14 lg:py-20"
+        >
+          <div className="mb-10 flex flex-col justify-between gap-4 md:flex-row md:items-end">
+            <div>
+              <p className="mb-4 text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                02 / Ce qui nous guide
+              </p>
+              <h2
+                id="principles-title"
+                className="text-3xl font-semibold tracking-tight sm:text-4xl"
+              >
+                Utile. Simple. Humain.
+              </h2>
+            </div>
+            <p className="max-w-xs text-sm leading-relaxed text-muted-foreground">
+              Trois principes pour construire un outil qui trouve sa place dans
+              votre activité.
+            </p>
+          </div>
+          <div className="grid gap-8 md:grid-cols-3">
+            {principles.map(({ icon: Icon, title, text }, index) => (
+              <article key={title} className="border-t pt-6">
+                <div className="mb-8 flex items-center justify-between">
+                  <Icon className="size-6 text-foreground dark:text-foreground" />
+                  <span className="font-mono text-xs text-muted-foreground">
+                    0{index + 1}
+                  </span>
+                </div>
+                <h3 className="mb-3 text-xl font-semibold tracking-tight">
+                  {title}
+                </h3>
+                <p className="text-sm leading-relaxed text-muted-foreground">
+                  {text}
+                </p>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <section
+          aria-labelledby="process-title"
+          className="grid gap-10 py-16 lg:grid-cols-[0.8fr_1.2fr] lg:gap-20 lg:py-24"
+        >
+          <div>
+            <p className="mb-4 text-xs uppercase tracking-[0.18em] text-muted-foreground">
+              03 / Avancer ensemble
+            </p>
+            <h2
+              id="process-title"
+              className="text-3xl font-semibold tracking-tight sm:text-4xl"
+            >
+              De votre besoin
+              <br />à vos premiers échanges.
+            </h2>
+            <Link
+              href="/#tarifs"
+              className="mt-6 inline-flex min-h-11 items-center gap-2 text-sm font-medium"
+            >
+              Découvrir nos offres <ArrowRight className="size-4" />
+            </Link>
+          </div>
+          <ol className="space-y-0">
+            {[
+              [
+                "Comprendre",
+                "Nous échangeons sur votre activité, vos clients et les demandes que vous souhaitez mieux gérer.",
+              ],
+              [
+                "Connecter",
+                "Vous reliez votre compte WhatsApp à votre espace et retrouvez vos conversations au même endroit.",
+              ],
+              [
+                "Tester et ajuster",
+                "Vous observez les réponses de l’assistant, validez son usage et gardez la possibilité de reprendre la main.",
+              ],
+            ].map(([title, text], index) => (
+              <li key={title} className="flex gap-5 border-t py-6">
+                <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-muted font-mono text-xs">
+                  0{index + 1}
+                </span>
+                <div>
+                  <h3 className="font-semibold">{title}</h3>
+                  <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                    {text}
+                  </p>
+                </div>
+              </li>
+            ))}
+          </ol>
+        </section>
+
+        <section className="mb-16 flex flex-col justify-between gap-8 rounded-3xl bg-primary p-7 text-primary-foreground sm:p-12 md:flex-row md:items-center">
+          <div>
+            <p className="mb-4 flex items-center gap-2 text-xs uppercase tracking-widest text-primary-foreground">
+              <CircleDot className="size-3.5" /> Construisons la suite
+            </p>
+            <h2 className="max-w-xl text-3xl font-semibold tracking-tight sm:text-4xl">
+              Votre prochaine bonne conversation commence ici.
+            </h2>
+          </div>
+          <Link
+            href="/contact"
+            className="inline-flex min-h-12 shrink-0 items-center justify-center gap-3 rounded-xl bg-background px-6 py-3 font-medium text-foreground transition-colors hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
+          >
+            Parlons de votre projet <ArrowUpRight className="size-5" />
+          </Link>
+        </section>
+      </main>
+      <Footer />
+    </>
+  );
 }
-
-export default Apropos

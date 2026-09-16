@@ -39,7 +39,6 @@ export function HeroSection() {
             "fade-in slide-in-from-bottom-10 animate-in fill-mode-backwards transition-all delay-500 duration-500 ease-out",
           )}
           href="https://wa.me/24176205629?text=Bonjour,%20Pouvez-vous%20m'expliquer%20la%20mise%20en%20place%20?"
-
         >
           <div className="rounded-xs border bg-primary/5 dark:bg-card px-1.5 py-0.5 shadow-sm">
             <p className="font-mono">Actuellement</p>
@@ -122,7 +121,7 @@ export function HeroSection() {
               {[...Array(5)].map((_, idx) => (
                 <StarIcon
                   key={idx}
-                  className="w-4 md:w-1/5 fill-yellow-400 text-yellow-400 drop-shadow-sm"
+                  className="w-4 md:w-1/5 fill-yellow-400 text-foreground drop-shadow-sm"
                 />
               ))}
             </span>

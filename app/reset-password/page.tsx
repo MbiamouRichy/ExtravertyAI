@@ -27,7 +27,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Eye, EyeOff, KeySquareIcon, Loader } from "lucide-react";
 import { useState } from "react";
 import { useHaptics } from "@/lib/webHaptics";
-import { DecorIcon } from "@/components/decor-icon";
+import { DecorIcon } from "@/components/ui/decor-icon";
 import { cn } from "@/lib/utils";
 
 const formSchema = z.object({
@@ -38,6 +38,20 @@ const formSchema = z.object({
 });
 
 export default function ResetPassword() {
+  return (
+    <React.Suspense
+      fallback={
+        <p role="status" className="p-8 text-center">
+          Chargement…
+        </p>
+      }
+    >
+      <ResetPasswordForm />
+    </React.Suspense>
+  );
+}
+
+function ResetPasswordForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get("token") as string;
@@ -66,8 +80,8 @@ export default function ResetPassword() {
             toast.success("Mot de passe réinitialisé avec succès.", {
               description: (
                 <p className="text-muted-foreground text-sm">
-                  Votre mot de passe a été mis à jour. Vous pouvez maintenant vous
-                  connecter avec votre nouveau mot de passe.
+                  Votre mot de passe a été mis à jour. Vous pouvez maintenant
+                  vous connecter avec votre nouveau mot de passe.
                 </p>
               ),
               position: "top-center",
@@ -80,7 +94,7 @@ export default function ResetPassword() {
               description: (
                 <p className="text-muted-foreground text-sm">
                   {error.error.message ===
-                    "[body.token] Invalid input: expected string, received null"
+                  "[body.token] Invalid input: expected string, received null"
                     ? "Le token de réinitialisation est invalide ou a expiré."
                     : "Une erreur inconnue s'est produite."}
                 </p>
@@ -102,8 +116,7 @@ export default function ResetPassword() {
       console.error("Erreur de réinitialisation du mot de passe:", error);
       playHaptic("error");
       toast.error("Une erreur s'est produite.", {
-        description:
-          "Quelque chose s'est mal passé. Veuillez réessayer.",
+        description: "Quelque chose s'est mal passé. Veuillez réessayer.",
         position: "top-center",
         className: "text-muted-foreground text-sm bg-card",
         action: {
@@ -122,7 +135,7 @@ export default function ResetPassword() {
       <div
         className={cn(
           "relative flex w-full max-w-md flex-col justify-between p-6 md:p-8",
-          "dark:bg-[radial-gradient(50%_80%_at_20%_0%,--theme(--color-foreground/.1),transparent)]"
+          "dark:bg-[radial-gradient(50%_80%_at_20%_0%,--theme(--color-foreground/.1),transparent)]",
         )}
       >
         <div className="absolute -inset-y-6 -left-px w-px bg-border" />
@@ -133,9 +146,12 @@ export default function ResetPassword() {
         <DecorIcon position="bottom-right" />
         <div className="w-full max-w-md animate-in space-y-8">
           <div className="flex flex-col space-y-1">
-            <h1 className="font-bold text-2xl tracking-wide">Reinitialisation</h1>
+            <h1 className="font-bold text-2xl tracking-wide">
+              Reinitialisation
+            </h1>
             <p className="text-base text-muted-foreground">
-              Saisissez votre nouveau mot de passe pour sécuriser l&apos;accès à votre compte.
+              Saisissez votre nouveau mot de passe pour sécuriser l&apos;accès à
+              votre compte.
             </p>
           </div>
           <div className="space-y-4">
@@ -168,11 +184,8 @@ export default function ResetPassword() {
                             onClick={() => setShowPassword(!showPassword)}
                             type="button"
                           >
-                            {showPassword ? (
-                              <Eye />
-                            ) : (
-                              <EyeOff />
-                            )}</InputGroupButton>
+                            {showPassword ? <Eye /> : <EyeOff />}
+                          </InputGroupButton>
                         </InputGroupAddon>
                       </InputGroup>
 

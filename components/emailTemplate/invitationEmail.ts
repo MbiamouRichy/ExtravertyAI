@@ -105,7 +105,7 @@ export function ProjectInvitationEmail({
             <tr>
               <td align="center" style="padding-top: 24px; font-size: 12px; line-height: 18px; color: #9ca3af;">
                 &copy; ${currentYear} ExtravertyAI. Tous droits réservés.<br>
-                Libreville, Gabon
+                Une équipe à votre écoute, à distance.
               </td>
             </tr>
           </table>

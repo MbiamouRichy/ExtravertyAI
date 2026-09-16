@@ -11,6 +11,8 @@ import UnauthorizedDialog from "@/components/dashboard/project/unAuthorizedDialo
 import ProjectNotFoundDialog from "@/components/dashboard/project/projectNotfoundDialog";
 import { ChatRefreshButton } from "@/components/dashboard/project/chat-refresh-button";
 
+import prisma from "@/lib/prisma";
+
 export const dynamic = "force-dynamic";
 
 type PageProps = {
@@ -35,24 +37,15 @@ export async function generateMetadata({
   };
 }
 
-export default async function ChatPage({
-  params,
-  searchParams,
-}: PageProps) {
-  const [{ projectId }, query] = await Promise.all([
-    params,
-    searchParams,
-  ]);
+export default async function ChatPage({ params, searchParams }: PageProps) {
+  const [{ projectId }, query] = await Promise.all([params, searchParams]);
 
   const session = await getSession();
 
   if (!session?.user?.id) {
-    const callbackUrl =
-      `/projects/${encodeURIComponent(projectId)}/chat`;
+    const callbackUrl = `/projects/${encodeURIComponent(projectId)}/chat`;
 
-    redirect(
-      `/sign-in?${new URLSearchParams({ callbackUrl }).toString()}`,
-    );
+    redirect(`/sign-in?${new URLSearchParams({ callbackUrl }).toString()}`);
   }
 
   const project = await getProjectById(projectId);
@@ -65,6 +58,7 @@ export default async function ChatPage({
     );
   }
 
+  if (!project.agentSetupCompletedAt) redirect(`/projects/${projectId}/setup`);
   const canManageAi =
     project.userRole === "OWNER" || project.userRole === "ADMIN";
 
@@ -77,15 +71,13 @@ export default async function ChatPage({
     return (
       <div className="mx-auto w-full max-w-3xl space-y-6 p-4 sm:p-8">
         <header className="space-y-2">
-          <p className="text-sm text-muted-foreground">
-            {project.name}
-          </p>
+          <p className="text-sm text-muted-foreground">{project.name}</p>
           <h1 className="text-2xl font-semibold tracking-tight">
             Connecter WhatsApp
           </h1>
           <p className="text-sm leading-relaxed text-muted-foreground">
-            Connectez votre instance pour accéder aux conversations.
-            Ne partagez pas le QR code de connexion.
+            Connectez votre instance pour accéder aux conversations. Ne partagez
+            pas le QR code de connexion.
           </p>
         </header>
 
@@ -124,12 +116,10 @@ export default async function ChatPage({
             aria-hidden="true"
             className="mx-auto mb-4 size-8 text-muted-foreground"
           />
-          <h1 className="text-lg font-semibold">
-            Instance non disponible
-          </h1>
+          <h1 className="text-lg font-semibold">Instance non disponible</h1>
           <p className="mb-5 mt-2 text-sm leading-relaxed text-muted-foreground">
-            La connexion WhatsApp n’est pas encore prête.
-            Actualisez pour vérifier son état.
+            La connexion WhatsApp n’est pas encore prête. Actualisez pour
+            vérifier son état.
           </p>
           <ChatRefreshButton />
         </div>
@@ -137,14 +127,48 @@ export default async function ChatPage({
     );
   }
 
+  const requestedId =
+    typeof query.contactId === "string" && query.contactId.length <= 200
+      ? query.contactId
+      : undefined;
+  const contact = requestedId
+    ? await prisma.contact.findFirst({
+        where: { id: requestedId, projectId },
+        select: {
+          id: true,
+          name: true,
+          pushName: true,
+          phone: true,
+          aiActive: true,
+          lastMessageAt: true,
+          createdAt: true,
+          messages: {
+            orderBy: { createdAt: "desc" },
+            take: 1,
+            select: { content: true },
+          },
+        },
+      })
+    : null;
+  const initialClient = contact
+    ? {
+        id: contact.id,
+        name: contact.name || contact.pushName || contact.phone,
+        phone: contact.phone,
+        aiActive: contact.aiActive,
+        lastActivityAt: (
+          contact.lastMessageAt || contact.createdAt
+        ).toISOString(),
+        lastMessage: contact.messages[0]?.content || "",
+      }
+    : undefined;
   return (
     <>
-      {query.error === "unauthorized" && (
-        <UnauthorizedDialog open={true} />
-      )}
+      {query.error === "unauthorized" && <UnauthorizedDialog open={true} />}
 
       <ProjectWorkspace
-        key={project.id}
+        key={`${project.id}:${initialClient?.id || ""}`}
+        initialClient={initialClient}
         project={{
           id: project.id,
           name: project.name,
@@ -155,8 +179,7 @@ export default async function ChatPage({
         }}
         isSuccess={query.success === "true"}
         canManageAi={
-          project.userRole === "OWNER" ||
-          project.userRole === "ADMIN"
+          project.userRole === "OWNER" || project.userRole === "ADMIN"
         }
       />
     </>

@@ -10,11 +10,11 @@ const InputSchema = z.object({
   projectId: z.string().min(1).max(200),
   contactId: z.string().min(1).max(200),
   enabled: z.boolean(),
+  expectedVersion: z.number().int().nonnegative().optional(),
 });
 
 type Result =
-  | { success: true; enabled: boolean }
-  | { success: false; error: string };
+  { success: true; enabled: boolean } | { success: false; error: string };
 
 export async function setContactAiState(
   input: z.infer<typeof InputSchema>,
@@ -31,7 +31,7 @@ export async function setContactAiState(
     return { success: false, error: "Connexion requise." };
   }
 
-  const { projectId, contactId, enabled } = parsed.data;
+  const { projectId, contactId, enabled, expectedVersion } = parsed.data;
 
   try {
     const membership = await prisma.projectMembership.findUnique({
@@ -58,6 +58,9 @@ export async function setContactAiState(
       where: {
         id: contactId,
         projectId,
+        ...(expectedVersion !== undefined
+          ? { aiVersion: expectedVersion }
+          : {}),
       },
       data: {
         aiActive: enabled,
@@ -68,11 +71,11 @@ export async function setContactAiState(
     if (result.count !== 1) {
       return {
         success: false,
-        error: "Contact indisponible.",
+        error: "Le contact a changé ou est indisponible. Actualisez la page.",
       };
     }
 
-    revalidatePath(`/projects/${projectId}/chat`);
+    revalidatePath(`/projects/${projectId}`, "layout");
     await notifyChatChanged(projectId);
 
     return { success: true, enabled };

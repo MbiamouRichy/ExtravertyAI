@@ -13,7 +13,9 @@ type PageProps = {
 };
 
 // 1. DYNAMISME DE L'ONGLET
-export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+export async function generateMetadata({
+  params,
+}: PageProps): Promise<Metadata> {
   const resolvedParams = await params;
   const projectId = resolvedParams.projectId;
   const session = await getSession();
@@ -57,10 +59,9 @@ export default async function ProjectDashboardPage({ params }: PageProps) {
       </div>
     );
   }
+  if (!project.agentSetupCompletedAt) redirect(`/projects/${projectId}/setup`);
   if (project.userRole !== "OWNER" && project.userRole !== "ADMIN") {
-    return redirect(`/projects/${projectId}?error=unauthorized`);
+    return redirect(`/projects/${projectId}/chat`);
   }
-  return (
-    <Dashboard projectId={projectId} />
-  );
+  return <Dashboard projectId={projectId} />;
 }

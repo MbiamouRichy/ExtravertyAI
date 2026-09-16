@@ -1,4 +1,5 @@
-"use server";
+import "server-only";
+import { randomBytes } from "node:crypto";
 const EVOLUTION_API_URL = process.env.EVOLUTION_API_URL;
 const EVOLUTION_API_TOKEN = process.env.EVOLUTION_API_KEY;
 const WEBHOOK_SECRET = process.env.EVOLUTION_WEBHOOK_SECRET;
@@ -24,7 +25,7 @@ export async function createEvolutionInstance(
   const webhookUrl = `${APP_URL}/api/webhooks/evolution?secret=${WEBHOOK_SECRET}`;
   const events = ["CONNECTION_UPDATE", "MESSAGES_UPSERT", "MESSAGES_UPDATE"];
   const cleanNumero = number.replace(/\D/g, "");
-  const instanceToken = `token-${instanceName}`; // Sécurise cela selon ta logique
+  const instanceToken = randomBytes(32).toString("hex");
 
   // 1. CRÉATION DE L'INSTANCE
   const response = await fetch(`${EVOLUTION_API_URL}/instance/create`, {

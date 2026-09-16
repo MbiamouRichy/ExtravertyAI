@@ -4,9 +4,8 @@ import prisma from "@/lib/prisma";
 import { getSession } from "@/lib/auth-server";
 import { revalidatePath } from "next/cache";
 import z from "zod";
-import { ProjectStatus } from "@/src/generated/prisma/client";
-import { stripe } from "@/lib/stripe";
-import { deleteEvolutionInstance } from "./evolutionAPI";
+import { saveProjectPreferences } from "./project-settings";
+import { deleteProjectResources } from "@/lib/project-deletion";
 
 // 1. RÉCUPERER TOUS LES PROJETS
 export async function getProjects() {
@@ -27,6 +26,8 @@ export async function getProjects() {
             name: true,
             numero: true,
             status: true,
+            automationPaused: true,
+            agentSetupCompletedAt: true,
             plan: true,
             messageCount: true,
             allMessagesCount: true,
@@ -70,6 +71,8 @@ export async function getProjectById(projectId: string) {
             name: true,
             numero: true,
             status: true,
+            automationPaused: true,
+            agentSetupCompletedAt: true,
             plan: true,
             messageCount: true,
             allMessagesCount: true,
@@ -141,29 +144,12 @@ export async function disableProject(
       throw new Error("Droits insuffisants pour désactiver ce projet.");
     }
 
-    const statusToSet =
-      membership.project.status === "active" ||
-      membership.project.status === "trialing";
-    let newStatus: ProjectStatus = statusToSet ? "paused" : "active";
-    if (membership.project.instanceName && newStatus === "paused") {
-      await fetch(
-        `${process.env.EVOLUTION_API_URL}/instance/logout/${membership.project.instanceName}`,
-        {
-          method: "DELETE",
-          headers: { apikey: process.env.EVOLUTION_API_KEY! },
-        },
-      );
-    }
-    if (membership.project.expiredAt) {
-      newStatus = statusToSet ? "paused" : "trialing";
-    }
-    await prisma.project.update({
-      where: { id: projectId },
-      data: { status: newStatus },
+    return saveProjectPreferences({
+      projectId,
+      name: membership.project.name,
+      automationPaused: !membership.project.automationPaused,
+      expectedVersion: membership.project.settingsVersion,
     });
-
-    revalidatePath(`/projects/projects/${projectId}`);
-    return { success: true };
   } catch (error: unknown) {
     // CORRECTION : Remplacement de "any" par "unknown"
     const errorMessage =
@@ -176,7 +162,7 @@ export async function disableProject(
 }
 // 4. SUPPRIMER LE PROJET (IRRÉVERSIBLE)
 export async function deleteProjectAction(
-  formData: z.infer<typeof ProjectActionSchema>,
+  formData: z.infer<typeof ProjectActionSchema> & { confirmationName: string },
 ) {
   const session = await getSession();
   if (!session?.user?.id) {
@@ -184,7 +170,9 @@ export async function deleteProjectAction(
   }
 
   try {
-    const parsed = ProjectActionSchema.safeParse(formData);
+    const parsed = ProjectActionSchema.extend({
+      confirmationName: z.string().min(1).max(100),
+    }).safeParse(formData);
     if (!parsed.success) throw new Error("Données invalides");
 
     const { projectId } = parsed.data;
@@ -209,47 +197,10 @@ export async function deleteProjectAction(
     }
 
     const project = membership.project;
+    if (parsed.data.confirmationName !== project.name)
+      throw new Error("Le nom de confirmation ne correspond pas au projet.");
 
-    // --- ÉTAPE 1 : COUPER LA FACTURATION STRIPE ---
-    if (project.stripeSubscriptionId) {
-      try {
-        await stripe.subscriptions.cancel(project.stripeSubscriptionId);
-      } catch (stripeError) {
-        console.error("Erreur annulation Stripe:", stripeError);
-        // On continue, l'abonnement est peut-être déjà annulé.
-      }
-    }
-
-    // --- ÉTAPE 2 : NETTOYER EVOLUTION API ---
-    if (project.instanceName) {
-      try {
-        // 1. Déconnecter proprement WhatsApp (Logout)
-        // Ajout d'un .catch silencieux sur le fetch pour que même un crash réseau pur ne bloque pas
-        await fetch(
-          `${process.env.EVOLUTION_API_URL}/instance/logout/${project.instanceName}`,
-          {
-            method: "DELETE",
-            headers: { apikey: process.env.EVOLUTION_API_KEY! },
-          },
-        ).catch(() => {});
-
-        // 2. Supprimer l'instance (ta fonction a déjà un timeout et gère le 404)
-        await deleteEvolutionInstance(project.instanceName);
-      } catch (evoError) {
-        // CORRECTION MAJEURE : On loggue, mais ON NE BLOQUE PAS.
-        console.error(
-          "Erreur nettoyage Evolution API (orphelin potentiel):",
-          evoError,
-        );
-        // Si l'instance reste bloquée sur ton serveur, c'est ton problème d'admin à nettoyer plus tard,
-        // pas celui de l'utilisateur qui a le droit de voir son projet supprimé.
-      }
-    }
-
-    // --- ÉTAPE 3 : SUPPRESSION EN BASE DE DONNÉES ---
-    await prisma.project.delete({
-      where: { id: projectId },
-    });
+    await deleteProjectResources(projectId, session.user.id);
 
     // Optionnel mais recommandé : purger depuis la racine pour éviter le bug de cache du header
     revalidatePath("/", "layout");

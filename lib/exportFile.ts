@@ -1,3 +1,4 @@
+import { csvCell } from "./export-csv";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
@@ -64,9 +65,7 @@ export const handleExport = async <TData>(
     case "csv": {
       const csvContent = [
         headers.join(","),
-        ...rowsData.map((row: string[]) =>
-          row.map((cell: string) => `"${cell}"`).join(","),
-        ),
+        ...rowsData.map((row: string[]) => row.map(csvCell).join(",")),
       ].join("\n");
 
       const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });

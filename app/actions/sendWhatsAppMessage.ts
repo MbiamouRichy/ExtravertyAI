@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import prisma from "@/lib/prisma";
 import { getSession } from "@/lib/auth-server";
 import { notifyChatChanged } from "@/lib/chat-realtime";
+import { MessageQuotaError, reserveMessageQuota } from "@/lib/message-quota";
 
 const SendMessageSchema = z.object({
   projectId: z.string().cuid(),
@@ -129,37 +130,7 @@ export async function sendWhatsAppMessage(
         throw new SendRejected("Contact indisponible.");
       }
 
-      const now = locked[0].databaseNow;
-
-      const period = await tx.quotaPeriod.findFirst({
-        where: {
-          projectId,
-          isCurrent: true,
-          kind: project.status,
-          startsAt: { lte: now },
-          endsAt: { gt: now },
-        },
-      });
-
-      if (!period) {
-        throw new SendRejected(
-          "La période de quota est indisponible ou expirée.",
-        );
-      }
-
-      const quota = await tx.quotaPeriod.updateMany({
-        where: {
-          id: period.id,
-          used: { lt: period.limit },
-        },
-        data: {
-          used: { increment: 1 },
-        },
-      });
-
-      if (quota.count !== 1) {
-        throw new SendRejected("Le quota de messages est atteint.");
-      }
+      const quota = await reserveMessageQuota(tx, projectId);
 
       const message = await tx.message.create({
         data: {
@@ -180,7 +151,7 @@ export async function sendWhatsAppMessage(
           projectId,
           messageId: message.id,
           requestId,
-          quotaPeriodId: period.id,
+          quotaPeriodId: quota.quotaPeriodId,
         },
       });
 
@@ -192,15 +163,6 @@ export async function sendWhatsAppMessage(
           aiActive: false,
           aiVersion: { increment: 1 },
           lastMessageAt: message.createdAt,
-        },
-      });
-
-      // Champ de compatibilité pour tes écrans existants.
-      // La référence d'admission reste QuotaPeriod.used.
-      await tx.project.update({
-        where: { id: projectId },
-        data: {
-          messageCount: period.used + 1,
         },
       });
 
@@ -231,7 +193,7 @@ export async function sendWhatsAppMessage(
       },
     };
   } catch (error) {
-    if (error instanceof SendRejected) {
+    if (error instanceof SendRejected || error instanceof MessageQuotaError) {
       return {
         success: false as const,
         error: error.message,

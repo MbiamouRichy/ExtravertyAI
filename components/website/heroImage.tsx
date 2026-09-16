@@ -157,7 +157,9 @@ export default function HeroImage() {
                   </Avatar>
                 </ItemMedia>
                 <ItemContent className="text-foreground rounded-2xl px-4 py-3.5 shadow-sm bg-primary-foreground">
-                  <ItemTitle className="text-sm md:text-base">Oui, allons-y !</ItemTitle>
+                  <ItemTitle className="text-sm md:text-base">
+                    Oui, allons-y !
+                  </ItemTitle>
                   <ItemFooter className="justify-end text-xs text-muted-foreground">
                     <span>11h:31</span>
                   </ItemFooter>
@@ -167,7 +169,7 @@ export default function HeroImage() {
                 <ItemContent>
                   <ItemTitle className="flex-col text-sm md:text-base items-start gap-0">
                     Voici le lien que vous avez demandé. Profitez-en ! <br />
-                    <p className="text-blue-500 underline">
+                    <p className="text-foreground underline">
                       https://extravertyai.com
                     </p>
                   </ItemTitle>
@@ -215,5 +217,3 @@ export default function HeroImage() {
     </section>
   );
 }
-
-

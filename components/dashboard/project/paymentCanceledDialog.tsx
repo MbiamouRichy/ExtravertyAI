@@ -1,72 +1,93 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { ArrowRight, CreditCard } from "lucide-react";
+
 import {
-    AlertDialog,
-    AlertDialogContent,
-    AlertDialogDescription,
-    AlertDialogFooter,
-    AlertDialogHeader,
-    AlertDialogTitle,
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { CreditCard, RefreshCcw, ArrowLeft } from "lucide-react";
 
 export default function PaymentCanceledDialog() {
-    const router = useRouter();
-    const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
 
-    const isCanceled = searchParams.get("canceled") === "true";
+  const isCanceled = searchParams.get("canceled") === "true";
 
-    const handleClose = (redirectPath?: string) => {
-        if (redirectPath) {
-            router.push(redirectPath);
-        } else {
-            router.replace("/projects/new", { scroll: false });
-        }
-    };
+  function dismissDialog() {
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("canceled");
 
-    return (
-        <AlertDialog open={isCanceled} onOpenChange={(isOpen) => !isOpen && handleClose()}>
-            <AlertDialogContent className="max-w-md border-orange-200/50 shadow-xl shadow-orange-500/5 dark:border-orange-900/30">
-                <AlertDialogHeader className="flex flex-col items-center text-center space-y-4 sm:space-y-5 mt-4">
+    const query = params.toString();
+    const hash = window.location.hash;
 
-                    <div className="flex h-16 w-16 items-center justify-center rounded-full bg-orange-100 ring-8 ring-orange-50 dark:bg-orange-500/10 dark:ring-orange-500/5">
-                        <CreditCard className="h-8 w-8 text-orange-600 dark:text-orange-500" strokeWidth={1.5} />
-                    </div>
+    router.replace(`${pathname}${query ? `?${query}` : ""}${hash}`, {
+      scroll: false,
+    });
+  }
 
-                    <div className="space-y-2">
-                        <AlertDialogTitle className="text-xl font-semibold tracking-tight">
-                            Paiement interrompu
-                        </AlertDialogTitle>
-                        <AlertDialogDescription className="text-base text-muted-foreground leading-relaxed">
-                            La création de votre projet a été annulée ou une erreur est survenue lors de la transaction. <br className="hidden sm:block" />
-                            <strong className="text-foreground font-medium">Ne vous inquiétez pas, aucun montant n&apos;a été débité.</strong>
-                        </AlertDialogDescription>
-                    </div>
+  return (
+    <AlertDialog
+      open={isCanceled}
+      onOpenChange={(open) => {
+        if (!open) dismissDialog();
+      }}
+    >
+      <AlertDialogContent
+        className="w-[calc(100%-2rem)] max-w-md gap-6 rounded-2xl border-border p-6 shadow-xl sm:p-8"
+        onCloseAutoFocus={(event) => {
+          event.preventDefault();
+          document.getElementById("project-name")?.focus();
+        }}
+      >
+        <AlertDialogHeader className="items-start space-y-4 text-left sm:text-left">
+          <div className="flex size-12 items-center justify-center rounded-2xl border border-border/20 bg-primary/10">
+            <CreditCard
+              aria-hidden="true"
+              className="size-6 text-foreground dark:text-foreground"
+              strokeWidth={1.5}
+            />
+          </div>
 
-                </AlertDialogHeader>
+          <div className="space-y-2">
+            <AlertDialogTitle className="text-xl font-semibold tracking-tight">
+              Vous avez quitté le paiement
+            </AlertDialogTitle>
 
-                <AlertDialogFooter className="flex-col sm:flex-row sm:justify-center gap-2 sm:space-x-0 mt-6 mb-2">
-                    <Button
-                        variant="outline"
-                        onClick={() => handleClose("/projects")}
-                        className="w-full sm:w-auto"
-                    >
-                        <ArrowLeft className="mr-2 h-4 w-4" />
-                        Annuler la création
-                    </Button>
+            <AlertDialogDescription className="text-sm leading-6">
+              Vous êtes revenu depuis Stripe sans terminer ce parcours.
+              Consultez vos projets pour vérifier leur état avant d’effectuer
+              une nouvelle tentative.
+            </AlertDialogDescription>
+          </div>
+        </AlertDialogHeader>
 
-                    <Button
-                        variant="default"
-                        onClick={() => handleClose()}
-                        className="w-full sm:w-auto bg-orange-600 hover:bg-orange-700 text-white dark:bg-orange-600 dark:hover:bg-orange-700"
-                    >
-                        <RefreshCcw className="mr-2 h-4 w-4" />
-                        Réessayer le paiement
-                    </Button>
-                </AlertDialogFooter>
-            </AlertDialogContent>
-        </AlertDialog>
-    );
+        <div className="rounded-xl border border-border bg-muted/50 p-4 text-sm leading-6 text-muted-foreground">
+          Un projet en attente peut déjà avoir été créé. Le retour sur cette
+          page ne confirme ni son activation, ni l’état d’un éventuel paiement.
+        </div>
+
+        <AlertDialogFooter className="flex-col gap-2 sm:flex-col sm:space-x-0">
+          <Button asChild className="min-h-11 w-full gap-2 rounded-xl">
+            <Link href="/projects">
+              Consulter mes projets
+              <ArrowRight aria-hidden="true" className="size-4" />
+            </Link>
+          </Button>
+
+          <AlertDialogCancel className="mt-0 min-h-11 w-full rounded-xl">
+            Fermer
+          </AlertDialogCancel>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
 }
