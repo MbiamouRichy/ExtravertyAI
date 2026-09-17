@@ -3,21 +3,20 @@ import React from "react";
 import { Portal, PortalBackdrop } from "@/components/ui/portal";
 import { Button } from "@/components/ui/button";
 import { navLinks } from "@/components/website/header";
-import { XIcon, MenuIcon } from "lucide-react";
+import { XIcon, MenuIcon, LogIn } from "lucide-react";
 import Link from "next/link";
 import { ModeToggle } from "../theming";
-import { AutomatiserButton } from "./hero";
 
 export function MobileNav() {
   const [open, setOpen] = React.useState(false);
 
   return (
-    <div className="md:hidden">
+    <div className="lg:hidden">
       <Button
         aria-controls="mobile-menu"
         aria-expanded={open}
-        aria-label="Toggle menu"
-        className="md:hidden"
+        aria-label={open ? "Fermer le menu" : "Ouvrir le menu"}
+        className="lg:hidden"
         onClick={() => setOpen(!open)}
         size="icon"
         variant="outline"
@@ -65,7 +64,12 @@ export function MobileNav() {
                   Regarder la demo
                 </Link>
               </Button>
-              <AutomatiserButton text="Obtenir le mien!" className="w-full" />
+              <Button asChild onClick={() => setOpen(false)} className="w-full">
+                <Link href="/sign-in">
+                  <LogIn aria-hidden="true" />
+                  Se connecter
+                </Link>
+              </Button>
             </div>
           </div>
         </Portal>

@@ -7,7 +7,6 @@ import {
   Sparkles,
   Users,
   CheckCheck,
-  Globe2,
   CircleDot,
 } from "lucide-react";
 import { Header } from "@/components/website/header";
@@ -67,9 +66,8 @@ export default function AboutPage() {
               moins de temps à répéter, et plus de temps à créer du lien.
             </p>
             <p className="mt-5 leading-relaxed text-muted-foreground">
-              Nous aidons les professionnels à faire de
-              WhatsApp un espace de travail plus simple, avec une IA au service
-              de leur équipe.
+              Nous aidons les professionnels à faire de WhatsApp un espace de
+              travail plus simple, avec une IA au service de leur équipe.
             </p>
             <Link
               href="/contact"
@@ -106,10 +104,6 @@ export default function AboutPage() {
               à suivre les conversations et à passer le relais à la bonne
               personne quand cela compte.
             </p>
-            <div className="mt-8 flex items-center gap-3 border-t pt-6 text-sm font-medium">
-              <Globe2 className="size-5 text-foreground dark:text-foreground" />{" "}
-              Une équipe à distance. Un outil conçu pour votre quotidien.
-            </div>
           </div>
           <figure className="relative overflow-hidden rounded-3xl bg-muted p-6 dark:bg-muted sm:p-10">
             <figcaption className="mb-8 flex items-center justify-between text-xs font-medium uppercase tracking-widest text-muted-foreground dark:text-muted-foreground">

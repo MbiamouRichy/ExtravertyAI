@@ -6,7 +6,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { MobileNav } from "@/components/website/mobile-nav";
 import Link from "next/link";
 import { ModeToggle } from "../theming";
-import { AutomatiserButton } from "./hero";
+import { LogIn } from "lucide-react";
 
 export const navLinks = [
   {
@@ -61,18 +61,25 @@ export function Header() {
           <LogoIcon LogoClassName="w-6" />
           <span className="sr-only">Logo de extravertyAI</span>
         </Link>
-        <div className="hidden items-center gap-2 md:flex">
+        <div className="hidden items-center gap-2 lg:flex">
           <div>
             {navLinks.map((link) => (
               <Button asChild key={link.label} size="sm" variant="ghost">
-                <Link className="text-sm md:text-base" href={link.href}>{link.label}</Link>
+                <Link className="text-sm md:text-base" href={link.href}>
+                  {link.label}
+                </Link>
               </Button>
             ))}
           </div>
         </div>
-        <div className="hidden md:flex h-4 flex-row justify-center gap-2 items-center">
+        <div className="hidden lg:flex flex-row justify-center gap-2 items-center">
           <ModeToggle screen="desktop" />
-          <AutomatiserButton text="Testez-le!" />
+          <Button asChild size="sm">
+            <Link href="/sign-in">
+              <LogIn aria-hidden="true" />
+              Se connecter
+            </Link>
+          </Button>
         </div>
         <MobileNav />
       </nav>
