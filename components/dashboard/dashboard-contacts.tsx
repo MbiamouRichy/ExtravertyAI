@@ -2,6 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import {
+	Card,
 	CardContent,
 	CardDescription,
 	CardHeader,
@@ -17,7 +18,6 @@ import {
 	TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { DashboardCard } from "@/components/dashboard/dashboard-card";
 import { ArrowRightIcon, Bot, User } from "lucide-react";
 import Link from "next/link";
 
@@ -50,7 +50,7 @@ const recentContacts: RecentContact[] = [
 
 export function DashboardContacts({ projectId }: { projectId: string }) {
 	return (
-		<DashboardCard className="relative gap-0 md:col-span-2 lg:col-span-3">
+		<Card className="relative gap-0 md:col-span-2 lg:col-span-3">
 			<CardHeader className="border-b">
 				<CardTitle className="text-base">Derniers prospects</CardTitle>
 				<CardDescription>Contacts WhatsApp récemment actifs sur ce projet.</CardDescription>
@@ -101,6 +101,6 @@ export function DashboardContacts({ projectId }: { projectId: string }) {
 					</Link>
 				</Button>
 			</div>
-		</DashboardCard>
+		</Card>
 	);
 }

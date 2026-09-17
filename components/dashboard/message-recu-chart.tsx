@@ -3,6 +3,7 @@
 import type * as React from "react";
 import { Bar, BarChart, XAxis } from "recharts";
 import {
+	Card,
 	CardContent,
 	CardDescription,
 	CardHeader,
@@ -15,7 +16,6 @@ import {
 	ChartTooltipContent,
 } from "@/components/ui/chart";
 import { Delta, DeltaIcon, DeltaValue } from "@/components/delta";
-import { DashboardCard } from "@/components/dashboard/dashboard-card";
 
 // On définit le format des données attendues
 export type ChartDataPoint = {
@@ -70,7 +70,7 @@ export function MessagesChart({
 	className = "gap-0 md:col-span-2",
 }: MessagesChartProps) {
 	return (
-		<DashboardCard className={className}>
+		<Card className={className}>
 			<CardHeader className="gap-2">
 				<div className="flex flex-wrap items-center justify-between gap-2">
 					<div className="flex items-center gap-2">
@@ -100,6 +100,6 @@ export function MessagesChart({
 					</BarChart>
 				</ChartContainer>
 			</CardContent>
-		</DashboardCard>
+		</Card>
 	);
 }

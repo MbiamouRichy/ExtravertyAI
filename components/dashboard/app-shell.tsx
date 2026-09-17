@@ -7,7 +7,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 	return (
 		<SidebarProvider className={cn("[--app-wrapper-max-width:90rem]")}>
 			<AppSidebar />
-			<SidebarInset>
+			<SidebarInset className="md:peer-data-[variant=inset]:ml-0">
 				<AppHeader />
 				<div
 					className={cn(

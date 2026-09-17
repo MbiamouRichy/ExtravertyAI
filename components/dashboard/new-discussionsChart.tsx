@@ -3,6 +3,7 @@
 import { useId } from "react";
 import { CartesianGrid, Line, LineChart, XAxis } from "recharts";
 import {
+	Card,
 	CardContent,
 	CardDescription,
 	CardHeader,
@@ -15,7 +16,7 @@ import {
 	ChartTooltipContent,
 } from "@/components/ui/chart";
 import { Delta, DeltaIcon, DeltaValue } from "@/components/delta";
-import { DashboardCard } from "@/components/dashboard/dashboard-card";
+
 
 export type DashboardDiscussionRow = {
 	day: string;
@@ -46,7 +47,7 @@ export function DashboardDiscussionsChart({ data, growthPct }: DashboardDiscussi
 	const hasData = data && data.length > 0;
 
 	return (
-		<DashboardCard className="gap-0 md:col-span-2 shadow-sm">
+		<Card className="gap-0 md:col-span-2">
 			<CardHeader>
 				<div className="min-w-0 space-y-2">
 					<div className="flex flex-wrap items-center gap-2">
@@ -123,6 +124,6 @@ export function DashboardDiscussionsChart({ data, growthPct }: DashboardDiscussi
 					</ChartContainer>
 				)}
 			</CardContent>
-		</DashboardCard>
+		</Card>
 	);
 }

@@ -1,4 +1,5 @@
 import {
+	Card,
 	CardContent,
 	CardFooter,
 	CardHeader,
@@ -7,6 +8,7 @@ import {
 import { Delta, DeltaIcon, DeltaValue } from "@/components/delta";
 import { DashboardCard } from "@/components/dashboard/dashboard-card";
 import prisma from "@/lib/prisma"; // Assure-toi que ce chemin correspond à ton instance Prisma
+import { cn } from "@/lib/utils";
 
 type Stat = {
 	label: string;
@@ -125,7 +127,7 @@ export async function DashboardStats({ projectId }: { projectId: string }) {
 		<>
 			{/* {N'oublie pas de remplacer mockStats par les vraies stats} */}
 			{mockStats.map((s) => (
-				<DashboardCard className="" key={s.label}>
+				<Card className={cn("shadow-none dark:ring-0")} key={s.label}>
 					<CardHeader className="flex flex-row items-center justify-between pb-2">
 						<CardTitle className="font-medium text-sm text-muted-foreground tracking-wide">
 							{s.label}
@@ -144,7 +146,7 @@ export async function DashboardStats({ projectId }: { projectId: string }) {
 						</Delta>
 						<span className="text-muted-foreground">vs sem. dernière</span>
 					</CardFooter>
-				</DashboardCard>
+				</Card>
 			))}
 		</>
 	);

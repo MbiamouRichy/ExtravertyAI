@@ -18,7 +18,7 @@ export async function Dashboard({ projectId }: { projectId: string }) {
 
 	const teamData = await getTeamMembers(projectId);
 	return (
-		<div className="grid grid-cols-1 gap-px bg-border p-px m-4 md:m-6 md:grid-cols-2 lg:grid-cols-4">
+		<div className="grid grid-cols-1 gap-4 m-4 md:m-6 md:grid-cols-2 lg:grid-cols-4">
 			<DashboardStats projectId={projectId} />
 			<DashboardMessageRecu projectId={projectId} />
 			{/* <DashboardDiscussionsChart data={chartData} growthPct={growthPct} /> */}

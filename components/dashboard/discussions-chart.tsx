@@ -26,7 +26,7 @@ export function NewDiscussionsChart({ data, rangeLabel }: DiscussionsChartProps)
     const total = data.reduce((acc, point) => acc + point.count, 0);
 
     return (
-        <Card className="flex h-full flex-col shadow-sm">
+        <Card className="flex h-full flex-col">
             <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex flex-col gap-1.5">
                     <CardTitle className="text-lg font-semibold tracking-tight">

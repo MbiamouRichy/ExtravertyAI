@@ -1,7 +1,6 @@
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { DecorIcon } from "@/components/ui/decor-icon";
 import { AppBreadcrumbs } from "@/components/dashboard/app-breadcrumbs";
 import { NavUser } from "@/components/dashboard/nav-user";
 import { BellIcon, Plus } from "lucide-react";
@@ -18,11 +17,10 @@ export async function AppHeader() {
 	return (
 		<header
 			className={cn(
-				"sticky top-0 z-50 flex h-14 shrink-0 items-center justify-between gap-2 border-b px-4 md:px-6",
+				"sticky top-0 z-50 flex h-14 shrink-0 items-center rounded-t-xl justify-between gap-2 border-b px-4 md:px-6",
 				"bg-background/95 backdrop-blur-sm supports-backdrop-filter:bg-background/50"
 			)}
 		>
-			<DecorIcon className="hidden md:block" position="bottom-left" />
 			<div className="flex items-center gap-3">
 				<ConditionalSidebarTrigger />
 				<Separator

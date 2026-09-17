@@ -47,7 +47,7 @@ export function TeamOnDuty({
 
 
     return (
-        <Card className={cn("shadow-none dark:ring-0 bg-background rounded-none! relative", className)} {...props}>
+        <Card className={cn("shadow-none dark:ring-0 relative", className)} {...props}>
             <CardHeader className="border-b">
                 <CardTitle>Membres d&apos;equipe</CardTitle>
                 <CardDescription>Les personnes qui travaille avec vous sur ce projet.</CardDescription>

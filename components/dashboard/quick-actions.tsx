@@ -1,4 +1,5 @@
 import {
+    Card,
     CardContent,
     CardDescription,
     CardHeader,
@@ -15,7 +16,6 @@ import {
 } from "@/components/ui/item";
 import { SettingsIcon, DownloadIcon, ChevronRightIcon, UsersIcon, MessageCircleIcon } from "lucide-react";
 import Link from "next/link";
-import { DashboardCard } from "./dashboard-card";
 
 
 export function QuickActions({ projectId }: { projectId: string }) {
@@ -55,8 +55,8 @@ export function QuickActions({ projectId }: { projectId: string }) {
     ] as const;
 
     return (
-        <DashboardCard className="col-span-1">
-            <CardHeader>
+        <Card className="col-span-1">
+            <CardHeader className="border-b">
                 <CardTitle>Actions Rapides</CardTitle>
                 <CardDescription>Raccourcis vers les mêmes destinations.</CardDescription>
             </CardHeader>
@@ -80,6 +80,6 @@ export function QuickActions({ projectId }: { projectId: string }) {
                     ))}
                 </ItemGroup>
             </CardContent>
-        </DashboardCard>
+        </Card>
     );
 }

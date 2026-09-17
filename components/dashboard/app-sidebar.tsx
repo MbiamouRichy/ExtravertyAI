@@ -33,14 +33,13 @@ export function AppSidebar() {
 		return (
 			<Sidebar
 				className={cn(
-					"*:data-[slot=sidebar-inner]:bg-background",
 					"*:data-[slot=sidebar-inner]:dark:bg-[radial-gradient(60%_18%_at_10%_0%,--theme(--color-foreground/.08),transparent)]",
 					"**:data-[slot=sidebar-menu-button]:[&>span]:text-foreground/75"
 				)}
 				collapsible="icon"
-				variant="sidebar"
+				variant="inset"
 			>
-				<SidebarHeader className="h-14 justify-center border-b px-2">
+				<SidebarHeader className="h-14 justify-center px-2">
 					<SidebarMenuButton asChild>
 						<LogoIcon LogoClassName="w-6" />
 					</SidebarMenuButton>
@@ -53,7 +52,7 @@ export function AppSidebar() {
 				</SidebarContent>
 				<SidebarFooter className="gap-0 p-0">
 					<LatestChange />
-					<SidebarMenu className="border-t p-2">
+					<SidebarMenu className="p-2">
 						{footerNavLinks.map((item) => (
 							<Tooltip delayDuration={1000} key={item.title}>
 								<TooltipTrigger asChild>

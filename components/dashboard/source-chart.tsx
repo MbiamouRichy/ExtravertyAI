@@ -52,7 +52,7 @@ export function SourceMessageChart({
 }: SourceMessageChartProps) {
     return (
         <Card
-            className={cn("flex flex-col bg-background shadow-sm border-border/60", className)}
+            className={cn("flex flex-col", className)}
             {...props}
         >
             <CardHeader className="items-center space-y-1.5 pb-4 sm:items-start">
@@ -85,14 +85,14 @@ export function SourceMessageChart({
                             />
 
                             <Pie
-                                cornerRadius={2}
+                                cornerRadius={8}
                                 data={data}
                                 dataKey="count"
                                 innerRadius={40}
                                 nameKey="source"
                                 outerRadius={95}
                                 stroke="var(--card)"
-                                strokeWidth={1}
+                                strokeWidth={2}
                                 paddingAngle={3}
                             >
                                 <LabelList

@@ -4,21 +4,21 @@ export function DashboardSkeleton() {
 	return (
 		<div
 			className={cn(
-				"grid grid-cols-2 gap-px bg-border p-px lg:grid-cols-4",
-				"*:min-h-48 *:w-full *:bg-background/90"
+				"grid md:grid-cols-2 gap-4 m-4 md:m-6 lg:grid-cols-4",
+				"*:min-h-48 *:w-full *:bg-muted *:dark:bg-muted/50"
 			)}
 		>
-			<div />
-			<div />
-			<div />
-			<div />
-			<div className="col-span-2 min-h-114! lg:col-span-2" />
-			<div className="col-span-2 min-h-92! lg:col-span-2" />
-			<div className="col-span-2 min-h-92! lg:col-span-2" />
-			<div className="col-span-1 min-h-92! lg:col-span-1" />
-			<div className="col-span-1 min-h-92! lg:col-span-1" />
-			<div className="md:col-span-2 min-h-92! lg:col-span-3" />
-			<div className="col-span-1 min-h-92! lg:col-span-1" />
+			<div className="rounded-lg" />
+			<div className="rounded-lg" />
+			<div className="rounded-lg" />
+			<div className="rounded-lg" />
+			<div className="col-span-2 rounded-xl min-h-114! lg:col-span-2" />
+			<div className="col-span-2 rounded-xl min-h-92! lg:col-span-2" />
+			<div className="col-span-2 rounded-xl min-h-92! lg:col-span-2" />
+			<div className="col-span-1 rounded-xl min-h-92! lg:col-span-1" />
+			<div className="col-span-1 rounded-xl min-h-92! lg:col-span-1" />
+			<div className="rounded-xl md:col-span-2 min-h-92! lg:col-span-3" />
+			<div className="rounded-xl col-span-1 min-h-92! lg:col-span-1" />
 		</div>
 	);
 }
