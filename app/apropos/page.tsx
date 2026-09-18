@@ -240,8 +240,13 @@ export default function AboutPage() {
           </div>
           <Button
             asChild
+<<<<<<< HEAD
             variant="secondary"
             className="h-auto min-h-12"
+=======
+            variant="outline"
+            className="h-auto min-h-12 whitespace-normal rounded-xl bg-background px-6 py-3 text-foreground hover:bg-muted"
+>>>>>>> 1493c17f5058c810d77c4d0f4fd79bd5017cae9e
           >
             <Link href="/contact">
               Parlons de votre projet <ArrowUpRight className="size-5" />
