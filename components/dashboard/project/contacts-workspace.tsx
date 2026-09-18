@@ -1,22 +1,8 @@
 "use client";
-import { useState, useTransition } from "react";
-import Link from "next/link";
+import { useState, useTransition, useRef, useEffect } from "react";
+
 import { useRouter } from "next/navigation";
-import {
-  Bot,
-  Users,
-  UserRound,
-  Search,
-  ArrowUpRight,
-  ChevronLeft,
-  ChevronRight,
-  Download,
-  MessageSquare,
-  Pencil,
-  Trash2,
-  Loader2,
-  X,
-} from "lucide-react";
+import { Bot, Users, UserRound, Download, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { setContactAiState } from "@/app/actions/setContactAiState";
 import { deleteContact, renameContact } from "@/app/actions/contacts.action";
@@ -29,18 +15,19 @@ import {
   AlertDialogFooter,
   AlertDialogCancel,
 } from "@/components/ui/alert-dialog";
-type Contact = {
-  id: string;
-  name: string | null;
-  displayName: string;
-  phone: string;
-  aiActive: boolean;
-  aiVersion: number;
-  createdAt: string;
-  lastMessageAt: string | null;
-  messageCount: number;
-  preview: string;
-};
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card } from "@/components/ui/card";
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select";
+import { ContactsTable } from "./contacts-table";
+import { type ContactTableType as Contact } from "./contacts-column";
 type Props = {
   projectId: string;
   projectName: string;
@@ -54,20 +41,43 @@ type Props = {
   sort: "activity" | "newest" | "name";
   contacts: Contact[];
 };
-const button =
-  "inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border px-4 text-sm font-medium hover:bg-muted disabled:opacity-40";
-function initials(name: string) {
-  return name
-    .trim()
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((part) => part[0])
-    .join("")
-    .toUpperCase();
-}
 export function ContactsWorkspace(p: Props) {
   const router = useRouter();
   const [query, setQuery] = useState(p.query);
+  const queryRef = useRef(p.query);
+  const navigationRef = useRef({
+    filter: p.filter as string,
+    sort: p.sort as string,
+    page: p.page,
+  });
+  const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    const syncFromHistory = () => {
+      if (searchTimer.current) clearTimeout(searchTimer.current);
+      const params = new URLSearchParams(window.location.search);
+      queryRef.current = params.get("q") || "";
+      navigationRef.current = {
+        filter: params.get("filter") || "all",
+        sort: params.get("sort") || "activity",
+        page: Number(params.get("page")) || 1,
+      };
+      setQuery(queryRef.current);
+    };
+    window.addEventListener("popstate", syncFromHistory);
+    return () => {
+      if (searchTimer.current) clearTimeout(searchTimer.current);
+      window.removeEventListener("popstate", syncFromHistory);
+    };
+  }, []);
+  function search(value: string) {
+    setQuery(value);
+    queryRef.current = value;
+    if (searchTimer.current) clearTimeout(searchTimer.current);
+    searchTimer.current = setTimeout(
+      () => navigate({ q: value.trim(), page: 1 }),
+      300,
+    );
+  }
   const [navigationPending, startNavigation] = useTransition();
   const [busy, setBusy] = useState("");
   const [dialog, setDialog] = useState<{
@@ -79,12 +89,16 @@ export function ContactsWorkspace(p: Props) {
   function navigate(
     changes: Partial<{ q: string; filter: string; page: number; sort: string }>,
   ) {
+    if (searchTimer.current) clearTimeout(searchTimer.current);
     const values = {
-      q: p.query,
-      filter: p.filter,
-      page: p.page,
-      sort: p.sort,
+      q: queryRef.current.trim(),
+      ...navigationRef.current,
       ...changes,
+    };
+    navigationRef.current = {
+      filter: values.filter,
+      sort: values.sort,
+      page: values.page,
     };
     const params = new URLSearchParams();
     if (values.q) params.set("q", values.q);
@@ -92,7 +106,7 @@ export function ContactsWorkspace(p: Props) {
     if (values.sort !== "activity") params.set("sort", values.sort);
     if (values.page > 1) params.set("page", String(values.page));
     startNavigation(() =>
-      router.push(`/projects/${p.projectId}/contacts?${params}`, {
+      router.replace(`/projects/${p.projectId}/contacts?${params}`, {
         scroll: false,
       }),
     );
@@ -173,46 +187,9 @@ export function ContactsWorkspace(p: Props) {
       setBusy("");
     }
   }
-  const actions = (contact: Contact) => (
-    <div className="flex items-center justify-end gap-1">
-      <Link
-        href={`/projects/${p.projectId}/chat?contactId=${contact.id}`}
-        aria-label={`Ouvrir la conversation avec ${contact.displayName}`}
-        title="Ouvrir le chat"
-        className="flex size-11 items-center justify-center rounded-lg text-foreground hover:bg-muted dark:text-foreground dark:hover:bg-muted"
-      >
-        <MessageSquare className="size-4" />
-      </Link>
-      <button
-        disabled={!!busy}
-        onClick={() => {
-          setName(contact.name || "");
-          setError("");
-          setDialog({ type: "rename", contact });
-        }}
-        aria-label={`Renommer ${contact.displayName}`}
-        title="Renommer"
-        className="flex size-11 items-center justify-center rounded-lg hover:bg-muted disabled:opacity-40"
-      >
-        <Pencil className="size-4" />
-      </button>
-      <button
-        disabled={!!busy}
-        onClick={() => {
-          setError("");
-          setDialog({ type: "delete", contact });
-        }}
-        aria-label={`Supprimer ${contact.displayName}`}
-        title="Supprimer"
-        className="flex size-11 items-center justify-center rounded-lg text-muted-foreground hover:bg-destructive/10 hover:text-destructive disabled:opacity-40"
-      >
-        <Trash2 className="size-4" />
-      </button>
-    </div>
-  );
   const status = (contact: Contact) => (
-    <button
-      disabled={!!busy}
+    <Button
+      disabled={!!busy || navigationPending}
       onClick={() => void handling(contact)}
       title={
         contact.aiActive
@@ -230,7 +207,7 @@ export function ContactsWorkspace(p: Props) {
         <UserRound className="size-3.5" />
       )}
       {contact.aiActive ? "Assistant IA" : "Équipe humaine"}
-    </button>
+    </Button>
   );
   return (
     <main className="mx-auto max-w-7xl space-y-7 px-4 py-7 sm:px-8 lg:py-10">
@@ -244,10 +221,10 @@ export function ContactsWorkspace(p: Props) {
             Retrouvez vos prospects et choisissez comment les accompagner.
           </p>
         </div>
-        <button
+        <Button
           disabled={!!busy || p.total === 0}
           onClick={() => void exportContacts()}
-          className={button}
+          variant="outline"
         >
           {busy === "export" ? (
             <Loader2 className="size-4 animate-spin" />
@@ -255,7 +232,7 @@ export function ContactsWorkspace(p: Props) {
             <Download className="size-4" />
           )}{" "}
           Exporter les contacts
-        </button>
+        </Button>
       </header>
       <section
         aria-label="Répartition des contacts"
@@ -284,7 +261,7 @@ export function ContactsWorkspace(p: Props) {
             color: "text-foreground dark:text-foreground",
           },
         ].map((card) => (
-          <div key={card.title} className="rounded-2xl border bg-card p-5">
+          <Card key={card.title} className="gap-0 p-5">
             <div className="mb-4 flex items-center justify-between">
               <p className="text-sm text-muted-foreground">{card.title}</p>
               <card.icon className={`size-5 ${card.color}`} />
@@ -293,7 +270,7 @@ export function ContactsWorkspace(p: Props) {
               {card.count.toLocaleString("fr-FR")}
             </p>
             <p className="mt-2 text-xs text-muted-foreground">{card.hint}</p>
-          </div>
+          </Card>
         ))}
       </section>
       <section
@@ -302,51 +279,22 @@ export function ContactsWorkspace(p: Props) {
       >
         <div className="space-y-4 border-b p-4 sm:p-5">
           <div className="flex flex-col justify-between gap-3 sm:flex-row">
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                navigate({ q: query.trim(), page: 1 });
-              }}
-              className="flex w-full gap-2 sm:max-w-lg"
-            >
-              <div className="relative min-w-0 flex-1">
-                <Search className="pointer-events-none absolute left-3.5 top-3.5 size-4 text-muted-foreground" />
-                <input
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  aria-label="Rechercher un contact par nom ou numéro"
-                  placeholder="Rechercher un nom ou un numéro…"
-                  maxLength={100}
-                  className="h-11 w-full rounded-xl border bg-background pl-10 pr-10 text-sm outline-none focus:ring-2 focus:ring-ring/30"
-                />
-                {query && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setQuery("");
-                      navigate({ q: "", page: 1 });
-                    }}
-                    aria-label="Effacer la recherche"
-                    className="absolute right-1 top-1 flex size-9 items-center justify-center"
-                  >
-                    <X className="size-4" />
-                  </button>
-                )}
-              </div>
-              <button disabled={navigationPending} className={button}>
-                Rechercher
-              </button>
-            </form>
-            <select
-              aria-label="Trier les contacts"
+            <Select
               value={p.sort}
-              onChange={(e) => navigate({ sort: e.target.value, page: 1 })}
-              className="h-11 rounded-xl border bg-background px-3 text-sm"
+              onValueChange={(sort) => navigate({ sort, page: 1 })}
             >
-              <option value="activity">Dernière activité</option>
-              <option value="newest">Ajoutés récemment</option>
-              <option value="name">Nom personnalisé</option>
-            </select>
+              <SelectTrigger
+                aria-label="Trier les contacts"
+                className="w-full sm:w-56"
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="activity">Dernière activité</SelectItem>
+                <SelectItem value="newest">Ajoutés récemment</SelectItem>
+                <SelectItem value="name">Nom personnalisé</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex flex-wrap gap-2">
@@ -355,14 +303,14 @@ export function ContactsWorkspace(p: Props) {
                 { value: "ai", label: "Assistant IA" },
                 { value: "human", label: "Équipe humaine" },
               ].map((item) => (
-                <button
+                <Button
                   key={item.value}
                   onClick={() => navigate({ filter: item.value, page: 1 })}
                   aria-pressed={p.filter === item.value}
                   className={`min-h-10 rounded-full px-4 text-xs font-medium ${p.filter === item.value ? "bg-primary text-primary-foreground" : "bg-muted/60 text-muted-foreground hover:bg-muted"}`}
                 >
                   {item.label}
-                </button>
+                </Button>
               ))}
             </div>
             <span
@@ -377,167 +325,30 @@ export function ContactsWorkspace(p: Props) {
             </span>
           </div>
         </div>
-        {p.contacts.length === 0 ? (
-          <div className="flex min-h-72 flex-col items-center justify-center px-6 py-14 text-center">
-            <span className="mb-5 rounded-2xl bg-muted p-4">
-              <Users className="size-7 text-muted-foreground" />
-            </span>
-            <h2 className="text-lg font-semibold">
-              {p.total === 0
-                ? "Vos prochaines conversations commencent ici"
-                : "Aucun contact ne correspond"}
-            </h2>
-            <p className="mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">
-              {p.total === 0
-                ? "Les personnes qui écrivent à votre numéro WhatsApp apparaîtront automatiquement dans cette liste."
-                : "Essayez un autre nom, un numéro ou un filtre différent."}
-            </p>
-            {p.total === 0 ? (
-              <Link
-                href={`/projects/${p.projectId}/chat`}
-                className={`${button} mt-6`}
-              >
-                Ouvrir WhatsApp <ArrowUpRight className="size-4" />
-              </Link>
-            ) : (
-              <button
-                onClick={() => {
-                  setQuery("");
-                  navigate({ q: "", filter: "all", page: 1 });
-                }}
-                className={`${button} mt-6`}
-              >
-                Réinitialiser les filtres
-              </button>
-            )}
-          </div>
-        ) : (
-          <>
-            <div
-              className={`hidden overflow-x-auto md:block ${navigationPending ? "opacity-60" : ""}`}
-            >
-              <table className="w-full text-left text-sm">
-                <thead className="border-b bg-muted/30 text-xs text-muted-foreground">
-                  <tr>
-                    <th className="px-5 py-4 font-medium">Contact</th>
-                    <th className="px-5 py-4 font-medium">Dernier échange</th>
-                    <th className="px-5 py-4 font-medium">Prise en charge</th>
-                    <th className="px-5 py-4 font-medium">Activité</th>
-                    <th className="px-5 py-4 text-right font-medium">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y">
-                  {p.contacts.map((contact) => (
-                    <tr
-                      key={contact.id}
-                      className="transition-colors hover:bg-muted/25"
-                    >
-                      <td className="px-5 py-5">
-                        <Link
-                          href={`/projects/${p.projectId}/chat?contactId=${contact.id}`}
-                          className="flex items-center gap-3"
-                        >
-                          <span className="flex size-10 shrink-0 items-center justify-center rounded-full border bg-muted text-xs font-semibold">
-                            {initials(contact.displayName)}
-                          </span>
-                          <span className="min-w-0">
-                            <span className="block max-w-44 truncate font-medium">
-                              {contact.displayName}
-                            </span>
-                            <span className="mt-1 block font-mono text-xs text-muted-foreground">
-                              {contact.phone}
-                            </span>
-                          </span>
-                        </Link>
-                      </td>
-                      <td className="px-5 py-5">
-                        <p className="max-w-52 truncate text-xs text-muted-foreground">
-                          {contact.preview}
-                        </p>
-                        <p className="mt-2 text-[11px] text-muted-foreground">
-                          {contact.messageCount} message
-                          {contact.messageCount !== 1 && "s"}
-                        </p>
-                      </td>
-                      <td className="px-5 py-5">{status(contact)}</td>
-                      <td className="whitespace-nowrap px-5 py-5 text-xs text-muted-foreground">
-                        {new Date(
-                          contact.lastMessageAt || contact.createdAt,
-                        ).toLocaleDateString("fr-FR", {
-                          day: "numeric",
-                          month: "short",
-                          year: "numeric",
-                        })}
-                      </td>
-                      <td className="px-3 py-3">{actions(contact)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <div
-              className={`divide-y md:hidden ${navigationPending ? "opacity-60" : ""}`}
-            >
-              {p.contacts.map((contact) => (
-                <article key={contact.id} className="p-5">
-                  <div className="flex items-start gap-3">
-                    <span className="flex size-11 shrink-0 items-center justify-center rounded-full border bg-muted text-xs font-semibold">
-                      {initials(contact.displayName)}
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <Link
-                        href={`/projects/${p.projectId}/chat?contactId=${contact.id}`}
-                        className="block truncate font-medium"
-                      >
-                        {contact.displayName}
-                      </Link>
-                      <p className="mt-1 font-mono text-xs text-muted-foreground">
-                        {contact.phone}
-                      </p>
-                    </div>
-                  </div>
-                  <p className="my-4 truncate text-sm text-muted-foreground">
-                    {contact.preview}
-                  </p>
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    {status(contact)}
-                    {actions(contact)}
-                  </div>
-                </article>
-              ))}
-            </div>
-          </>
-        )}
-        <footer className="flex flex-wrap items-center justify-between gap-3 border-t px-5 py-4">
-          <p className="text-xs text-muted-foreground">
-            {p.filtered
-              ? `${(p.page - 1) * 20 + 1}–${Math.min(p.page * 20, p.filtered)} sur ${p.filtered.toLocaleString("fr-FR")}`
-              : "0 contact"}
-          </p>
-          <div className="flex items-center gap-3">
-            <span className="text-xs text-muted-foreground">
-              Page {p.page} / {p.pageCount}
-            </span>
-            <button
-              disabled={p.page <= 1 || navigationPending}
-              onClick={() => navigate({ page: p.page - 1 })}
-              aria-label="Page précédente"
-              className="flex size-11 items-center justify-center rounded-xl border disabled:opacity-30"
-            >
-              <ChevronLeft className="size-4" />
-            </button>
-            <button
-              disabled={p.page >= p.pageCount || navigationPending}
-              onClick={() => navigate({ page: p.page + 1 })}
-              aria-label="Page suivante"
-              className="flex size-11 items-center justify-center rounded-xl border disabled:opacity-30"
-            >
-              <ChevronRight className="size-4" />
-            </button>
-          </div>
-        </footer>
+        <div className="p-4 sm:p-5" aria-busy={navigationPending}>
+          <ContactsTable
+            data={p.contacts}
+            projectId={p.projectId}
+            query={query}
+            onQueryChange={search}
+            page={p.page}
+            pageCount={p.pageCount}
+            total={p.filtered}
+            pending={navigationPending}
+            busy={!!busy}
+            renderStatus={status}
+            onPageChange={(page) => navigate({ page })}
+            onRename={(contact) => {
+              setName(contact.name || "");
+              setError("");
+              setDialog({ type: "rename", contact });
+            }}
+            onDelete={(contact) => {
+              setError("");
+              setDialog({ type: "delete", contact });
+            }}
+          />
+        </div>
       </section>
       <AlertDialog
         open={!!dialog}
@@ -560,10 +371,10 @@ export function ContactsWorkspace(p: Props) {
           </AlertDialogHeader>
           {dialog?.type === "rename" && (
             <>
-              <label htmlFor="contact-alias" className="text-sm font-medium">
+              <Label htmlFor="contact-alias" className="text-sm font-medium">
                 Nom personnalisé
-              </label>
-              <input
+              </Label>
+              <Input
                 id="contact-alias"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
@@ -579,16 +390,16 @@ export function ContactsWorkspace(p: Props) {
           )}
           <AlertDialogFooter>
             <AlertDialogCancel disabled={!!busy}>Annuler</AlertDialogCancel>
-            <button
+            <Button
               disabled={!!busy}
               onClick={() => void submitDialog()}
-              className={`${button} ${dialog?.type === "delete" ? "border-destructive bg-destructive text-white hover:bg-destructive/90" : "bg-primary text-primary-foreground hover:bg-primary/90"}`}
+              variant={dialog?.type === "delete" ? "destructive" : "default"}
             >
               {busy && <Loader2 className="size-4 animate-spin" />}
               {dialog?.type === "delete"
                 ? "Supprimer le contact"
                 : "Enregistrer"}
-            </button>
+            </Button>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

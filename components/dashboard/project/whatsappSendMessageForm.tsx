@@ -72,6 +72,7 @@ type DisplayMessage = ChatMessage | LocalMessage;
 type SendResult = {
   success: boolean;
   uncertain: boolean;
+  error?: string;
   id?: string;
   status: ChatMessageStatus;
 };
@@ -132,6 +133,7 @@ function parseSendResult(value: unknown): SendResult {
   return {
     success: value.success,
     uncertain: value.uncertain === true,
+    error: typeof value.error === "string" ? value.error : undefined,
     id: typeof message?.id === "string" ? message.id : undefined,
     status: normalizeChatStatus(message?.status),
   };
@@ -627,8 +629,15 @@ export default function WhatsappWorkspace({
           status: "failed",
         });
 
-        setAnnouncement("L’envoi a échoué.");
-        toast.error("Le message n’a pas pu être envoyé.");
+        const reason = result.error || "Le message n’a pas pu être envoyé.";
+        setAnnouncement(reason);
+        toast.error(reason);
+        // Un refus confirmé ne doit pas faire perdre le texte saisi.
+        // Préserver aussi un éventuel nouveau brouillon écrit pendant l’envoi.
+        setDrafts((previous) => ({
+          ...previous,
+          [contactId]: previous[contactId] || content,
+        }));
         return;
       }
 

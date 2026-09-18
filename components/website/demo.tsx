@@ -19,7 +19,9 @@ import { Card } from "../ui/card";
 import { DecorIcon } from "../ui/decor-icon";
 import { FullWidthDivider } from "../ui/full-width-divider";
 import PhoneMockup from "./phoneMockup";
-import { AutomatiserButton } from "./hero";
+import { Button } from "../ui/button";
+import Link from "next/link";
+
 
 const feature = [
   {
@@ -130,7 +132,11 @@ function Demo() {
               Rejoignez les nombreuses entreprises qui utilisent déjà
               ExtravertyAI et ne manquer plus jamais un client sur WhatsApp.
             </p>
-            <AutomatiserButton text="Commencer maintenant" className="w-full" />
+            <Button asChild className="w-full text-sm md:text-base">
+              <Link href="/sign-in">
+                Demarrer maintenant
+              </Link>
+            </Button>
           </div>
         </div>
         <PhoneMockup videoSrc="/video.mp4" />

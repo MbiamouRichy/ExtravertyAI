@@ -53,6 +53,12 @@
 }
 
 :root {
+  --font-bricolage-grotesque: "Arial Narrow", "Helvetica Neue", Arial,
+    sans-serif;
+  --font-crimson-text: Georgia, "Times New Roman", serif;
+  --font-roboto-mono: "Cascadia Mono", "SFMono-Regular", Consolas,
+    "Liberation Mono", monospace;
+  --font-sans: var(--font-roboto-mono);
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);

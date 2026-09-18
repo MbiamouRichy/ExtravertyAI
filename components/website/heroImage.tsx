@@ -21,9 +21,10 @@ import {
 } from "lucide-react";
 import { Separator } from "../ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { AutomatiserButton } from "./hero";
 import { Logo } from "../logo";
 import React from "react";
+import { Button } from "../ui/button";
+import Link from "next/link";
 
 const features = [
   {
@@ -132,10 +133,11 @@ export default function HeroImage() {
                 ))}
               </div>
 
-              <AutomatiserButton
-                text="Commencer maintenant"
-                className="w-full md:w-fit"
-              />
+              <Button asChild className="w-full md:w-fit text-sm md:text-base">
+                <Link href="/sign-in">
+                  Demarrer maintenant
+                </Link>
+              </Button>
             </div>
             <div className="hidden md:flex flex-col gap-2 h-full justify-center items-center">
               <Item className="rounded-2xl ml-auto shadow-sm max-w-xs w-auto  text-primary-foreground bg-foreground">
