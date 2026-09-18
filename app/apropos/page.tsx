@@ -229,19 +229,19 @@ export default function AboutPage() {
           </ol>
         </section>
 
-        <section className="mb-16 flex flex-col justify-between gap-8 rounded-3xl bg-primary p-7 text-primary-foreground sm:p-12 md:flex-row md:items-center">
+        <section className="mb-16 flex flex-col justify-between gap-8 rounded-3xl bg-primary p-7 sm:p-12 md:flex-row md:items-center">
           <div>
             <p className="mb-4 flex items-center gap-2 text-xs uppercase tracking-widest text-primary-foreground">
               <CircleDot className="size-3.5" /> Construisons la suite
             </p>
-            <h2 className="max-w-xl text-3xl font-semibold tracking-tight sm:text-4xl">
+            <h2 className="max-w-xl text-3xl font-semibold text-primary-foreground tracking-tight sm:text-4xl">
               Votre prochaine bonne conversation commence ici.
             </h2>
           </div>
           <Button
             asChild
-            variant="outline"
-            className="h-auto min-h-12 whitespace-normal rounded-xl bg-background px-6 py-3 text-foreground hover:bg-muted"
+            variant="secondary"
+            className="h-auto min-h-12"
           >
             <Link href="/contact">
               Parlons de votre projet <ArrowUpRight className="size-5" />
