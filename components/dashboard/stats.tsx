@@ -6,7 +6,6 @@ import {
 	CardTitle,
 } from "@/components/ui/card";
 import { Delta, DeltaIcon, DeltaValue } from "@/components/delta";
-import { DashboardCard } from "@/components/dashboard/dashboard-card";
 import prisma from "@/lib/prisma"; // Assure-toi que ce chemin correspond à ton instance Prisma
 import { cn } from "@/lib/utils";
 

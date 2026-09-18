@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Button } from "@/components/ui/button";
 import {
   ArrowRight,
   ArrowUpRight,
@@ -69,12 +70,11 @@ export default function AboutPage() {
               Nous aidons les professionnels à faire de WhatsApp un espace de
               travail plus simple, avec une IA au service de leur équipe.
             </p>
-            <Link
-              href="/contact"
-              className="mt-7 inline-flex min-h-11 items-center gap-3 font-medium text-foreground dark:text-foreground"
-            >
-              Faisons connaissance <ArrowUpRight className="size-5" />
-            </Link>
+            <Button asChild variant="link" className="mt-7 min-h-11 px-0">
+              <Link href="/contact">
+                Faisons connaissance <ArrowUpRight className="size-5" />
+              </Link>
+            </Button>
           </div>
         </section>
 
@@ -193,12 +193,11 @@ export default function AboutPage() {
               De votre besoin
               <br />à vos premiers échanges.
             </h2>
-            <Link
-              href="/#tarifs"
-              className="mt-6 inline-flex min-h-11 items-center gap-2 text-sm font-medium"
-            >
-              Découvrir nos offres <ArrowRight className="size-4" />
-            </Link>
+            <Button asChild variant="link" className="mt-6 min-h-11 px-0">
+              <Link href="/#tarifs">
+                Découvrir nos offres <ArrowRight className="size-4" />
+              </Link>
+            </Button>
           </div>
           <ol className="space-y-0">
             {[
@@ -239,12 +238,15 @@ export default function AboutPage() {
               Votre prochaine bonne conversation commence ici.
             </h2>
           </div>
-          <Link
-            href="/contact"
-            className="inline-flex min-h-12 shrink-0 items-center justify-center gap-3 rounded-xl bg-background px-6 py-3 font-medium text-foreground transition-colors hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
+          <Button
+            asChild
+            variant="outline"
+            className="h-auto min-h-12 whitespace-normal rounded-xl bg-background px-6 py-3 text-foreground hover:bg-muted"
           >
-            Parlons de votre projet <ArrowUpRight className="size-5" />
-          </Link>
+            <Link href="/contact">
+              Parlons de votre projet <ArrowUpRight className="size-5" />
+            </Link>
+          </Button>
         </section>
       </main>
       <Footer />

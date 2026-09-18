@@ -8,11 +8,12 @@ import {
   ItemTitle,
 } from "../ui/item";
 import { Check } from "lucide-react";
-import { AutomatiserButton } from "./hero";
 import React from "react";
 import { Logo } from "../logo";
 import { DecorIcon } from "../ui/decor-icon";
 import { FullWidthDivider } from "../ui/full-width-divider";
+import { Button } from "../ui/button";
+import Link from "next/link";
 
 const avantExtraverty = [
   {
@@ -84,10 +85,12 @@ function AvantApres() {
               </React.Fragment>
             ))}
           </ItemGroup>
-          <AutomatiserButton
-            variant={"outline"}
-            className="w-11/12! mt-auto mx-auto"
-          />
+
+          <Button variant={"outline"} asChild className="w-11/12! mt-auto mx-auto text-sm md:text-base">
+            <Link href="/sign-in">
+              Demarrer maintenant
+            </Link>
+          </Button>
         </Card>
         <Card className="w-full bg-card min-w-75 md:w-1/2">
           <CardHeader>
@@ -115,7 +118,11 @@ function AvantApres() {
               </React.Fragment>
             ))}
           </ItemGroup>
-          <AutomatiserButton className="w-11/12! mt-auto mx-auto" />
+          <Button asChild className="w-11/12! mt-auto mx-auto text-sm md:text-base">
+            <Link href="/sign-in">
+              Demarrer maintenant
+            </Link>
+          </Button>
         </Card>
       </div>
       <FullWidthDivider className="-bottom-px" />

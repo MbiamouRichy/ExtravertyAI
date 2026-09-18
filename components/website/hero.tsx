@@ -1,12 +1,14 @@
+"use client"
 import { cn } from "@/lib/utils";
 
-import { Button, buttonVariants } from "@/components/ui/button";
-import { ArrowRight, ArrowRightIcon, StarIcon, Video } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { ArrowRightIcon, Video } from "lucide-react";
 
 import Link from "next/link";
 import HeroImage from "./heroImage";
-import { VariantProps } from "class-variance-authority";
-import { Separator } from "../ui/separator";
+import Image from "next/image";
+import { FullWidthDivider } from "../ui/full-width-divider";
+import { DecorIcon } from "../ui/decor-icon";
 import { WhatsAppIcon } from "../social-icon";
 
 export function HeroSection() {
@@ -83,87 +85,42 @@ export function HeroSection() {
               <Video data-icon="inline-start" /> Regarder la démo
             </Link>
           </Button>
-          <AutomatiserButton className="w-full md:w-fit" />
+          <Button asChild className="w-full md:w-auto text-sm md:text-base">
+            <Link href="/sign-in">
+              <WhatsAppIcon aria-hidden="true" />
+              Demarrer maintenant
+            </Link>
+          </Button>
         </div>
+      </div>
+      <div className="relative">
+        <DecorIcon className="size-4" position="top-left" />
+        <DecorIcon className="size-4" position="top-right" />
+        <DecorIcon className="size-4" position="bottom-left" />
+        <DecorIcon className="size-4" position="bottom-right" />
 
-        <div className="flex flex-col md:flex-row w-full md:justify-center md:items-center gap-4">
-          <p className="text-muted-foreground text-sm">
-            <span className="text-primary font-bold">+1000</span> messages{" "}
-            <br className="hidden md:inline" />
-            automatisés par jour
-          </p>
-          <Separator
-            orientation="vertical"
-            className="hidden md:block h-8 my-auto"
+        <FullWidthDivider className="-top-px" />
+        <div className="overflow-hidden *:pointer-events-none *:aspect-video *:select-none">
+          <Image
+            alt="light app screen"
+            className="dark:hidden"
+            loading="lazy"
+            height="1800"
+            src="https://storage.efferd.com/screen/dashboard-light.webp"
+            width="1800"
           />
-          <Separator
-            orientation="horizontal"
-            className="block md:hidden w-11/12! mx-auto"
+          <Image
+            alt="dark app screen"
+            className="hidden dark:block"
+            loading="lazy"
+            height="1800"
+            src="https://storage.efferd.com/screen/dashboard-dark.webp"
+            width="1800"
           />
-          <p className="text-muted-foreground text-sm">
-            <span className="text-primary font-bold">+32%</span> de prospects{" "}
-            {""}
-            <br className="hidden md:inline" />
-            captés
-          </p>
-          <Separator
-            orientation="vertical"
-            className="hidden md:block h-8 my-auto"
-          />
-          <Separator
-            orientation="horizontal"
-            className="block md:hidden w-11/12! mx-auto"
-          />
-
-          <p className="text-muted-foreground flex flex-row w-auto md:flex-col gap-0.5 text-sm">
-            <span>Recommandé 5/5 </span>
-            <span className="inline-flex md:w-full items-center">
-              {[...Array(5)].map((_, idx) => (
-                <StarIcon
-                  key={idx}
-                  className="w-4 md:w-1/5 fill-yellow-400 text-foreground drop-shadow-sm"
-                />
-              ))}
-            </span>
-          </p>
         </div>
+        <FullWidthDivider className="-bottom-px" />
       </div>
       <HeroImage />
     </section>
   );
 }
-type AutomatiserButtonProps = {
-  className?: string;
-  text?: string;
-  href?: string;
-  target?: string;
-  variant?: VariantProps<typeof buttonVariants>["variant"];
-};
-
-export const AutomatiserButton = ({
-  className,
-  variant = "default",
-  text = "Automatiser mes réponses",
-  href = "https://wa.me/24176205629?text=Bonjour,%20Pouvez-vous%20m'expliquer%20la%20mise%20en%20place%20?",
-  target = "_self",
-}: AutomatiserButtonProps) => {
-  return (
-    <Link
-      href={href}
-      title={text}
-      target={target}
-      className={cn(
-        buttonVariants({ variant, size: "lg" }),
-        "group text-sm md:text-base",
-        className,
-      )}
-    >
-      <WhatsAppIcon />
-      {text}
-      <ArrowRight
-        data-icon="inline-end"
-        className="-translate-x-0.5 duration-150 ease-out group-hover:translate-x-0.5"
-      />
-    </Link>
-  );
-};

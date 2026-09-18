@@ -6,7 +6,8 @@ import {
 } from "@/components/ui/accordion";
 import { DecorIcon } from "../ui/decor-icon";
 import { FullWidthDivider } from "../ui/full-width-divider";
-import { AutomatiserButton } from "./hero";
+import { Button } from "../ui/button";
+import Link from "next/link";
 
 const items = [
   {
@@ -114,12 +115,12 @@ export function Faq() {
           Pour toute question, n&apos;hésitez pas à nous contacter via WhatsApp.
           Nous sommes là pour vous aider à réussir avec ExtravertyAI.
         </p>
-        <AutomatiserButton
-          href="https://wa.me/24176205629?text=Bonjour,%20je%20veux%20automatiser%20mes%20ventes%20sur%20WhatsApp%20mes%20j'ai%20quelques%20questions.%20Pouvez-vous%20m'accompagner%20?[FAQ]"
-          text="Discuter via WhatsApp"
-          className="w-full md:w-fit mt-1"
-          target="_blank"
-        />
+
+        <Button variant={"outline"} asChild className="w-full md:w-fit mt-1 text-sm md:text-base">
+          <Link href="/sign-in">
+            Demarrer maintenant
+          </Link>
+        </Button>
       </div>
       <FullWidthDivider className="-bottom-px" />
     </section>
