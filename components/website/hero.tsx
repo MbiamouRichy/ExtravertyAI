@@ -2,6 +2,7 @@
 import { cn } from "@/lib/utils";
 
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { ArrowRightIcon, Video } from "lucide-react";
 
 import Link from "next/link";
@@ -10,6 +11,43 @@ import Image from "next/image";
 import { FullWidthDivider } from "../ui/full-width-divider";
 import { DecorIcon } from "../ui/decor-icon";
 import { WhatsAppIcon } from "../social-icon";
+
+function DashboardPreview({
+  decorative = false,
+  className,
+}: {
+  decorative?: boolean;
+  className?: string;
+}) {
+  return (
+    <Card
+      aria-hidden={decorative ? true : undefined}
+      className={cn(
+        "pointer-events-none gap-0 select-none border border-border bg-background p-1.5 ring-0 sm:p-2",
+        className,
+      )}
+    >
+      <div className="relative aspect-video overflow-hidden rounded-lg border border-border bg-muted">
+        <Image
+          alt={decorative ? "" : "Aperçu du tableau de bord : indicateurs, graphique d’activité et suivi des documents"}
+          className="object-cover object-top dark:hidden"
+          fill
+          loading="lazy"
+          sizes="(min-width: 1280px) 864px, (min-width: 1024px) 75vw, (min-width: 640px) calc(100vw - 64px), calc(100vw - 32px)"
+          src="https://storage.efferd.com/screen/dashboard-light.webp"
+        />
+        <Image
+          alt={decorative ? "" : "Aperçu du tableau de bord : indicateurs, graphique d’activité et suivi des documents"}
+          className="hidden object-cover object-top dark:block"
+          fill
+          loading="lazy"
+          sizes="(min-width: 1280px) 864px, (min-width: 1024px) 75vw, (min-width: 640px) calc(100vw - 64px), calc(100vw - 32px)"
+          src="https://storage.efferd.com/screen/dashboard-dark.webp"
+        />
+      </div>
+    </Card>
+  );
+}
 
 export function HeroSection() {
   return (
@@ -86,7 +124,7 @@ export function HeroSection() {
             </Link>
           </Button>
           <Button asChild className="w-full md:w-auto text-sm md:text-base">
-            <Link href="/sign-in">
+            <Link href="/sign-up">
               <WhatsAppIcon aria-hidden="true" />
               Demarrer maintenant
             </Link>
@@ -100,22 +138,21 @@ export function HeroSection() {
         <DecorIcon className="size-4" position="bottom-right" />
 
         <FullWidthDivider className="-top-px" />
-        <div className="overflow-hidden *:pointer-events-none *:aspect-video *:select-none">
-          <Image
-            alt="light app screen"
-            className="dark:hidden"
-            loading="lazy"
-            height="1800"
-            src="https://storage.efferd.com/screen/dashboard-light.webp"
-            width="1800"
-          />
-          <Image
-            alt="dark app screen"
-            className="hidden dark:block"
-            loading="lazy"
-            height="1800"
-            src="https://storage.efferd.com/screen/dashboard-dark.webp"
-            width="1800"
+        <div className="relative isolate overflow-hidden px-4 pt-8 pb-6 sm:px-8 sm:pt-12 sm:pb-8 lg:pt-16">
+          <div className="relative mx-auto max-w-6xl">
+            <DashboardPreview
+              decorative
+              className="absolute inset-x-0 top-12 mx-auto hidden w-3/4 -translate-x-1/6 -rotate-6 opacity-30 blur-sm lg:block"
+            />
+            <DashboardPreview
+              decorative
+              className="absolute inset-x-0 top-12 mx-auto hidden w-3/4 translate-x-1/6 rotate-6 opacity-30 blur-sm lg:block"
+            />
+            <DashboardPreview className="relative z-10 mx-auto w-full shadow-xl shadow-foreground/10 lg:w-3/4" />
+          </div>
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-x-0 bottom-0 z-20 h-1/3 bg-gradient-to-t from-background via-background/80 to-transparent"
           />
         </div>
         <FullWidthDivider className="-bottom-px" />
