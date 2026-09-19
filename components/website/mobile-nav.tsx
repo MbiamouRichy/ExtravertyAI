@@ -70,6 +70,11 @@ export function MobileNav() {
                   Se connecter
                 </Link>
               </Button>
+              <Button asChild onClick={() => setOpen(false)} className="w-full">
+                <Link href="/sign-up">
+                  S&apos;inscrire
+                </Link>
+              </Button>
             </div>
           </div>
         </Portal>

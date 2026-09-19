@@ -142,11 +142,11 @@ export function HeroSection() {
           <div className="relative mx-auto max-w-6xl">
             <DashboardPreview
               decorative
-              className="absolute inset-x-0 top-12 mx-auto hidden w-3/4 -translate-x-1/6 -rotate-6 opacity-30 blur-xs lg:block"
+              className="absolute inset-x-0 top-12 mx-auto hidden w-3/4 -translate-x-1/6 -rotate-6 opacity-30 lg:block"
             />
             <DashboardPreview
               decorative
-              className="absolute inset-x-0 top-12 mx-auto hidden w-3/4 translate-x-1/6 rotate-6 opacity-30 blur-xs lg:block"
+              className="absolute inset-x-0 top-12 mx-auto hidden w-3/4 translate-x-1/6 rotate-6 opacity-30 lg:block"
             />
             <DashboardPreview className="relative z-10 mx-auto w-full shadow-xl shadow-foreground/10 lg:w-3/4" />
           </div>

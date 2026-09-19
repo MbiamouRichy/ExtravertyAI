@@ -74,10 +74,15 @@ export function Header() {
         </div>
         <div className="hidden lg:flex flex-row justify-center gap-2 items-center">
           <ModeToggle screen="desktop" />
-          <Button asChild >
+          <Button asChild variant={"outline"}>
             <Link href="/sign-in">
               <LogIn aria-hidden="true" />
               Se connecter
+            </Link>
+          </Button>
+          <Button asChild>
+            <Link href="/sign-up">
+              S&apos;inscrire
             </Link>
           </Button>
         </div>

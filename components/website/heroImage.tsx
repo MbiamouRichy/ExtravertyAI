@@ -134,7 +134,7 @@ export default function HeroImage() {
               </div>
 
               <Button asChild className="w-full md:w-fit text-sm md:text-base">
-                <Link href="/sign-in">
+                <Link href="/sign-up">
                   Demarrer maintenant
                 </Link>
               </Button>

@@ -87,7 +87,7 @@ function AvantApres() {
           </ItemGroup>
 
           <Button variant={"outline"} asChild className="w-11/12! mt-auto mx-auto text-sm md:text-base">
-            <Link href="/sign-in">
+            <Link href="/sign-up">
               Demarrer maintenant
             </Link>
           </Button>
@@ -119,7 +119,7 @@ function AvantApres() {
             ))}
           </ItemGroup>
           <Button asChild className="w-11/12! mt-auto mx-auto text-sm md:text-base">
-            <Link href="/sign-in">
+            <Link href="/sign-up">
               Demarrer maintenant
             </Link>
           </Button>
