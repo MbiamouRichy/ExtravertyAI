@@ -142,17 +142,17 @@ export function HeroSection() {
           <div className="relative mx-auto max-w-6xl">
             <DashboardPreview
               decorative
-              className="absolute inset-x-0 top-12 mx-auto hidden w-3/4 -translate-x-1/6 -rotate-6 opacity-30 blur-sm lg:block"
+              className="absolute inset-x-0 top-12 mx-auto hidden w-3/4 -translate-x-1/6 -rotate-6 opacity-30 blur-xs lg:block"
             />
             <DashboardPreview
               decorative
-              className="absolute inset-x-0 top-12 mx-auto hidden w-3/4 translate-x-1/6 rotate-6 opacity-30 blur-sm lg:block"
+              className="absolute inset-x-0 top-12 mx-auto hidden w-3/4 translate-x-1/6 rotate-6 opacity-30 blur-xs lg:block"
             />
             <DashboardPreview className="relative z-10 mx-auto w-full shadow-xl shadow-foreground/10 lg:w-3/4" />
           </div>
           <div
             aria-hidden="true"
-            className="pointer-events-none absolute inset-x-0 bottom-0 z-20 h-1/3 bg-gradient-to-t from-background via-background/80 to-transparent"
+            className="pointer-events-none absolute inset-x-0 bottom-0 z-20 h-1/3 bg-linear-to-t from-background via-background/80 to-transparent"
           />
         </div>
         <FullWidthDivider className="-bottom-px" />
