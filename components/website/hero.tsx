@@ -10,7 +10,6 @@ import HeroImage from "./heroImage";
 import Image from "next/image";
 import { FullWidthDivider } from "../ui/full-width-divider";
 import { DecorIcon } from "../ui/decor-icon";
-import { WhatsAppIcon } from "../social-icon";
 
 function DashboardPreview({
   decorative = false,
@@ -78,13 +77,13 @@ export function HeroSection() {
             "group mx-auto text-sm hidden md:flex w-fit items-center gap-3 rounded-sm border bg-card p-1 shadow",
             "fade-in slide-in-from-bottom-10 animate-in fill-mode-backwards transition-all delay-500 duration-500 ease-out",
           )}
-          href="https://wa.me/24176205629?text=Bonjour,%20Pouvez-vous%20m'expliquer%20la%20mise%20en%20place%20?"
+          href="/#tarifs"
         >
           <div className="rounded-xs border bg-primary/5 dark:bg-card px-1.5 py-0.5 shadow-sm">
             <p className="font-mono">Actuellement</p>
           </div>
 
-          <span>Nous acceptons de nouveau projets</span>
+          <span>Nous avons casse les prix!</span>
           <span className="block h-5 border-l" />
 
           <div className="pr-1">
@@ -125,8 +124,7 @@ export function HeroSection() {
           </Button>
           <Button asChild className="w-full md:w-auto text-sm md:text-base">
             <Link href="/sign-up">
-              <WhatsAppIcon aria-hidden="true" />
-              Demarrer maintenant
+              S&apos;inscrire
             </Link>
           </Button>
         </div>

@@ -6,7 +6,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { MobileNav } from "@/components/website/mobile-nav";
 import Link from "next/link";
 import { ModeToggle } from "../theming";
-import { LogIn } from "lucide-react";
+import { Separator } from "../ui/separator";
 
 export const navLinks = [
   {
@@ -74,9 +74,9 @@ export function Header() {
         </div>
         <div className="hidden lg:flex flex-row justify-center gap-2 items-center">
           <ModeToggle screen="desktop" />
+          <Separator orientation="vertical" />
           <Button asChild variant={"outline"}>
             <Link href="/sign-in">
-              <LogIn aria-hidden="true" />
               Se connecter
             </Link>
           </Button>
