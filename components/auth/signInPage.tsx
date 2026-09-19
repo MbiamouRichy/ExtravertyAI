@@ -28,6 +28,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { Controller, useForm } from "react-hook-form"
 import { Checkbox } from "../ui/checkbox";
 import { SignInSocialButton } from "./signInSocialButton";
+import { Logo } from "../logo";
 
 const formSchema = z.object({
 	email: z.string().email("Entrer une adresse email valide."),
@@ -114,6 +115,11 @@ export function AuthPage({ callbackUrl }: { callbackUrl: string }) {
 				<DecorIcon position="bottom-right" />
 
 				<div className="w-full max-w-sm space-y-8">
+					<Button asChild size={"icon"} variant={"ghost"} className="mx-auto">
+						<Link href="/" title="Accueil">
+							<Logo />
+						</Link>
+					</Button>
 					<div className="flex flex-col space-y-1">
 						<h1 className="font-bold text-2xl tracking-wide">Rejoignez-nous!</h1>
 						<p className="text-base text-muted-foreground">

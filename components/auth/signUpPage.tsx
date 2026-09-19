@@ -25,12 +25,12 @@ import {
 import { AuthDivider } from "@/components/dashboard/auth-divider";
 import { FloatingPaths } from "@/components/dashboard/floating-paths";
 import { ChevronLeftIcon, AtSignIcon, Loader, Eye, EyeOff, UserIcon, KeySquareIcon } from "lucide-react";
-import { SignInSocialButton } from "../auth/signInSocialButton";
+import { SignInSocialButton } from "./signInSocialButton";
 import Link from "next/link";
 import { signUp } from "@/lib/auth-client";
 import { useState } from "react";
 import { useHaptics } from "@/lib/webHaptics";
-import AlertVerifyEmail from "../auth/alertVerifyEmail";
+import AlertVerifyEmail from "./alertVerifyEmail";
 
 const formSchema = z
 	.object({
@@ -110,7 +110,7 @@ export function AuthPage() {
 		<main className="relative md:min-h-screen h-full overflow-x-hidden lg:grid lg:grid-cols-2">
 			<div className="relative hidden h-full flex-col border-r bg-secondary p-10 lg:flex dark:bg-secondary/20">
 				<div className="absolute inset-0 bg-linear-to-b from-transparent via-transparent to-background" />
-				<Link href="/" title="Page d'accueil">
+				<Link className="z-10" href="/" title="Page d'accueil">
 					<LogoIcon className="mr-auto w-10" />
 				</Link>
 

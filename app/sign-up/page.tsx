@@ -1,4 +1,4 @@
-import { AuthPage } from "@/components/dashboard/auth-page";
+import { AuthPage } from "@/components/auth/signUpPage";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
