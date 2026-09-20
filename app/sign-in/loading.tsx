@@ -21,6 +21,7 @@ export default function Loading() {
                 <DecorIcon position="bottom-right" />
 
                 <div className="w-full max-w-sm animate-in fade-in zoom-in-95 duration-500 space-y-8">
+                    <Skeleton className="h-8 w-10 rounded-md" /> {/*logo*/}
                     {/* Header Skeleton */}
                     <div className="flex flex-col space-y-2">
                         <Skeleton className="h-8 w-3/4 rounded-md" /> {/* H1 */}
