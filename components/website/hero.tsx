@@ -92,7 +92,7 @@ export function HeroSection() {
 
         <h1
           className={cn(
-            " text-balance text-center ",
+            " text-balance text-center tracking-wide",
             "fade-in slide-in-from-bottom-10 animate-in fill-mode-backwards delay-100 duration-500 ease-out",
           )}
         >
@@ -101,7 +101,7 @@ export function HeroSection() {
 
         <p
           className={cn(
-            "text-center md:max-w-prose text-muted-foreground text-base tracking-wider md:text-lg",
+            "text-center md:max-w-prose text-muted-foreground text-base tracking-wider md:text-lg leading-relaxed",
             "fade-in slide-in-from-bottom-10 animate-in fill-mode-backwards delay-200 duration-500 ease-out",
           )}
         >
