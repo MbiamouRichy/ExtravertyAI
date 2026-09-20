@@ -1,4 +1,3 @@
-import { cn } from "@/lib/utils";
 import { HeroSection } from "@/components/website/hero";
 import AvantApres from "@/components/website/avantApres";
 import Footer from "@/components/website/footer";
@@ -26,7 +25,6 @@ export const metadata: Metadata = {
     "WhatsApp automation",
     "bot WhatsApp",
     "automatisation WhatsApp",
-    "chatbot WhatsApp",
     "marketing WhatsApp",
     "tunnel de vente automatisé",
     "extraverty",
@@ -83,13 +81,7 @@ export default function page() {
       <Header />
       <div className="relative h-full overflow-hidden">
         <main
-          className={cn(
-            "relative md:mx-auto max-w-7xl h-full grow",
-            // X Borders
-            "before:absolute before:-inset-y-14 before:-left-px before:w-px before:bg-border",
-            "after:absolute after:-inset-y-14 after:-right-px after:w-px after:bg-border",
-          )}
-        >
+          className="relative md:mx-auto max-w-7xl h-full grow">
           <HeroSection />
           {/* <LogosSection /> */}
           <Demo />
