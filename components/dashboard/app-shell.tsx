@@ -12,7 +12,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 				<div
 					className={cn(
 						"flex flex-1 flex-col",
-						"w-full max-w-(--app-wrapper-max-width)"
+						"max-w-(--app-wrapper-max-width)"
 					)}
 				>
 					{children}

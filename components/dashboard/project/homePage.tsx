@@ -65,7 +65,7 @@ export default function HomeProjectsPage({ projects }: CustomProjectProps) {
             </p>
             <Button asChild variant="default" className="w-full sm:w-auto">
               <Link href="/projects/new" title="Créer un projet">
-                <Plus className="mr-2 h-4 w-4" />
+                <Plus className="sm:mr-2 h-4 w-4" />
                 Créer mon premier projet
               </Link>
             </Button>
