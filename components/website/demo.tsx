@@ -16,8 +16,6 @@ import {
   ItemTitle,
 } from "../ui/item";
 import { Card } from "../ui/card";
-import { DecorIcon } from "../ui/decor-icon";
-import { FullWidthDivider } from "../ui/full-width-divider";
 import PhoneMockup from "./phoneMockup";
 import { Button } from "../ui/button";
 import Link from "next/link";
@@ -62,13 +60,9 @@ const features2 = [
 function Demo() {
   return (
     <section
-      className="w-full relative flex flex-col items-center md:items-start gap-4 py-10 md:py-24 px-2 md:px-6 lg:px-12 scroll-mt-24"
+      className="w-full flex flex-col items-center md:items-start gap-4 py-10 md:py-24 px-2 md:px-6 lg:px-12 scroll-mt-24"
       id="demo"
     >
-      <DecorIcon className="size-4" position="bottom-left" />
-      <DecorIcon className="size-4" position="bottom-right" />
-
-      <FullWidthDivider className="-top-px" />
       <p className="text-xs text-primary bg-primary-foreground w-fit px-3 py-1 rounded-md inline-flex items-center gap-2">
         <SparklesIcon className="fill-primary size-4 " /> Demo en direct
       </p>
@@ -141,7 +135,6 @@ function Demo() {
         </div>
         <PhoneMockup videoSrc="/video.mp4" />
       </div>
-      <FullWidthDivider className="-bottom-px" />
     </section>
   );
 }

@@ -8,8 +8,7 @@ import { ArrowRightIcon, Video } from "lucide-react";
 import Link from "next/link";
 import HeroImage from "./heroImage";
 import Image from "next/image";
-import { FullWidthDivider } from "../ui/full-width-divider";
-import { DecorIcon } from "../ui/decor-icon";
+
 
 function DashboardPreview({
   decorative = false,
@@ -83,7 +82,7 @@ export function HeroSection() {
             <p className="font-mono">Actuellement</p>
           </div>
 
-          <span>Nous avons casse les prix!</span>
+          <span>on casse les prix!</span>
           <span className="block h-5 border-l" />
 
           <div className="pr-1">
@@ -97,7 +96,7 @@ export function HeroSection() {
             "fade-in slide-in-from-bottom-10 animate-in fill-mode-backwards delay-100 duration-500 ease-out",
           )}
         >
-          Automatisez vos réponses WhatsApp et ne perdez plus aucun client
+          Automatisez vos réponses WhatsApp et gardez le fil de chaque prospect.
         </h1>
 
         <p
@@ -122,38 +121,30 @@ export function HeroSection() {
               <Video data-icon="inline-start" /> Regarder la démo
             </Link>
           </Button>
-          <Button asChild className="w-full md:w-auto text-sm md:text-base">
+          <Button asChild size="lg" className="w-full md:w-auto text-sm md:text-base">
             <Link href="/sign-up">
               S&apos;inscrire
             </Link>
           </Button>
         </div>
       </div>
-      <div className="relative">
-        <DecorIcon className="size-4" position="top-left" />
-        <DecorIcon className="size-4" position="top-right" />
-        <DecorIcon className="size-4" position="bottom-left" />
-        <DecorIcon className="size-4" position="bottom-right" />
 
-        <FullWidthDivider className="-top-px" />
-        <div className="relative isolate overflow-hidden px-4 pt-8 pb-6 sm:px-8 sm:pt-12 sm:pb-8 lg:pt-16">
-          <div className="relative mx-auto max-w-6xl">
-            <DashboardPreview
-              decorative
-              className="absolute inset-x-0 top-12 mx-auto hidden w-3/4 -translate-x-1/6 -rotate-6 opacity-30 lg:block"
-            />
-            <DashboardPreview
-              decorative
-              className="absolute inset-x-0 top-12 mx-auto hidden w-3/4 translate-x-1/6 rotate-6 opacity-30 lg:block"
-            />
-            <DashboardPreview className="relative z-10 mx-auto w-full shadow-xl shadow-foreground/10 lg:w-3/4" />
-          </div>
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute inset-x-0 bottom-0 z-20 h-1/3 bg-linear-to-t from-background via-background/80 to-transparent"
+      <div className="relative isolate overflow-hidden px-4 pt-8 pb-6 sm:px-8 sm:pt-12 sm:pb-8 lg:pt-16">
+        <div className="relative mx-auto max-w-6xl">
+          <DashboardPreview
+            decorative
+            className="absolute inset-x-0 top-12 mx-auto hidden w-3/4 -translate-x-1/6 -rotate-6 opacity-30 lg:block"
           />
+          <DashboardPreview
+            decorative
+            className="absolute inset-x-0 top-12 mx-auto hidden w-3/4 translate-x-1/6 rotate-6 opacity-30 lg:block"
+          />
+          <DashboardPreview className="relative z-10 mx-auto w-full shadow-xl shadow-foreground/10 lg:w-3/4" />
         </div>
-        <FullWidthDivider className="-bottom-px" />
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-x-0 bottom-0 z-20 h-1/3 bg-linear-to-t from-background via-background/80 to-transparent"
+        />
       </div>
       <HeroImage />
     </section>

@@ -1,5 +1,3 @@
-import { DecorIcon } from "@/components/ui/decor-icon";
-import { FullWidthDivider } from "@/components/ui/full-width-divider";
 import Image from "next/image";
 import {
   Item,
@@ -65,13 +63,7 @@ const features2 = [
 
 export default function HeroImage() {
   return (
-    <section className="relative w-full px-2 md:px-0">
-      <DecorIcon className="size-4" position="top-left" />
-      <DecorIcon className="size-4" position="top-right" />
-      <DecorIcon className="size-4" position="bottom-left" />
-      <DecorIcon className="size-4" position="bottom-right" />
-
-      <FullWidthDivider className="-top-px" />
+    <section className="w-full px-2 md:px-0">
       <div className="overflow-hidden relative h-full w-full">
         <Image
           alt="hero image"
@@ -215,7 +207,6 @@ export default function HeroImage() {
           </div>
         </div>
       </div>
-      <FullWidthDivider className="-bottom-px" />
     </section>
   );
 }

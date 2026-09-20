@@ -39,7 +39,7 @@ export function Header() {
       className={cn(
         "fixed left-1/2 top-2.5 -translate-x-1/2 backdrop-blur-sm supports-backdrop-filter:bg-background/50 z-50  w-full  max-w-5xl border-border border-b md:rounded-md md:border md:transition-all md:ease-out",
         {
-          "md:top-3.5 md:max-w-4xl md:shadow": scrolled,
+          "md:top-3.5 md:max-w-240 md:shadow": scrolled,
         },
       )}
     >
@@ -74,7 +74,7 @@ export function Header() {
         </div>
         <div className="hidden lg:flex flex-row justify-center gap-2 items-center">
           <ModeToggle screen="desktop" />
-          <Separator orientation="vertical" />
+          <Separator orientation="vertical" className="h-6" />
           <Button asChild variant={"outline"}>
             <Link href="/sign-in">
               Se connecter

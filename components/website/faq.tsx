@@ -4,8 +4,6 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { DecorIcon } from "../ui/decor-icon";
-import { FullWidthDivider } from "../ui/full-width-divider";
 import { Button } from "../ui/button";
 import Link from "next/link";
 
@@ -75,11 +73,8 @@ export function Faq() {
   return (
     <section
       id="faq"
-      className="relative w-full flex flex-col items-center justify-center gap-6 md:gap-10 py-10 scroll-mt-24"
+      className="w-full flex flex-col items-center justify-center gap-6 md:gap-10 py-10 scroll-mt-24"
     >
-      <DecorIcon className="size-4" position="top-left" />
-      <DecorIcon className="size-4" position="top-right" />
-      <FullWidthDivider className="-top-px" />
       <div className="flex flex-col justify-center items-center gap-2 text-center">
         <h5 className="text-center font-bold text-2xl tracking-tight md:text-3xl lg:font-extrabold lg:text-4xl">
           Questions Fréquemment Posées
@@ -104,7 +99,6 @@ export function Faq() {
             </AccordionItem>
           ))}
         </Accordion>
-        <FullWidthDivider className="-bottom-px" />
       </div>
       <div className="max-w-xl px-2 md:px-6 text-center flex flex-col items-center gap-2 justify-center py-4">
         <p className="text-lg md:text-xl font-bold">
@@ -129,7 +123,6 @@ export function Faq() {
           </Button>
         </div>
       </div>
-      <FullWidthDivider className="-bottom-px" />
     </section>
   );
 }
