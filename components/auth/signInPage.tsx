@@ -117,7 +117,7 @@ export function AuthPage({ callbackUrl }: { callbackUrl: string }) {
 				<div className="w-full max-w-sm space-y-8">
 					<Button asChild size={"sm"} variant={"ghost"} className="mx-auto">
 						<Link href="/" title="Accueil">
-							<LogoIcon className="w-10" />
+							<LogoIcon LogoClassName="w-6" />
 						</Link>
 					</Button>
 					<div className="flex flex-col space-y-1">
