@@ -10,7 +10,7 @@ import { DeleteAccountEmailTemplate } from "@/components/emailTemplate/DeleteAcc
 import { deleteProjectResources } from "./project-deletion";
 
 export const auth = betterAuth({
-  baseURL: process.env.NEXT_PUBLIC_BASE_URL as string,
+  baseURL: process.env.NEXT_PUBLIC_APP_URL as string,
   database: prismaAdapter(prisma, {
     provider: "postgresql",
   }),
