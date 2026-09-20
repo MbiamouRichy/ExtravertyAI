@@ -74,7 +74,7 @@ export function Header() {
         </div>
         <div className="hidden lg:flex flex-row justify-center gap-2 items-center">
           <ModeToggle screen="desktop" />
-          <Separator orientation="vertical" className="h-6" />
+          <Separator orientation="vertical" className="h-6 my-auto mx-2" />
           <Button asChild variant={"outline"}>
             <Link href="/sign-in">
               Se connecter
