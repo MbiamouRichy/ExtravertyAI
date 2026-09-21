@@ -115,7 +115,7 @@ export function AuthPage({ callbackUrl }: { callbackUrl: string }) {
 				<DecorIcon position="bottom-right" />
 
 				<div className="w-full max-w-sm space-y-8">
-					<Button asChild size={"sm"} variant={"ghost"}>
+					<Button asChild variant={"ghost"}>
 						<Link href="/" title="Accueil">
 							<LogoIcon LogoClassName="w-6" className="w-10" />
 						</Link>
