@@ -12,13 +12,13 @@ export function DashboardSkeleton() {
 			<div className="rounded-lg" />
 			<div className="rounded-lg" />
 			<div className="rounded-lg" />
-			<div className="col-span-2 rounded-xl min-h-114! lg:col-span-2" />
-			<div className="col-span-2 rounded-xl min-h-92! lg:col-span-2" />
-			<div className="col-span-2 rounded-xl min-h-92! lg:col-span-2" />
-			<div className="col-span-1 rounded-xl min-h-92! lg:col-span-1" />
-			<div className="col-span-1 rounded-xl min-h-92! lg:col-span-1" />
-			<div className="rounded-xl md:col-span-2 min-h-92! lg:col-span-3" />
-			<div className="rounded-xl col-span-1 min-h-92! lg:col-span-1" />
+			<div className="col-span-2 rounded-lg min-h-114! lg:col-span-2" />
+			<div className="col-span-2 rounded-lg min-h-92! lg:col-span-2" />
+			<div className="col-span-2 rounded-lg min-h-92! lg:col-span-2" />
+			<div className="col-span-1 rounded-lg min-h-92! lg:col-span-1" />
+			<div className="col-span-1 rounded-lg min-h-92! lg:col-span-1" />
+			<div className="rounded-lg md:col-span-2 min-h-92! lg:col-span-3" />
+			<div className="rounded-lg col-span-1 min-h-92! lg:col-span-1" />
 		</div>
 	);
 }
