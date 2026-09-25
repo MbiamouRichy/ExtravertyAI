@@ -133,10 +133,10 @@ export async function DashboardStats({ projectId }: { projectId: string }) {
 						</CardTitle>
 					</CardHeader>
 					<CardContent className="flex flex-col gap-1">
-						<p className="font-semibold text-3xl tabular-nums tracking-tight">
+						<p className="font-semibold text-2xl tabular-nums tracking-tight">
 							{s.value}
 						</p>
-						<div className="text-xs flex flex-row items-center gap-2">
+						<div className="text-xs flex flex-row items-center gap-1">
 							<Delta value={s.delta}>
 								<DeltaIcon />
 								<DeltaValue />
