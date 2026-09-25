@@ -4,8 +4,8 @@ import { Plus, Smartphone, FolderOpen, Settings, CreditCardIcon, LinkIcon } from
 import Link from "next/link"
 import { ProjectsTable } from "./dataTable"
 import { ProjectsTableColumns } from "./columnTable"
-import CustomCard from "@/components/ui/customCard"
 import { StatusIndicator } from "@/components/ui/indicator"
+import { Card } from "@/components/ui/card"
 
 const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "outline" | "destructive" }> = {
   active: { label: "Actif", variant: "default" },
@@ -30,7 +30,7 @@ export interface CustomProjectProps {
 
 export default function HomeProjectsPage({ projects }: CustomProjectProps) {
   return (
-    <div className="flex w-full flex-col overflow-x-hidden justify-center md:mx-auto max-w-7xl space-y-6 md:space-y-8 p-4 sm:p-6 md:p-14">
+    <div className="flex w-full flex-1 flex-col overflow-x-hidden justify-center md:mx-auto max-w-7xl space-y-6 md:space-y-8 p-4 sm:p-6 md:p-14">
 
       {/* En-tête de page (Responsive) */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -77,7 +77,7 @@ export default function HomeProjectsPage({ projects }: CustomProjectProps) {
               {projects.map((project) => {
                 const statusInfo = statusConfig[project.status] || { label: "Inconnu", variant: "outline" };
                 return (
-                  <CustomCard
+                  <Card
                     key={project.id}
                     className="flex flex-col p-4 border bg-card shadow-sm space-y-4"
                   >
@@ -157,7 +157,7 @@ export default function HomeProjectsPage({ projects }: CustomProjectProps) {
                         </Button>
                       </div>
                     </div>
-                  </CustomCard>
+                  </Card>
                 )
               })}
             </div>
