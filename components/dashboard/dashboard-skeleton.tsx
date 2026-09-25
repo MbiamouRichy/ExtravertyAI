@@ -4,7 +4,7 @@ export function DashboardSkeleton() {
 	return (
 		<div
 			className={cn(
-				"grid md:grid-cols-2 gap-4 m-4 md:m-6 lg:grid-cols-4",
+				"grid grid-cols-1 md:grid-cols-2 gap-4 m-4 md:m-6 lg:grid-cols-4",
 				"*:min-h-48 *:w-full *:bg-muted *:dark:bg-muted/50"
 			)}
 		>

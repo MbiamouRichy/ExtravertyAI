@@ -137,7 +137,7 @@ export async function DashboardStats({ projectId }: { projectId: string }) {
 							{s.value}
 						</p>
 					</CardContent>
-					<CardFooter className="gap-2 text-xs pt-1">
+					<CardFooter className="gap-2 rounded-none bg-background text-xs pt-1">
 						{/* L'attribut 'invertDelta' pourrait être géré dans ton composant Delta pour inverser les couleurs (ex: une baisse des interventions humaines est positive, donc en vert) */}
 						<Delta value={s.delta}>
 							<DeltaIcon />

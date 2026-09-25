@@ -145,7 +145,6 @@ export default function HomeProjectsPage({ projects }: CustomProjectProps) {
                       <div className="grid grid-cols-2 gap-2 mt-2 pt-3 border-t border-border/50">
                         <Button className="w-full" size="sm">
                           <Link href={`/projects/${project.id}`} title={`Ouvrir ${project.name}`}>
-                            <LinkIcon className="h-4 w-4 mr-2" />
                             Ouvrir
                           </Link>
                         </Button>
@@ -163,7 +162,7 @@ export default function HomeProjectsPage({ projects }: CustomProjectProps) {
             </div>
 
             {/* VUE DESKTOP : DataTable ShadcnUI */}
-            <div className="hidden md:block">
+            <div className="hidden md:flex justify-center items-center">
               <ProjectsTable columns={ProjectsTableColumns} data={projects} />
             </div>
           </div>
