@@ -4,12 +4,16 @@ import { Portal, PortalBackdrop } from "@/components/ui/portal";
 import { Button } from "@/components/ui/button";
 import { navLinks } from "@/components/website/header";
 import { XIcon, MenuIcon, LogIn } from "lucide-react";
-import Link from "next/link";
 import { ModeToggle } from "../theming";
+import { useRouter } from "next/navigation";
 
 export function MobileNav() {
   const [open, setOpen] = React.useState(false);
-
+  const router = useRouter()
+  const handleNavigation = (href: string) => {
+    router.push(href)
+    setOpen(false)
+  }
   return (
     <div className="lg:hidden">
       <Button
@@ -40,40 +44,32 @@ export function MobileNav() {
             <div className="grid gap-y-2">
               {navLinks.map((link) => (
                 <Button
-                  asChild
                   className="justify-start"
                   key={link.label}
                   variant="ghost"
-                  onClick={() => setOpen(false)}
+                  onClick={() => handleNavigation(link.href)}
+                  title={link.label}
                 >
-                  <Link title={link.label} href={link.href}>
-                    {link.label}
-                  </Link>
+                  {link.label}
                 </Button>
               ))}
             </div>
-            <div className="mt-12 flex flex-col gap-2">
+            <div className="mt-10 flex flex-col-reverse gap-2">
               <ModeToggle screen="mobile" />
               <Button
-                asChild
-                onClick={() => setOpen(false)}
-                className="w-full"
+                onClick={() => handleNavigation("/#demo")}
+                className="w-full mb-10"
                 variant="outline"
+                title="Regarder la demo"
               >
-                <Link href="/#demo" title="Regarder la demo">
-                  Regarder la demo
-                </Link>
+                Regarder la demo
               </Button>
-              <Button asChild onClick={() => setOpen(false)} className="w-full">
-                <Link href="/sign-in">
-                  <LogIn aria-hidden="true" />
-                  Se connecter
-                </Link>
+              <Button onClick={() => handleNavigation("/sign-in")} className="w-full">
+                <LogIn aria-hidden="true" />
+                Se connecter
               </Button>
-              <Button asChild onClick={() => setOpen(false)} className="w-full">
-                <Link href="/sign-up">
-                  S&apos;inscrire
-                </Link>
+              <Button onClick={() => handleNavigation("/sign-up")} className="w-full">
+                S&apos;inscrire
               </Button>
             </div>
           </div>

@@ -100,10 +100,10 @@ export function AuthPage({ callbackUrl }: { callbackUrl: string }) {
 		}
 	}
 	return (
-		<div className="relative flex h-screen w-full items-center justify-center overflow-hidden px-6 md:px-8">
+		<div className="relative flex h-screen w-full items-center justify-center overflow-hidden md:px-6">
 			<div
 				className={cn(
-					"relative flex w-full max-w-sm flex-col justify-between p-6 md:p-8 animate-in fade-in slide-in-from-bottom-2 duration-300",
+					"relative flex w-full max-w-sm flex-col justify-between p-4 md:p-6 animate-in fade-in slide-in-from-bottom-2 duration-300",
 					"dark:bg-[radial-gradient(50%_80%_at_20%_0%,--theme(--color-foreground/.1),transparent)]"
 				)}
 			>

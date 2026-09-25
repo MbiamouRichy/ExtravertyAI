@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { ArrowRightIcon, Video } from "lucide-react";
+import { ArrowRightIcon } from "lucide-react";
 
 import Link from "next/link";
 import HeroImage from "./heroImage";
@@ -64,12 +64,12 @@ export function HeroSection() {
             )}
           />
 
-          <div
+          {/* <div
             className={cn(
               "absolute inset-0 isolate -z-10",
               "bg-[radial-gradient(20%_80%_at_20%_0%,--theme(--color-foreground/.15),transparent)]",
             )}
-          />
+          /> */}
         </div>
         <Link
           className={cn(
@@ -92,7 +92,7 @@ export function HeroSection() {
 
         <h1
           className={cn(
-            " text-balance text-center tracking-wide",
+            " text-balance text-center",
             "fade-in slide-in-from-bottom-10 animate-in fill-mode-backwards delay-100 duration-500 ease-out",
           )}
         >
@@ -110,7 +110,7 @@ export function HeroSection() {
           vente — même quand vous dormez.
         </p>
 
-        <div className="fade-in slide-in-from-bottom-10 flex flex-col-reverse md:flex-row-reverse md:w-fit w-full animate-in items-center justify-center gap-6 fill-mode-backwards pt-2 delay-300 duration-500 ease-out">
+        <div className="fade-in slide-in-from-bottom-10 flex flex-col-reverse md:flex-row-reverse md:w-fit w-full animate-in items-center justify-center gap-4 fill-mode-backwards pt-2 delay-300 duration-500 ease-out">
           <Button
             asChild
             className="w-full md:w-auto text-sm md:text-base"
@@ -118,7 +118,7 @@ export function HeroSection() {
             variant="outline"
           >
             <Link href="/#demo" title="demo">
-              <Video data-icon="inline-start" /> Regarder la démo
+              Regarder la démo
             </Link>
           </Button>
           <Button asChild size="lg" className="w-full md:w-auto text-sm md:text-base">
@@ -129,7 +129,7 @@ export function HeroSection() {
         </div>
       </div>
 
-      <div className="relative isolate overflow-hidden px-4 pt-8 pb-6 sm:px-8 sm:pt-12 sm:pb-8 lg:pt-16">
+      <div className="relative isolate overflow-hidden px-4 py-8 sm:px-8 sm:py-12  lg:pt-16">
         <div className="relative mx-auto max-w-6xl">
           <DashboardPreview
             decorative

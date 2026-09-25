@@ -53,11 +53,11 @@
 }
 
 :root {
-  --font-bricolage-grotesque: "Arial Narrow", "Helvetica Neue", Arial,
-    sans-serif;
+  --font-bricolage-grotesque:
+    "Arial Narrow", "Helvetica Neue", Arial, sans-serif;
   --font-crimson-text: Georgia, "Times New Roman", serif;
-  --font-roboto-mono: "Cascadia Mono", "SFMono-Regular", Consolas,
-    "Liberation Mono", monospace;
+  --font-roboto-mono:
+    "Cascadia Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
   --font-sans: var(--font-roboto-mono);
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
@@ -138,36 +138,32 @@
     @apply font-sans;
   }
   h1 {
-    @apply text-4xl md:text-[2.75rem] tracking-tight;
+    @apply text-5xl md:text-6xl leading-[1.06]! tracking-[-0.055em]!;
     font-family: var(--font-heading);
-    line-height: 1.05;
-    letter-spacing: -0.035em;
     font-weight: 800;
   }
   h2 {
-    @apply text-2xl md:text-3xl tracking-tight;
+    @apply text-2xl md:text-3xl tracking-wider;
     font-family: var(--font-heading);
     line-height: 1.1;
-    letter-spacing: -0.025em;
     font-weight: 700;
   }
   h3 {
+    @apply tracking-wide;
     font-family: var(--font-heading);
     font-size: 1.75rem;
     line-height: 1.2;
-    letter-spacing: -0.02em;
     font-weight: 700;
   }
   h4,
   h5,
   h6 {
-    @apply tracking-tight;
+    @apply tracking-tighter;
     font-family: var(--font-heading);
-    letter-spacing: -0.01em;
   }
   body,
   p {
-    @apply leading-relaxed;
+    @apply leading-relaxed tracking-tight;
     font-family: var(--font-mono);
   }
   code,

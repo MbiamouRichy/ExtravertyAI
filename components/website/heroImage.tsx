@@ -71,7 +71,7 @@ export default function HeroImage() {
           src="/heroImage.png"
           fill
           sizes="1200"
-          className=" object-cover hidden md:block absolute top-0 left-0 -z-10 w-full min-h-max h-full dark:brightness-[0.9]"
+          className="object-cover hidden md:block absolute top-0 left-0 -z-10 w-full min-h-max h-full dark:md:brightness-[0.9]"
         />
 
         <div className="py-8 md:py-16 lg:py-20 md:px-12 lg:px-16 w-full flex flex-col gap-4 md:gap-6 scroll-mt-24">
