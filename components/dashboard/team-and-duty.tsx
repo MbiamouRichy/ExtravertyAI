@@ -52,7 +52,7 @@ export function TeamOnDuty({
                 <CardTitle>Membres d&apos;equipe</CardTitle>
                 <CardDescription>Les personnes qui travaille avec vous sur ce projet.</CardDescription>
             </CardHeader>
-            <CardContent className={cn("p-0", teammates.length > 10 && "max-h-72 mask-b-from-50% mask-b-to-100%")}>
+            <CardContent className={cn("p-0", teammates.length > 10 && "max-h-72 min-h-16 mask-b-from-50% mask-b-to-100%")}>
                 <ul className="flex flex-col divide-y divide-border">
                     {teammates.slice(0, 10).map((t) => (
                         <li

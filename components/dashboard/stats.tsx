@@ -127,8 +127,8 @@ export async function DashboardStats({ projectId }: { projectId: string }) {
 			{/* {N'oublie pas de remplacer mockStats par les vraies stats} */}
 			{mockStats.map((s) => (
 				<Card className={cn("shadow-none dark:ring-0")} key={s.label}>
-					<CardHeader className="flex flex-row items-center justify-between pb-2">
-						<CardTitle className="font-medium text-sm text-muted-foreground tracking-wide">
+					<CardHeader>
+						<CardTitle className="font-normal text-xs text-muted-foreground tracking-tight">
 							{s.label}
 						</CardTitle>
 					</CardHeader>
@@ -136,15 +136,14 @@ export async function DashboardStats({ projectId }: { projectId: string }) {
 						<p className="font-semibold text-3xl tabular-nums tracking-tight">
 							{s.value}
 						</p>
+						<div className="text-xs flex flex-row items-center gap-2">
+							<Delta value={s.delta}>
+								<DeltaIcon />
+								<DeltaValue />
+							</Delta>
+							<span className="text-muted-foreground">vs sem. dernière</span>
+						</div>
 					</CardContent>
-					<CardFooter className="gap-2 rounded-none bg-background text-xs pt-1">
-						{/* L'attribut 'invertDelta' pourrait être géré dans ton composant Delta pour inverser les couleurs (ex: une baisse des interventions humaines est positive, donc en vert) */}
-						<Delta value={s.delta}>
-							<DeltaIcon />
-							<DeltaValue />
-						</Delta>
-						<span className="text-muted-foreground">vs sem. dernière</span>
-					</CardFooter>
 				</Card>
 			))}
 		</>
