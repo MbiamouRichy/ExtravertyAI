@@ -18,7 +18,7 @@ export async function reserveMessageQuota(
   const [project] = await tx.$queryRaw<
     Array<{ status: string; deletionPending: boolean; now: Date }>
   >`
-    SELECT status::text, "deletionPending", clock_timestamp() AS now FROM project
+    SELECT (CASE WHEN "automationPaused" AND status = 'paused' THEN COALESCE("statusBeforePause", status) ELSE status END)::text AS status, "deletionPending", clock_timestamp() AS now FROM project
     WHERE id = ${projectId} FOR UPDATE
   `;
   if (

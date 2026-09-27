@@ -13,6 +13,11 @@ import {
   Sparkles,
 } from "lucide-react";
 import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
+import { cn } from "@/lib/utils";
 import { saveAgentConfiguration } from "@/app/actions/project-settings";
 import {
   AGENT_DEFAULTS,
@@ -107,26 +112,76 @@ export function AgentEditor({
   return (
     <div className="space-y-7">
       {onboarding && (
-        <ol
-          aria-label="Étapes de configuration"
-          className="grid grid-cols-3 gap-2 sm:gap-4"
-        >
-          {steps.map((label, index) => (
-            <li
-              key={label}
-              aria-current={step === index ? "step" : undefined}
-              className={`border-t-2 pt-3 ${index <= step ? "border-border" : "border-border"}`}
-            >
-              <span
-                className={`mb-1 block text-xs font-medium ${index <= step ? "text-foreground dark:text-foreground" : "text-muted-foreground"}`}
-              >
-                0{index + 1}
-                {index < step && " · Terminé"}
-              </span>
-              <span className="text-xs font-medium sm:text-sm">{label}</span>
-            </li>
-          ))}
-        </ol>
+        <div className="space-y-4">
+          <p className="text-sm font-medium" role="status" aria-atomic="true">
+            Étape {step + 1} sur {steps.length} · {steps[step]}
+          </p>
+          <Progress
+            value={((step + 1) / steps.length) * 100}
+            aria-label="Avancement dans les étapes de configuration"
+            aria-valuetext={`Étape ${step + 1} sur ${steps.length} : ${steps[step]}`}
+            className="[&>[data-slot=progress-indicator]]:motion-reduce:transition-none"
+          />
+          <ol
+            aria-label="Étapes de configuration"
+            className="grid gap-3 sm:grid-cols-3"
+          >
+            {steps.map((label, index) => {
+              const active = step === index;
+              const completed = index < step;
+
+              return (
+                <li key={label} aria-current={active ? "step" : undefined}>
+                  <Card
+                    size="sm"
+                    className={cn(
+                      "h-full flex-row items-start gap-3 px-3",
+                      active
+                        ? "bg-primary/5 ring-2 ring-primary"
+                        : completed
+                          ? "bg-muted/50"
+                          : "text-muted-foreground",
+                    )}
+                  >
+                    <Badge
+                      variant={active ? "default" : "outline"}
+                      className="h-7 min-w-9 tabular-nums"
+                    >
+                      0{index + 1}
+                    </Badge>
+                    <div className="min-w-0 space-y-1">
+                      <p
+                        className={cn(
+                          "text-sm",
+                          active ? "font-semibold" : "font-medium",
+                        )}
+                      >
+                        {label}
+                      </p>
+                      <p
+                        className={cn(
+                          "flex items-center gap-1 text-xs",
+                          active
+                            ? "font-medium text-primary"
+                            : "text-muted-foreground",
+                        )}
+                      >
+                        {completed && (
+                          <Check className="size-3" aria-hidden="true" />
+                        )}
+                        {active
+                          ? "En cours"
+                          : completed
+                            ? "Terminé"
+                            : "À venir"}
+                      </p>
+                    </div>
+                  </Card>
+                </li>
+              );
+            })}
+          </ol>
+        </div>
       )}
       <div className="grid gap-7 xl:grid-cols-[minmax(0,1fr)_320px]">
         <form
@@ -215,7 +270,7 @@ export function AgentEditor({
                     12 000
                   </span>
                 </div>
-                <button
+                <Button
                   type="button"
                   disabled={config.agentSystemMessage.length > 11880}
                   onClick={() =>
@@ -224,11 +279,13 @@ export function AgentEditor({
                       `${config.agentSystemMessage}\n\nHORAIRES ET CONTACT HUMAIN\n\nOFFRES ET TARIFS VÉRIFIÉS\n\nQUESTIONS FRÉQUENTES\n`,
                     )
                   }
-                  className="mt-4 inline-flex min-h-10 items-center gap-2 text-sm font-medium text-foreground disabled:opacity-40 dark:text-foreground"
+                  variant="ghost"
+                  size="lg"
+                  className="mt-4 h-auto whitespace-normal text-left"
                 >
                   <Sparkles className="size-4" /> Ajouter des rubriques à
                   compléter
-                </button>
+                </Button>
               </section>
             )}
             {show(2) && (
@@ -387,27 +444,25 @@ export function AgentEditor({
           )}
           <div className="flex flex-col-reverse justify-between gap-3 border-t pt-5 sm:flex-row sm:items-center">
             {onboarding && step > 0 ? (
-              <button
+              <Button
                 type="button"
                 disabled={pending}
                 onClick={() => {
                   setError("");
                   setStep(step - 1);
                 }}
-                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border px-5 text-sm font-medium"
+                variant="outline"
+                size="lg"
               >
                 <ArrowLeft className="size-4" /> Précédent
-              </button>
+              </Button>
             ) : (
               <span className="flex items-center gap-2 text-xs text-muted-foreground">
                 <ShieldCheck className="size-4" /> Réglages réservés à votre
                 équipe
               </span>
             )}
-            <button
-              disabled={pending}
-              className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-medium text-primary-foreground hover:bg-primary disabled:opacity-60"
-            >
+            <Button disabled={pending} type="submit" size="lg">
               {pending ? (
                 <Loader2 className="size-4 animate-spin" />
               ) : onboarding && step < 2 ? (
@@ -422,7 +477,7 @@ export function AgentEditor({
                     ? "Continuer"
                     : "Valider et ouvrir le chat"
                   : "Enregistrer la configuration"}
-            </button>
+            </Button>
           </div>
         </form>
         <aside className="self-start rounded-2xl bg-muted/50 p-5 xl:sticky xl:top-6">

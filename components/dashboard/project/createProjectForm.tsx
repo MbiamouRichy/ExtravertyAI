@@ -2,9 +2,9 @@
 
 import Link from "next/link";
 import { useRef, useState } from "react";
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
+import { getCountries, getCountryCallingCode } from "libphonenumber-js/max";
 import {
   ArrowLeft,
   ArrowRight,
@@ -15,13 +15,46 @@ import {
   Loader2,
   LockKeyhole,
   MessageSquare,
-  Smartphone,
   Sparkles,
 } from "lucide-react";
 
 import { createProjectAndCheckout } from "@/app/actions/stripe-actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Field,
+  FieldDescription,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+} from "@/components/ui/field";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+  InputGroupText,
+} from "@/components/ui/input-group";
+import {
+  ProjectCreationFormSchema,
+  parseProjectPhone,
+  type ProjectCreationFormValues,
+} from "@/lib/project-creation-schema";
+
+const countryNames = new Intl.DisplayNames(["fr"], { type: "region" });
+const phoneCountries = getCountries()
+  .map((code) => ({
+    code,
+    name: countryNames.of(code) ?? code,
+    callingCode: getCountryCallingCode(code),
+  }))
+  .sort((a, b) => a.name.localeCompare(b.name, "fr"));
 
 const PLANS = [
   {
@@ -47,28 +80,7 @@ const PLANS = [
   },
 ] as const;
 
-function normalizePhone(value: string) {
-  return value.replace(/[\s()-]/g, "");
-}
-
-const formSchema = z.object({
-  name: z
-    .string()
-    .trim()
-    .min(3, "Utilisez au moins 3 caractères.")
-    .max(80, "Utilisez au maximum 80 caractères."),
-  numero: z
-    .string()
-    .trim()
-    .max(32, "Ce numéro est trop long.")
-    .refine(
-      (value) => /^\+[1-9]\d{6,14}$/.test(normalizePhone(value)),
-      "Ajoutez l’indicatif international, par exemple +33 6 12 34 56 78.",
-    ),
-  plan: z.enum(["starter", "business", "pro"]),
-});
-
-type FormValues = z.infer<typeof formSchema>;
+type FormValues = ProjectCreationFormValues;
 
 const inputClassName =
   "h-12 w-full rounded-xl border border-input bg-background pl-11 pr-4 " +
@@ -92,24 +104,29 @@ export default function CreateProjectForm() {
 
   const {
     register,
+    control,
+    trigger,
+    setValue,
     watch,
     handleSubmit,
     clearErrors,
     setError,
     formState: { errors },
   } = useForm<FormValues>({
-    resolver: zodResolver(formSchema),
+    resolver: zodResolver(ProjectCreationFormSchema),
     mode: "onTouched",
     reValidateMode: "onChange",
     defaultValues: {
       name: "",
       numero: "",
+      country: "FR",
       // Choix initial le moins cher, sans pousser le forfait supérieur.
       plan: "starter",
     },
   });
 
   const selectedPlanId = watch("plan");
+  const selectedCountry = watch("country");
   const projectName = watch("name").trim();
 
   const selectedPlan =
@@ -125,7 +142,7 @@ export default function CreateProjectForm() {
     try {
       const result = await createProjectAndCheckout({
         name: values.name,
-        numero: normalizePhone(values.numero),
+        numero: parseProjectPhone(values.numero, values.country)!.number,
         plan: values.plan,
       });
 
@@ -293,56 +310,143 @@ export default function CreateProjectForm() {
                   )}
                 </div>
 
-                <div className="space-y-2">
-                  <label
-                    htmlFor="project-phone"
-                    className="block text-sm font-medium"
-                  >
-                    Numéro WhatsApp
-                  </label>
-
-                  <div className="relative">
-                    <Smartphone
-                      aria-hidden="true"
-                      className="pointer-events-none absolute left-3.5 top-4 size-4 text-muted-foreground"
+                <FieldGroup className="gap-4">
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <Controller
+                      name="country"
+                      control={control}
+                      render={({ field, fieldState }) => (
+                        <Field data-invalid={fieldState.invalid}>
+                          <FieldLabel htmlFor="project-phone-country">
+                            Pays / indicatif
+                          </FieldLabel>
+                          <Select
+                            name={field.name}
+                            value={field.value}
+                            disabled={isBusy}
+                            onValueChange={(value) => {
+                              field.onChange(value);
+                              if (watch("numero")) void trigger("numero");
+                            }}
+                          >
+                            <SelectTrigger
+                              id="project-phone-country"
+                              ref={field.ref}
+                              onBlur={field.onBlur}
+                              aria-invalid={fieldState.invalid}
+                              aria-describedby={
+                                fieldState.invalid
+                                  ? "project-phone-country-error"
+                                  : undefined
+                              }
+                              className="w-full min-w-0 rounded-xl data-[size=default]:h-12"
+                            >
+                              <SelectValue placeholder="Choisir un pays" />
+                            </SelectTrigger>
+                            <SelectContent
+                              position="popper"
+                              className="max-h-80"
+                            >
+                              {phoneCountries.map((country) => (
+                                <SelectItem
+                                  key={country.code}
+                                  value={country.code}
+                                  textValue={`${country.name} ${country.code} +${country.callingCode}`}
+                                >
+                                  <span className="truncate">
+                                    {country.name}
+                                  </span>
+                                  <span className="shrink-0 text-muted-foreground tabular-nums">
+                                    +{country.callingCode}
+                                  </span>
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          {fieldState.invalid && (
+                            <FieldError
+                              id="project-phone-country-error"
+                              errors={[fieldState.error]}
+                            />
+                          )}
+                        </Field>
+                      )}
                     />
-
-                    <Input
-                      {...register("numero")}
-                      id="project-phone"
-                      type="tel"
-                      inputMode="tel"
-                      autoComplete="tel"
-                      maxLength={32}
-                      required
-                      placeholder="+33 6 12 34 56 78"
-                      aria-invalid={Boolean(errors.numero)}
-                      aria-describedby={
-                        errors.numero
-                          ? "project-phone-help project-phone-error"
-                          : "project-phone-help"
-                      }
-                      className={inputClassName}
+                    <Controller
+                      name="numero"
+                      control={control}
+                      render={({ field, fieldState }) => (
+                        <Field data-invalid={fieldState.invalid}>
+                          <FieldLabel htmlFor="project-phone">
+                            Numéro WhatsApp
+                          </FieldLabel>
+                          <InputGroup className="h-12 rounded-xl bg-background">
+                            <InputGroupAddon>
+                              <InputGroupText className="tabular-nums">
+                                +{getCountryCallingCode(selectedCountry)}
+                              </InputGroupText>
+                            </InputGroupAddon>
+                            <InputGroupInput
+                              {...field}
+                              onChange={(event) => {
+                                const value = event.target.value;
+                                const international = value
+                                  .trim()
+                                  .startsWith("+")
+                                  ? parseProjectPhone(value)
+                                  : undefined;
+                                if (international?.country) {
+                                  setValue("country", international.country, {
+                                    shouldValidate: true,
+                                    shouldDirty: true,
+                                  });
+                                  field.onChange(
+                                    international.formatNational(),
+                                  );
+                                } else {
+                                  field.onChange(value);
+                                }
+                              }}
+                              id="project-phone"
+                              type="tel"
+                              inputMode="tel"
+                              autoComplete="tel-national"
+                              disabled={isBusy}
+                              maxLength={40}
+                              required
+                              placeholder={
+                                selectedCountry === "FR"
+                                  ? "06 12 34 56 78"
+                                  : "Votre numéro"
+                              }
+                              aria-invalid={fieldState.invalid}
+                              aria-describedby={
+                                fieldState.invalid
+                                  ? "project-phone-help project-phone-error"
+                                  : "project-phone-help"
+                              }
+                              className="min-w-0 text-base"
+                            />
+                          </InputGroup>
+                          {fieldState.invalid && (
+                            <FieldError
+                              id="project-phone-error"
+                              errors={[fieldState.error]}
+                            />
+                          )}
+                        </Field>
+                      )}
                     />
                   </div>
-
-                  <p
+                  <FieldDescription
                     id="project-phone-help"
-                    className="text-xs leading-5 text-muted-foreground"
+                    className="text-xs leading-5"
                   >
-                    Utilisez un numéro que vous êtes autorisé à connecter, avec
-                    son indicatif pays. Les espaces sont acceptés.
-                  </p>
-
-                  {errors.numero && (
-                    <p
-                      id="project-phone-error"
-                      className="text-sm text-destructive"
-                    >
-                      {errors.numero.message}
-                    </p>
-                  )}
-                </div>
+                    Choisissez le pays, puis saisissez votre numéro national.
+                    Les espaces et le zéro initial sont acceptés selon le pays.
+                    Utilisez un numéro que vous êtes autorisé à connecter.
+                  </FieldDescription>
+                </FieldGroup>
 
                 <div className="flex items-start gap-3 rounded-xl bg-muted/60 p-4">
                   <MessageSquare

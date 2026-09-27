@@ -54,7 +54,7 @@ export function Header() {
         <Link
           className={cn(
             buttonVariants({ variant: "ghost" }),
-            "border-border border w-auto! hover:bg-muted dark:hover:bg-muted/50",
+           
           )}
           href="/"
         >

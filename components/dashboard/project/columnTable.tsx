@@ -14,7 +14,7 @@ import { Badge } from "@/components/ui/badge"
 import { ArrowUpDown, MoreHorizontal, Smartphone, Eye, Settings, CreditCardIcon } from "lucide-react"
 import Link from "next/link"
 import { CustomProjectProps } from "./homePage"
-import { StatusIndicator } from "@/components/ui/indicator"
+import { WhatsAppConnectionStatus } from "./whatsapp-connection-status"
 
 // Dictionnaire de configuration des statuts
 const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "outline" | "destructive" }> = {
@@ -67,28 +67,11 @@ export const ProjectsTableColumns: ColumnDef<CustomProjectProps["projects"][0]>[
     },
     {
         accessorKey: "instanceStatus",
-        header: "Etat du numéro",
+        header: "Connexion WhatsApp",
         cell: ({ row }) => {
             const status = row.original.instanceStatus;
             return (
-                <div className="flex items-center gap-2">
-                    {status === "connected" ? (
-                        <>
-                            <StatusIndicator color="emerald" pulse />
-                            <span className="text-xs font-medium">Connecté</span>
-                        </>
-                    ) : status === "connecting" ? (
-                        <>
-                            <StatusIndicator color="sky" pulse />
-                            <span className="text-xs font-medium">En cours</span>
-                        </>
-                    ) : (
-                        <>
-                            <StatusIndicator color="amber" />
-                            <span className="text-xs font-medium text-muted-foreground">Déconnecté</span>
-                        </>
-                    )}
-                </div>
+                <WhatsAppConnectionStatus status={status} />
             )
         },
     },

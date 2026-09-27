@@ -10,7 +10,9 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 ## UI components
 
-For the design and implementation of every UI element—including buttons, forms, tables, inputs, dialogs, menus, and any other interface component—always use the project's existing shadcn/ui components. Reuse or compose components from `components/ui/` instead of creating custom replacements. If a required shadcn/ui component is missing, add it following the project's existing shadcn/ui conventions, then use that component.
+Mandatory reuse of the project's shadcn/ui components in `components/ui/` applies only to buttons and form controls: `Button`, `Input`, `Textarea`, `Select`, `Checkbox`, radio groups, switches, input groups, and the form field and validation primitives. Reuse or compose these components instead of creating custom replacements. If a required form control is missing, add it following the project's existing shadcn/ui conventions.
+
+This is NOT a requirement to build every UI element with shadcn/ui. For page layouts, sections, cards, tables, status indicators, navigation, dialogs, menus, visualizations, and decorative or marketing content, choose the implementation that best serves the design and user experience. Existing shadcn/ui components are optional for these elements; semantic HTML and custom React components are welcome. Do not force content into generic cards, badges, or component wrappers when a more intentional composition is clearer. Reuse existing accessible interaction primitives where useful, and preserve keyboard navigation, focus management, and screen-reader support in custom interactive components. Buttons and form controls inside these elements must still use the project's components.
 
 Always use the project's configured shadcn/ui theme for the entire interface. Rely on its existing semantic design tokens and utilities—such as `background`, `foreground`, `primary`, `secondary`, `muted`, `accent`, `destructive`, `border`, `input`, `ring`, and the configured radius—rather than introducing hard-coded colors, arbitrary visual values, parallel themes, or component-specific styling systems. Any new UI must remain visually consistent with the project's shadcn/ui theme in both light and dark modes.
 
@@ -25,7 +27,7 @@ All client-side forms must follow the project's standard shadcn/ui form pattern:
 - Build form layouts with the project's shadcn/ui components, especially `Field`, `FieldGroup`, `FieldLabel`, `FieldDescription`, and `FieldError`, together with the appropriate `Input`, `Textarea`, `Select`, `Checkbox`, `InputGroup`, or other shadcn/ui control.
 - Set `data-invalid` and `aria-invalid` from `fieldState.invalid`, associate every label with a stable field `id`, and display validation feedback with `FieldError`.
 - Provide explicit `defaultValues`, appropriate autocomplete attributes, accessible descriptions, loading/disabled states, and clear reset and submit behavior.
-- Use the project's `Button`, `Card`, and related shadcn/ui components for actions and form containers when appropriate.
+- Use the project's `Button` for form actions. Form containers and page layouts may use semantic HTML or custom components; `Card` and other shadcn/ui layout components are optional.
 - Use Sonner (`toast`) for user-facing success and error feedback when a toast is appropriate.
 - Follow the structure and conventions of the supplied `BugReportForm` example as the reference implementation; do not introduce a different form abstraction unless the task explicitly requires it.
 - Repeat critical validation and authorization on the server. Client-side Zod validation is for user experience and must never be treated as a security boundary.

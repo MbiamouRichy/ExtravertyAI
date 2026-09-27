@@ -1,6 +1,7 @@
 import { createOutboundProcessor } from "../lib/outbound-jobs";
 import {
   writeAgentConfig,
+  writeProjectPause,
   markProjectForDeletion,
 } from "../lib/project-settings";
 import { AGENT_DEFAULTS, buildAgentSystemMessage } from "../lib/agent-config";
@@ -71,6 +72,23 @@ test(
           },
         });
         return p;
+      }
+      async function pauseActor(
+        projectId: string,
+        role: "OWNER" | "ADMIN" | "USER" = "ADMIN",
+      ) {
+        const actor = await client.user.create({
+          data: {
+            id: crypto.randomUUID(),
+            name: "Pause test",
+            email: crypto.randomUUID() + "@example.test",
+            emailVerified: false,
+          },
+        });
+        await client.projectMembership.create({
+          data: { projectId, userId: actor.id, role },
+        });
+        return actor;
       }
       async function incoming(projectId: string, id: string) {
         await client.$transaction(async (tx) => {
@@ -307,6 +325,116 @@ test(
               .status,
             "active",
           );
+        },
+      );
+      await t.test(
+        "project pause is scoped to owners and admins and preserves individual contact choices",
+        async () => {
+          for (const role of ["OWNER", "ADMIN", "USER"] as const) {
+            const p = await fixture();
+            const actor = await pauseActor(p.id, role);
+            if (role === "USER") {
+              await assert.rejects(
+                client.$transaction((tx) =>
+                  writeProjectPause(tx, p.id, actor.id, 0, true),
+                ),
+                /droits/,
+              );
+              continue;
+            }
+            const contact = await client.contact.create({
+              data: {
+                projectId: p.id,
+                remoteJid: "241000001@s.whatsapp.net",
+                phone: "241000001",
+                aiActive: false,
+              },
+            });
+            await client.$transaction((tx) =>
+              writeProjectPause(tx, p.id, actor.id, 0, true),
+            );
+            const paused = await client.project.findUniqueOrThrow({
+              where: { id: p.id },
+            });
+            assert.equal(paused.status, "paused");
+            assert.equal(paused.statusBeforePause, "active");
+            assert.equal(paused.automationPaused, true);
+            await assert.rejects(
+              client.$transaction((tx) =>
+                writeProjectPause(tx, p.id, actor.id, 0, false),
+              ),
+              /réglages ont changé/,
+            );
+            // Manual replies still use the paid quota while automation is paused.
+            await client.$transaction((tx) => reserveMessageQuota(tx, p.id));
+            await client.$transaction((tx) =>
+              writeProjectPause(tx, p.id, actor.id, 1, false),
+            );
+            const resumed = await client.project.findUniqueOrThrow({
+              where: { id: p.id },
+            });
+            assert.equal(resumed.status, "active");
+            assert.equal(resumed.automationPaused, false);
+            assert.equal(resumed.messageCount, 1);
+            assert.equal(
+              (
+                await client.contact.findUniqueOrThrow({
+                  where: { id: contact.id },
+                })
+              ).aiActive,
+              false,
+            );
+            const other = await fixture();
+            await assert.rejects(
+              client.$transaction((tx) =>
+                writeProjectPause(tx, other.id, actor.id, 0, true),
+              ),
+              /droits/,
+            );
+          }
+        },
+      );
+      await t.test(
+        "global pause fences in-flight generation and queued bot replies even after resuming",
+        async () => {
+          const p = await fixture();
+          const actor = await pauseActor(p.id);
+          await incoming(p.id, "global-generating");
+          const job = await claimAiJob(client);
+          assert.ok(job);
+          await client.$transaction((tx) =>
+            writeProjectPause(tx, p.id, actor.id, 0, true),
+          );
+          await incoming(p.id, "global-paused-inbound");
+          assert.equal(
+            await client.aiJob.count({ where: { projectId: p.id } }),
+            1,
+          );
+          await client.$transaction((tx) =>
+            writeProjectPause(tx, p.id, actor.id, 1, false),
+          );
+          await runAiJob(client, job, async () => "Must never be sent");
+          assert.equal(
+            (await client.aiJob.findUniqueOrThrow({ where: { id: job.id } }))
+              .state,
+            "CANCELLED",
+          );
+          assert.equal(
+            await client.outboundJob.count({ where: { projectId: p.id } }),
+            0,
+          );
+          await incoming(p.id, "global-queued-bot");
+          const next = await claimAiJob(client);
+          assert.ok(next);
+          await runAiJob(client, next, async () => "Queued before pause");
+          await client.$transaction((tx) =>
+            writeProjectPause(tx, p.id, actor.id, 2, true),
+          );
+          await client.$transaction((tx) =>
+            writeProjectPause(tx, p.id, actor.id, 3, false),
+          );
+          const sender = createOutboundProcessor(client, async () => {});
+          assert.equal((await sender.claimNextJob())?.cancelled, true);
         },
       );
       await t.test(
@@ -645,6 +773,15 @@ test(
           process.env.MESSAGE_LIMIT_STARTER = "1000";
           const p = await fixture();
           await client.quotaPeriod.deleteMany({ where: { projectId: p.id } });
+          await client.project.update({
+            where: { id: p.id },
+            data: { status: "inactive", messageCount: 0, allMessagesCount: 0 },
+          });
+          assert.equal(
+            (await client.project.findUniqueOrThrow({ where: { id: p.id } }))
+              .status,
+            "inactive",
+          );
           const start = Math.floor(Date.now() / 1000);
           const sub = {
             id: "sub_test",
@@ -665,6 +802,14 @@ test(
             latest_invoice: null,
           } as unknown as Stripe.Subscription;
           await syncSubscription(client, sub, 10);
+          const activated = await client.project.findUniqueOrThrow({
+            where: { id: p.id },
+          });
+          assert.equal(activated.status, "trialing");
+          assert.equal(activated.stripeSubscriptionId, sub.id);
+          assert.equal(activated.allMessagesCount, 150);
+          assert.equal(activated.messageCount, 0);
+          assert.equal(activated.expiredAt?.getTime(), (start + 864000) * 1000);
           await client.$transaction((tx) => reserveMessageQuota(tx, p.id));
           await syncSubscription(client, sub, 10);
           assert.equal(
@@ -702,6 +847,34 @@ test(
             1,
           );
           assert.equal(subscriptionStatus("incomplete"), "inactive");
+          const actor = await pauseActor(p.id);
+          await client.$transaction((tx) =>
+            writeProjectPause(tx, p.id, actor.id, 0, true),
+          );
+          await syncSubscription(client, sub, 11);
+          assert.equal(
+            (await client.project.findUniqueOrThrow({ where: { id: p.id } }))
+              .status,
+            "paused",
+          );
+          sub.status = "past_due";
+          await syncSubscription(client, sub, 12);
+          await assert.rejects(
+            client.$transaction((tx) =>
+              writeProjectPause(tx, p.id, actor.id, 1, false),
+            ),
+            /abonnement/,
+          );
+          sub.status = "active";
+          await syncSubscription(client, sub, 13);
+          await client.$transaction((tx) =>
+            writeProjectPause(tx, p.id, actor.id, 1, false),
+          );
+          assert.equal(
+            (await client.project.findUniqueOrThrow({ where: { id: p.id } }))
+              .status,
+            "active",
+          );
         },
       );
     } finally {

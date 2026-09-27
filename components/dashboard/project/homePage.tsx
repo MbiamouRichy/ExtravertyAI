@@ -4,7 +4,7 @@ import { Plus, Smartphone, FolderOpen, Settings, CreditCardIcon, LinkIcon } from
 import Link from "next/link"
 import { ProjectsTable } from "./dataTable"
 import { ProjectsTableColumns } from "./columnTable"
-import { StatusIndicator } from "@/components/ui/indicator"
+import { WhatsAppConnectionStatus } from "./whatsapp-connection-status"
 import { Card } from "@/components/ui/card"
 
 const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "outline" | "destructive" }> = {
@@ -39,7 +39,7 @@ export default function HomeProjectsPage({ projects }: CustomProjectProps) {
             Vos projets
           </h1>
           <p className="text-sm text-muted-foreground max-w-2xl">
-            Gérez vos flux d&apos;automatisation et surveillez l&apos;état de vos instances en temps réel.
+            Gérez vos projets et consultez le dernier état connu de leur connexion WhatsApp.
           </p>
         </div>
         <Button asChild className="w-full md:w-auto shrink-0 shadow-sm">
@@ -110,24 +110,7 @@ export default function HomeProjectsPage({ projects }: CustomProjectProps) {
                             {project.plan}
                           </span>
                         </div>
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          {project.instanceStatus === "connected" ? (
-                            <>
-                              <StatusIndicator color="emerald" pulse />
-                              <span className="text-xs font-medium text-foreground">Connecté</span>
-                            </>
-                          ) : project.instanceStatus === "connecting" ? (
-                            <>
-                              <StatusIndicator color="sky" pulse />
-                              <span className="text-xs font-medium text-foreground">En cours</span>
-                            </>
-                          ) : (
-                            <>
-                              <StatusIndicator color="amber" pulse />
-                              <span className="text-xs font-medium text-muted-foreground">Déconnecté</span>
-                            </>
-                          )}
-                        </div>
+                        <WhatsAppConnectionStatus status={project.instanceStatus} />
                       </div>
 
                       <p className="font-mono text-xs text-muted-foreground mt-1">

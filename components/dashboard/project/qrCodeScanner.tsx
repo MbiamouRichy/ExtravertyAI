@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from "react";
 import useSWR from "swr";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
 import {
   AlertCircle,
   ArrowRight,
@@ -51,7 +50,7 @@ export default function QRCodeScanner({ projectId }: { projectId: string }) {
 }
 
 function ConnectionPanel({ projectId }: { projectId: string }) {
-  const router = useRouter();
+  const chatUrl = `/projects/${encodeURIComponent(projectId)}/chat`;
 
   const [method, setMethod] = useState<Method>("qr");
   const [pairingCode, setPairingCode] = useState<string | null>(null);
@@ -104,11 +103,11 @@ function ConnectionPanel({ projectId }: { projectId: string }) {
 
     const timer = setTimeout(() => {
       setOpening(true);
-      router.refresh();
+      window.location.replace(chatUrl);
     }, 700);
 
     return () => clearTimeout(timer);
-  }, [connected, router]);
+  }, [connected, chatUrl]);
 
   async function requestPairingCode() {
     if (generationLock.current || connected) return;
@@ -226,14 +225,11 @@ function ConnectionPanel({ projectId }: { projectId: string }) {
             : "Préparation de votre espace…"}
         </div>
 
-        <Button
-          type="button"
-          variant="outline"
-          className="mt-5 gap-2 rounded-xl"
-          onClick={() => router.refresh()}
-        >
-          Ouvrir les conversations
-          <ArrowRight aria-hidden="true" className="size-4" />
+        <Button asChild variant="outline" className="mt-5 gap-2 rounded-xl">
+          <a href={chatUrl}>
+            Ouvrir les conversations
+            <ArrowRight aria-hidden="true" className="size-4" />
+          </a>
         </Button>
       </section>
     );

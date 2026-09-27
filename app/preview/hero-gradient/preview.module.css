@@ -1,0 +1,32 @@
+/* Reference: a neutral central glow, white edges and a softly faded dot grid.
+   All colors inherit the existing theme, including in dark mode. */
+.halo {
+  position: absolute;
+  inset: 0 0 auto;
+  height: 58rem;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 48% 36% at 50% 29%, color-mix(in srgb, var(--foreground) 8%, transparent), transparent 100%),
+    radial-gradient(ellipse 43% 20% at 50% 0%, color-mix(in srgb, var(--foreground) 5%, transparent), transparent 100%);
+}
+
+.dots {
+  position: absolute;
+  inset: 4rem 0 auto;
+  height: 52rem;
+  z-index: -1;
+  pointer-events: none;
+  background-image: radial-gradient(circle, color-mix(in srgb, var(--foreground) 15%, transparent) 0.7px, transparent 0.9px);
+  background-size: 12px 12px;
+  mask-image: radial-gradient(ellipse 44% 55% at 50% 48%, var(--foreground) 8%, transparent 100%);
+}
+
+.outline {
+  color: var(--background);
+  -webkit-text-stroke: 1px var(--foreground);
+}
+
+@media (forced-colors: active) {
+  .outline { color: CanvasText; -webkit-text-stroke: 0; }
+}

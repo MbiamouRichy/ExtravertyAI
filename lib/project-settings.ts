@@ -75,3 +75,59 @@ export async function markProjectForDeletion(
   });
   return project;
 }
+
+export async function writeProjectPause(
+  tx: Prisma.TransactionClient,
+  projectId: string,
+  actorId: string,
+  expectedVersion: number,
+  paused: boolean,
+) {
+  await tx.$queryRaw`SELECT id FROM project WHERE id = ${projectId} FOR UPDATE`;
+  const { project } = await requireProjectAdmin(tx, projectId, actorId);
+  if (project.deletionPending)
+    throw new SettingsError("Ce projet est en cours de suppression.");
+  if (project.settingsVersion !== expectedVersion)
+    throw new SettingsError("Les réglages ont changé. Actualisez la page.");
+  const billingStatus = project.statusBeforePause ?? project.status;
+  if (!paused) {
+    const [{ now }] = await tx.$queryRaw<
+      Array<{ now: Date }>
+    >`SELECT clock_timestamp() AS now`;
+    const period = await tx.quotaPeriod.findFirst({
+      where: {
+        projectId,
+        isCurrent: true,
+        kind: billingStatus,
+        startsAt: { lte: now },
+        endsAt: { gt: now },
+      },
+    });
+    if (!["active", "trialing"].includes(billingStatus) || !period) {
+      throw new SettingsError(
+        "Vérifiez votre abonnement avant de réactiver le projet.",
+      );
+    }
+  }
+  const version = project.settingsVersion + 1;
+  const status = paused ? "paused" : billingStatus;
+  await tx.project.update({
+    where: { id: projectId },
+    data: {
+      automationPaused: paused,
+      status,
+      statusBeforePause: paused ? billingStatus : null,
+      settingsVersion: version,
+      agentConfigVersion: { increment: 1 },
+    },
+  });
+  await tx.settingsAudit.create({
+    data: {
+      projectId,
+      actorId,
+      action: paused ? "project.paused" : "project.resumed",
+      version,
+    },
+  });
+  return { version, status, automationPaused: paused };
+}

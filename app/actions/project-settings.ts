@@ -8,6 +8,7 @@ import {
   SettingsError,
   requireProjectAdmin,
   writeAgentConfig,
+  writeProjectPause,
 } from "@/lib/project-settings";
 import { notifyChatChanged } from "@/lib/chat-realtime";
 import { stripe } from "@/lib/stripe";
@@ -63,7 +64,6 @@ export async function saveProjectPreferences(input: unknown) {
         projectId: Id,
         expectedVersion: Version,
         name: z.string().trim().min(2).max(100),
-        automationPaused: z.boolean(),
       })
       .parse(input);
     const userId = await actor();
@@ -83,7 +83,6 @@ export async function saveProjectPreferences(input: unknown) {
         where: { id: project.id },
         data: {
           name: parsed.name,
-          automationPaused: parsed.automationPaused,
           settingsVersion: version,
           agentConfigVersion: { increment: 1 },
         },
@@ -176,6 +175,29 @@ export async function openProjectBillingPortal(projectId: string) {
       return_url: `${origin}/projects/${project.id}/billing`,
     });
     return { success: true as const, url: portal.url };
+  } catch (error) {
+    return { success: false as const, error: publicError(error) };
+  }
+}
+
+export async function setProjectPaused(input: unknown) {
+  try {
+    const parsed = z
+      .object({ projectId: Id, expectedVersion: Version, paused: z.boolean() })
+      .parse(input);
+    const userId = await actor();
+    const result = await prisma.$transaction((tx) =>
+      writeProjectPause(
+        tx,
+        parsed.projectId,
+        userId,
+        parsed.expectedVersion,
+        parsed.paused,
+      ),
+    );
+    invalidate(parsed.projectId);
+    await notifyChatChanged(parsed.projectId);
+    return { success: true as const, ...result };
   } catch (error) {
     return { success: false as const, error: publicError(error) };
   }

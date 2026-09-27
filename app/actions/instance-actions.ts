@@ -5,6 +5,7 @@ import { z } from "zod";
 import prisma from "@/lib/prisma";
 import { getSession } from "@/lib/auth-server";
 import { InstanceStatus } from "@/src/generated/prisma/client";
+import { confirmInstanceConnection } from "@/lib/instance-connection";
 
 import {
   getEvolutionInstanceConnect,
@@ -42,6 +43,7 @@ async function requireConnectionAdmin(projectId: string) {
           status: true,
           instanceName: true,
           instanceStatus: true,
+          updatedAt: true,
         },
       },
     },
@@ -100,7 +102,7 @@ export async function getConnectionData(projectId: string) {
     let status: InstanceStatus = project.instanceStatus;
 
     if (rawState === "open") {
-      status = InstanceStatus.connected;
+      status = await confirmInstanceConnection(prisma, project);
     } else if (qr) {
       status = InstanceStatus.qr_ready;
     } else if (rawState === "connecting") {
@@ -109,9 +111,8 @@ export async function getConnectionData(projectId: string) {
       status = InstanceStatus.disconnected;
     }
 
-    // Le webhook doit rester l'autorité principale pour la persistance
-    // de l'état : une réponse API ancienne ne doit pas écraser un
-    // événement de connexion plus récent.
+    // Le succès n'est annoncé qu'après synchronisation avec l'état persistant
+    // utilisé par le chat. Les événements concurrents du webhook sont préservés.
     return {
       status,
       qrCodeBase64: status === InstanceStatus.connected ? null : qr,

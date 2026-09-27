@@ -1,4 +1,5 @@
 "use server";
+import { projectBillingStatus } from "@/lib/project-status";
 
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
@@ -106,11 +107,13 @@ export async function sendWhatsAppMessage(
         where: { id: projectId },
         select: {
           status: true,
+          automationPaused: true,
+          statusBeforePause: true,
           instanceStatus: true,
         },
       });
 
-      if (project.status !== "active" && project.status !== "trialing") {
+      if (!["active", "trialing"].includes(projectBillingStatus(project))) {
         throw new SendRejected("Le projet n’est pas actif.");
       }
 

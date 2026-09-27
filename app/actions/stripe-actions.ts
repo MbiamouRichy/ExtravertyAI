@@ -6,6 +6,10 @@ import prisma from "@/lib/prisma";
 import { getSession } from "@/lib/auth-server";
 import { stripe } from "@/lib/stripe";
 import {
+  ProjectCheckoutSchema,
+  type ProjectCheckoutInput,
+} from "@/lib/project-creation-schema";
+import {
   createEvolutionInstance,
   deleteEvolutionInstance,
 } from "./evolutionAPI";
@@ -19,29 +23,21 @@ const STRIPE_PRICE_MAPPING: Record<
   pro: process.env.STRIPE_PRO_PLAN_ID,
 };
 
-function validateAndCleanNumero(numero: string): string {
-  const cleaned = numero.replace(/[\s()\-]/g, "");
-  const phoneRegex = /^\+?[1-9]\d{6,14}$/;
-
-  if (!phoneRegex.test(cleaned)) {
-    throw new Error(
-      "Format de numéro invalide. Utilisez le format international.",
-    );
-  }
-  return cleaned.startsWith("+") ? cleaned : `+${cleaned}`;
-}
-
-export async function createProjectAndCheckout(data: {
-  name: string;
-  numero: string;
-  plan: "starter" | "business" | "pro";
-}) {
+export async function createProjectAndCheckout(data: ProjectCheckoutInput) {
   const session = await getSession();
   if (!session?.user?.id || !session?.user?.email) {
     throw new Error("Session expirée ou non autorisée.");
   }
 
-  const cleanedNumero = validateAndCleanNumero(data.numero);
+  const parsed = ProjectCheckoutSchema.safeParse(data);
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: "Vérifiez le nom du projet, le numéro WhatsApp et le forfait.",
+    };
+  }
+  data = parsed.data;
+  const cleanedNumero = parsed.data.numero;
 
   const priceId = STRIPE_PRICE_MAPPING[data.plan];
   if (!priceId) {

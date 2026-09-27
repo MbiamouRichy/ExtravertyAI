@@ -100,7 +100,7 @@ export default async function ChatPage({ params, searchParams }: PageProps) {
           </div>
         )}
 
-        <ChatRefreshButton />
+        <ChatRefreshButton projectId={canManageAi ? project.id : undefined} />
       </div>
     );
   }
@@ -121,7 +121,7 @@ export default async function ChatPage({ params, searchParams }: PageProps) {
             La connexion WhatsApp n’est pas encore prête. Actualisez pour
             vérifier son état.
           </p>
-          <ChatRefreshButton />
+          <ChatRefreshButton projectId={canManageAi ? project.id : undefined} />
         </div>
       </div>
     );
@@ -172,6 +172,7 @@ export default async function ChatPage({ params, searchParams }: PageProps) {
         project={{
           id: project.id,
           name: project.name,
+          automationPaused: project.automationPaused,
         }}
         user={{
           id: session.user.id,

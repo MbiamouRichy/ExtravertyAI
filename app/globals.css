@@ -138,7 +138,7 @@
     @apply font-sans;
   }
   h1 {
-    @apply text-5xl md:text-6xl leading-[1.06]! tracking-[-0.055em]!;
+    @apply text-5xl  leading-[1.06]! tracking-[-0.055em]!;
     font-family: var(--font-heading);
     font-weight: 800;
   }

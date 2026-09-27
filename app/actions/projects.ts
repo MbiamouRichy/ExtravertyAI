@@ -4,7 +4,7 @@ import prisma from "@/lib/prisma";
 import { getSession } from "@/lib/auth-server";
 import { revalidatePath } from "next/cache";
 import z from "zod";
-import { saveProjectPreferences } from "./project-settings";
+import { setProjectPaused } from "./project-settings";
 import { deleteProjectResources } from "@/lib/project-deletion";
 
 // 1. RÉCUPERER TOUS LES PROJETS
@@ -144,10 +144,9 @@ export async function disableProject(
       throw new Error("Droits insuffisants pour désactiver ce projet.");
     }
 
-    return saveProjectPreferences({
+    return setProjectPaused({
       projectId,
-      name: membership.project.name,
-      automationPaused: !membership.project.automationPaused,
+      paused: !membership.project.automationPaused,
       expectedVersion: membership.project.settingsVersion,
     });
   } catch (error: unknown) {

@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   Bot,
+  Pause,
+  Play,
   Settings2,
   Smartphone,
   Download,
@@ -17,10 +19,12 @@ import {
   MessageSquare,
 } from "lucide-react";
 import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
 import { AgentEditor } from "./agent-editor";
 import type { ProjectSettingsView } from "@/lib/settings-types";
 import {
   saveProjectPreferences,
+  setProjectPaused,
   saveWhatsAppPreferences,
   openProjectBillingPortal,
 } from "@/app/actions/project-settings";
@@ -37,8 +41,6 @@ import {
 
 const field =
   "w-full rounded-xl border bg-background px-4 py-3 text-sm outline-none focus:border-border focus:ring-2 focus:ring-ring/20";
-const button =
-  "inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border px-4 py-2 text-sm font-medium transition-colors hover:bg-muted disabled:opacity-50";
 const tabs = [
   { id: "agent", label: "Agent IA", icon: Bot },
   { id: "general", label: "Projet & utilisation", icon: Settings2 },
@@ -61,6 +63,7 @@ export default function ProjectSettingsPage({
   const [deleting, setDeleting] = useState(false);
   const [confirmationName, setConfirmationName] = useState("");
   const owner = p.role === "OWNER";
+  const canPause = owner || p.role === "ADMIN";
   useEffect(() => {
     if (!p.whatsapp.pending) return;
     const timer = setInterval(() => router.refresh(), 5000);
@@ -145,11 +148,25 @@ export default function ProjectSettingsPage({
             Votre agent, votre équipe, votre façon de travailler.
           </p>
         </div>
-        <Link href={`/projects/${p.id}/chat`} className={button}>
-          <MessageSquare className="size-4" /> Ouvrir le chat{" "}
-          <ArrowUpRight className="size-4" />
-        </Link>
+        <Button asChild variant="outline" size="lg">
+          <Link href={`/projects/${p.id}/chat`}>
+            <MessageSquare className="size-4" /> Ouvrir le chat{" "}
+            <ArrowUpRight className="size-4" />
+          </Link>
+        </Button>
       </header>
+      {paused && (
+        <div
+          role="status"
+          className="flex items-start gap-3 rounded-xl border bg-muted/50 p-4 text-sm"
+        >
+          <Pause aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+          <p>
+            Projet en pause : l’IA ne répond à aucun contact. Vous pouvez le
+            réactiver dans « Données & accès ».
+          </p>
+        </div>
+      )}
       {p.deletionPending && (
         <div
           role="alert"
@@ -165,7 +182,7 @@ export default function ProjectSettingsPage({
           className="flex gap-2 overflow-x-auto lg:flex-col lg:overflow-visible"
         >
           {tabs.map((item) => (
-            <button
+            <Button
               key={item.id}
               type="button"
               onClick={() => {
@@ -173,11 +190,13 @@ export default function ProjectSettingsPage({
                 setError("");
               }}
               aria-current={tab === item.id ? "page" : undefined}
-              className={`flex min-h-11 shrink-0 items-center gap-3 rounded-xl px-4 py-3 text-left text-sm font-medium ${tab === item.id ? "bg-muted text-foreground dark:bg-muted/50 dark:text-foreground" : "text-muted-foreground hover:bg-muted"}`}
+              variant={tab === item.id ? "secondary" : "ghost"}
+              size="lg"
+              className="justify-start"
             >
               <item.icon className="size-4" />
               {item.label}
-            </button>
+            </Button>
           ))}
         </nav>
         <div className="min-w-0 space-y-6">
@@ -187,13 +206,14 @@ export default function ProjectSettingsPage({
               className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive"
             >
               {error}
-              <button
+              <Button
                 type="button"
                 onClick={() => window.location.reload()}
-                className="ml-3 underline underline-offset-4"
+                variant="link"
+                className="ml-3"
               >
                 Recharger les réglages
-              </button>
+              </Button>
             </div>
           )}
           {tab === "agent" && (
@@ -217,7 +237,6 @@ export default function ProjectSettingsPage({
                         projectId: p.id,
                         expectedVersion: settingsVersion,
                         name,
-                        automationPaused: paused,
                       }),
                     "Les paramètres du projet sont enregistrés.",
                   );
@@ -247,27 +266,10 @@ export default function ProjectSettingsPage({
                     className={field}
                   />
                 </div>
-                <label className="flex items-start justify-between gap-5 border-y py-5">
-                  <div>
-                    <span className="text-sm font-medium">
-                      Mettre l’automatisation en pause
-                    </span>
-                    <span className="mt-1 block max-w-lg text-xs leading-relaxed text-muted-foreground">
-                      L’IA cesse de répondre. Les messages entrants et les
-                      réponses manuelles restent disponibles. Votre abonnement
-                      ne change pas.
-                    </span>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={paused}
-                    onChange={(e) => setPaused(e.target.checked)}
-                    className="mt-1 size-5 shrink-0 accent-primary"
-                  />
-                </label>
-                <button
+                <Button
                   disabled={!!pending || p.deletionPending}
-                  className={`${button} bg-primary text-primary-foreground hover:bg-primary/90`}
+                  type="submit"
+                  size="lg"
                 >
                   {pending === "general" ? (
                     <Loader2 className="size-4 animate-spin" />
@@ -275,7 +277,7 @@ export default function ProjectSettingsPage({
                     <Check className="size-4" />
                   )}{" "}
                   Enregistrer
-                </button>
+                </Button>
               </form>
               <section className="rounded-2xl border bg-card p-5 sm:p-7">
                 <div className="mb-6 flex flex-wrap justify-between gap-3">
@@ -289,10 +291,11 @@ export default function ProjectSettingsPage({
                     </p>
                   </div>
                   {owner && (
-                    <button
+                    <Button
                       disabled={!!pending}
                       onClick={() => void billing()}
-                      className={button}
+                      variant="outline"
+                      size="lg"
                     >
                       {pending === "billing" ? (
                         <Loader2 className="size-4 animate-spin" />
@@ -300,7 +303,7 @@ export default function ProjectSettingsPage({
                         <ArrowUpRight className="size-4" />
                       )}{" "}
                       Gérer mon abonnement
-                    </button>
+                    </Button>
                   )}
                 </div>
                 <div className="mb-3 flex justify-between gap-4 text-sm">
@@ -370,12 +373,14 @@ export default function ProjectSettingsPage({
                       : "À connecter"}
                   </p>
                 </div>
-                <Link href={`/projects/${p.id}/chat`} className={button}>
-                  <Smartphone className="size-4" />{" "}
-                  {p.instanceStatus === "connected"
-                    ? "Voir les conversations"
-                    : "Reconnecter"}
-                </Link>
+                <Button asChild variant="outline" size="lg">
+                  <Link href={`/projects/${p.id}/chat`}>
+                    <Smartphone className="size-4" />{" "}
+                    {p.instanceStatus === "connected"
+                      ? "Voir les conversations"
+                      : "Reconnecter"}
+                  </Link>
+                </Button>
               </div>
               <div className="divide-y">
                 {[
@@ -430,9 +435,10 @@ export default function ProjectSettingsPage({
                 </p>
               )}
               <div className="flex flex-wrap gap-3">
-                <button
+                <Button
                   disabled={!!pending || p.deletionPending}
-                  className={`${button} bg-primary text-primary-foreground hover:bg-primary/90`}
+                  type="submit"
+                  size="lg"
                 >
                   {pending === "whatsapp" ? (
                     <Loader2 className="size-4 animate-spin" />
@@ -440,14 +446,15 @@ export default function ProjectSettingsPage({
                     <Check className="size-4" />
                   )}{" "}
                   Enregistrer les réglages
-                </button>
-                <button
+                </Button>
+                <Button
                   type="button"
                   onClick={() => router.refresh()}
-                  className={button}
+                  variant="outline"
+                  size="lg"
                 >
                   <RefreshCw className="size-4" /> Actualiser l’état
-                </button>
+                </Button>
               </div>
             </form>
           )}
@@ -463,10 +470,11 @@ export default function ProjectSettingsPage({
                   de 10 000 contacts par export.
                 </p>
                 <div className="mt-6 flex flex-wrap gap-3">
-                  <button
+                  <Button
                     disabled={!!pending}
                     onClick={() => void download("csv")}
-                    className={button}
+                    variant="outline"
+                    size="lg"
                   >
                     {pending === "csv" ? (
                       <Loader2 className="size-4 animate-spin" />
@@ -474,11 +482,12 @@ export default function ProjectSettingsPage({
                       <Download className="size-4" />
                     )}{" "}
                     Export CSV
-                  </button>
-                  <button
+                  </Button>
+                  <Button
                     disabled={!!pending}
                     onClick={() => void download("xlsx")}
-                    className={button}
+                    variant="outline"
+                    size="lg"
                   >
                     {pending === "xlsx" ? (
                       <Loader2 className="size-4 animate-spin" />
@@ -486,11 +495,13 @@ export default function ProjectSettingsPage({
                       <Download className="size-4" />
                     )}{" "}
                     Export Excel
-                  </button>
-                  <Link href={`/projects/${p.id}/team`} className={button}>
-                    Gérer les accès de l’équipe{" "}
-                    <ArrowUpRight className="size-4" />
-                  </Link>
+                  </Button>
+                  <Button asChild variant="outline" size="lg">
+                    <Link href={`/projects/${p.id}/team`}>
+                      Gérer les accès de l’équipe{" "}
+                      <ArrowUpRight className="size-4" />
+                    </Link>
+                  </Button>
                 </div>
               </section>
               <section className="rounded-2xl border bg-card p-5 sm:p-7">
@@ -513,7 +524,11 @@ export default function ProjectSettingsPage({
                             ? "Configuration de l’agent"
                             : item.action === "whatsapp.updated"
                               ? "Réglages WhatsApp"
-                              : "Paramètres du projet"}
+                              : item.action === "project.paused"
+                                ? "Projet mis en pause"
+                                : item.action === "project.resumed"
+                                  ? "Projet réactivé"
+                                  : "Paramètres du projet"}
                         </span>
                         <time className="text-xs text-muted-foreground">
                           {new Date(item.createdAt).toLocaleString("fr-FR")}
@@ -527,6 +542,71 @@ export default function ProjectSettingsPage({
                   </p>
                 )}
               </section>
+              {canPause && (
+                <section
+                  aria-labelledby="project-pause-title"
+                  className="flex flex-col justify-between gap-5 rounded-2xl border bg-card p-5 sm:flex-row sm:items-center sm:p-7"
+                >
+                  <div>
+                    <h2
+                      id="project-pause-title"
+                      className="flex items-center gap-2 font-semibold"
+                    >
+                      <Pause aria-hidden="true" className="size-4" />
+                      {paused ? "Projet en pause" : "Mettre le projet en pause"}
+                    </h2>
+                    <p className="mt-2 max-w-lg text-sm leading-relaxed text-muted-foreground">
+                      {paused
+                        ? "L’IA ne répond plus à aucun contact de ce projet."
+                        : "Désactivez les réponses de l’IA pour tous les contacts de ce projet. Son statut passera à « En pause »."}{" "}
+                      Les réglages IA de chaque contact sont conservés :
+                      réactiver le projet ne réactive pas les contacts
+                      désactivés individuellement.
+                    </p>
+                    <p className="mt-2 max-w-lg text-xs leading-relaxed text-muted-foreground">
+                      Les messages entrants restent accessibles. Les réponses
+                      manuelles restent possibles si votre abonnement le permet.
+                      La pause ne suspend pas la facturation.
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    variant={paused ? "default" : "outline"}
+                    size="lg"
+                    disabled={!!pending || p.deletionPending}
+                    onClick={() =>
+                      void run(
+                        "pause",
+                        async () => {
+                          const result = await setProjectPaused({
+                            projectId: p.id,
+                            expectedVersion: settingsVersion,
+                            paused: !paused,
+                          });
+                          if (result.success)
+                            setPaused(result.automationPaused);
+                          return result;
+                        },
+                        paused
+                          ? "Projet réactivé. Les contacts désactivés restent désactivés."
+                          : "Projet en pause. Les réponses de l’IA sont désactivées pour tous les contacts.",
+                      )
+                    }
+                  >
+                    {pending === "pause" ? (
+                      <Loader2
+                        aria-hidden="true"
+                        className="size-4 animate-spin"
+                      />
+                    ) : paused ? (
+                      <Play aria-hidden="true" className="size-4" />
+                    ) : (
+                      <Pause aria-hidden="true" className="size-4" />
+                    )}
+                    {paused ? "Réactiver le projet" : "Mettre en pause"}
+                  </Button>
+                </section>
+              )}
               {owner && (
                 <section className="flex flex-col justify-between gap-5 rounded-2xl border border-destructive/25 p-5 sm:flex-row sm:items-center sm:p-7">
                   <div>
@@ -539,15 +619,17 @@ export default function ProjectSettingsPage({
                       projet. Cette action est définitive.
                     </p>
                   </div>
-                  <button
+                  <Button
                     onClick={() => setDeleting(true)}
-                    className={`${button} shrink-0 border-destructive/30 text-destructive hover:bg-destructive/5`}
+                    type="button"
+                    variant="destructive"
+                    size="lg"
                   >
                     <Trash2 className="size-4" />{" "}
                     {p.deletionPending
                       ? "Terminer la suppression"
                       : "Supprimer"}
-                  </button>
+                  </Button>
                 </section>
               )}
             </>
@@ -586,7 +668,7 @@ export default function ProjectSettingsPage({
           )}
           <AlertDialogFooter>
             <AlertDialogCancel disabled={!!pending}>Annuler</AlertDialogCancel>
-            <button
+            <Button
               disabled={!!pending || confirmationName !== p.name}
               onClick={() =>
                 void run(
@@ -602,13 +684,14 @@ export default function ProjectSettingsPage({
                   "Projet supprimé.",
                 )
               }
-              className={`${button} border-destructive bg-destructive text-white hover:bg-destructive/90`}
+              type="button"
+              variant="destructive"
             >
               {pending === "delete" && (
                 <Loader2 className="size-4 animate-spin" />
               )}{" "}
               Supprimer définitivement
-            </button>
+            </Button>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

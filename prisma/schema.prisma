@@ -171,6 +171,7 @@ model Project {
   agentSetupCompletedAt DateTime?
   agentConfigVersion Int @default(0)
   automationPaused Boolean @default(false)
+  statusBeforePause ProjectStatus?
   deletionPending Boolean @default(false)
   whatsappAlwaysOnline Boolean @default(false)
   whatsappReadMessages Boolean @default(false)

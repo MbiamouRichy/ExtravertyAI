@@ -51,6 +51,7 @@ type WorkspaceProps = {
   project: {
     id: string;
     name: string;
+    automationPaused: boolean;
   };
   user: {
     id: string;
@@ -730,7 +731,20 @@ export default function WhatsappWorkspace({
   }
 
   return (
-    <div className="h-[calc(100dvh-var(--app-header-height,4rem))] min-h-0 w-full overflow-hidden bg-muted/20 p-0 sm:p-3 xl:p-5">
+    <div className="flex h-[calc(100dvh-var(--app-header-height,4rem))] min-h-0 w-full flex-col overflow-hidden bg-muted/20 p-0 sm:p-3 xl:p-5">
+      {project.automationPaused && (
+        <div
+          role="status"
+          className="mb-3 flex shrink-0 items-start gap-2 rounded-xl border bg-muted p-3 text-sm"
+        >
+          <Pause aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+          <p>
+            Projet en pause : l’IA ne répond à aucun contact, même si son
+            réglage individuel est activé. La réactivation globale se fait dans
+            les paramètres du projet.
+          </p>
+        </div>
+      )}
       <div className="mx-auto flex h-full min-h-0 w-full max-w-450 overflow-hidden border-border/70 bg-background sm:rounded-2xl sm:border sm:shadow-sm">
         {/* Liste des conversations */}
         <aside
@@ -1050,7 +1064,9 @@ export default function WhatsappWorkspace({
                       )}
 
                       <span className="hidden sm:inline">
-                        {aiActive ? "Désactiver l’IA" : "Activer l’IA"}
+                        {aiActive
+                          ? "Désactiver pour ce contact"
+                          : "Activer pour ce contact"}
                       </span>
                     </Button>
                   ) : (

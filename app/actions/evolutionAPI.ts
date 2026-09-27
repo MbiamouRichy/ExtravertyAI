@@ -205,6 +205,7 @@ export async function getEvolutionInstanceConnect(instanceName: string) {
         apikey: EVOLUTION_API_TOKEN,
       },
       cache: "no-store",
+      signal: AbortSignal.timeout(10_000),
     },
   );
 

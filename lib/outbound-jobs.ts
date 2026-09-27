@@ -1,5 +1,6 @@
 import type { PrismaClient } from "../src/generated/prisma/client";
 import { latestStatus } from "./evolution-ingestion";
+import { projectBillingStatus } from "./project-status";
 
 export function createOutboundProcessor(
   prisma: PrismaClient,
@@ -90,15 +91,16 @@ export function createOutboundProcessor(
             !!contact?.aiActive &&
             job.aiVersion === contact.aiVersion &&
             !unresolvedEcho;
+      const billingStatus = projectBillingStatus(job.project);
       const allowed =
         !job.project.deletionPending &&
         senderAllowed &&
         contact?.projectId === job.projectId &&
-        ["active", "trialing"].includes(job.project.status) &&
+        ["active", "trialing"].includes(billingStatus) &&
         job.project.instanceStatus === "connected" &&
         !!job.project.instanceName &&
         job.quotaPeriod.isCurrent &&
-        job.quotaPeriod.kind === job.project.status &&
+        job.quotaPeriod.kind === billingStatus &&
         job.quotaPeriod.startsAt <= now &&
         job.quotaPeriod.endsAt > now;
       if (!allowed) {

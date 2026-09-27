@@ -78,7 +78,8 @@ export async function syncSubscription(
     await tx.project.update({
       where: { id: projectId },
       data: {
-        status,
+        status: current.automationPaused ? "paused" : status,
+        statusBeforePause: current.automationPaused ? status : null,
         plan,
         stripeSubscriptionId: sub.id,
         stripeCustomerId:

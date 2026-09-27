@@ -44,3 +44,7 @@ next-env.d.ts
 
 /.scratch/
 !.env.example
+
+/playwright-report/
+/test-results/
+/playwright/.auth/

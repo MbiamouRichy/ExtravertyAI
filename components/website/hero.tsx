@@ -64,12 +64,6 @@ export function HeroSection() {
             )}
           />
 
-          {/* <div
-            className={cn(
-              "absolute inset-0 isolate -z-10",
-              "bg-[radial-gradient(20%_80%_at_20%_0%,--theme(--color-foreground/.15),transparent)]",
-            )}
-          /> */}
         </div>
         <Link
           className={cn(
@@ -90,14 +84,17 @@ export function HeroSection() {
           </div>
         </Link>
 
-        <h1
-          className={cn(
-            " text-balance text-center",
-            "fade-in slide-in-from-bottom-10 animate-in fill-mode-backwards delay-100 duration-500 ease-out",
-          )}
-        >
-          Automatisez vos réponses WhatsApp et gardez le fil de chaque prospect.
-        </h1>
+        <div className="relative isolate w-full">
+          
+          <h1
+            className={cn(
+              " text-balance text-center",
+              "fade-in slide-in-from-bottom-10 animate-in fill-mode-backwards delay-100 duration-500 ease-out",
+            )}
+          >
+            Automatisez vos réponses WhatsApp et gardez le fil de chaque prospect.
+          </h1>
+        </div>
 
         <p
           className={cn(
@@ -123,7 +120,7 @@ export function HeroSection() {
           </Button>
           <Button asChild size="lg" className="w-full md:w-auto text-sm md:text-base">
             <Link href="/sign-up">
-              S&apos;inscrire
+              Creer mon assistant
             </Link>
           </Button>
         </div>

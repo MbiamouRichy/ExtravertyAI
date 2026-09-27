@@ -20,11 +20,14 @@ export default function PaymentCanceledDialog() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  const isCanceled = searchParams.get("canceled") === "true";
+  const isCanceled =
+    searchParams.get("canceled") === "true" ||
+    searchParams.get("cancelled") === "true";
 
   function dismissDialog() {
     const params = new URLSearchParams(searchParams.toString());
     params.delete("canceled");
+    params.delete("cancelled");
 
     const query = params.toString();
     const hash = window.location.hash;
