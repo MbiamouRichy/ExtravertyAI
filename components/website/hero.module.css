@@ -21,12 +21,3 @@
   background-size: 12px 12px;
   mask-image: radial-gradient(ellipse 44% 55% at 50% 48%, var(--foreground) 8%, transparent 100%);
 }
-
-.outline {
-  color: var(--background);
-  -webkit-text-stroke: 1px var(--foreground);
-}
-
-@media (forced-colors: active) {
-  .outline { color: CanvasText; -webkit-text-stroke: 0; }
-}
