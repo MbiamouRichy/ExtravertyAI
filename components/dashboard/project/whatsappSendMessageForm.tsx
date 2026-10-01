@@ -268,7 +268,7 @@ function ChatBubble({
         <div
           className={cn(
             "mb-1.5 flex items-center gap-1.5 px-1 text-[11px] font-medium text-muted-foreground",
-            !incoming && !isAi && "justify-end",
+            !incoming && "justify-end",
           )}
         >
           {message.senderType === "bot" && (
@@ -295,7 +295,7 @@ function ChatBubble({
         <div
           className={cn(
             "mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 px-1 text-[10px] text-muted-foreground",
-            !incoming && !isAi && "justify-end",
+            !incoming && "justify-end",
           )}
         >
           <time
