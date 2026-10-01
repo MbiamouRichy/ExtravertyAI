@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Field, FieldGroup, FieldLabel, FieldError } from "@/components/ui/field";
 import { MessageContentSchema } from "@/lib/message-schema";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 const ComposerSchema = z.object({ content: MessageContentSchema });
 type ComposerValues = z.infer<typeof ComposerSchema>;
@@ -65,16 +66,24 @@ export function ChatComposer({
                   placeholder="Écrire un message…"
                   className="min-h-11 max-h-40 flex-1 resize-none rounded-none border-0 bg-transparent px-2 py-3 shadow-none focus-visible:ring-0 dark:bg-transparent"
                 />
-                <Button
-                  type="submit"
-                  size="icon"
-                  disabled={!draft.trim() || isSending}
-                  aria-label={isSending ? "Envoi en cours" : "Envoyer le message"}
-                  title="Envoyer · Ctrl / ⌘ + Entrée"
-                  className="size-11 shrink-0 rounded-full"
-                >
-                  {isSending ? <Loader2 aria-hidden="true" className="size-4 animate-spin motion-reduce:animate-none" /> : <ArrowUp aria-hidden="true" className="size-5" />}
-                </Button>
+                <Tooltip>
+                  <TooltipTrigger asChild className="cursor-pointer">
+                    <Button
+                      type="submit"
+                      size="icon"
+                      disabled={!draft.trim() || isSending}
+                      aria-label={isSending ? "Envoi en cours" : "Envoyer le message"}
+                      title="Envoyer · Ctrl / ⌘ + Entrée"
+                      className="size-11 shrink-0 rounded-full"
+                    >
+                      {isSending ? <Loader2 aria-hidden="true" className="size-4 animate-spin motion-reduce:animate-none" /> : <ArrowUp aria-hidden="true" className="size-5" />}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Envoyer · Ctrl / ⌘ + Entrée</p>
+                  </TooltipContent>
+                </Tooltip>
+
               </div>
               <p id="chat-composer-help" className="sr-only">
                 Entrée pour une nouvelle ligne. Ctrl ou Commande et Entrée pour envoyer.

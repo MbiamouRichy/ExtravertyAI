@@ -84,7 +84,7 @@ export async function DashboardContacts({ projectId }: { projectId: string }) {
 					</TableBody>
 				</Table>
 			</CardContent>
-			<div className="flex items-center justify-center border-t py-3">
+			<div className="flex items-center mt-auto justify-center border-t py-3">
 				<Button asChild className="relative" variant="ghost" size="sm">
 					<Link href={`/projects/${projectId}/contacts`}>
 						Voir tout le CRM

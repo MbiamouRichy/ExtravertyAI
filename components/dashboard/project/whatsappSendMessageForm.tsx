@@ -262,7 +262,7 @@ function ChatBubble({
   return (
     <article
       aria-label={`Message de ${author}`}
-      className={cn("flex w-full", incoming || isAi ? "justify-start" : "justify-end")}
+      className={cn("flex w-full", incoming ? "justify-start" : "justify-end")}
     >
       <div className={cn("min-w-0", isAi ? "w-4/5 max-w-prose py-2" : "max-w-[92%] sm:max-w-[78%]")}>
         <div
@@ -458,7 +458,7 @@ export default function WhatsappWorkspace({
         const useLocal =
           latest &&
           new Date(latest.timestamp).getTime() >=
-            new Date(client.lastActivityAt).getTime();
+          new Date(client.lastActivityAt).getTime();
 
         return {
           ...client,
@@ -485,7 +485,7 @@ export default function WhatsappWorkspace({
       .sort(
         (a, b) =>
           new Date(b.lastActivityAt).getTime() -
-            new Date(a.lastActivityAt).getTime() || a.id.localeCompare(b.id),
+          new Date(a.lastActivityAt).getTime() || a.id.localeCompare(b.id),
       );
   }, [clients, search, filter, aiOverrides, localMessages]);
 
@@ -978,15 +978,15 @@ export default function WhatsappWorkspace({
             )}
           </nav>
 
-            {(contactsQuery.error || historyQuery.error) && (
-              <p
-                role="status"
-                className="px-4 py-3 text-xs text-muted-foreground"
-              >
-                Synchronisation temporairement interrompue. Les données déjà
-                chargées restent affichées.
-              </p>
-            )}
+          {(contactsQuery.error || historyQuery.error) && (
+            <p
+              role="status"
+              className="px-4 py-3 text-xs text-muted-foreground"
+            >
+              Synchronisation temporairement interrompue. Les données déjà
+              chargées restent affichées.
+            </p>
+          )}
         </aside>
 
         {/* Conversation active */}
