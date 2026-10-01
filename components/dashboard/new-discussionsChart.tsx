@@ -44,7 +44,7 @@ export function DashboardDiscussionsChart({ data, growthPct }: DashboardDiscussi
 	const chartUid = useId().replace(/:/g, "");
 	const idLineGlow = `dashboard-discussions-glow-${chartUid}`;
 
-	const hasData = data && data.length > 0;
+	const hasData = data.some((row) => row.currentWeek > 0 || row.previousWeek > 0);
 
 	return (
 		<Card className="gap-0 md:col-span-2">

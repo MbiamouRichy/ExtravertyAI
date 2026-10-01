@@ -8,15 +8,10 @@ import {
 	SidebarContent,
 	SidebarFooter,
 	SidebarHeader,
-	SidebarMenu,
 	SidebarMenuButton,
-	SidebarMenuItem,
 } from "@/components/ui/sidebar";
-import { footerNavLinks, getNavGroups } from "@/components/dashboard/app-shared"; // Import de la fonction
-import { LatestChange } from "@/components/dashboard/latest-change";
+import { getNavGroups } from "@/components/dashboard/app-shared";
 import { NavGroup } from "@/components/dashboard/nav-group";
-import Link from "next/link";
-import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 import { useIsProjectContext } from "./conditional-sidebar-trigger";
 
 export function AppSidebar() {
@@ -51,31 +46,6 @@ export function AppSidebar() {
 					))}
 				</SidebarContent>
 				<SidebarFooter className="gap-0 p-0">
-					<LatestChange />
-					<SidebarMenu className="p-2">
-						{footerNavLinks.map((item) => (
-							<Tooltip delayDuration={1000} key={item.title}>
-								<TooltipTrigger asChild>
-									<SidebarMenuItem key={item.title}>
-										<SidebarMenuButton
-											asChild
-											className="text-muted-foreground"
-											isActive={item.isActive}
-											size="sm"
-										>
-											<Link href={item.path || "#"}>
-												{item.icon}
-												<span>{item.title}</span>
-											</Link>
-										</SidebarMenuButton>
-									</SidebarMenuItem>
-								</TooltipTrigger>
-								<TooltipContent side="right">
-									{item.title}
-								</TooltipContent>
-							</Tooltip>
-						))}
-					</SidebarMenu>
 					<div className="px-4 pt-4 pb-2 transition-opacity group-data-[collapsible=icon]:pointer-events-none group-data-[collapsible=icon]:opacity-0">
 						<p className="text-nowrap text-[9px] text-muted-foreground">
 							© {new Date().getFullYear()} ExtravertyAI.

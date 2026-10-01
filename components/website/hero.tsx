@@ -54,6 +54,18 @@ export function HeroSection() {
       <div aria-hidden="true" className={styles.halo} />
       <div aria-hidden="true" className={styles.dots} />
       <div className="flex flex-col max-w-5xl mx-auto items-center justify-center gap-5 px-2 pt-28 lg:pt-36 pb-8 md:pb-12 md:px-4">
+      <div
+          aria-hidden="true"
+          className="absolute inset-0 -z-1 size-full overflow-hidden"
+        >
+          <div
+            className={cn(
+              "absolute -inset-x-20 inset-y-0 z-0 rounded-full",
+              "bg-[radial-gradient(ellipse_at_center,theme(--color-foreground/.15),transparent,transparent)]",
+              "blur-[20px]",
+            )}
+          />
+          </div>
         <Link
           className={cn(
             "group mx-auto text-sm hidden md:flex w-fit items-center gap-3 rounded-sm border bg-card p-1 shadow",

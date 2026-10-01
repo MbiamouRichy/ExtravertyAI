@@ -4,7 +4,12 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import useSWRInfinite from "swr/infinite";
 import Pusher from "pusher-js";
 
-import type { ChatClient, ChatMessage, ChatPage } from "@/lib/chat";
+import type {
+  ChatClient,
+  ChatMessage,
+  ChatPage,
+  ChatMessagesPage,
+} from "@/lib/chat";
 
 class ChatHttpError extends Error {
   constructor(public status: number) {
@@ -104,7 +109,7 @@ export function useChatContacts(
 }
 
 export function useChatMessages(projectId: string, contactId: string | null) {
-  const swr = useSWRInfinite<ChatPage<ChatMessage>>(
+  const swr = useSWRInfinite<ChatMessagesPage>(
     (index, previousPage) => {
       if (!contactId) return null;
       if (previousPage && !previousPage.nextCursor) return null;
@@ -120,11 +125,11 @@ export function useChatMessages(projectId: string, contactId: string | null) {
 
       return `/api/projects/${encodeURIComponent(projectId)}/chat?${params}`;
     },
-    fetchJson<ChatPage<ChatMessage>>,
+    fetchJson<ChatMessagesPage>,
     {
       ...commonOptions,
       persistSize: false,
-      refreshInterval: 8000,
+      refreshInterval: (pages) => (pages?.[0]?.generation ? 2000 : 8000),
     },
   );
 
@@ -147,6 +152,7 @@ export function useChatMessages(projectId: string, contactId: string | null) {
   return {
     ...swr,
     items,
+    generation: swr.error ? null : (swr.data?.[0]?.generation ?? null),
     hasMore: !!swr.data?.at(-1)?.nextCursor,
     loadMore: () => swr.setSize((size) => size + 1),
   };

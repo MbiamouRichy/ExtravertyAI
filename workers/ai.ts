@@ -23,6 +23,7 @@ async function main() {
       for (const projectId of changed) await notifyProject(projectId);
       const job = await claimAiJob(prisma);
       if (job) {
+        await notifyProject(job.projectId);
         await runAiJob(prisma, job);
         await notifyProject(job.projectId);
       } else await sleep(500);

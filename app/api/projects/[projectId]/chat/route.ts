@@ -6,8 +6,8 @@ import { getSession } from "@/lib/auth-server";
 import {
   normalizeChatStatus,
   type ChatClient,
-  type ChatMessage,
   type ChatPage,
+  type ChatMessagesPage,
 } from "@/lib/chat";
 
 export const runtime = "nodejs";
@@ -215,12 +215,51 @@ export async function GET(
         id: contactId,
         projectId,
       },
-      select: { id: true },
+      select: {
+        id: true,
+        aiActive: true,
+        aiVersion: true,
+        project: {
+          select: {
+            status: true,
+            automationPaused: true,
+            deletionPending: true,
+            agentSetupCompletedAt: true,
+            agentConfigVersion: true,
+          },
+        },
+      },
     });
 
     if (!contact) {
       return json({ error: "Contact indisponible." }, 404);
     }
+
+    // Only expose activity belonging to this authorized contact and current config.
+    const generationJob =
+      !cursor &&
+      contact.aiActive &&
+      !contact.project.automationPaused &&
+      !contact.project.deletionPending &&
+      contact.project.agentSetupCompletedAt &&
+      ["active", "trialing"].includes(contact.project.status)
+        ? await prisma.aiJob.findFirst({
+            where: {
+              projectId,
+              contactId,
+              aiVersion: contact.aiVersion,
+              agentConfigVersion: contact.project.agentConfigVersion,
+              state: { in: ["QUEUED", "GENERATING"] },
+            },
+            orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+            select: {
+              id: true,
+              state: true,
+              createdAt: true,
+              leaseUntil: true,
+            },
+          })
+        : null;
 
     const rows = await prisma.message.findMany({
       where: {
@@ -257,7 +296,20 @@ export async function GET(
     const page = rows.slice(0, PAGE_SIZE);
     const last = page.at(-1);
 
-    const result: ChatPage<ChatMessage> = {
+    const result: ChatMessagesPage = {
+      generation: generationJob
+        ? {
+            id: generationJob.id,
+            state:
+              generationJob.state === "GENERATING" &&
+              generationJob.leaseUntil &&
+              generationJob.leaseUntil > new Date()
+                ? "thinking"
+                : Date.now() - generationJob.createdAt.getTime() > 120_000
+                  ? "delayed"
+                  : "queued",
+          }
+        : null,
       items: page.map((message) => ({
         id: message.id,
         senderType:

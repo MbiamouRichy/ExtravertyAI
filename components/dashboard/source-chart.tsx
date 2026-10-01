@@ -41,12 +41,14 @@ interface SourceMessageChartProps extends ComponentProps<typeof Card> {
     data: SourceDatum[];
     totalMessages: number;
     trendPercentage?: number;
+    error?: string;
 }
 
 export function SourceMessageChart({
     data,
     totalMessages,
     trendPercentage = 0,
+    error,
     className,
     ...props
 }: SourceMessageChartProps) {
@@ -60,7 +62,7 @@ export function SourceMessageChart({
                     <CardTitle>
                         Sources des messages
                     </CardTitle>
-                    {trendPercentage !== 0 && (
+                    {!error && trendPercentage !== 0 && (
                         <Delta value={trendPercentage} variant="badge" className="scale-95 origin-right">
                             <DeltaIcon variant="trend" />
                             <DeltaValue suffix="%" />
@@ -68,12 +70,14 @@ export function SourceMessageChart({
                     )}
                 </div>
                 <CardDescription>
-                    Répartition sur les 7 derniers jours ({totalMessages} au total)
+                    {error ? "Données indisponibles" : `Répartition sur les 7 derniers jours (${totalMessages} au total)`}
                 </CardDescription>
             </CardHeader>
 
             <CardContent className="flex-1 pb-6 flex flex-col justify-center">
-                {totalMessages > 0 ? (
+                {error ? (
+                    <p role="alert" className="py-12 text-center text-sm text-muted-foreground">{error}</p>
+                ) : totalMessages > 0 ? (
                     <ChartContainer
                         className="mx-auto aspect-square max-h-100 w-full"
                         config={chartConfig}

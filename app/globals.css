@@ -4,6 +4,66 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* Soft edges overlap only the message viewport, never its interactive controls. */
+.chat-floating-header::after,
+.chat-floating-composer::before {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  height: calc(var(--spacing) * 6);
+  pointer-events: none;
+  background: var(--background);
+  backdrop-filter: blur(var(--blur-sm));
+}
+
+.chat-floating-header::after {
+  top: 100%;
+  mask-image: linear-gradient(to bottom, black, transparent);
+}
+
+.chat-floating-composer::before {
+  bottom: 100%;
+  mask-image: linear-gradient(to top, black, transparent);
+}
+
+@media (forced-colors: active) {
+  .chat-floating-header::after,
+  .chat-floating-composer::before {
+    display: none;
+  }
+}
+
+/* shadcn's text-shimmer pattern, using the application's semantic palette.
+   The installed shadcn stylesheet predates its shimmer utility. */
+@keyframes ai-thinking-shimmer {
+  from { background-position: 100% 0; }
+  to { background-position: -100% 0; }
+}
+
+@keyframes ai-word-appear {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.ai-thinking-shimmer {
+  color: transparent;
+  background-image: linear-gradient(110deg, var(--muted-foreground) 35%, var(--foreground) 50%, var(--muted-foreground) 65%);
+  background-size: 200% 100%;
+  background-clip: text;
+  animation: ai-thinking-shimmer 2s linear infinite;
+}
+
+.ai-response-word { animation: ai-word-appear 180ms ease-out both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .ai-thinking-shimmer { animation: none; background: none; color: var(--muted-foreground); }
+  .ai-response-word { animation: none; }
+}
+
+@media (forced-colors: active) {
+  .ai-thinking-shimmer { background: none; color: CanvasText; }
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);

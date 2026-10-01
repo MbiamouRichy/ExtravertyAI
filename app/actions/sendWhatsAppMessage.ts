@@ -2,6 +2,7 @@
 import { projectBillingStatus } from "@/lib/project-status";
 
 import { z } from "zod";
+import { MessageContentSchema } from "@/lib/message-schema";
 import { revalidatePath } from "next/cache";
 
 import prisma from "@/lib/prisma";
@@ -13,7 +14,7 @@ const SendMessageSchema = z.object({
   projectId: z.string().cuid(),
   contactId: z.string().cuid(),
   requestId: z.string().uuid(),
-  content: z.string().trim().min(1).max(4096),
+  content: MessageContentSchema,
 });
 
 class SendRejected extends Error {}

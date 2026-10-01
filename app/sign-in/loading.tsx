@@ -13,12 +13,12 @@ export default function Loading() {
                 )}
             >
                 {/* Éléments décoratifs et bordures conservés à l'identique pour éviter un saut visuel */}
-                <div className="absolute -inset-y-6 -left-px w-px bg-border" />
-                <div className="absolute -inset-y-6 -right-px w-px bg-border" />
-                <div className="absolute -inset-x-6 -top-px h-px bg-border" />
-                <div className="absolute -inset-x-6 -bottom-px h-px bg-border" />
-                <DecorIcon position="top-left" />
-                <DecorIcon position="bottom-right" />
+                <div className="hidden md:block absolute -inset-y-6 -left-px w-px bg-border" />
+                <div className="hidden md:block absolute -inset-y-6 -right-px w-px bg-border" />
+                <div className="hidden md:block absolute -inset-x-6 -top-px h-px bg-border" />
+                <div className="hidden md:block absolute -inset-x-6 -bottom-px h-px bg-border" />
+                <DecorIcon className="hidden md:block" position="top-left" />
+                <DecorIcon className="hidden md:block" position="bottom-right" />
 
                 <div className="w-full max-w-sm animate-in fade-in zoom-in-95 duration-500 space-y-8">
                     <Skeleton className="h-8 w-10 rounded-md" /> {/*logo*/}

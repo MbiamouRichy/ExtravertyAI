@@ -1,17 +1,8 @@
 export type ChatMessageStatus =
-  | "pending"
-  | "sent"
-  | "delivered"
-  | "read"
-  | "failed"
-  | "unknown";
+  "pending" | "sent" | "delivered" | "read" | "failed" | "unknown";
 
 export type OutboundState =
-  | "QUEUED"
-  | "DISPATCHING"
-  | "ACCEPTED"
-  | "UNCERTAIN"
-  | "CANCELLED";
+  "QUEUED" | "DISPATCHING" | "ACCEPTED" | "UNCERTAIN" | "CANCELLED";
 
 export type ChatClient = {
   id: string;
@@ -25,6 +16,15 @@ export type ChatClient = {
 export type ChatPage<T> = {
   items: T[];
   nextCursor: string | null;
+};
+
+export type ChatGeneration = {
+  id: string;
+  state: "queued" | "thinking" | "delayed";
+};
+
+export type ChatMessagesPage = ChatPage<ChatMessage> & {
+  generation: ChatGeneration | null;
 };
 
 export type ChatMessage = {

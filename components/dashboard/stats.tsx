@@ -1,7 +1,6 @@
 import {
 	Card,
 	CardContent,
-	CardFooter,
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
@@ -81,51 +80,9 @@ export async function DashboardStats({ projectId }: { projectId: string }) {
 		},
 	];
 
-	/* ===================================================
-	A Supprimer ce bloc de code si tu veux utiliser les vraies stats depuis la base de données.
-	===================================================
-				*/
-	type Stat = {
-		label: string;
-		value: string;
-		delta: number;
-		invertDelta?: boolean;
-	};
-
-	// Données de test générées en dur
-	const mockStats: Stat[] = [
-		{
-			label: "Nouveaux Contacts",
-			value: "25",
-			delta: 150.0
-		},
-		{
-			label: "Messages Reçus",
-			value: "110",
-			delta: 175.0
-		},
-		{
-			label: "Réponses du Bot",
-			value: "100",
-			delta: 185.7
-		},
-		{
-			label: "Interventions Humaines",
-			value: "5",
-			delta: -50.0,
-			invertDelta: true // Indique que cette baisse est une bonne chose !
-		},
-	] as const;
-
-
-	/* ===================================================
-	
-	===================================================*/
-
 	return (
 		<>
-			{/* {N'oublie pas de remplacer mockStats par les vraies stats} */}
-			{mockStats.map((s) => (
+			{stats.map((s) => (
 				<Card className={cn("shadow-none dark:ring-0")} key={s.label}>
 					<CardHeader>
 						<CardTitle className="font-normal text-xs text-muted-foreground tracking-tight">

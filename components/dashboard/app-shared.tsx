@@ -5,8 +5,6 @@ import {
   UsersIcon,
   SettingsIcon,
   CreditCardIcon,
-  HelpCircleIcon,
-  BookOpenIcon,
   FolderEditIcon,
   LayoutDashboard,
   MessageSquareIcon,
@@ -122,26 +120,10 @@ export const getNavGroups = (projectId: string): SidebarNavGroup[] => [
   },
 ];
 
-// Si les liens du footer dépendent aussi du projet, transformez-les en fonction.
-// Sinon, laissez-les en tableau constant.
-export const footerNavLinks: SidebarNavItem[] = [
-  {
-    title: "Help Center",
-    path: "#/help",
-    icon: <HelpCircleIcon />,
-  },
-  {
-    title: "Documentation",
-    path: "#/documentation",
-    icon: <BookOpenIcon />,
-  },
-];
-
 export const navLinks = (projectId: string): SidebarNavItem[] => [
   ...getNavGroups(projectId).flatMap((group) =>
     group.items.flatMap((item) =>
       item.subItems?.length ? [item, ...item.subItems] : [item],
     ),
   ),
-  ...footerNavLinks,
 ];

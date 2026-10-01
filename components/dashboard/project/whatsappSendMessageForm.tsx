@@ -4,7 +4,7 @@ import {
   useChatMessages,
   useChatRealtime,
 } from "@/hooks/use-chat-data";
-import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
   Bot,
@@ -15,10 +15,8 @@ import {
   Loader2,
   MessageCircle,
   Pause,
-  Play,
   RefreshCw,
   Search,
-  Send,
   UserRound,
   X,
 } from "lucide-react";
@@ -26,6 +24,7 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { StatusIndicator } from "@/components/ui/indicator";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   MessageScrollerProvider,
@@ -45,6 +44,9 @@ import {
   type ChatMessageStatus,
 } from "@/lib/chat";
 import { cn } from "@/lib/utils";
+import { AiResponseText, AiThinking, useLiveAiResponses } from "./ai-response";
+import { ChatComposer } from "./chat-composer";
+import { MessageContentSchema } from "@/lib/message-schema";
 
 type WorkspaceProps = {
   initialClient?: ChatClient;
@@ -78,7 +80,6 @@ type SendResult = {
   status: ChatMessageStatus;
 };
 
-const MAX_MESSAGE_LENGTH = 4096;
 
 // UTC explicite pour éviter des différences SSR/hydratation.
 // Tu peux remplacer ceci par le fuseau configuré pour le projet.
@@ -221,12 +222,15 @@ function ChatBubble({
   message,
   contactName,
   onRestore,
+  animate = false,
 }: {
   message: DisplayMessage;
   contactName: string;
   onRestore: (content: string) => void;
+  animate?: boolean;
 }) {
   const incoming = message.senderType === "client";
+  const isAi = message.senderType === "bot";
   const visualStatus: DisplayMessage["status"] =
     message.status === "read" || message.status === "delivered"
       ? message.status
@@ -256,13 +260,13 @@ function ChatBubble({
   return (
     <article
       aria-label={`Message de ${author}`}
-      className={cn("flex w-full", incoming ? "justify-start" : "justify-end")}
+      className={cn("flex w-full", incoming || isAi ? "justify-start" : "justify-end")}
     >
-      <div className="min-w-0 max-w-[92%] sm:max-w-[78%]">
+      <div className={cn("min-w-0", isAi ? "w-full py-2" : "max-w-[92%] sm:max-w-[78%]")}>
         <div
           className={cn(
             "mb-1.5 flex items-center gap-1.5 px-1 text-[11px] font-medium text-muted-foreground",
-            !incoming && "justify-end",
+            !incoming && !isAi && "justify-end",
           )}
         >
           {message.senderType === "bot" && (
@@ -271,28 +275,25 @@ function ChatBubble({
           {author}
         </div>
 
-        <div
+        {isAi ? <AiResponseText content={message.content} animate={animate} /> : <div
           className={cn(
             "rounded-2xl border px-4 py-3 text-sm leading-relaxed shadow-sm",
             incoming
               ? "rounded-tl-md border-border/70 bg-card"
-              : message.senderType === "bot"
-                ? "rounded-tr-md border-border/20 bg-primary/5"
-                : "rounded-tr-md border-primary/15 bg-primary/5",
+              : "rounded-tr-md border-primary/15 bg-primary/5",
             failed && "border-destructive/30 bg-destructive/5",
             uncertain && "border-border/30",
           )}
         >
-          {/* React échappe le texte : aucun HTML brut ni faux streaming. */}
           <p dir="auto" className="whitespace-pre-wrap wrap-anywhere">
             {message.content}
           </p>
-        </div>
+        </div>}
 
         <div
           className={cn(
             "mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 px-1 text-[10px] text-muted-foreground",
-            !incoming && "justify-end",
+            !incoming && !isAi && "justify-end",
           )}
         >
           <time
@@ -328,7 +329,6 @@ function ChatBubble({
 
 export default function WhatsappWorkspace({
   project,
-  user,
   isSuccess,
   canManageAi,
   initialClient,
@@ -346,6 +346,7 @@ export default function WhatsappWorkspace({
 
   const contactsQuery = useChatContacts(project.id, search, filter);
   const historyQuery = useChatMessages(project.id, activeId);
+  const animatedAiIds = useLiveAiResponses(activeId, historyQuery.items, !!historyQuery.data);
 
   const clients = contactsQuery.items;
 
@@ -359,7 +360,7 @@ export default function WhatsappWorkspace({
     void historyQuery.mutate();
   }
 
-  const { connected: realtimeConnected } = useChatRealtime(project.id, refresh);
+  useChatRealtime(project.id, refresh);
 
   const refreshing = contactsQuery.isValidating || historyQuery.isValidating;
 
@@ -557,18 +558,14 @@ export default function WhatsappWorkspace({
     }));
   }
 
-  async function handleSend(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
+  async function handleSend(content: string) {
     if (!activeClient) return;
 
     const contactId = activeClient.id;
-    const content = (drafts[contactId] ?? "").trim();
     const requestId = crypto.randomUUID();
     const localId = `local-${requestId}`;
     if (
-      !content ||
-      content.length > MAX_MESSAGE_LENGTH ||
+      !MessageContentSchema.safeParse(content).success ||
       sendLocks.current.has(contactId)
     ) {
       return;
@@ -731,7 +728,7 @@ export default function WhatsappWorkspace({
   }
 
   return (
-    <div className="flex h-[calc(100dvh-var(--app-header-height,4rem))] min-h-0 w-full flex-col overflow-hidden bg-muted/20 p-0 sm:p-3 xl:p-5">
+    <div className="flex h-[calc(100dvh-var(--app-header-height,4rem))] min-h-0 w-full flex-col overflow-hidden bg-background">
       {project.automationPaused && (
         <div
           role="status"
@@ -745,7 +742,7 @@ export default function WhatsappWorkspace({
           </p>
         </div>
       )}
-      <div className="mx-auto flex h-full min-h-0 w-full max-w-450 overflow-hidden border-border/70 bg-background sm:rounded-2xl sm:border sm:shadow-sm">
+      <div className="flex h-full min-h-0 w-full overflow-hidden bg-background">
         {/* Liste des conversations */}
         <aside
           aria-label="Conversations"
@@ -970,28 +967,15 @@ export default function WhatsappWorkspace({
             )}
           </nav>
 
-          <footer className="flex items-center gap-2 border-t bg-muted/20 px-4 py-3 text-[11px] text-muted-foreground">
-            <span
-              aria-hidden="true"
-              className={cn(
-                "size-1.5 rounded-full",
-                realtimeConnected ? "bg-primary" : "bg-primary",
-              )}
-            />
-            {realtimeConnected
-              ? "Mises à jour en direct"
-              : "Synchronisation automatique"}
-
             {(contactsQuery.error || historyQuery.error) && (
               <p
                 role="status"
-                className="border-b border-border/20 bg-primary/5 px-4 py-2 text-xs text-foreground dark:text-foreground"
+                className="px-4 py-3 text-xs text-muted-foreground"
               >
                 Synchronisation temporairement interrompue. Les données déjà
                 chargées restent affichées.
               </p>
             )}
-          </footer>
         </aside>
 
         {/* Conversation active */}
@@ -1004,7 +988,7 @@ export default function WhatsappWorkspace({
         >
           {activeClient ? (
             <>
-              <header className="flex min-h-20 shrink-0 items-center justify-between gap-3 border-b border-border/70 bg-card px-3 py-3 sm:px-5">
+              <header className="chat-floating-header relative z-10 flex min-h-20 shrink-0 items-center justify-between gap-3 bg-background px-3 py-3 sm:px-5">
                 <div className="flex min-w-0 items-center gap-3">
                   <Button
                     type="button"
@@ -1035,44 +1019,46 @@ export default function WhatsappWorkspace({
                 </div>
 
                 <div className="flex shrink-0 items-center gap-2">
-                  <div className="hidden lg:block">
-                    <AiLabel active={aiActive} />
-                  </div>
-
                   {canManageAi ? (
                     <Button
                       type="button"
                       variant="outline"
                       disabled={aiBusyId !== null}
+                      aria-busy={aiBusyId === activeClient.id}
                       onClick={toggleAi}
-                      className="h-10 gap-2 rounded-xl px-3 text-xs"
+                      className="h-10 gap-2.5 rounded-xl px-3 text-xs"
                       aria-label={
                         aiActive
                           ? "Désactiver l’IA pour ce contact"
                           : "Activer l’IA pour ce contact"
                       }
                     >
-                      {aiBusyId === activeClient.id ? (
+                      <span aria-hidden="true" className="relative flex size-5 shrink-0 items-center justify-center">
+                        <Bot className="size-5" />
+                        <StatusIndicator
+                          color={aiActive ? "emerald" : undefined}
+                          pulse={aiActive}
+                          className={cn(
+                            "absolute -right-1 -top-1 ring-2 ring-background motion-reduce:[&_[data-slot=indicator-ping]]:animate-none",
+                            !aiActive && "text-muted-foreground",
+                          )}
+                        />
+                      </span>
+
+                      <span>
+                        {aiActive
+                          ? "Désactiver l’IA"
+                          : "Activer l’IA"}
+                      </span>
+                      {aiBusyId === activeClient.id && (
                         <Loader2
                           aria-hidden="true"
                           className="size-4 animate-spin motion-reduce:animate-none"
                         />
-                      ) : aiActive ? (
-                        <Pause aria-hidden="true" className="size-4" />
-                      ) : (
-                        <Play aria-hidden="true" className="size-4" />
                       )}
-
-                      <span className="hidden sm:inline">
-                        {aiActive
-                          ? "Désactiver pour ce contact"
-                          : "Activer pour ce contact"}
-                      </span>
                     </Button>
                   ) : (
-                    <div className="lg:hidden">
-                      <AiLabel active={aiActive} />
-                    </div>
+                    <AiLabel active={aiActive} />
                   )}
                 </div>
               </header>
@@ -1091,10 +1077,10 @@ export default function WhatsappWorkspace({
                 </div>
               )}
 
-              <div className="min-h-0 flex-1 bg-muted/20">
+              <div className="min-h-0 flex-1 bg-background">
                 <MessageScrollerProvider key={activeClient.id}>
                   <MessageScroller className="h-full">
-                    <MessageScrollerViewport className="px-3 py-5 sm:px-6">
+                    <MessageScrollerViewport className="px-3 py-8 sm:px-6">
                       {historyQuery.hasMore && (
                         <div className="flex justify-center">
                           <Button
@@ -1152,7 +1138,8 @@ export default function WhatsappWorkspace({
                                     : message.id
                                 }
                                 scrollAnchor={
-                                  index === activeMessages.length - 1
+                                  index === activeMessages.length - 1 &&
+                                  !(aiActive && !project.automationPaused && historyQuery.generation)
                                 }
                               >
                                 {day !== previousDay && (
@@ -1167,12 +1154,18 @@ export default function WhatsappWorkspace({
 
                                 <ChatBubble
                                   message={message}
+                                  animate={animatedAiIds.has(message.id)}
                                   contactName={activeClient.name}
                                   onRestore={restoreDraft}
                                 />
                               </MessageScrollerItem>
                             );
                           })
+                        )}
+                        {aiActive && !project.automationPaused && historyQuery.generation && (
+                          <MessageScrollerItem scrollAnchor>
+                            <AiThinking generation={historyQuery.generation} />
+                          </MessageScrollerItem>
                         )}
                       </MessageScrollerContent>
                     </MessageScrollerViewport>
@@ -1185,7 +1178,7 @@ export default function WhatsappWorkspace({
                 </MessageScrollerProvider>
               </div>
 
-              <footer className="shrink-0 border-t border-border/70 bg-card px-3 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-5 sm:pt-4">
+              <footer className="chat-floating-composer relative z-10 shrink-0 bg-background px-3 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-5 sm:pt-4">
                 <div className="mx-auto max-w-4xl">
                   {aiActive && (
                     <div className="mb-3 flex items-start gap-2 rounded-xl border border-border/20 bg-primary/5 px-3 py-2">
@@ -1201,84 +1194,21 @@ export default function WhatsappWorkspace({
                     </div>
                   )}
 
-                  <form
-                    onSubmit={handleSend}
-                    className="overflow-hidden rounded-2xl border border-border bg-background shadow-sm focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/20"
-                  >
-                    <label htmlFor="chat-message" className="sr-only">
-                      Message pour {activeClient.name}
-                    </label>
+                  <ChatComposer
+                    key={activeClient.id}
+                    draft={draft}
+                    contactName={activeClient.name}
+                    isSending={isSending}
+                    textareaRef={textareaRef}
+                    onDraftChange={(value) => {
+                      setDrafts((previous) => ({
+                        ...previous,
+                        [activeClient.id]: value,
+                      }));
+                    }}
+                    onSend={handleSend}
+                  />
 
-                    <textarea
-                      ref={textareaRef}
-                      id="chat-message"
-                      value={draft}
-                      rows={2}
-                      maxLength={MAX_MESSAGE_LENGTH}
-                      onChange={(event) => {
-                        const value = event.target.value;
-
-                        setDrafts((previous) => ({
-                          ...previous,
-                          [activeClient.id]: value,
-                        }));
-                      }}
-                      onKeyDown={(event) => {
-                        // Entrée reste une nouvelle ligne.
-                        // Ctrl/Cmd + Entrée envoie.
-                        if (
-                          event.key === "Enter" &&
-                          (event.ctrlKey || event.metaKey) &&
-                          !event.nativeEvent.isComposing
-                        ) {
-                          event.preventDefault();
-                          event.currentTarget.form?.requestSubmit();
-                        }
-                      }}
-                      placeholder="Écrire un message…"
-                      aria-describedby="chat-composer-help"
-                      className="block min-h-20 max-h-40 w-full resize-none bg-transparent px-4 pt-3 pb-2 text-base leading-relaxed outline-none placeholder:text-muted-foreground sm:text-sm"
-                    />
-
-                    <div className="flex items-center justify-between gap-3 px-3 pb-3">
-                      <div
-                        id="chat-composer-help"
-                        className="min-w-0 text-[10px] leading-relaxed text-muted-foreground"
-                      >
-                        <span className="hidden sm:block">
-                          Ctrl / ⌘ + Entrée pour envoyer
-                        </span>
-                        <span className="tabular-nums">
-                          {draft.length} / {MAX_MESSAGE_LENGTH}
-                        </span>
-                      </div>
-
-                      <Button
-                        type="submit"
-                        disabled={
-                          !draft.trim() ||
-                          isSending ||
-                          draft.length > MAX_MESSAGE_LENGTH
-                        }
-                        className="h-10 shrink-0 gap-2 rounded-xl px-4"
-                      >
-                        {isSending ? (
-                          <Loader2
-                            aria-hidden="true"
-                            className="size-4 animate-spin motion-reduce:animate-none"
-                          />
-                        ) : (
-                          <Send aria-hidden="true" className="size-4" />
-                        )}
-                        {isSending ? "Envoi…" : "Envoyer"}
-                      </Button>
-                    </div>
-                  </form>
-
-                  <p className="px-1 py-2 text-[10px] leading-relaxed text-muted-foreground">
-                    Connecté en tant que {user.name || "membre"} · Brouillons
-                    conservés uniquement pendant l’ouverture de cette page.
-                  </p>
                 </div>
               </footer>
             </>

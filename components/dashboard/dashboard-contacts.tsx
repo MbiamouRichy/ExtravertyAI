@@ -1,4 +1,4 @@
-"use client";
+import prisma from "@/lib/prisma";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -21,41 +21,25 @@ import { Badge } from "@/components/ui/badge";
 import { ArrowRightIcon, Bot, User } from "lucide-react";
 import Link from "next/link";
 
-// Type basé sur ton Prisma Schema
-type RecentContact = {
-	id: string;
-	name: string | null;
-	pushName: string | null;
-	phone: string;
-	aiActive: boolean;
-};
+export async function DashboardContacts({ projectId }: { projectId: string }) {
+	const recentContacts = await prisma.contact.findMany({
+		where: { projectId },
+		orderBy: [
+			{ lastMessageAt: { sort: "desc", nulls: "last" } },
+			{ createdAt: "desc" },
+			{ id: "desc" },
+		],
+		take: 5,
+		select: { id: true, name: true, pushName: true, phone: true, aiActive: true },
+	});
 
-// Mock de données pour l'exemple
-const recentContacts: RecentContact[] = [
-	{ id: "c1", name: "Jean Dupont", pushName: "Jeandu241", phone: "24107123456", aiActive: true },
-	{ id: "c2", name: null, pushName: "Alice Business", phone: "24107112233", aiActive: false },
-	{ id: "c3", name: "Marc Olivier", pushName: "MarcO", phone: "24106554433", aiActive: true },
-	{ id: "c4", name: "Sophie Tech", pushName: "Sophie", phone: "24107778899", aiActive: false },
-	{ id: "c4", name: "Sophie Tech", pushName: "Sophie", phone: "24107778899", aiActive: false },
-	{ id: "c4", name: "Sophie Tech", pushName: "Sophie", phone: "24107778899", aiActive: false },
-	{ id: "c4", name: "Sophie Tech", pushName: "Sophie", phone: "24107778899", aiActive: false },
-	{ id: "c1", name: "Jean Dupont", pushName: "Jeandu241", phone: "24107123456", aiActive: true },
-	{ id: "c2", name: null, pushName: "Alice Business", phone: "24107112233", aiActive: false },
-	{ id: "c3", name: "Marc Olivier", pushName: "MarcO", phone: "24106554433", aiActive: true },
-	{ id: "c4", name: "Sophie Tech", pushName: "Sophie", phone: "24107778899", aiActive: false },
-	{ id: "c4", name: "Sophie Tech", pushName: "Sophie", phone: "24107778899", aiActive: false },
-	{ id: "c4", name: "Sophie Tech", pushName: "Sophie", phone: "24107778899", aiActive: false },
-	{ id: "c4", name: "Sophie Tech", pushName: "Sophie", phone: "24107778899", aiActive: false },
-];
-
-export function DashboardContacts({ projectId }: { projectId: string }) {
 	return (
 		<Card className="relative gap-0 md:col-span-2 lg:col-span-3">
 			<CardHeader className="border-b">
 				<CardTitle className="text-base">Derniers prospects</CardTitle>
 				<CardDescription>Contacts WhatsApp récemment actifs sur ce projet.</CardDescription>
 			</CardHeader>
-			<CardContent className="px-0 max-h-72 mask-b-from-50% mask-b-to-100%">
+			<CardContent className="px-0">
 				<Table>
 					<TableCaption className="sr-only">Liste des derniers contacts WhatsApp.</TableCaption>
 					<TableHeader>
@@ -66,6 +50,13 @@ export function DashboardContacts({ projectId }: { projectId: string }) {
 						</TableRow>
 					</TableHeader>
 					<TableBody>
+						{recentContacts.length === 0 && (
+							<TableRow>
+								<TableCell colSpan={3} className="h-24 text-center text-muted-foreground">
+									Aucun contact pour le moment.
+								</TableCell>
+							</TableRow>
+						)}
 						{recentContacts.map((contact) => (
 							<TableRow className="h-12" key={contact.id}>
 								<TableCell className="max-w-40 truncate ps-6 font-medium">
@@ -79,7 +70,7 @@ export function DashboardContacts({ projectId }: { projectId: string }) {
 								</TableCell>
 								<TableCell className="pe-6 text-right">
 									{contact.aiActive ? (
-										<Badge variant="secondary" className="gap-1 font-normal bg-neutral-100 text-neutral-700 dark:bg-neutral-800 dark:text-neutral-300">
+										<Badge variant="secondary" className="gap-1 font-normal">
 											<Bot className="h-3 w-3" /> IA
 										</Badge>
 									) : (
@@ -93,9 +84,9 @@ export function DashboardContacts({ projectId }: { projectId: string }) {
 					</TableBody>
 				</Table>
 			</CardContent>
-			<div className="mask-t-from-30% absolute inset-x-0 bottom-0 flex h-1/5  items-center justify-center bg-linear-to-t from-background to-background/0">
+			<div className="flex items-center justify-center border-t py-3">
 				<Button asChild className="relative" variant="ghost" size="sm">
-					<Link href={`/projects/${projectId}/analytics/contacts`}>
+					<Link href={`/projects/${projectId}/contacts`}>
 						Voir tout le CRM
 						<ArrowRightIcon className="ml-2 h-4 w-4" aria-hidden="true" />
 					</Link>

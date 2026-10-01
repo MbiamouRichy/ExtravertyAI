@@ -107,12 +107,12 @@ export function AuthPage({ callbackUrl }: { callbackUrl: string }) {
 					"dark:bg-[radial-gradient(50%_80%_at_20%_0%,--theme(--color-foreground/.1),transparent)]"
 				)}
 			>
-				<div className="absolute -inset-y-6 -left-px w-px bg-border" />
-				<div className="absolute -inset-y-6 -right-px w-px bg-border" />
-				<div className="absolute -inset-x-6 -top-px h-px bg-border" />
-				<div className="absolute -inset-x-6 -bottom-px h-px bg-border" />
-				<DecorIcon position="top-left" />
-				<DecorIcon position="bottom-right" />
+				<div className="hidden md:block absolute -inset-y-6 -left-px w-px bg-border" />
+				<div className="hidden md:block absolute -inset-y-6 -right-px w-px bg-border" />
+				<div className="hidden md:block absolute -inset-x-6 -top-px h-px bg-border" />
+				<div className="hidden md:block absolute -inset-x-6 -bottom-px h-px bg-border" />
+				<DecorIcon className="hidden md:block" position="top-left" />
+				<DecorIcon className="hidden md:block" position="bottom-right" />
 
 				<div className="w-full max-w-sm space-y-8">
 					<Button asChild variant={"ghost"}>

@@ -193,6 +193,15 @@ function Sidebar({
             } as React.CSSProperties
           }
           side={side}
+          onClick={(event) => {
+            const target = event.target
+            if (target instanceof Element) {
+              const link = target.closest("a[href]")
+              if (link && event.currentTarget.contains(link)) {
+                setOpenMobile(false)
+              }
+            }
+          }}
         >
           <SheetHeader className="sr-only">
             <SheetTitle>Sidebar</SheetTitle>

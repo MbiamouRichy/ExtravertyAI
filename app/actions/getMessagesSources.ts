@@ -36,8 +36,8 @@ const colorMapping: Record<MessageSourceKey, string> = {
   unknown: "var(--chart-4)",
 };
 
-function getStartDateFromPeriod(period: TimePeriod): Date {
-  const date = new Date();
+function getStartDateFromPeriod(period: TimePeriod, now: Date): Date {
+  const date = new Date(now);
   switch (period) {
     case "7d":
       date.setDate(date.getDate() - 7);
@@ -125,16 +125,25 @@ export async function getMessageSourcesStats(
     }
 
     // --- Logique Métier ---
-    const startDate = getStartDateFromPeriod(period);
+    const now = new Date();
+    const startDate = getStartDateFromPeriod(period, now);
+    const previousStartDate = new Date(
+      startDate.getTime() - (now.getTime() - startDate.getTime()),
+    );
 
-    const groupedMessages = await prisma.message.groupBy({
-      by: ["source"],
-      where: {
-        projectId: projectId,
-        createdAt: { gte: startDate },
-      },
-      _count: { source: true },
-    });
+    const [groupedMessages, previousTotal] = await Promise.all([
+      prisma.message.groupBy({
+        by: ["source"],
+        where: { projectId, createdAt: { gte: startDate, lte: now } },
+        _count: { _all: true },
+      }),
+      prisma.message.count({
+        where: {
+          projectId,
+          createdAt: { gte: previousStartDate, lt: startDate },
+        },
+      }),
+    ]);
 
     const stats: Record<MessageSourceKey, number> = {
       android: 0,
@@ -148,12 +157,12 @@ export async function getMessageSourcesStats(
     groupedMessages.forEach((group) => {
       // 🛡️ 5. Assainissement de la sortie (Type Guarding)
       const sourceKey =
-        group.source && group.source in stats
+        group.source && Object.hasOwn(stats, group.source)
           ? (group.source as MessageSourceKey)
           : "unknown";
 
-      stats[sourceKey] += group._count.source;
-      totalMessages += group._count.source;
+      stats[sourceKey] += group._count._all;
+      totalMessages += group._count._all;
     });
 
     const chartData: SourceDatum[] = (
@@ -168,7 +177,9 @@ export async function getMessageSourcesStats(
       success: true,
       data: chartData,
       totalMessages,
-      trendPercentage: 12.5, // Mock de tendance pour le test
+      trendPercentage: previousTotal === 0
+        ? (totalMessages > 0 ? 100 : 0)
+        : Number((((totalMessages - previousTotal) / previousTotal) * 100).toFixed(1)),
     };
   } catch (error) {
     // 🛡️ 6. Ne jamais fuiter l'erreur brute (Prisma peut révéler la structure de la BDD)
