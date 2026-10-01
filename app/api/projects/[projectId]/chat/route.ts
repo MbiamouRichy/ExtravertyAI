@@ -219,6 +219,7 @@ export async function GET(
         id: true,
         aiActive: true,
         aiVersion: true,
+        messages: { where: { senderType: "CLIENT", fromMe: false }, take: 1, select: { id: true } },
         project: {
           select: {
             status: true,
@@ -297,6 +298,7 @@ export async function GET(
     const last = page.at(-1);
 
     const result: ChatMessagesPage = {
+      hasClientMessage: contact.messages.length > 0,
       generation: generationJob
         ? {
             id: generationJob.id,

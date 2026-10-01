@@ -24,6 +24,7 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
 import { StatusIndicator } from "@/components/ui/indicator";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
@@ -46,6 +47,7 @@ import {
 import { cn } from "@/lib/utils";
 import { AiResponseText, AiThinking, useLiveAiResponses } from "./ai-response";
 import { ChatComposer } from "./chat-composer";
+import { ConversationSummaryButton } from "./conversation-summary";
 import { MessageContentSchema } from "@/lib/message-schema";
 
 type WorkspaceProps = {
@@ -262,7 +264,7 @@ function ChatBubble({
       aria-label={`Message de ${author}`}
       className={cn("flex w-full", incoming || isAi ? "justify-start" : "justify-end")}
     >
-      <div className={cn("min-w-0", isAi ? "w-full py-2" : "max-w-[92%] sm:max-w-[78%]")}>
+      <div className={cn("min-w-0", isAi ? "w-4/5 max-w-prose py-2" : "max-w-[92%] sm:max-w-[78%]")}>
         <div
           className={cn(
             "mb-1.5 flex items-center gap-1.5 px-1 text-[11px] font-medium text-muted-foreground",
@@ -340,6 +342,7 @@ export default function WhatsappWorkspace({
     initialClient || null,
   );
   const [mobileChat, setMobileChat] = useState(!!initialClient);
+  const [conversationElement, setConversationElement] = useState<HTMLElement | null>(null);
 
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
@@ -728,7 +731,7 @@ export default function WhatsappWorkspace({
   }
 
   return (
-    <div className="flex h-[calc(100dvh-var(--app-header-height,4rem))] min-h-0 w-full flex-col overflow-hidden bg-background">
+    <div className="flex h-[calc(100dvh-var(--spacing)*14)] min-h-0 w-full flex-col overflow-hidden bg-background md:h-[calc(100dvh-var(--spacing)*18)]">
       {project.automationPaused && (
         <div
           role="status"
@@ -742,12 +745,12 @@ export default function WhatsappWorkspace({
           </p>
         </div>
       )}
-      <div className="flex h-full min-h-0 w-full overflow-hidden bg-background">
+      <div className="flex min-h-0 w-full flex-1 gap-3 overflow-hidden p-3">
         {/* Liste des conversations */}
         <aside
           aria-label="Conversations"
           className={cn(
-            "w-full min-h-0 shrink-0 flex-col border-r border-border/70 bg-card md:w-80 xl:w-96",
+            "w-full min-h-0 shrink-0 flex-col overflow-hidden rounded-xl border border-border bg-card md:w-80 xl:w-96",
             mobileChat ? "hidden md:flex" : "flex",
           )}
         >
@@ -802,8 +805,10 @@ export default function WhatsappWorkspace({
               />
 
               {search && (
-                <button
+                <Button
                   type="button"
+                  variant="ghost"
+                  size="icon"
                   aria-label="Effacer la recherche"
                   onClick={() => {
                     setSearch("");
@@ -812,7 +817,7 @@ export default function WhatsappWorkspace({
                   className="absolute right-0 top-0 flex size-10 items-center justify-center rounded-xl text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   <X aria-hidden="true" className="size-4" />
-                </button>
+                </Button>
               )}
             </div>
 
@@ -824,13 +829,14 @@ export default function WhatsappWorkspace({
               {(
                 [
                   ["all", "Toutes"],
-                  ["ai", "IA activée"],
-                  ["manual", "IA désactivée"],
+                  ["ai", "Assistant IA"],
+                  ["manual", "Équipe"],
                 ] as const
               ).map(([value, label]) => (
-                <button
+                <Button
                   key={value}
                   type="button"
+                  variant="ghost"
                   aria-pressed={filter === value}
                   onClick={() => setFilter(value)}
                   className={cn(
@@ -842,49 +848,53 @@ export default function WhatsappWorkspace({
                   )}
                 >
                   {label}
-                </button>
+                </Button>
               ))}
             </div>
           </header>
 
-          <div className="flex items-center justify-between px-5 py-3 text-[11px] text-muted-foreground">
-            <span>
+          <div className="flex items-center justify-between px-4 py-3 text-xs text-muted-foreground">
+            <span className="font-medium">Discussions récentes</span>
+            <span aria-live="polite">
               {visibleClients.length} conversation
               {visibleClients.length > 1 ? "s" : ""}
             </span>
-            <span>Heures en UTC</span>
           </div>
 
           <nav
             aria-label="Liste des contacts"
-            className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-2 pb-3"
+            aria-busy={contactsQuery.isLoading}
+            className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-2 pb-4"
           >
-            {visibleClients.length === 0 ? (
+            {contactsQuery.isLoading && !visibleClients.length ? (
+              <div role="status" className="space-y-3 p-2">
+                <span className="sr-only">Chargement des conversations…</span>
+                {[0, 1, 2].map((index) => <div key={index} className="flex items-center gap-3 py-2"><Skeleton className="size-10 rounded-full" /><div className="flex-1 space-y-2"><Skeleton className="h-3 w-2/3" /><Skeleton className="h-3 w-full" /></div></div>)}
+              </div>
+            ) : visibleClients.length === 0 ? (
               <div className="px-6 py-12 text-center">
                 <Search
                   aria-hidden="true"
                   className="mx-auto mb-3 size-6 text-muted-foreground"
                 />
                 <p className="text-sm font-medium">
-                  {clients.length === 0
-                    ? "Aucune conversation"
-                    : "Aucun résultat"}
+                  {search || filter !== "all" ? "Aucune correspondance" : "Aucune conversation"}
                 </p>
                 <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-                  {clients.length === 0
-                    ? "Vos contacts apparaîtront après les premiers échanges."
-                    : "Essayez un autre nom, un numéro ou un autre filtre."}
+                  {search || filter !== "all" ? "Essayez un autre nom, un numéro ou un autre filtre." : "Vos contacts apparaîtront après les premiers échanges."}
                 </p>
+                {(search || filter !== "all") && <Button variant="link" className="mt-3" onClick={() => { setSearch(""); setFilter("all"); }}>Voir toutes les conversations</Button>}
               </div>
             ) : (
-              <ul className="space-y-1">
+              <ul className="space-y-2">
                 {visibleClients.map((client) => {
                   const selected = activeId === client.id;
                   const hasDraft = !!drafts[client.id]?.trim();
 
                   return (
                     <li key={client.id}>
-                      <button
+                      <Button
+                        variant="ghost"
                         ref={(element) => {
                           if (element) {
                             contactButtonRefs.current.set(client.id, element);
@@ -896,15 +906,15 @@ export default function WhatsappWorkspace({
                         aria-current={selected ? "true" : undefined}
                         onClick={() => selectClient(client.id)}
                         className={cn(
-                          "flex w-full items-start gap-3 rounded-xl border p-3 text-left",
+                          "flex h-auto w-full items-start justify-start gap-3 whitespace-normal rounded-lg border border-l-2 p-3 text-left",
                           "transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none",
                           selected
-                            ? "border-primary/15 bg-primary/5"
-                            : "border-transparent hover:bg-muted/50",
+                            ? "border-border border-l-primary bg-accent text-accent-foreground hover:bg-accent"
+                            : "border-transparent hover:border-border hover:bg-muted/50",
                         )}
                       >
                         <div className="relative shrink-0">
-                          <Avatar className="size-11 border border-border/60">
+                          <Avatar className="size-10 border border-border/60">
                             <AvatarFallback className="bg-muted text-xs font-semibold">
                               {initials(client.name)}
                             </AvatarFallback>
@@ -925,6 +935,7 @@ export default function WhatsappWorkspace({
                             </span>
                             <time
                               dateTime={client.lastActivityAt}
+                              title={`${new Date(client.lastActivityAt).toISOString()} (UTC)`}
                               className="shrink-0 text-[10px] tabular-nums text-muted-foreground"
                             >
                               {previewDateFormatter.format(
@@ -933,7 +944,7 @@ export default function WhatsappWorkspace({
                             </time>
                           </div>
 
-                          <p className="mt-1 truncate text-xs leading-relaxed text-muted-foreground">
+                          <p className="mt-1 line-clamp-2 wrap-anywhere text-xs font-normal leading-relaxed text-muted-foreground">
                             {hasDraft ? (
                               <>
                                 <span className="font-medium text-foreground dark:text-foreground">
@@ -942,11 +953,11 @@ export default function WhatsappWorkspace({
                                 {drafts[client.id]}
                               </>
                             ) : (
-                              client.lastMessage
+                              client.lastMessage || "Aucun message pour le moment"
                             )}
                           </p>
                         </div>
-                      </button>
+                      </Button>
                     </li>
                   );
                 })}
@@ -980,9 +991,10 @@ export default function WhatsappWorkspace({
 
         {/* Conversation active */}
         <section
+          ref={setConversationElement}
           aria-label="Conversation active"
           className={cn(
-            "min-h-0 min-w-0 flex-1 flex-col",
+            "relative min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-border",
             mobileChat ? "flex" : "hidden md:flex",
           )}
         >
@@ -1019,6 +1031,14 @@ export default function WhatsappWorkspace({
                 </div>
 
                 <div className="flex shrink-0 items-center gap-2">
+                  <ConversationSummaryButton
+                    key={activeClient.id}
+                    projectId={project.id}
+                    contactId={activeClient.id}
+                    contactName={activeClient.name}
+                    enabled={historyQuery.hasClientMessage}
+                    container={conversationElement}
+                  />
                   {canManageAi ? (
                     <Button
                       type="button"
@@ -1034,18 +1054,15 @@ export default function WhatsappWorkspace({
                       }
                     >
                       <span aria-hidden="true" className="relative flex size-5 shrink-0 items-center justify-center">
-                        <Bot className="size-5" />
-                        <StatusIndicator
-                          color={aiActive ? "emerald" : undefined}
-                          pulse={aiActive}
-                          className={cn(
-                            "absolute -right-1 -top-1 ring-2 ring-background motion-reduce:[&_[data-slot=indicator-ping]]:animate-none",
-                            !aiActive && "text-muted-foreground",
-                          )}
-                        />
+                        <Bot className={cn("size-5", !aiActive && "text-muted-foreground")} />
+                        {aiActive && <StatusIndicator
+                          color="sky"
+                          pulse
+                          className="absolute -right-1 -top-1 ring-2 ring-background motion-reduce:[&_[data-slot=indicator-ping]]:animate-none"
+                        />}
                       </span>
 
-                      <span>
+                      <span className="hidden sm:inline">
                         {aiActive
                           ? "Désactiver l’IA"
                           : "Activer l’IA"}

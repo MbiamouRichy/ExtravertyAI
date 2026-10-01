@@ -24,6 +24,7 @@ export type ChatGeneration = {
 };
 
 export type ChatMessagesPage = ChatPage<ChatMessage> & {
+  hasClientMessage: boolean;
   generation: ChatGeneration | null;
 };
 

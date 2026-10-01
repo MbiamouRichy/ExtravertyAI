@@ -153,6 +153,7 @@ export function useChatMessages(projectId: string, contactId: string | null) {
     ...swr,
     items,
     generation: swr.error ? null : (swr.data?.[0]?.generation ?? null),
+    hasClientMessage: !swr.error && !!swr.data?.[0]?.hasClientMessage,
     hasMore: !!swr.data?.at(-1)?.nextCursor,
     loadMore: () => swr.setSize((size) => size + 1),
   };
