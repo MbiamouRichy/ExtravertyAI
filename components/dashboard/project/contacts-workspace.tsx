@@ -210,7 +210,7 @@ export function ContactsWorkspace(p: Props) {
     </Button>
   );
   return (
-    <main className="mx-auto max-w-7xl space-y-7 px-4 py-7 sm:px-8 lg:py-10">
+    <main className="mx-auto w-full max-w-7xl space-y-7 px-4 py-7 sm:px-8 lg:py-10">
       <header className="flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
         <div>
           <p className="mb-2 text-xs font-medium uppercase tracking-widest text-muted-foreground">

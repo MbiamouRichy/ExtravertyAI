@@ -19,7 +19,7 @@ export function ProjectLoadingShell({
       <div
         aria-hidden="true"
         className={cn(
-          "space-y-8 motion-reduce:[&_[data-slot=skeleton]]:animate-none",
+          "space-y-8 motion-reduce:**:data-[slot=skeleton]:animate-none",
           className,
         )}
       >
