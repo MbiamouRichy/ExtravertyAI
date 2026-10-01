@@ -11,7 +11,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 				<AppHeader />
 				<div
 					className={cn(
-						"mx-auto flex w-full min-w-0 flex-1 flex-col",
+						"mx-auto flex w-full min-w-0 flex-1 flex-col rounded-b-xl",
 						"max-w-(--app-wrapper-max-width)"
 					)}
 				>
