@@ -198,52 +198,54 @@ function ProfileForm({
           render={({ field, fieldState }) => (
             <Field data-invalid={fieldState.invalid} className="items-center">
               <FieldLabel htmlFor="profile-image">Photo de profil</FieldLabel>
-              <div className="relative w-32 h-32 rounded-full focus-within:ring-2 focus-within:ring-ring">
-                <Avatar className="h-full w-full border border-border">
-                  <AvatarImage
-                    src={preview ?? savedImage ?? undefined}
-                    alt={user.name}
+              <div className="flex justify-center">
+                <div className="relative size-32 shrink-0 rounded-full focus-within:ring-2 focus-within:ring-ring">
+                  <Avatar className="size-full overflow-hidden border border-border">
+                    <AvatarImage
+                      src={preview ?? savedImage ?? undefined}
+                      alt={user.name}
+                    />
+                    <AvatarFallback className="bg-muted text-foreground text-xl font-medium">
+                      {getInitials(user.name)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <Button
+                    type="button"
+                    tabIndex={-1}
+                    aria-hidden="true"
+                    variant="outline"
+                    size="icon-sm"
+                    className="rounded-full absolute bottom-0 right-0 pointer-events-none"
+                  >
+                    <CameraIcon />
+                  </Button>
+                  <Input
+                    id="profile-image"
+                    type="file"
+                    name={field.name}
+                    ref={(element) => {
+                      field.ref(element);
+                      fileInput.current = element;
+                    }}
+                    disabled={loading}
+                    onBlur={field.onBlur}
+                    aria-invalid={fieldState.invalid}
+                    aria-describedby={`profile-image-description${fieldState.invalid ? " profile-image-error" : ""}`}
+                    className="absolute inset-0 size-full rounded-full opacity-0 cursor-pointer disabled:opacity-0"
+                    accept="image/jpeg,image/png,image/webp"
+                    onChange={(event) => {
+                      const selected = event.target.files?.[0];
+                      if (selected) {
+                        field.onChange(selected);
+                        setPreview(
+                          profileImageError(selected)
+                            ? null
+                            : URL.createObjectURL(selected),
+                        );
+                      }
+                    }}
                   />
-                  <AvatarFallback className="bg-muted text-foreground text-xl font-medium">
-                    {getInitials(user.name)}
-                  </AvatarFallback>
-                </Avatar>
-                <Button
-                  type="button"
-                  tabIndex={-1}
-                  aria-hidden="true"
-                  variant="outline"
-                  size="icon-sm"
-                  className="rounded-full absolute bottom-0 right-0 pointer-events-none"
-                >
-                  <CameraIcon />
-                </Button>
-                <Input
-                  id="profile-image"
-                  type="file"
-                  name={field.name}
-                  ref={(element) => {
-                    field.ref(element);
-                    fileInput.current = element;
-                  }}
-                  disabled={loading}
-                  onBlur={field.onBlur}
-                  aria-invalid={fieldState.invalid}
-                  aria-describedby={`profile-image-description${fieldState.invalid ? " profile-image-error" : ""}`}
-                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                  accept="image/jpeg,image/png,image/webp"
-                  onChange={(event) => {
-                    const selected = event.target.files?.[0];
-                    if (selected) {
-                      field.onChange(selected);
-                      setPreview(
-                        profileImageError(selected)
-                          ? null
-                          : URL.createObjectURL(selected),
-                      );
-                    }
-                  }}
-                />
+                </div>
               </div>
               <FieldDescription id="profile-image-description">
                 JPEG, PNG ou WEBP, 2 Mo maximum.

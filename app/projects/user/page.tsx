@@ -111,7 +111,7 @@ export default async function ProfilePage() {
 
               <div className="w-full flex flex-col justify-between gap-2 items-center">
                 <ModifierProfile user={user}>
-                  <Button className="w-full cursor-pointer">
+                  <Button variant="outline" className="w-full cursor-pointer">
                     <UserCog className="mr-2 h-4 w-4" />
                     Modifier le profil
                   </Button>

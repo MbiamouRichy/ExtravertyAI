@@ -126,7 +126,7 @@ export default function HomeProjectsPage({ projects }: CustomProjectProps) {
                         </span>
                       </p>
                       <div className="grid grid-cols-2 gap-2 mt-2 pt-3 border-t border-border/50">
-                        <Button className="w-full" size="sm">
+                        <Button asChild variant="outline" className="w-full" size="sm">
                           <Link href={`/projects/${project.id}`} title={`Ouvrir ${project.name}`}>
                             Ouvrir
                           </Link>
