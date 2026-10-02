@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Shield, Key, Smartphone, Mail, CalendarDays, UserCog, Monitor } from "lucide-react";
+import { Shield, Key, Smartphone, Mail, CalendarDays, UserCog } from "lucide-react";
 import SignOutButton from "@/components/dashboard/user/signOutButton";
 import { ModifierProfile } from "@/components/dashboard/user/modifierProfile";
 import { getSession } from "@/lib/auth-server";
@@ -15,6 +15,7 @@ import { ChangePasswordDialog } from "@/components/dashboard/user/changePassword
 import ChangeEmailForm from "@/components/dashboard/user/modiferEmail";
 import type { Metadata } from "next";
 import { getInitials } from "@/components/getInitials";
+import { RecentSessions } from "@/components/dashboard/user/recent-sessions";
 import UserSettingsPage from "@/components/dashboard/user/settingsPage";
 
 export const dynamic = "force-dynamic";
@@ -44,7 +45,7 @@ export default async function ProfilePage() {
   const rawSessions = await prisma.session.findMany({
     where: { userId: user.id, expiresAt: { gt: new Date() } },
     orderBy: { createdAt: "desc" },
-    take: 4, // Limite à 4 sessions pour éviter de surcharger l'affichage
+    select: { id: true, userAgent: true, ipAddress: true, createdAt: true },
   });
 
   const sessions = rawSessions.map((s) => {
@@ -67,6 +68,7 @@ export default async function ProfilePage() {
 
     return {
       id: s.id,
+      isCurrent: s.id === sessionData.session.id,
       browser: result.browser?.name || "Navigateur inconnu",
       os: result.os?.name || "Système inconnu",
       device: result.device?.type === "mobile" ? "Mobile" : "Ordinateur",
@@ -188,33 +190,8 @@ export default async function ProfilePage() {
                 Les appareils  récemment connectés à votre compte.
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              {sessions.map((s, index) => (
-                <div key={s.id} className="flex flex-col lg:flex-row items-center justify-between p-4 rounded-lg border bg-card">
-                  <div className="flex flex-col lg:flex-row items-center gap-4">
-                    <div className="p-2 bg-primary/10 w-fit rounded-full">
-                      {s.device === "Mobile" ? (
-                        <Smartphone className="h-5 w-5 text-primary" />
-                      ) : (
-                        <Monitor className="h-5 w-5 text-primary" />
-                      )}
-                    </div>
-                    <div>
-                      <p className="font-medium text-sm">
-                        {s.device} • {s.os} - {s.browser}
-                      </p>
-                      {/* Affichage de l'IP et de la date ici */}
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        {s.ip} • Connecté le {s.date}
-                      </p>
-                    </div>
-                  </div>
-
-                  {index === 0 && (
-                    <Badge variant="default">Actuelle</Badge>
-                  )}
-                </div>
-              ))}
+            <CardContent>
+              <RecentSessions sessions={sessions} />
             </CardContent>
           </Card>
           <UserSettingsPage />

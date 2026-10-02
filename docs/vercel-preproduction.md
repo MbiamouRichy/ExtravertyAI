@@ -29,7 +29,7 @@ Dans **Settings → Environment Variables**, utiliser l’environnement **Previe
 | Stripe | `STRIPE_SECRET_KEY` de test, `STRIPE_WEBHOOK_SECRET` du nouvel endpoint, et `STRIPE_STARTER_PLAN_ID`, `STRIPE_PRO_PLAN_ID`, `STRIPE_BUSINESS_PLAN_ID` : identifiants `price_...` des tarifs récurrents de test |
 | Quotas | `MESSAGE_LIMIT_STARTER=1000`, `MESSAGE_LIMIT_PRO=3000`, `MESSAGE_LIMIT_BUSINESS=10000` |
 | Temps réel | `PUSHER_APP_ID`, `PUSHER_KEY`, `PUSHER_SECRET`, `PUSHER_CLUSTER`, `NEXT_PUBLIC_PUSHER_KEY`, `NEXT_PUBLIC_PUSHER_CLUSTER` : application Pusher de test ; les valeurs publiques doivent correspondre aux valeurs serveur |
-| IA, sur le serveur des workers | `OPENROUTER_API_KEY`, `OPENROUTER_MODEL=google/gemini-2.5-flash-lite` |
+| IA, sur Vercel **et** sur le serveur des workers | `OPENROUTER_API_KEY`, `OPENROUTER_MODEL=google/gemini-2.5-flash-lite` ; le résumé des conversations est généré par une action serveur du site |
 
 Pour générer un secret de session ou de webhook, exécuter localement `node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"`, puis le saisir directement dans les paramètres privés du service. Ne jamais utiliser un nom `NEXT_PUBLIC_*` pour une clé privée.
 

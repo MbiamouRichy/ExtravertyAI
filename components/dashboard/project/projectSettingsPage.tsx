@@ -13,19 +13,18 @@ import {
   ArrowUpRight,
   Loader2,
   Check,
-  RefreshCw,
   AlertTriangle,
   Trash2,
   MessageSquare,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { WhatsAppPreferences } from "./whatsapp-preferences";
 import { AgentEditor } from "./agent-editor";
 import type { ProjectSettingsView } from "@/lib/settings-types";
 import {
   saveProjectPreferences,
   setProjectPaused,
-  saveWhatsAppPreferences,
   openProjectBillingPortal,
 } from "@/app/actions/project-settings";
 import { deleteProjectAction } from "@/app/actions/projects";
@@ -56,7 +55,6 @@ export default function ProjectSettingsPage({
   const [tab, setTab] = useState<string>("agent");
   const [name, setName] = useState(p.name);
   const [paused, setPaused] = useState(p.automationPaused);
-  const [whatsapp, setWhatsapp] = useState(p.whatsapp);
   const [settingsVersion, setSettingsVersion] = useState(p.settingsVersion);
   const [pending, setPending] = useState("");
   const [error, setError] = useState("");
@@ -343,24 +341,7 @@ export default function ProjectSettingsPage({
             </>
           )}
           {tab === "whatsapp" && (
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                void run(
-                  "whatsapp",
-                  () =>
-                    saveWhatsAppPreferences({
-                      projectId: p.id,
-                      expectedVersion: settingsVersion,
-                      alwaysOnline: whatsapp.alwaysOnline,
-                      readMessages: whatsapp.readMessages,
-                      typing: whatsapp.typing,
-                    }),
-                  "Réglages enregistrés. Synchronisation WhatsApp programmée.",
-                );
-              }}
-              className="space-y-6 rounded-2xl border bg-card p-5 sm:p-7"
-            >
+            <section className="space-y-6 rounded-2xl border bg-card p-5 sm:p-7">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>
                   <h2 className="text-lg font-semibold">
@@ -382,81 +363,15 @@ export default function ProjectSettingsPage({
                   </Link>
                 </Button>
               </div>
-              <div className="divide-y">
-                {[
-                  {
-                    key: "alwaysOnline" as const,
-                    title: "Afficher le statut en ligne",
-                    text: "Garder votre compte visible comme étant en ligne sur WhatsApp.",
-                  },
-                  {
-                    key: "readMessages" as const,
-                    title: "Marquer les messages comme lus",
-                    text: "Envoyer un accusé de lecture à la réception des messages.",
-                  },
-                  {
-                    key: "typing" as const,
-                    title: "Afficher l’indicateur de frappe",
-                    text: "Afficher une courte présence de saisie avant les envois de l’application.",
-                  },
-                ].map((item) => (
-                  <label
-                    key={item.key}
-                    className="flex items-start justify-between gap-5 py-5"
-                  >
-                    <div>
-                      <span className="text-sm font-medium">{item.title}</span>
-                      <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">
-                        {item.text}
-                      </span>
-                    </div>
-                    <input
-                      type="checkbox"
-                      checked={whatsapp[item.key]}
-                      onChange={(e) =>
-                        setWhatsapp((current) => ({
-                          ...current,
-                          [item.key]: e.target.checked,
-                        }))
-                      }
-                      className="mt-1 size-5 shrink-0 accent-primary"
-                    />
-                  </label>
-                ))}
-              </div>
-              {p.whatsapp.pending && (
-                <p
-                  role="status"
-                  className="rounded-xl bg-muted p-4 text-sm text-foreground dark:bg-muted/30 dark:text-foreground"
-                >
-                  {p.whatsapp.error
-                    ? "La synchronisation n’a pas abouti. Le worker réessaiera automatiquement ; vérifiez la connexion WhatsApp si cela persiste."
-                    : "Synchronisation en attente. Les workers appliqueront vos réglages."}
-                </p>
-              )}
-              <div className="flex flex-wrap gap-3">
-                <Button
-                  disabled={!!pending || p.deletionPending}
-                  type="submit"
-                  size="lg"
-                >
-                  {pending === "whatsapp" ? (
-                    <Loader2 className="size-4 animate-spin" />
-                  ) : (
-                    <Check className="size-4" />
-                  )}{" "}
-                  Enregistrer les réglages
-                </Button>
-                <Button
-                  type="button"
-                  onClick={() => router.refresh()}
-                  variant="outline"
-                  size="lg"
-                >
-                  <RefreshCw className="size-4" /> Actualiser l’état
-                </Button>
-              </div>
-            </form>
+              <WhatsAppPreferences
+                key={p.id}
+                projectId={p.id}
+                initial={p.whatsapp}
+                version={Math.max(settingsVersion, p.settingsVersion)}
+                disabled={!!pending || p.deletionPending}
+                onVersionChange={setSettingsVersion}
+              />
+            </section>
           )}
           {tab === "data" && (
             <>

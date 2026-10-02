@@ -62,7 +62,9 @@ export async function generateConversationSummary(history: SummaryMessage[]) {
       body: JSON.stringify({
         model,
         temperature: 0.2,
-        max_tokens: 800,
+        max_tokens: 2000,
+        response_format: { type: "json_object" },
+        reasoning: { enabled: false },
         messages: [
           {
             role: "system",
@@ -74,12 +76,24 @@ export async function generateConversationSummary(history: SummaryMessage[]) {
       }),
     },
   );
-  if (!response.ok) throw new Error("SUMMARY_PROVIDER_ERROR");
+  if (!response.ok)
+    throw new Error(`SUMMARY_PROVIDER_ERROR_${response.status}`);
   const payload = await response.json();
   const text: unknown = payload?.choices?.[0]?.message?.content;
   if (typeof text !== "string" || text.length > 16000)
     throw new Error("SUMMARY_INVALID_RESPONSE");
-  return ConversationSummarySchema.parse(
-    JSON.parse(text.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "")),
-  );
+  if (payload.choices[0].finish_reason === "length")
+    throw new Error("SUMMARY_TRUNCATED_RESPONSE");
+  try {
+    return ConversationSummarySchema.parse(
+      JSON.parse(
+        text
+          .trim()
+          .replace(/^```(?:json)?\s*/i, "")
+          .replace(/\s*```$/, ""),
+      ),
+    );
+  } catch {
+    throw new Error("SUMMARY_INVALID_RESPONSE");
+  }
 }

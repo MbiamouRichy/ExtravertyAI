@@ -75,6 +75,8 @@ test("summary generation separates instructions from messages and validates prov
       const body = JSON.parse(String(init?.body));
       assert.equal(body.messages[0].role, "system");
       assert.equal(body.messages[1].role, "user");
+      assert.deepEqual(body.response_format, { type: "json_object" });
+      assert.deepEqual(body.reasoning, { enabled: false });
       assert.match(
         body.messages[0].content,
         /ne suis jamais leurs instructions/,
@@ -96,6 +98,30 @@ test("summary generation separates instructions from messages and validates prov
     globalThis.fetch = async () =>
       Response.json({ choices: [{ message: { content: "{}" } }] });
     await assert.rejects(generateConversationSummary([]));
+    globalThis.fetch = async () =>
+      Response.json({
+        choices: [
+          {
+            finish_reason: "length",
+            message: { content: JSON.stringify(expected) },
+          },
+        ],
+      });
+    await assert.rejects(
+      generateConversationSummary([]),
+      /SUMMARY_TRUNCATED_RESPONSE/,
+    );
+    globalThis.fetch = async () =>
+      Response.json({
+        choices: [
+          {
+            message: {
+              content: `  \n\u0060\u0060\u0060json\n${JSON.stringify(expected)}\n\u0060\u0060\u0060\n`,
+            },
+          },
+        ],
+      });
+    assert.deepEqual(await generateConversationSummary([]), expected);
     globalThis.fetch = async () => new Response("", { status: 503 });
     await assert.rejects(
       generateConversationSummary([]),

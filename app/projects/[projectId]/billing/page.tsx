@@ -156,13 +156,13 @@ export default async function BillingPage({
   const status = subscription?.status || p.status;
   const nextCursor = invoices.at(-1)?.id;
   return (
-    <main className="mx-auto max-w-7xl space-y-8 px-4 py-7 sm:px-8 lg:py-10">
+    <main className="mx-auto w-full min-w-0 max-w-7xl space-y-8 px-4 py-7 [overflow-wrap:anywhere] sm:px-8 lg:py-10">
       <header className="flex flex-col justify-between gap-5 lg:flex-row lg:items-end">
-        <div>
+        <div className="min-w-0">
           <p className="mb-2 text-xs font-medium uppercase tracking-widest text-muted-foreground">
             Administration · {p.name}
           </p>
-          <h1 className="text-3xl! font-semibold tracking-tight">
+          <h1 className="text-2xl! font-semibold tracking-tight sm:text-3xl!">
             Votre facturation, en clair.
           </h1>
           <p className="mt-3 text-sm text-muted-foreground">
@@ -191,12 +191,12 @@ export default async function BillingPage({
           créer ce projet, terminez le paiement puis actualisez cette page.
         </div>
       )}
-      <div className="grid gap-5 lg:grid-cols-[1.2fr_1fr]">
+      <div className="grid min-w-0 grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
         <Card className="overflow-hidden">
           <CardHeader className="border-b bg-muted/30">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <CardTitle className="flex items-center gap-3 text-xl">
-                <span className="rounded-xl border bg-background p-2.5">
+              <CardTitle className="flex min-w-0 flex-wrap items-center gap-3 text-xl">
+                <span className="shrink-0 rounded-xl border bg-background p-2.5">
                   <Receipt className="size-5" />
                 </span>
                 Offre <span className="capitalize">{p.plan}</span>
@@ -291,7 +291,7 @@ export default async function BillingPage({
           <CardContent className="space-y-5">
             {quota ? (
               <>
-                <div className="flex items-end gap-2">
+                <div className="flex flex-wrap items-end gap-2">
                   <span className="text-4xl font-semibold tracking-tight">
                     {quota.used.toLocaleString("fr-FR")}
                   </span>
@@ -335,7 +335,7 @@ export default async function BillingPage({
           </CardContent>
         </Card>
       </div>
-      <div className="grid gap-5 sm:grid-cols-2">
+      <div className="grid min-w-0 grid-cols-1 gap-5 sm:grid-cols-2">
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
@@ -395,7 +395,12 @@ export default async function BillingPage({
         <CardContent>
           {invoices.length ? (
             <>
-              <div className="overflow-x-auto">
+              <div
+                role="region"
+                aria-label="Historique des factures"
+                tabIndex={0}
+                className="overflow-x-auto rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
                 <table className="w-full text-left text-sm">
                   <thead className="border-y bg-muted/40 text-xs text-muted-foreground">
                     <tr>
@@ -476,7 +481,7 @@ export default async function BillingPage({
                 <p className="text-xs text-muted-foreground">
                   {invoices.length} facture(s) affichée(s)
                 </p>
-                <div className="flex gap-2">
+                <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap">
                   {cursor && (
                     <Button variant="outline" asChild>
                       <Link href={`/projects/${projectId}/billing`}>
@@ -512,7 +517,7 @@ export default async function BillingPage({
                   : "Chaque facture émise pour cet abonnement sera accessible depuis cet espace."}
               </p>
               {cursor && (
-                <Button className="mt-4" variant="outline" asChild>
+                <Button className="mt-4 h-auto min-h-9 whitespace-normal text-center" variant="outline" asChild>
                   <Link href={`/projects/${projectId}/billing`}>
                     Revenir aux dernières factures
                   </Link>

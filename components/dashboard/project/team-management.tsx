@@ -261,7 +261,7 @@ export default function TeamManagement({
         {/* MODAL D'INVITATION */}
         <Dialog open={isInviteOpen} onOpenChange={handleInviteModalChange}>
           <DialogTrigger asChild>
-            <Button className="gap-2 shadow-sm font-medium">
+            <Button variant="outline" className="gap-2 shadow-sm font-medium">
               <Plus className="w-4 h-4" />
               Inviter un membre
             </Button>

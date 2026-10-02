@@ -24,13 +24,21 @@ export type ChatGeneration = {
 };
 
 export type ChatMessagesPage = ChatPage<ChatMessage> & {
+  agents?: ChatAgent[];
   hasClientMessage: boolean;
   generation: ChatGeneration | null;
+};
+
+export type ChatAgent = {
+  id: string;
+  name: string | null;
+  image: string | null;
 };
 
 export type ChatMessage = {
   id: string;
   senderType: "client" | "bot" | "agent" | "system";
+  agent?: ChatAgent | null;
   content: string;
   timestamp: string;
   status: ChatMessageStatus;

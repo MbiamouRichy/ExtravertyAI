@@ -236,6 +236,24 @@ export async function GET(
       return json({ error: "Contact indisponible." }, 404);
     }
 
+    // Include authors from the entire authorized conversation, not just this page.
+    const agents = !cursor
+      ? await prisma.user.findMany({
+          where: {
+            messagesSent: {
+              some: {
+                projectId,
+                contactId,
+                senderType: "AGENT",
+                status: { in: ["SENT", "DELIVERED", "READ"] },
+              },
+            },
+          },
+          select: { id: true, name: true, image: true },
+          orderBy: [{ name: "asc" }, { id: "asc" }],
+        })
+      : undefined;
+
     // Only expose activity belonging to this authorized contact and current config.
     const generationJob =
       !cursor &&
@@ -287,6 +305,7 @@ export async function GET(
       select: {
         id: true,
         senderType: true,
+        agent: { select: { id: true, name: true, image: true } },
         content: true,
         type: true,
         createdAt: true,
@@ -298,6 +317,7 @@ export async function GET(
     const last = page.at(-1);
 
     const result: ChatMessagesPage = {
+      agents,
       hasClientMessage: contact.messages.length > 0,
       generation: generationJob
         ? {
@@ -314,6 +334,7 @@ export async function GET(
         : null,
       items: page.map((message) => ({
         id: message.id,
+        agent: message.senderType === "AGENT" ? message.agent : null,
         senderType:
           message.senderType === "CLIENT"
             ? "client"

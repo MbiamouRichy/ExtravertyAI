@@ -5,9 +5,13 @@ function record(value: unknown): Record<string, unknown> {
     throw new Error("SETTINGS_RESPONSE_INVALID");
   return value as Record<string, unknown>;
 }
-export async function syncWhatsAppSettings(prisma: PrismaClient) {
+export async function syncWhatsAppSettings(
+  prisma: PrismaClient,
+  projectId?: string,
+) {
   const candidate = await prisma.project.findFirst({
     where: {
+      ...(projectId ? { id: projectId } : {}),
       whatsappSettingsPending: true,
       deletionPending: false,
       whatsappSyncAfter: { lte: new Date() },

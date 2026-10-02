@@ -53,7 +53,7 @@ export function HeroSection() {
     <section className="relative isolate w-full scroll-mt-24">
       <div aria-hidden="true" className={styles.halo} />
       <div aria-hidden="true" className={styles.dots} />
-      <div className="flex flex-col max-w-5xl mx-auto items-center justify-center gap-5 px-2 pt-28 lg:pt-36 pb-8 md:pb-12 md:px-4">
+      <div className="flex flex-col max-w-6xl mx-auto items-center justify-center gap-5 px-2 pt-28 lg:pt-36 pb-8 md:pb-12 md:px-4">
       <div
           aria-hidden="true"
           className="absolute inset-0 -z-1 size-full overflow-hidden"

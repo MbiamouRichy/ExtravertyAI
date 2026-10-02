@@ -177,6 +177,7 @@ export default async function ChatPage({ params, searchParams }: PageProps) {
         user={{
           id: session.user.id,
           name: session.user.name,
+          image: session.user.image,
         }}
         isSuccess={query.success === "true"}
         canManageAi={

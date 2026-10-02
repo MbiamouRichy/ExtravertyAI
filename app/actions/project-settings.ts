@@ -12,6 +12,7 @@ import {
 } from "@/lib/project-settings";
 import { notifyChatChanged } from "@/lib/chat-realtime";
 import { stripe } from "@/lib/stripe";
+import { syncWhatsAppSettings } from "@/lib/whatsapp-settings-sync";
 
 const Id = z.string().cuid();
 const Version = z.number().int().nonnegative();
@@ -150,8 +151,17 @@ export async function saveWhatsAppPreferences(input: unknown) {
       });
       return version;
     });
+    await syncWhatsAppSettings(prisma, parsed.projectId);
+    const state = await prisma.project.findUniqueOrThrow({
+      where: { id: parsed.projectId },
+      select: { whatsappSettingsPending: true },
+    });
     invalidate(parsed.projectId);
-    return { success: true as const, version };
+    return {
+      success: true as const,
+      version,
+      pending: state.whatsappSettingsPending,
+    };
   } catch (error) {
     return { success: false as const, error: publicError(error) };
   }

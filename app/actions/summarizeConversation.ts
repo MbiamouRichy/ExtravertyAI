@@ -82,11 +82,19 @@ export async function summarizeConversation(input: unknown) {
       partial: partial || messages.length > 200,
       generatedAt: new Date().toISOString(),
     };
-  } catch {
+  } catch (error) {
+    // Do not log provider bodies, conversation contents or credentials.
+    const code =
+      error instanceof Error && /^SUMMARY_[A-Z_0-9]+$/.test(error.message)
+        ? error.message
+        : "SUMMARY_FAILED";
+    console.error("Conversation summary failed", { code });
     return {
       success: false as const,
       error:
-        "Le résumé est indisponible pour le moment. Réessayez dans quelques instants.",
+        code === "SUMMARY_CONFIG_MISSING"
+          ? "Le résumé IA n’est pas configuré sur le serveur du site. Demandez à un administrateur de vérifier la configuration IA."
+          : "Le résumé est indisponible pour le moment. Réessayez dans quelques instants.",
     };
   }
 }

@@ -5,95 +5,101 @@ import prisma from "@/lib/prisma";
 import { s3Client } from "@/lib/storage";
 import { PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { revalidatePath } from "next/cache";
-
-// Constantes de sécurité
-const MAX_FILE_SIZE = 2 * 1024 * 1024; // 2 Mo
-const ALLOWED_MIME_TYPES = ["image/jpeg", "image/png", "image/webp"];
+import { z } from "zod";
+import {
+  profileImageError,
+  profileImageKey,
+  PROFILE_IMAGE_PATH,
+} from "@/lib/profile-image";
 
 export async function updateProfileAction(data: FormData) {
+  let uploadedKey: string | null = null;
+  const bucket = process.env.MINIO_BUCKET;
   try {
-    // 1. Authentification
     const session = await getSession();
-    if (!session || !session.user?.id) {
-      throw new Error("Vous n'êtes pas autorisé à effectuer cette action.");
+    if (!session?.user?.id)
+      return { success: false as const, error: "Non authentifié." };
+    const name = z
+      .string()
+      .trim()
+      .min(2)
+      .max(50)
+      .optional()
+      .safeParse(data.get("nom") ?? undefined);
+    if (!name.success)
+      return {
+        success: false as const,
+        error: "Le nom doit contenir entre 2 et 50 caractères.",
+      };
+    const file = data.get("file");
+    if (file !== null) {
+      if (!(file instanceof File))
+        return { success: false as const, error: "Fichier image invalide." };
+      const error = profileImageError(file);
+      if (error) return { success: false as const, error };
     }
-    const userId = session.user.id;
-
-    // 2. Extraction des données
-    const file = data.get("file") as File | null;
-    const nom = data.get("nom") as string | null;
-
-    // Validation basique du nom
-    if (nom && nom.trim().length < 2) {
-      throw new Error("Le nom doit contenir au moins 2 caractères.");
-    }
-
-    // 3. Récupération de l'utilisateur
-    const user = await prisma.user.findUnique({ where: { id: userId } });
-    if (!user) throw new Error("Utilisateur non trouvé");
-
-    let newImageUrl = user.image;
-
-    // 4. Traitement du fichier AVEC sécurité serveur
-    if (file && file.size > 0) {
-      // Sécurité : Vérification de la taille
-      if (file.size > MAX_FILE_SIZE) {
-        throw new Error("Le fichier dépasse la limite autorisée de 2 Mo.");
-      }
-
-      // Sécurité : Vérification du type (Empêche l'upload de scripts ou malwares)
-      if (!ALLOWED_MIME_TYPES.includes(file.type)) {
-        throw new Error("Seuls les formats JPEG, PNG et WEBP sont acceptés.");
-      }
-
-      const buffer = Buffer.from(await file.arrayBuffer());
-      const fileName = `profiles/${crypto.randomUUID()}-${file.name.replace(/\s+/g, "-")}`;
-
-      // A. Uploader la nouvelle image
+    const user = await prisma.user.findUniqueOrThrow({
+      where: { id: session.user.id },
+    });
+    let image = user.image;
+    if (file instanceof File) {
+      if (!bucket) throw new Error("Missing storage bucket");
+      const extension = {
+        "image/jpeg": "jpg",
+        "image/png": "png",
+        "image/webp": "webp",
+      }[file.type];
+      const filename = `${crypto.randomUUID()}.${extension}`;
+      const key = `profiles/${filename}`;
       await s3Client.send(
         new PutObjectCommand({
-          Bucket: process.env.MINIO_BUCKET,
-          Key: fileName,
-          Body: buffer,
-          ContentType: file.type, // Utilise le type validé
+          Bucket: bucket,
+          Key: key,
+          Body: Buffer.from(await file.arrayBuffer()),
+          ContentType: file.type,
         }),
       );
-
-      newImageUrl = `${process.env.MINIO_ENDPOINT}/${process.env.MINIO_BUCKET}/${fileName}`;
-
-      // B. Supprimer l'ancienne image
-      if (user.image && user.image.includes(process.env.MINIO_BUCKET!)) {
-        try {
-          const oldKey = user.image.split(`${process.env.MINIO_BUCKET}/`)[1];
-          await s3Client.send(
-            new DeleteObjectCommand({
-              Bucket: process.env.MINIO_BUCKET,
-              Key: oldKey,
-            }),
-          );
-        } catch (delError) {
-          console.error(
-            "Erreur lors de la suppression de l'ancienne image:",
-            delError,
-          );
-        }
+      uploadedKey = key;
+      image = `${PROFILE_IMAGE_PATH}${filename}`;
+    }
+    const updated = await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        ...(name.data !== undefined && { name: name.data }),
+        ...(uploadedKey && { image }),
+      },
+      select: { name: true, image: true },
+    });
+    const oldKey =
+      uploadedKey && bucket
+        ? profileImageKey(user.image, process.env.MINIO_ENDPOINT ?? "", bucket)
+        : null;
+    uploadedKey = null;
+    if (oldKey) {
+      try {
+        await s3Client.send(
+          new DeleteObjectCommand({ Bucket: bucket, Key: oldKey }),
+        );
+      } catch (error) {
+        console.error("Unable to delete previous profile image", error);
       }
     }
-
-    // 5. Mise à jour de la base de données
-    await prisma.user.update({
-      where: { id: userId },
-      data: {
-        // Ne met à jour le nom que s'il a été fourni et nettoyé
-        ...(nom && { name: nom.trim() }),
-        image: newImageUrl,
-      },
-    });
-
     revalidatePath("/projects", "layout");
-    return { success: true };
+    return { success: true as const, user: updated };
   } catch (error) {
-    // Retourne le message d'erreur spécifique s'il existe, sinon un message générique
-    return { error: error || "Erreur lors de la mise à jour" };
+    console.error("Unable to update profile", error);
+    if (uploadedKey) {
+      try {
+        await s3Client.send(
+          new DeleteObjectCommand({ Bucket: bucket, Key: uploadedKey }),
+        );
+      } catch (cleanupError) {
+        console.error("Unable to clean up profile image", cleanupError);
+      }
+    }
+    return {
+      success: false as const,
+      error: "Impossible d'enregistrer le profil. Veuillez réessayer.",
+    };
   }
 }

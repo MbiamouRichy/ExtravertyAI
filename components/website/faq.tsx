@@ -112,13 +112,13 @@ export function Faq() {
 
         <div className="flex flex-col md:flex-row justify-center items-center gap-2 mt-1">
           <Button asChild className="w-full md:w-fit text-sm md:text-base">
-            <Link href="/contact">
-              Contactez-nous
+            <Link href="/sign-up">
+              S'inscrire
             </Link>
           </Button>
           <Button variant={"outline"} asChild className="w-full md:w-fit text-sm md:text-base">
-            <Link href="/sign-in">
-              Se connecter
+            <Link href="/contact">
+              Contactez-nous
             </Link>
           </Button>
         </div>

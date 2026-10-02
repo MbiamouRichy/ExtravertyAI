@@ -23,6 +23,7 @@ import {
 import { AnalyticsCard } from "./analytics-card";
 import { ChartEmptyState } from "./chart-empty-state";
 import { formatNumberFr } from "@/lib/analytics";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 type MetricKey = "received" | "sent" | "count";
 
@@ -65,6 +66,7 @@ export function AnalyticsTimeChart({
     emptyDescription,
 }: AnalyticsTimeChartProps) {
     const uid = useId().replace(/[^a-zA-Z0-9_-]/g, "");
+    const isMobile = useIsMobile();
 
     const config: ChartConfig = Object.fromEntries(
         metrics.map((metric) => [
@@ -133,15 +135,18 @@ export function AnalyticsTimeChart({
             />
 
             <ChartTooltip
+                position={isMobile ? { x: 0 } : undefined}
+                wrapperStyle={{ maxWidth: "100%" }}
                 cursor={{
                     stroke: "var(--border)",
                     strokeDasharray: "4 4",
                 }}
                 content={
                     <ChartTooltipContent
-                        indicator="line"
+                        className="w-56 min-w-0 max-w-full whitespace-normal"
+                        labelClassName="leading-relaxed"
                         labelFormatter={(value) =>
-                            `Début du regroupement : ${String(value)} · UTC`
+                            `Début · ${String(value)} · UTC`
                         }
                     />
                 }

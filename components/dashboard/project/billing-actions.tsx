@@ -30,10 +30,11 @@ export function BillingActions({
     }
   }
   return (
-    <div className="space-y-3">
-      <div className="flex flex-wrap gap-2">
+    <div className="min-w-0 space-y-3">
+      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
         {canManage && (
           <Button
+            className="h-auto min-h-9 whitespace-normal text-center"
             disabled={busy || !configured}
             onClick={() => void openPortal()}
           >
@@ -46,6 +47,7 @@ export function BillingActions({
           </Button>
         )}
         <Button
+          className="h-auto min-h-9 whitespace-normal text-center"
           variant="outline"
           disabled={busy}
           onClick={() => router.refresh()}

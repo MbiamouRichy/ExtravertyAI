@@ -53,7 +53,7 @@ export default function Footer() {
             <p className="mt-4 max-w-xs text-sm leading-relaxed text-muted-foreground">
               Retrouvez vos projets et vos conversations.
             </p>
-            <Button asChild className="mt-5">
+            <Button variant="outline" asChild className="mt-5">
               <Link href="/sign-in">
                 <LogIn aria-hidden="true" />
                 Se connecter
