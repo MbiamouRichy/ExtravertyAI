@@ -1,5 +1,7 @@
 import { EmailTemplate } from "@/components/emailTemplate/emailTemplate";
 import { betterAuth } from "better-auth";
+import { APIError, createAuthMiddleware } from "better-auth/api";
+import { passwordVerificationSchema } from "./password-verification-schema";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import prisma from "./prisma";
 import { resend } from "./resend";
@@ -14,6 +16,18 @@ export const auth = betterAuth({
   database: prismaAdapter(prisma, {
     provider: "postgresql",
   }),
+  hooks: {
+    before: createAuthMiddleware(async (ctx) => {
+      // Better Auth verifies this password before creating the deletion email.
+      // Require it even for fresh sessions and direct API requests.
+      if (ctx.path === "/delete-user" && !passwordVerificationSchema.safeParse(ctx.body).success) {
+        throw new APIError("BAD_REQUEST", {
+          code: "PASSWORD_REQUIRED",
+          message: "Le mot de passe actuel est requis pour supprimer le compte.",
+        });
+      }
+    }),
+  },
 
   databaseHooks: {
     user: {

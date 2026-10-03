@@ -63,7 +63,28 @@ export async function generateConversationSummary(history: SummaryMessage[]) {
         model,
         temperature: 0.2,
         max_tokens: 2000,
-        response_format: { type: "json_object" },
+        response_format: {
+          type: "json_schema",
+          json_schema: {
+            name: "conversation_summary",
+            strict: true,
+            schema: {
+              type: "object",
+              additionalProperties: false,
+              required: ["summary", "assessment", "nextSteps"],
+              properties: {
+                summary: { type: "string", minLength: 1, maxLength: 700 },
+                assessment: { type: "string", minLength: 1, maxLength: 700 },
+                nextSteps: {
+                  type: "array",
+                  maxItems: 2,
+                  items: { type: "string", minLength: 1, maxLength: 200 },
+                },
+              },
+            },
+          },
+        },
+        provider: { require_parameters: true },
         reasoning: { enabled: false },
         messages: [
           {

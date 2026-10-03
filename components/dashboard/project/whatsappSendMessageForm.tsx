@@ -4,7 +4,7 @@ import {
   useChatMessages,
   useChatRealtime,
 } from "@/hooks/use-chat-data";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import {
   ArrowLeft,
   Bot,
@@ -63,6 +63,7 @@ import { cn } from "@/lib/utils";
 import { AiResponseText, AiThinking, useLiveAiResponses } from "./ai-response";
 import { ChatComposer } from "./chat-composer";
 import { ConversationSummaryButton } from "./conversation-summary";
+import { createChatDateFormatters } from "@/lib/chat-dates";
 import { MessageContentSchema } from "@/lib/message-schema";
 
 type WorkspaceProps = {
@@ -98,26 +99,14 @@ type SendResult = {
   status: ChatMessageStatus;
 };
 
-// UTC explicite pour éviter des différences SSR/hydratation.
-// Tu peux remplacer ceci par le fuseau configuré pour le projet.
-const timeFormatter = new Intl.DateTimeFormat("fr-FR", {
-  timeZone: "UTC",
-  hour: "2-digit",
-  minute: "2-digit",
-});
-
-const dateFormatter = new Intl.DateTimeFormat("fr-FR", {
-  timeZone: "UTC",
-  day: "numeric",
-  month: "long",
-  year: "numeric",
-});
-
-const previewDateFormatter = new Intl.DateTimeFormat("fr-FR", {
-  timeZone: "UTC",
-  day: "2-digit",
-  month: "short",
-});
+// Stable server snapshot avoids hydration differences; then use the device timezone.
+const subscribeTimezone = () => () => {};
+const getLocalTimezone = () => Intl.DateTimeFormat().resolvedOptions().timeZone;
+const getServerTimezone = () => "UTC";
+function useChatDates() {
+  const timeZone = useSyncExternalStore(subscribeTimezone, getLocalTimezone, getServerTimezone);
+  return useMemo(() => createChatDateFormatters(timeZone), [timeZone]);
+}
 
 function initials(name: string): string {
   return (
@@ -322,6 +311,7 @@ function ChatBubble({
   onRestore: (content: string) => void;
   animate?: boolean;
 }) {
+  const { timeFormatter, dateFormatter, timeZone } = useChatDates();
   const incoming = message.senderType === "client";
   const isAi = message.senderType === "bot";
   const visualStatus: DisplayMessage["status"] =
@@ -401,7 +391,7 @@ function ChatBubble({
           >
             <time
               dateTime={date.toISOString()}
-              title={`${dateFormatter.format(date)} · UTC`}
+              title={`${dateFormatter.format(date)} · ${timeZone}`}
             >
               {timeFormatter.format(date)}
             </time>
@@ -439,6 +429,7 @@ export default function WhatsappWorkspace({
   canManageAi,
   initialClient,
 }: WorkspaceProps) {
+  const { dateFormatter, previewDateFormatter, timeZone } = useChatDates();
   const [activeId, setActiveId] = useState<string | null>(
     initialClient?.id || null,
   );
@@ -1156,13 +1147,13 @@ export default function WhatsappWorkspace({
         >
           {activeClient ? (
             <>
-              <header className="chat-floating-header relative z-10 flex min-h-20 shrink-0 flex-wrap items-center justify-between gap-3 bg-background px-3 py-3 sm:px-5">
-                <div className="flex min-w-0 flex-1 basis-full items-center gap-3 sm:basis-auto">
+              <header className="chat-floating-header relative z-10 flex shrink-0 items-center gap-2 border-b border-border bg-background px-2 py-3 sm:gap-3 sm:px-5">
+                <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
                   <Button
                     type="button"
                     variant="ghost"
                     size="icon"
-                    className="size-10 shrink-0 rounded-xl md:hidden"
+                    className="size-11 shrink-0 md:hidden"
                     onClick={goBack}
                     aria-label="Revenir aux conversations"
                   >
@@ -1175,7 +1166,7 @@ export default function WhatsappWorkspace({
                     </AvatarFallback>
                   </Avatar>
 
-                  <div className="min-w-0">
+                  <div className="min-w-0 flex-1">
                     <div className="flex min-w-0 items-center gap-2">
                       <h2 className="truncate text-sm font-semibold sm:text-base">
                         {activeClient.name}
@@ -1193,7 +1184,7 @@ export default function WhatsappWorkspace({
                   </div>
                 </div>
 
-                <div className="ml-auto flex shrink-0 items-center gap-2">
+                <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-2">
                   <ConversationSummaryButton
                     key={activeClient.id}
                     projectId={project.id}
@@ -1205,26 +1196,28 @@ export default function WhatsappWorkspace({
                   {canManageAi && (
                     <Button
                       type="button"
-                      variant="outline"
+                      variant={aiActive ? "secondary" : "outline"}
+                      aria-pressed={aiActive}
+                      title={aiActive ? "Désactiver l’IA" : "Activer l’IA"}
                       disabled={aiBusyId !== null}
                       aria-busy={aiBusyId === activeClient.id}
                       onClick={toggleAi}
-                      className="h-10 gap-2.5 rounded-xl px-3 text-xs"
+                      className="size-11 gap-2 p-0 text-xs lg:w-auto lg:px-3"
                       aria-label={
                         aiActive
                           ? "Désactiver l’IA pour ce contact"
                           : "Activer l’IA pour ce contact"
                       }
                     >
-                      <span>
+                      <span className="hidden lg:inline">
                         {aiActive ? "Désactiver l’IA" : "Activer l’IA"}
                       </span>
-                      {aiBusyId === activeClient.id && (
+                      {aiBusyId === activeClient.id ? (
                         <Loader2
                           aria-hidden="true"
                           className="size-4 animate-spin motion-reduce:animate-none"
                         />
-                      )}
+                      ) : aiActive ? <Pause aria-hidden="true" className="size-4" /> : <Bot aria-hidden="true" className="size-4" />}
                     </Button>
                   )}
                 </div>
@@ -1270,7 +1263,7 @@ export default function WhatsappWorkspace({
                       )}
                       <MessageScrollerContent className="mx-auto min-h-full w-full max-w-4xl justify-end gap-5">
                         <p className="text-center text-[11px] leading-relaxed text-muted-foreground">
-                          Jusqu’à 50 messages récents chargés · Heures en UTC
+                          Jusqu’à 50 messages récents chargés · Heure locale ({timeZone})
                         </p>
 
                         {historyQuery.isLoading ? (
@@ -1296,10 +1289,9 @@ export default function WhatsappWorkspace({
                           </div>
                         ) : (
                           activeMessages.map((message, index) => {
-                            const day = message.timestamp.slice(0, 10);
-                            const previousDay = activeMessages[
-                              index - 1
-                            ]?.timestamp.slice(0, 10);
+                            const day = dateFormatter.format(new Date(message.timestamp));
+                            const previousMessage = activeMessages[index - 1];
+                            const previousDay = previousMessage ? dateFormatter.format(new Date(previousMessage.timestamp)) : undefined;
 
                             return (
                               <MessageScrollerItem

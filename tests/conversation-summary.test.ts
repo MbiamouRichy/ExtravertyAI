@@ -75,7 +75,12 @@ test("summary generation separates instructions from messages and validates prov
       const body = JSON.parse(String(init?.body));
       assert.equal(body.messages[0].role, "system");
       assert.equal(body.messages[1].role, "user");
-      assert.deepEqual(body.response_format, { type: "json_object" });
+      assert.equal(body.response_format.type, "json_schema");
+      assert.equal(body.response_format.json_schema.strict, true);
+      assert.deepEqual(body.response_format.json_schema.schema.required, ["summary", "assessment", "nextSteps"]);
+      assert.equal(body.response_format.json_schema.schema.properties.nextSteps.type, "array");
+      assert.equal(body.response_format.json_schema.schema.additionalProperties, false);
+      assert.deepEqual(body.provider, { require_parameters: true });
       assert.deepEqual(body.reasoning, { enabled: false });
       assert.match(
         body.messages[0].content,
@@ -98,6 +103,11 @@ test("summary generation separates instructions from messages and validates prov
     globalThis.fetch = async () =>
       Response.json({ choices: [{ message: { content: "{}" } }] });
     await assert.rejects(generateConversationSummary([]));
+    // Regression: JSON mode sometimes returned one string instead of an array.
+    globalThis.fetch = async () => Response.json({
+      choices: [{ message: { content: JSON.stringify({ ...expected, nextSteps: "Demander des précisions." }) } }],
+    });
+    await assert.rejects(generateConversationSummary([]), /SUMMARY_INVALID_RESPONSE/);
     globalThis.fetch = async () =>
       Response.json({
         choices: [

@@ -65,7 +65,7 @@ export function ConversationSummaryButton({
           variant="outline"
           size="sm"
           disabled={!enabled}
-          className="h-10 shrink-0 gap-2 rounded-xl"
+          className="size-11 shrink-0 gap-2 p-0 xl:w-auto xl:px-3"
           title={
             enabled
               ? "Résumé IA de la conversation"
