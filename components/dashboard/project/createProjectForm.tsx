@@ -20,6 +20,7 @@ import {
 
 import { createProjectAndCheckout } from "@/app/actions/stripe-actions";
 import { Button } from "@/components/ui/button";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Input } from "@/components/ui/input";
 import {
   Field,
@@ -47,6 +48,13 @@ import {
   type ProjectCreationFormValues,
 } from "@/lib/project-creation-schema";
 
+import {
+  PRICING_PLANS as PLANS,
+  formatPlanPrice,
+  formatMessageLimit,
+  type PlanId,
+} from "@/lib/pricing";
+
 const countryNames = new Intl.DisplayNames(["fr"], { type: "region" });
 const phoneCountries = getCountries()
   .map((code) => ({
@@ -55,30 +63,6 @@ const phoneCountries = getCountries()
     callingCode: getCountryCallingCode(code),
   }))
   .sort((a, b) => a.name.localeCompare(b.name, "fr"));
-
-const PLANS = [
-  {
-    id: "starter",
-    name: "Starter",
-    price: 29,
-    messages: "1 000",
-    description: "Pour démarrer votre automatisation.",
-  },
-  {
-    id: "business",
-    name: "Business",
-    price: 79,
-    messages: "5 000",
-    description: "Pour accompagner votre croissance.",
-  },
-  {
-    id: "pro",
-    name: "Pro",
-    price: 199,
-    messages: "20 000",
-    description: "Pour des besoins à plus grand volume.",
-  },
-] as const;
 
 type FormValues = ProjectCreationFormValues;
 
@@ -95,7 +79,11 @@ const inputClassName =
 const cardClassName =
   "min-w-0 rounded-2xl border border-border bg-card shadow-sm";
 
-export default function CreateProjectForm() {
+export default function CreateProjectForm({
+  initialPlan = "starter",
+}: {
+  initialPlan?: PlanId;
+}) {
   const [isBusy, setIsBusy] = useState(false);
 
   // Garde synchrone : bloque un second clic avant le prochain rendu.
@@ -121,7 +109,7 @@ export default function CreateProjectForm() {
       numero: "",
       country: "FR",
       // Choix initial le moins cher, sans pousser le forfait supérieur.
-      plan: "starter",
+      plan: initialPlan,
     },
   });
 
@@ -150,6 +138,7 @@ export default function CreateProjectForm() {
         setError("root.server", {
           type: "server",
           message:
+            result.error ||
             "Nous n’avons pas pu ouvrir le paiement. Vérifiez votre liste de projets avant de réessayer.",
         });
 
@@ -493,87 +482,115 @@ export default function CreateProjectForm() {
               >
                 <legend className="sr-only">Forfait mensuel</legend>
 
-                <div className="grid gap-3 sm:grid-cols-3">
-                  {PLANS.map((plan) => (
-                    <div key={plan.id} className="relative min-w-0">
-                      <Input
-                        {...register("plan")}
-                        id={`plan-${plan.id}`}
-                        type="radio"
-                        value={plan.id}
-                        aria-invalid={Boolean(errors.plan)}
-                        className="peer sr-only"
-                      />
-
-                      <label
-                        htmlFor={`plan-${plan.id}`}
-                        className={[
-                          "flex h-full cursor-pointer flex-col rounded-xl",
-                          "border border-border bg-background p-4",
-                          "transition-[border-color,background-color,box-shadow]",
-                          "hover:border-primary/50",
-                          "peer-checked:border-primary peer-checked:bg-primary/5",
-                          "peer-checked:ring-1 peer-checked:ring-primary",
-                          "peer-focus-visible:outline-2",
-                          "peer-focus-visible:outline-offset-4",
-                          "peer-focus-visible:outline-ring",
-                          "peer-disabled:cursor-not-allowed peer-disabled:opacity-60",
-                          "motion-reduce:transition-none",
-                        ].join(" ")}
+                <Controller
+                  name="plan"
+                  control={control}
+                  render={({ field, fieldState }) => (
+                    <Field data-invalid={fieldState.invalid}>
+                      <RadioGroup
+                        name={field.name}
+                        value={field.value}
+                        onValueChange={field.onChange}
+                        onBlur={field.onBlur}
+                        disabled={isBusy}
+                        aria-labelledby="project-plan-title"
+                        aria-invalid={fieldState.invalid}
+                        aria-describedby={
+                          fieldState.invalid ? "project-plan-error" : undefined
+                        }
+                        className="grid gap-3 sm:grid-cols-3"
                       >
-                        <span className="flex items-center justify-between gap-2">
-                          <span className="text-sm font-semibold">
-                            {plan.name}
-                          </span>
+                        {PLANS.map((plan) => (
+                          <div key={plan.id} className="relative min-w-0">
+                            <RadioGroupItem
+                              ref={
+                                plan.id === field.value ? field.ref : undefined
+                              }
+                              id={`plan-${plan.id}`}
+                              value={plan.id}
+                              aria-invalid={fieldState.invalid}
+                              className="peer sr-only"
+                            />
 
-                          <span
-                            aria-hidden="true"
-                            className={
-                              selectedPlanId === plan.id
-                                ? "flex size-5 items-center justify-center rounded-full bg-primary text-primary-foreground"
-                                : "size-5 rounded-full border border-input"
-                            }
-                          >
-                            {selectedPlanId === plan.id && (
-                              <Check className="size-3.5" />
-                            )}
-                          </span>
-                        </span>
+                            <FieldLabel
+                              htmlFor={`plan-${plan.id}`}
+                              className={[
+                                "flex h-full cursor-pointer flex-col items-stretch font-normal rounded-xl",
+                                "border border-border bg-background p-4",
+                                "transition-[border-color,background-color,box-shadow]",
+                                "hover:border-primary/50",
+                                "peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-primary/5",
+                                "peer-data-[state=checked]:ring-1 peer-data-[state=checked]:ring-primary",
+                                "peer-focus-visible:outline-2",
+                                "peer-focus-visible:outline-offset-4",
+                                "peer-focus-visible:outline-ring",
+                                "peer-disabled:cursor-not-allowed peer-disabled:opacity-60",
+                                "motion-reduce:transition-none",
+                              ].join(" ")}
+                            >
+                              <span className="flex items-center justify-between gap-2">
+                                <span className="text-sm font-semibold">
+                                  {plan.name}
+                                </span>
 
-                        <span className="mt-5 flex flex-wrap items-baseline gap-1">
-                          <span className="text-3xl font-semibold tracking-tight tabular-nums">
-                            {plan.price} €
-                          </span>
-                          <span className="text-xs text-muted-foreground">
-                            / mois
-                          </span>
-                        </span>
+                                <span
+                                  aria-hidden="true"
+                                  className={
+                                    selectedPlanId === plan.id
+                                      ? "flex size-5 items-center justify-center rounded-full bg-primary text-primary-foreground"
+                                      : "size-5 rounded-full border border-input"
+                                  }
+                                >
+                                  {selectedPlanId === plan.id && (
+                                    <Check className="size-3.5" />
+                                  )}
+                                </span>
+                              </span>
 
-                        <span className="mt-2 text-xs leading-5 text-muted-foreground">
-                          {plan.description}
-                        </span>
+                              <span className="mt-5 flex flex-wrap items-baseline gap-1">
+                                <span className="text-3xl font-semibold tracking-tight tabular-nums">
+                                  {formatPlanPrice(plan.priceCents)}
+                                </span>
+                                <span className="text-xs text-muted-foreground">
+                                  / mois
+                                </span>
+                              </span>
 
-                        <span className="mt-auto pt-5">
-                          <span className="block border-t border-border pt-3 text-sm font-medium">
-                            {plan.messages} messages
-                          </span>
-                          <span className="text-xs text-muted-foreground">
-                            par mois
-                          </span>
-                        </span>
-                      </label>
-                    </div>
-                  ))}
-                </div>
+                              <span className="mt-2 text-xs leading-5 text-muted-foreground">
+                                {plan.description}
+                              </span>
 
-                {errors.plan && (
-                  <p
-                    id="project-plan-error"
-                    className="mt-3 text-sm text-destructive"
-                  >
-                    Sélectionnez un forfait.
-                  </p>
-                )}
+                              <span className="mt-3 space-y-2 text-xs leading-5 text-muted-foreground">
+                                {plan.features
+                                  .filter((_, index) => index !== 1)
+                                  .map((feature) => (
+                                    <span key={feature} className="block">
+                                      {feature}
+                                    </span>
+                                  ))}
+                              </span>
+                              <span className="mt-auto pt-5">
+                                <span className="block border-t border-border pt-3 text-sm font-medium">
+                                  {formatMessageLimit(plan.messageLimit)}{" "}
+                                  messages
+                                </span>
+                                <span className="text-xs text-muted-foreground">
+                                  par mois
+                                </span>
+                              </span>
+                            </FieldLabel>
+                          </div>
+                        ))}
+                      </RadioGroup>
+                      {fieldState.invalid && (
+                        <FieldError
+                          id="project-plan-error"
+                          errors={[fieldState.error]}
+                        />
+                      )}
+                    </Field>
+                  )}
+                />
 
                 <p className="mt-4 text-xs leading-5 text-muted-foreground">
                   Tarifs mensuels après l’essai. Le montant et les conditions
@@ -609,7 +626,7 @@ export default function CreateProjectForm() {
                     Votre projet
                   </h2>
                   <span className="rounded-full border border-primary/20 bg-background px-2.5 py-1 text-xs font-medium">
-                    Essai de 10 jours
+                    10 jours · 150 messages
                   </span>
                 </div>
 
@@ -628,14 +645,14 @@ export default function CreateProjectForm() {
                   <div className="flex justify-between gap-4">
                     <dt className="text-muted-foreground">Volume mensuel</dt>
                     <dd className="text-right font-medium">
-                      {selectedPlan.messages} messages
+                      {formatMessageLimit(selectedPlan.messageLimit)} messages
                     </dd>
                   </div>
 
                   <div className="flex justify-between gap-4">
                     <dt className="text-muted-foreground">Après l’essai</dt>
                     <dd className="text-right font-medium tabular-nums">
-                      {selectedPlan.price} € / mois
+                      {formatPlanPrice(selectedPlan.priceCents)} / mois
                     </dd>
                   </div>
                 </dl>
@@ -646,7 +663,7 @@ export default function CreateProjectForm() {
                       Abonnement pendant l’essai
                     </span>
                     <span className="whitespace-nowrap text-3xl font-semibold tracking-tight">
-                      0 €
+                      0 $
                     </span>
                   </div>
 

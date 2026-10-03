@@ -5,6 +5,7 @@ import { Suspense } from "react";
 import CreateProjectForm from "@/components/dashboard/project/createProjectForm";
 import PaymentCanceledDialog from "@/components/dashboard/project/paymentCanceledDialog";
 import { getSession } from "@/lib/auth-server";
+import { projectPlanHref, resolvePlanId } from "@/lib/pricing";
 
 export const metadata: Metadata = {
   title: "Créer un projet | ExtravertyAI",
@@ -15,16 +16,23 @@ export const metadata: Metadata = {
   },
 };
 
-export default async function NewProjectPage() {
+export default async function NewProjectPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ plan?: string | string[] }>;
+}) {
+  const initialPlan = resolvePlanId((await searchParams).plan);
   const session = await getSession();
 
   if (!session?.user?.id) {
-    redirect(`/sign-in?callbackUrl=${encodeURIComponent("/projects/new")}`);
+    redirect(
+      `/sign-in?callbackUrl=${encodeURIComponent(projectPlanHref(initialPlan))}`,
+    );
   }
 
   return (
     <>
-      <CreateProjectForm />
+      <CreateProjectForm key={initialPlan} initialPlan={initialPlan} />
 
       <Suspense fallback={null}>
         <PaymentCanceledDialog />

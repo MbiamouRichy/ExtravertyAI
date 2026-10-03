@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import prisma from "@/lib/prisma";
 import { getSession } from "@/lib/auth-server";
 import { stripe } from "@/lib/stripe";
+import { matchesCheckoutPrice } from "@/lib/checkout-price";
 import {
   ProjectCheckoutSchema,
   type ProjectCheckoutInput,
@@ -44,6 +45,24 @@ export async function createProjectAndCheckout(data: ProjectCheckoutInput) {
     throw new Error(
       "Le plan sélectionné est invalide ou mal configuré côté serveur.",
     );
+  }
+
+  // Check before creating a project or an external WhatsApp instance.
+  try {
+    const price = await stripe.prices.retrieve(priceId);
+    if (!matchesCheckoutPrice(price, data.plan)) {
+      return {
+        success: false,
+        error:
+          "Ce forfait est temporairement indisponible. Son tarif de paiement est en cours de mise à jour.",
+      };
+    }
+  } catch {
+    return {
+      success: false,
+      error:
+        "Le tarif n’a pas pu être vérifié. Réessayez dans quelques instants.",
+    };
   }
 
   const existingProject = await prisma.project.findFirst({
@@ -108,7 +127,7 @@ export async function createProjectAndCheckout(data: ProjectCheckoutInput) {
         trial_period_days: 10,
       },
       success_url: `${process.env.NEXT_PUBLIC_APP_URL}/projects/${project.id}?success=true`,
-      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/projects/new?canceled=true`,
+      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/projects/new?plan=${data.plan}&canceled=true`,
     });
 
     if (!checkoutSession.url) throw new Error("URL Stripe non générée");
