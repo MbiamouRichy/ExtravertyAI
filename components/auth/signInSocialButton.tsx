@@ -3,15 +3,16 @@ import { useHaptics } from "@/lib/webHaptics";
 import { toast } from "sonner";
 import { Button } from "../ui/button";
 import { GoogleIcon, TiktokIcon } from "../social-icon";
+import { safeAuthCallback } from "@/lib/auth-redirects";
 type providerType = Parameters<typeof signIn.social>[0]["provider"];
 
-export function SignInSocialButton({ variant: variant = "outline", form: form = "grid", text }: { variant?: "outline" | "default", form?: "grid" | "flex", text?: string }) {
+export function SignInSocialButton({ variant: variant = "outline", form: form = "grid", text, callbackUrl = "/projects" }: { variant?: "outline" | "default", form?: "grid" | "flex", text?: string, callbackUrl?: string }) {
   const { playHaptic } = useHaptics();
   async function SignInSocial(provider: providerType) {
     await signIn.social(
       {
         provider: provider,
-        callbackURL: "/projects",
+        callbackURL: safeAuthCallback(callbackUrl),
       },
       {
         onError: (error) => {

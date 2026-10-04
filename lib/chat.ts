@@ -11,6 +11,8 @@ export type ChatClient = {
   lastMessage: string;
   lastActivityAt: string;
   aiActive: boolean;
+  unreadCount?: number;
+  agents?: ChatAgent[];
 };
 
 export type ChatPage<T> = {

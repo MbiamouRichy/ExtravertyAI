@@ -29,6 +29,7 @@ import { Controller, useForm } from "react-hook-form"
 import { Checkbox } from "../ui/checkbox";
 import { SignInSocialButton } from "./signInSocialButton";
 import { LogoIcon } from "../logo";
+import { signUpHref } from "@/lib/auth-redirects";
 
 const formSchema = z.object({
 	email: z.string().email("Entrer une adresse email valide."),
@@ -225,7 +226,7 @@ export function AuthPage({ callbackUrl }: { callbackUrl: string }) {
 											Vous n{`'`}avez pas de compte?{" "}
 											<Link
 												className="underline underline-offset-4 hover:text-primary"
-												title="s'inscrire" href="/sign-up">
+												title="s'inscrire" href={signUpHref(callbackUrl)}>
 												Inscrivez-vous
 											</Link>
 										</FieldDescription>
@@ -234,7 +235,7 @@ export function AuthPage({ callbackUrl }: { callbackUrl: string }) {
 							</FieldGroup>
 						</form>
 						<AuthDivider>Ou</AuthDivider>
-						<SignInSocialButton />
+						<SignInSocialButton callbackUrl={callbackUrl} />
 					</div>
 					<p className="text-muted-foreground text-sm">
 						En continuant, vous acceptez notre{" "}

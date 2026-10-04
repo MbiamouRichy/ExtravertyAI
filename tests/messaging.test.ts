@@ -1,3 +1,7 @@
+import {
+  conversationUnreadCounts,
+  markConversationRead,
+} from "../lib/conversation-reads";
 import { createOutboundProcessor } from "../lib/outbound-jobs";
 import {
   writeAgentConfig,
@@ -99,6 +103,155 @@ test(
           });
         });
       }
+      await t.test(
+        "conversation reads are member-scoped, monotonic and isolated by project",
+        async () => {
+          const project = await fixture();
+          const otherProject = await fixture();
+          const first = await pauseActor(project.id);
+          const second = await pauseActor(project.id);
+          const outsider = await pauseActor(otherProject.id);
+          const contact = await client.contact.create({
+            data: {
+              projectId: project.id,
+              phone: "24111111111",
+              remoteJid: "reads@test",
+            },
+          });
+          const otherContact = await client.contact.create({
+            data: {
+              projectId: otherProject.id,
+              phone: "24122222222",
+              remoteJid: "reads@test",
+            },
+          });
+          const prefix = crypto.randomUUID();
+          const at = new Date("2026-10-03T10:00:00Z");
+          const ids = [prefix + "a", prefix + "b", prefix + "c"];
+          for (const id of ids)
+            await client.message.create({
+              data: {
+                id,
+                projectId: project.id,
+                contactId: contact.id,
+                content: "Bonjour",
+                senderType: "CLIENT",
+                fromMe: false,
+                status: "SENT",
+                createdAt: at,
+              },
+            });
+          await client.message.create({
+            data: {
+              projectId: project.id,
+              contactId: contact.id,
+              content: "Réponse",
+              senderType: "BOT",
+              fromMe: true,
+              status: "SENT",
+              createdAt: at,
+            },
+          });
+          const count = async (userId: string) =>
+            (
+              await conversationUnreadCounts(client, project.id, userId, [
+                contact.id,
+              ])
+            ).get(contact.id) ?? 0;
+          assert.equal(await count(first.id), 3);
+          assert.equal(await count(outsider.id), 0);
+          assert.equal(
+            await markConversationRead(
+              client,
+              project.id,
+              outsider.id,
+              contact.id,
+              ids[2],
+            ),
+            0,
+          );
+          assert.equal(
+            await markConversationRead(
+              client,
+              otherProject.id,
+              outsider.id,
+              contact.id,
+              ids[2],
+            ),
+            0,
+          );
+          assert.equal(
+            await markConversationRead(
+              client,
+              project.id,
+              first.id,
+              otherContact.id,
+              ids[2],
+            ),
+            0,
+          );
+          await markConversationRead(
+            client,
+            project.id,
+            first.id,
+            contact.id,
+            ids[1],
+          );
+          assert.equal(await count(first.id), 1);
+          assert.equal(await count(second.id), 3);
+          await markConversationRead(
+            client,
+            project.id,
+            first.id,
+            contact.id,
+            ids[1],
+          );
+          await markConversationRead(
+            client,
+            project.id,
+            first.id,
+            contact.id,
+            ids[0],
+          );
+          assert.equal(await count(first.id), 1);
+          await client.message.create({
+            data: {
+              projectId: project.id,
+              contactId: contact.id,
+              content: "Nouveau message",
+              senderType: "CLIENT",
+              fromMe: false,
+              status: "SENT",
+              createdAt: new Date(at.getTime() + 1000),
+            },
+          });
+          assert.equal(await count(first.id), 2);
+          await markConversationRead(
+            client,
+            project.id,
+            first.id,
+            contact.id,
+            ids[2],
+          );
+          assert.equal(await count(first.id), 1);
+          await client.projectMembership.delete({
+            where: {
+              userId_projectId: { userId: first.id, projectId: project.id },
+            },
+          });
+          assert.equal(await count(first.id), 0);
+          assert.equal(
+            await markConversationRead(
+              client,
+              project.id,
+              first.id,
+              contact.id,
+              ids[2],
+            ),
+            0,
+          );
+        },
+      );
       await t.test(
         "deletion is owner-only and blocks uncertain sends without losing references",
         async () => {

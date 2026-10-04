@@ -18,12 +18,14 @@ export function ConversationSummaryButton({
   contactName,
   enabled,
   container,
+  onOpenChange,
 }: {
   projectId: string;
   contactId: string;
   contactName: string;
   enabled: boolean;
   container: HTMLElement | null;
+  onOpenChange?: (open: boolean) => void;
 }) {
   const [open, setOpen] = useState(false);
   const [pending, setPending] = useState(false);
@@ -57,6 +59,7 @@ export function ConversationSummaryButton({
       open={open}
       onOpenChange={(value) => {
         setOpen(value);
+        onOpenChange?.(value);
         if (!value) setAnimateResult(false);
       }}
     >
@@ -65,7 +68,7 @@ export function ConversationSummaryButton({
           variant="outline"
           size="sm"
           disabled={!enabled}
-          className="size-11 shrink-0 gap-2 p-0 xl:w-auto xl:px-3"
+          className="size-11 shrink-0 gap-2 p-0 text-sm font-medium xl:w-auto xl:px-3"
           title={
             enabled
               ? "Résumé IA de la conversation"
@@ -81,8 +84,8 @@ export function ConversationSummaryButton({
         </Button>
       </DialogPrimitive.Trigger>
       <DialogPrimitive.Portal container={container}>
-        <DialogPrimitive.Content className="absolute inset-0 z-30 flex min-h-0 flex-col bg-background text-foreground outline-none">
-          <header className="flex shrink-0 items-start justify-between gap-3 border-b p-4 sm:p-6">
+        <DialogPrimitive.Content className="absolute inset-0 z-30 flex min-h-0 flex-col bg-background text-foreground outline-none data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:slide-in-from-bottom-2 duration-200 motion-reduce:animate-none">
+          <header className="chat-floating-header relative z-10 flex shrink-0 items-start justify-between gap-3 bg-background p-4 sm:p-6">
             <div className="min-w-0">
               <DialogPrimitive.Title className="text-lg font-semibold">
                 Résumé IA
@@ -112,7 +115,10 @@ export function ConversationSummaryButton({
               </p>
             )}
             {result && !pending && (
-              <div className="space-y-6">
+              <div
+                key={result.generatedAt}
+                className="space-y-6 animate-in fade-in-0 slide-in-from-bottom-2 duration-300 motion-reduce:animate-none"
+              >
                 {result.partial && (
                   <p className="rounded-lg bg-muted p-3 text-sm text-muted-foreground">
                     Analyse partielle : jusqu’à 200 messages récents, texte
@@ -141,7 +147,7 @@ export function ConversationSummaryButton({
               </div>
             )}
           </div>
-          <footer className="flex shrink-0 justify-end gap-2 border-t p-4">
+          <footer className="chat-floating-composer relative z-10 flex shrink-0 justify-end gap-2 bg-background p-4">
             <DialogPrimitive.Close asChild>
               <Button variant="ghost">Retour au chat</Button>
             </DialogPrimitive.Close>

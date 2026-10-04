@@ -4,7 +4,13 @@ import {
   useChatMessages,
   useChatRealtime,
 } from "@/hooks/use-chat-data";
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import {
   ArrowLeft,
   Bot,
@@ -25,7 +31,6 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { StatusIndicator } from "@/components/ui/indicator";
 import {
   Avatar,
   AvatarFallback,
@@ -63,6 +68,7 @@ import { cn } from "@/lib/utils";
 import { AiResponseText, AiThinking, useLiveAiResponses } from "./ai-response";
 import { ChatComposer } from "./chat-composer";
 import { ConversationSummaryButton } from "./conversation-summary";
+import { useConversationRead } from "@/hooks/use-conversation-read";
 import { createChatDateFormatters } from "@/lib/chat-dates";
 import { MessageContentSchema } from "@/lib/message-schema";
 
@@ -104,7 +110,11 @@ const subscribeTimezone = () => () => {};
 const getLocalTimezone = () => Intl.DateTimeFormat().resolvedOptions().timeZone;
 const getServerTimezone = () => "UTC";
 function useChatDates() {
-  const timeZone = useSyncExternalStore(subscribeTimezone, getLocalTimezone, getServerTimezone);
+  const timeZone = useSyncExternalStore(
+    subscribeTimezone,
+    getLocalTimezone,
+    getServerTimezone,
+  );
   return useMemo(() => createChatDateFormatters(timeZone), [timeZone]);
 }
 
@@ -178,66 +188,43 @@ function ConversationParticipants({
   agents: ChatAgent[];
   loading: boolean;
 }) {
-  if (active)
-    return (
-      <span
-        className="relative flex size-6 shrink-0 items-center justify-center"
-        title="IA activée"
-      >
-        <Bot aria-hidden="true" className="size-5" />
-        <StatusIndicator
-          color="sky"
-          pulse
-          aria-hidden="true"
-          className="absolute -right-0.5 -top-0.5 ring-2 ring-background motion-reduce:[&_[data-slot=indicator-ping]]:animate-none"
-        />
-        <span className="sr-only">IA activée</span>
-      </span>
-    );
-  if (loading && agents.length === 0)
-    return (
-      <Skeleton
-        className="size-6 rounded-full"
-        aria-label="Chargement des agents"
-      />
-    );
-  if (agents.length === 0)
-    return (
-      <span
-        className="flex size-6 shrink-0 items-center justify-center text-muted-foreground"
-        title="IA désactivée · Aucun agent identifié"
-      >
-        <UserRound aria-hidden="true" className="size-4" />
-        <span className="sr-only">IA désactivée · Aucun agent identifié</span>
-      </span>
-    );
   return (
-    <AvatarGroup
-      aria-label="IA désactivée · Agents ayant répondu"
-      className="shrink-0"
-    >
-      {agents.slice(0, 3).map((agent) => (
-        <AgentAvatar key={agent.id} agent={agent} small />
-      ))}
-      {agents.length > 3 && (
-        <AvatarGroupCount
-          className="size-6 text-xs"
-          title={agents
-            .slice(3)
-            .map((agent) => agent.name || "Agent")
-            .join(", ")}
+    <span className="inline-flex shrink-0 items-center gap-1">
+      {active && (
+        <span
+          title="IA activée"
+          className="flex size-6 items-center justify-center text-primary"
         >
-          <span aria-hidden="true">+{agents.length - 3}</span>
-          <span className="sr-only">
-            Autres agents :{" "}
-            {agents
-              .slice(3)
-              .map((agent) => agent.name || "Agent")
-              .join(", ")}
-          </span>
-        </AvatarGroupCount>
+          <Bot aria-hidden="true" className="size-4" />
+          <span className="sr-only">IA activée</span>
+        </span>
       )}
-    </AvatarGroup>
+      {loading && !agents.length && (
+        <Skeleton
+          className="size-6 rounded-full"
+          aria-label="Chargement des agents"
+        />
+      )}
+      {!!agents.length && (
+        <AvatarGroup aria-label="Agents ayant répondu" className="shrink-0">
+          {agents.slice(0, 2).map((agent) => (
+            <AgentAvatar key={agent.id} agent={agent} small />
+          ))}
+          {agents.length > 2 && (
+            <AvatarGroupCount
+              className="size-6 text-xs"
+              title={agents
+                .slice(2)
+                .map((agent) => agent.name || "Agent")
+                .join(", ")}
+            >
+              <span aria-hidden="true">+{agents.length - 2}</span>
+              <span className="sr-only">{agents.length - 2} autres agents</span>
+            </AvatarGroupCount>
+          )}
+        </AvatarGroup>
+      )}
+    </span>
   );
 }
 
@@ -437,6 +424,7 @@ export default function WhatsappWorkspace({
     initialClient || null,
   );
   const [mobileChat, setMobileChat] = useState(!!initialClient);
+  const [summaryOpen, setSummaryOpen] = useState(false);
   const [conversationElement, setConversationElement] =
     useState<HTMLElement | null>(null);
 
@@ -450,6 +438,16 @@ export default function WhatsappWorkspace({
     historyQuery.items,
     !!historyQuery.data,
   );
+
+  const readMarker = useConversationRead({
+    projectId: project.id,
+    contactId: activeId,
+    messageId: historyQuery.items.at(-1)?.id,
+    enabled: !summaryOpen && !historyQuery.error,
+    onRead: () => {
+      void contactsQuery.mutate();
+    },
+  });
 
   const clients = contactsQuery.items;
 
@@ -643,6 +641,7 @@ export default function WhatsappWorkspace({
   }, [draft, activeId, mobileChat]);
 
   function selectClient(id: string) {
+    setSummaryOpen(false);
     const client = clients.find((item) => item.id === id);
 
     if (!client) return;
@@ -1065,19 +1064,19 @@ export default function WhatsappWorkspace({
                               {initials(client.name)}
                             </AvatarFallback>
                           </Avatar>
-
-                          {client.aiActive && (
-                            <span className="absolute -bottom-1 -right-1 flex size-5 items-center justify-center rounded-full border-2 border-card bg-primary text-primary-foreground">
-                              <Bot aria-hidden="true" className="size-3" />
-                              <span className="sr-only">IA activée</span>
-                            </span>
-                          )}
                         </div>
 
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center justify-between gap-2">
-                            <span className="truncate text-sm font-semibold">
-                              {client.name}
+                            <span className="flex min-w-0 items-center gap-1.5">
+                              <span className="truncate text-sm font-semibold">
+                                {client.name}
+                              </span>
+                              <ConversationParticipants
+                                active={client.aiActive}
+                                agents={client.agents ?? []}
+                                loading={false}
+                              />
                             </span>
                             <time
                               dateTime={client.lastActivityAt}
@@ -1090,19 +1089,33 @@ export default function WhatsappWorkspace({
                             </time>
                           </div>
 
-                          <p className="mt-1 line-clamp-2 wrap-anywhere text-xs font-normal leading-relaxed text-muted-foreground">
-                            {hasDraft ? (
-                              <>
-                                <span className="font-medium text-foreground dark:text-foreground">
-                                  Brouillon :{" "}
+                          <span className="mt-1 flex items-center gap-2">
+                            <span className="line-clamp-2 min-w-0 flex-1 wrap-anywhere text-xs font-normal leading-relaxed text-muted-foreground">
+                              {hasDraft ? (
+                                <>
+                                  <span className="font-medium text-foreground dark:text-foreground">
+                                    Brouillon :{" "}
+                                  </span>
+                                  {drafts[client.id]}
+                                </>
+                              ) : (
+                                client.lastMessage ||
+                                "Aucun message pour le moment"
+                              )}
+                            </span>
+                            {!!client.unreadCount && (
+                              <span className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-primary px-1.5 text-xs font-semibold tabular-nums text-primary-foreground">
+                                <span aria-hidden="true">
+                                  {client.unreadCount > 99
+                                    ? "99+"
+                                    : client.unreadCount}
                                 </span>
-                                {drafts[client.id]}
-                              </>
-                            ) : (
-                              client.lastMessage ||
-                              "Aucun message pour le moment"
+                                <span className="sr-only">
+                                  {client.unreadCount} messages non lus
+                                </span>
+                              </span>
                             )}
-                          </p>
+                          </span>
                         </div>
                       </Button>
                     </li>
@@ -1186,6 +1199,7 @@ export default function WhatsappWorkspace({
 
                 <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-2">
                   <ConversationSummaryButton
+                    onOpenChange={setSummaryOpen}
                     key={activeClient.id}
                     projectId={project.id}
                     contactId={activeClient.id}
@@ -1198,26 +1212,30 @@ export default function WhatsappWorkspace({
                       type="button"
                       variant={aiActive ? "secondary" : "outline"}
                       aria-pressed={aiActive}
-                      title={aiActive ? "Désactiver l’IA" : "Activer l’IA"}
+                      title={aiActive ? "Prendre la main" : "Activer l’IA"}
                       disabled={aiBusyId !== null}
                       aria-busy={aiBusyId === activeClient.id}
                       onClick={toggleAi}
-                      className="size-11 gap-2 p-0 text-xs lg:w-auto lg:px-3"
+                      className="size-11 gap-2 p-0 text-sm font-medium xl:w-auto xl:px-3"
                       aria-label={
                         aiActive
-                          ? "Désactiver l’IA pour ce contact"
+                          ? "Prendre la main sur cette conversation"
                           : "Activer l’IA pour ce contact"
                       }
                     >
-                      <span className="hidden lg:inline">
-                        {aiActive ? "Désactiver l’IA" : "Activer l’IA"}
+                      <span className="hidden xl:inline">
+                        {aiActive ? "Prendre la main" : "Activer l’IA"}
                       </span>
                       {aiBusyId === activeClient.id ? (
                         <Loader2
                           aria-hidden="true"
                           className="size-4 animate-spin motion-reduce:animate-none"
                         />
-                      ) : aiActive ? <Pause aria-hidden="true" className="size-4" /> : <Bot aria-hidden="true" className="size-4" />}
+                      ) : aiActive ? (
+                        <Pause aria-hidden="true" className="size-4" />
+                      ) : (
+                        <Bot aria-hidden="true" className="size-4" />
+                      )}
                     </Button>
                   )}
                 </div>
@@ -1263,7 +1281,8 @@ export default function WhatsappWorkspace({
                       )}
                       <MessageScrollerContent className="mx-auto min-h-full w-full max-w-4xl justify-end gap-5">
                         <p className="text-center text-[11px] leading-relaxed text-muted-foreground">
-                          Jusqu’à 50 messages récents chargés · Heure locale ({timeZone})
+                          Jusqu’à 50 messages récents chargés · Heure locale (
+                          {timeZone})
                         </p>
 
                         {historyQuery.isLoading ? (
@@ -1289,9 +1308,15 @@ export default function WhatsappWorkspace({
                           </div>
                         ) : (
                           activeMessages.map((message, index) => {
-                            const day = dateFormatter.format(new Date(message.timestamp));
+                            const day = dateFormatter.format(
+                              new Date(message.timestamp),
+                            );
                             const previousMessage = activeMessages[index - 1];
-                            const previousDay = previousMessage ? dateFormatter.format(new Date(previousMessage.timestamp)) : undefined;
+                            const previousDay = previousMessage
+                              ? dateFormatter.format(
+                                  new Date(previousMessage.timestamp),
+                                )
+                              : undefined;
 
                             return (
                               <MessageScrollerItem
@@ -1331,6 +1356,11 @@ export default function WhatsappWorkspace({
                               />
                             </MessageScrollerItem>
                           )}
+                        <div
+                          ref={readMarker}
+                          aria-hidden="true"
+                          className="h-1 w-full"
+                        />
                       </MessageScrollerContent>
                     </MessageScrollerViewport>
 
@@ -1353,13 +1383,19 @@ export default function WhatsappWorkspace({
                       <p className="text-xs leading-relaxed text-muted-foreground">
                         L’IA est activée et peut également répondre à ce
                         contact.
-                        {canManageAi && " Désactivez-la pour prendre la main."}
+                        {canManageAi &&
+                          " Cliquez sur « Prendre la main » pour répondre."}
                       </p>
                     </div>
                   )}
 
                   <ChatComposer
                     key={activeClient.id}
+                    projectId={project.id}
+                    contactId={activeClient.id}
+                    assistanceEnabled={!aiActive || project.automationPaused}
+                    contextVersion={activeMessages.at(-1)?.id ?? ""}
+                    hasClientMessage={historyQuery.hasClientMessage}
                     draft={draft}
                     contactName={activeClient.name}
                     isSending={isSending}

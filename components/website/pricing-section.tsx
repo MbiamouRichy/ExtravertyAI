@@ -5,14 +5,15 @@ import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
 import React from "react";
 import { Button } from "@/components/ui/button";
-import { PRICING_PLANS, projectPlanHref } from "@/lib/pricing";
+import { PRICING_PLANS } from "@/lib/pricing";
+import { signUpPlanHref } from "@/lib/auth-redirects";
 import { StarIcon, CheckCircleIcon } from "lucide-react";
 
 const plans = PRICING_PLANS.map((plan) => ({
   ...plan,
   info: plan.description,
   price: plan.priceCents / 100,
-  btn: { text: `Choisir ${plan.name}`, href: projectPlanHref(plan.id) },
+  btn: { text: `Choisir ${plan.name}`, href: signUpPlanHref(plan.id) },
 }));
 type Plan = (typeof plans)[number];
 

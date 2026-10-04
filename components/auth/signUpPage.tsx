@@ -31,6 +31,7 @@ import { signUp } from "@/lib/auth-client";
 import { useState } from "react";
 import { useHaptics } from "@/lib/webHaptics";
 import AlertVerifyEmail from "./alertVerifyEmail";
+import { signInAfterSignUpHref } from "@/lib/auth-redirects";
 
 const formSchema = z
 	.object({
@@ -47,7 +48,8 @@ const formSchema = z
 	});
 
 
-export function AuthPage() {
+export function AuthPage({ callbackUrl }: { callbackUrl?: string }) {
+	const signInHref = signInAfterSignUpHref(callbackUrl);
 	const { playHaptic } = useHaptics();
 	const [loading, setLoading] = useState<boolean>(false);
 	const [showPassword, setShowPassword] = useState<boolean>(false);
@@ -72,7 +74,7 @@ export function AuthPage() {
 					name: data.nom,
 					email: data.email,
 					password: data.password,
-					callbackURL: "/sign-in",
+					callbackURL: signInHref,
 				},
 				{
 					onSuccess: () => {
@@ -274,7 +276,7 @@ export function AuthPage() {
 					</form>
 					<AuthDivider>Ou</AuthDivider>
 					<div className="space-y-2">
-						<SignInSocialButton form="flex" variant="default" text="Continuer avec" />
+						<SignInSocialButton form="flex" variant="default" text="Continuer avec" callbackUrl={signInHref} />
 					</div>
 
 					<p className="mt-8 mx-auto text-center text-muted-foreground text-sm">
@@ -282,14 +284,14 @@ export function AuthPage() {
 						<Link
 							className="underline underline-offset-4 hover:text-primary"
 							title="s'identifier"
-							href="/sign-in"
+							href={signInHref}
 						>
 							Identifiez-vous
 						</Link>
 					</p>
 				</div>
 			</div>
-			{showAlertDialog && <AlertVerifyEmail email={submittedEmail} />}
+			{showAlertDialog && <AlertVerifyEmail email={submittedEmail} callbackUrl={signInHref} />}
 		</main>
 	);
 }

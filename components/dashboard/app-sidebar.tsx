@@ -28,7 +28,6 @@ export function AppSidebar() {
 		return (
 			<Sidebar
 				className={cn(
-					"*:data-[slot=sidebar-inner]:dark:bg-[radial-gradient(60%_18%_at_10%_0%,--theme(--color-foreground/.08),transparent)]",
 					"**:data-[slot=sidebar-menu-button]:[&>span]:text-foreground/75"
 				)}
 				collapsible="icon"

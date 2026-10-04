@@ -6,10 +6,10 @@ import {
   prepareSummaryHistory,
 } from "../lib/conversation-summary";
 
-test("analysis is limited to 180 words and two actionable recommendations", () => {
+test("analysis accepts detailed summaries up to 500 words and four recommendations", () => {
   const compact = {
-    summary: Array(90).fill("fait").join(" "),
-    assessment: Array(90).fill("avis").join("\n"),
+    summary: Array(250).fill("fait").join(" "),
+    assessment: Array(250).fill("avis").join("\n"),
     nextSteps: [],
   };
   assert.equal(ConversationSummarySchema.safeParse(compact).success, true);
@@ -24,7 +24,48 @@ test("analysis is limited to 180 words and two actionable recommendations", () =
     ConversationSummarySchema.safeParse({
       summary: "Demande de devis.",
       assessment: "Budget non précisé.",
-      nextSteps: ["Clarifier", "Chiffrer", "Relancer"],
+      nextSteps: [
+        "Clarifier",
+        "Chiffrer",
+        "Relancer",
+        "Confirmer",
+        "Planifier",
+      ],
+    }).success,
+    false,
+  );
+});
+
+test("detailed sections and four actions remain bounded", () => {
+  const detailed = {
+    summary: "Contexte commercial précis. ".repeat(35),
+    assessment: "Le budget reste à confirmer. ".repeat(25),
+    nextSteps: [
+      "Confirmer le budget.",
+      "Vérifier le délai.",
+      "Préparer le devis.",
+      "Proposer une démonstration.",
+    ],
+  };
+  assert.equal(ConversationSummarySchema.safeParse(detailed).success, true);
+  assert.equal(
+    ConversationSummarySchema.safeParse({
+      ...detailed,
+      summary: "x".repeat(2001),
+    }).success,
+    false,
+  );
+  assert.equal(
+    ConversationSummarySchema.safeParse({
+      ...detailed,
+      assessment: "x".repeat(2001),
+    }).success,
+    false,
+  );
+  assert.equal(
+    ConversationSummarySchema.safeParse({
+      ...detailed,
+      nextSteps: ["x".repeat(351)],
     }).success,
     false,
   );
@@ -77,9 +118,37 @@ test("summary generation separates instructions from messages and validates prov
       assert.equal(body.messages[1].role, "user");
       assert.equal(body.response_format.type, "json_schema");
       assert.equal(body.response_format.json_schema.strict, true);
-      assert.deepEqual(body.response_format.json_schema.schema.required, ["summary", "assessment", "nextSteps"]);
-      assert.equal(body.response_format.json_schema.schema.properties.nextSteps.type, "array");
-      assert.equal(body.response_format.json_schema.schema.additionalProperties, false);
+      assert.equal(body.max_tokens, 3000);
+      assert.equal(
+        body.response_format.json_schema.schema.properties.summary.maxLength,
+        2000,
+      );
+      assert.equal(
+        body.response_format.json_schema.schema.properties.assessment.maxLength,
+        2000,
+      );
+      assert.equal(
+        body.response_format.json_schema.schema.properties.nextSteps.maxItems,
+        4,
+      );
+      assert.equal(
+        body.response_format.json_schema.schema.properties.nextSteps.items
+          .maxLength,
+        350,
+      );
+      assert.deepEqual(body.response_format.json_schema.schema.required, [
+        "summary",
+        "assessment",
+        "nextSteps",
+      ]);
+      assert.equal(
+        body.response_format.json_schema.schema.properties.nextSteps.type,
+        "array",
+      );
+      assert.equal(
+        body.response_format.json_schema.schema.additionalProperties,
+        false,
+      );
       assert.deepEqual(body.provider, { require_parameters: true });
       assert.deepEqual(body.reasoning, { enabled: false });
       assert.match(
@@ -104,10 +173,23 @@ test("summary generation separates instructions from messages and validates prov
       Response.json({ choices: [{ message: { content: "{}" } }] });
     await assert.rejects(generateConversationSummary([]));
     // Regression: JSON mode sometimes returned one string instead of an array.
-    globalThis.fetch = async () => Response.json({
-      choices: [{ message: { content: JSON.stringify({ ...expected, nextSteps: "Demander des précisions." }) } }],
-    });
-    await assert.rejects(generateConversationSummary([]), /SUMMARY_INVALID_RESPONSE/);
+    globalThis.fetch = async () =>
+      Response.json({
+        choices: [
+          {
+            message: {
+              content: JSON.stringify({
+                ...expected,
+                nextSteps: "Demander des précisions.",
+              }),
+            },
+          },
+        ],
+      });
+    await assert.rejects(
+      generateConversationSummary([]),
+      /SUMMARY_INVALID_RESPONSE/,
+    );
     globalThis.fetch = async () =>
       Response.json({
         choices: [

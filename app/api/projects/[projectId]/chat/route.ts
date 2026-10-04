@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import prisma from "@/lib/prisma";
+import { conversationUnreadCounts } from "@/lib/conversation-reads";
 import { getSession } from "@/lib/auth-server";
 import {
   normalizeChatStatus,
@@ -171,6 +172,30 @@ export async function GET(
 
       const page = rows.slice(0, PAGE_SIZE);
       const last = page.at(-1);
+      const contactIds = page.map((contact) => contact.id);
+      const [unreadCounts, authors] = await Promise.all([
+        conversationUnreadCounts(
+          prisma,
+          projectId,
+          session.user.id,
+          contactIds,
+        ),
+        prisma.message.findMany({
+          where: {
+            projectId,
+            contactId: { in: contactIds },
+            senderType: "AGENT",
+            agentId: { not: null },
+            status: { in: ["SENT", "DELIVERED", "READ"] },
+          },
+          distinct: ["contactId", "agentId"],
+          select: {
+            contactId: true,
+            agent: { select: { id: true, name: true, image: true } },
+          },
+          orderBy: [{ agentId: "asc" }],
+        }),
+      ]);
 
       const result: ChatPage<ChatClient> = {
         items: page.map((contact) => {
@@ -185,6 +210,10 @@ export async function GET(
               "Contact",
             phone: contact.phone,
             aiActive: contact.aiActive,
+            unreadCount: unreadCounts.get(contact.id) ?? 0,
+            agents: authors
+              .filter((author) => author.contactId === contact.id)
+              .flatMap((author) => (author.agent ? [author.agent] : [])),
             lastMessage: latest
               ? latest.type === "TEXT"
                 ? latest.content
@@ -219,7 +248,11 @@ export async function GET(
         id: true,
         aiActive: true,
         aiVersion: true,
-        messages: { where: { senderType: "CLIENT", fromMe: false }, take: 1, select: { id: true } },
+        messages: {
+          where: { senderType: "CLIENT", fromMe: false },
+          take: 1,
+          select: { id: true },
+        },
         project: {
           select: {
             status: true,

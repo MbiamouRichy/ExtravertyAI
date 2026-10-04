@@ -65,7 +65,7 @@ export function AiThinking({ generation }: { generation: ChatGeneration }) {
       role="status"
       aria-live="polite"
       aria-atomic="true"
-      className="ml-auto flex w-4/5 max-w-prose items-center justify-end gap-3 py-3 text-sm text-muted-foreground"
+      className="mr-auto flex w-full max-w-prose items-center justify-start text-left gap-3 py-3 text-sm text-muted-foreground"
     >
       <Bot aria-hidden="true" className="size-4 shrink-0" />
       <span

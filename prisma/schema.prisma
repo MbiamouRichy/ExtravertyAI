@@ -221,6 +221,7 @@ model Contact {
   // --- Relations ---
   projectId   String
   project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  readStates  ConversationReadState[]
   messages    Message[]
   aiJobs      AiJob[]
 
@@ -288,6 +289,7 @@ model Message {
 // 🔗 TABLE DE LIAISON (Gestion des accès et de l'équipe)
 // ------------------------------------------------------
 model ProjectMembership {
+  readStates ConversationReadState[]
   id        String   @id @default(cuid())
   userId    String
   projectId String
@@ -457,4 +459,17 @@ model SettingsAudit {
   createdAt DateTime @default(now())
   @@index([projectId, createdAt])
   @@map("settings_audit")
+}
+
+// A member's read position is independent of WhatsApp delivery receipts.
+model ConversationReadState {
+  membershipId String
+  contactId String
+  lastReadAt DateTime
+  lastReadId String
+  membership ProjectMembership @relation(fields: [membershipId], references: [id], onDelete: Cascade, map: "conversation_read_state_membership_fkey")
+  contact Contact @relation(fields: [contactId], references: [id], onDelete: Cascade, map: "conversation_read_state_contact_fkey")
+  @@id([membershipId, contactId])
+  @@index([contactId])
+  @@map("conversation_read_state")
 }

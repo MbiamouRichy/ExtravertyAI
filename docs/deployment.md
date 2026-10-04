@@ -137,3 +137,9 @@ Pour vérifier uniquement le modèle, avec une conversation fictive et sans envo
 Next.js 16.3.3 et les mises à jour compatibles de `npm audit fix` sont installés ; Better Auth est verrouillé à 1.7.5 dans le lockfile. L’audit complet indique encore six alertes transitives : quatre de niveau élevé dans la chaîne Prisma (deepmerge-ts, mysql2 et leurs dépendants) et deux modérées dans la chaîne ExcelJS/uuid. L’application utilise PostgreSQL ; l’export utilise des cellules texte. Ces constats réduisent certains chemins d’exposition, mais ne constituent pas une preuve d’absence de risque. Ne pas appliquer `npm audit fix --force` sans préparer une migration majeure et la tester : npm propose notamment une rétrogradation de Prisma.
 
 La suppression de compte partage désormais le nettoyage contrôlé des projets et ne supprime plus les références d’abonnement après une erreur externe. Les fonctions Evolution sont des modules réservés au serveur, et le champ `globalRole` n’accepte pas les entrées utilisateur.
+
+## Compteurs de messages non lus
+
+La migration `202610030001_conversation_reads` ajoute les positions de lecture par membre et par conversation. Appliquer les migrations sur la base cible avant de déployer le code qui utilise ces compteurs (`npm run db:deploy`, après vérification de `DATABASE_URL`). Aucun compteur ni accusé de lecture WhatsApp existant n’est modifié.
+
+Seuls les messages entrants du client sont comptés. Au premier accès, l’historique sans position de lecture est non lu ; afficher les derniers messages dans un onglet actif acquitte la conversation pour ce membre uniquement. Les notifications reçues lorsque le chat est masqué, le résumé ouvert ou l’utilisateur remonte l’historique restent non lues jusqu’au retour aux derniers messages. Une nouvelle réception après le message affiché ne peut pas être acquittée par une requête de lecture plus ancienne.

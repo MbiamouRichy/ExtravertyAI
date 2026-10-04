@@ -14,7 +14,7 @@ import { Loader } from "lucide-react";
 import { useEffect, useState } from "react";
 
 
-export default function AlertVerifyEmail({ email }: { email: string }) {
+export default function AlertVerifyEmail({ email, callbackUrl = "/sign-in" }: { email: string; callbackUrl?: string }) {
   const [loading, setLoading] = useState(false);
   const [timer, setTimer] = useState(0); // ⏱️ temps restant
   const [time, setTime] = useState(30); // ⏱️ temps d'attente initial en secondes
@@ -38,7 +38,7 @@ export default function AlertVerifyEmail({ email }: { email: string }) {
       await authClient.sendVerificationEmail(
         {
           email: email,
-          callbackURL: "/sign-in",
+          callbackURL: callbackUrl,
         },
         {
           onSuccess: () => {
