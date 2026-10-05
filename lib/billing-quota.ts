@@ -32,6 +32,7 @@ export async function syncSubscription(
   sub: Stripe.Subscription,
   eventCreated: number,
   fallbackProjectId?: string,
+  expectedRevision?: number,
 ) {
   const project = await prisma.project.findUnique({
     where: { stripeSubscriptionId: sub.id },
@@ -72,6 +73,12 @@ export async function syncSubscription(
     await tx.$queryRaw`SELECT id FROM project WHERE id = ${projectId} FOR UPDATE`;
     const current = await tx.project.findUnique({ where: { id: projectId } });
     if (!current) throw new Error("BILLING_PROJECT_MISSING");
+    // A background retrieval must not overwrite a webhook applied meanwhile.
+    if (
+      expectedRevision !== undefined &&
+      current.billingRevision !== expectedRevision
+    )
+      return;
     if (current.stripeSubscriptionId && current.stripeSubscriptionId !== sub.id)
       return;
     if (eventCreated < current.billingEventCreated) return;
@@ -88,6 +95,8 @@ export async function syncSubscription(
         stripeCurrentPeriodEnd: endsAt,
         expiredAt: trial ? endsAt : null,
         billingEventCreated: eventCreated,
+        billingRevision: { increment: 1 },
+        stripeStatus: sub.status,
       },
     });
     if (!mayOpen || limit === undefined) return;
@@ -117,7 +126,7 @@ export async function syncSubscription(
     const quota = period
       ? await tx.quotaPeriod.update({
           where: { id: period.id },
-          data: { isCurrent: true },
+          data: { isCurrent: true, startsAt, endsAt, limit },
         })
       : await tx.quotaPeriod.create({
           data: {

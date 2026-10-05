@@ -28,7 +28,13 @@ import {
   FieldLabel,
   FieldError,
 } from "@/components/ui/field";
-import { MessageContentSchema } from "@/lib/message-schema";
+import { SendChatMessageSchema } from "@/lib/message-schema";
+import {
+  type ChatAttachment,
+  MEDIA_TYPES,
+  mediaFileError,
+} from "@/lib/chat-media";
+import { Input } from "@/components/ui/input";
 import {
   Tooltip,
   TooltipContent,
@@ -37,7 +43,7 @@ import {
 
 import { ChatEmojiPicker } from "./chat-emoji-picker";
 
-const ComposerSchema = z.object({ content: MessageContentSchema });
+const ComposerSchema = SendChatMessageSchema;
 type ComposerValues = z.infer<typeof ComposerSchema>;
 
 export function ChatComposer({
@@ -63,12 +69,91 @@ export function ChatComposer({
   isSending: boolean;
   textareaRef: RefObject<HTMLTextAreaElement | null>;
   onDraftChange: (value: string) => void;
-  onSend: (content: string) => Promise<void>;
+  onSend: (
+    content: string,
+    attachment?: ChatAttachment,
+  ) => Promise<"accepted" | "uncertain" | void>;
 }) {
+  const [attachment, setAttachment] = useState<ChatAttachment | undefined>();
+  const [file, setFile] = useState<File | null>(null);
+  const [preview, setPreview] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const uploadController = useRef<AbortController | null>(null);
+  const fileRef = useRef<HTMLInputElement | null>(null);
+  useEffect(() => () => uploadController.current?.abort(), []);
+  useEffect(() => {
+    if (!file) {
+      setPreview(null);
+      return;
+    }
+    const url = URL.createObjectURL(file);
+    setPreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [file]);
+  async function uploadFile(selected: File | undefined) {
+    if (!selected) return;
+    const error = mediaFileError(selected);
+    if (error) {
+      setAttachment(undefined);
+      setFile(null);
+      form.setError("attachment", { message: error });
+      if (fileRef.current) fileRef.current.value = "";
+      return;
+    }
+    uploadController.current?.abort();
+    const controller = new AbortController();
+    uploadController.current = controller;
+    setAttachment(undefined);
+    setFile(selected);
+    setUploading(true);
+    form.clearErrors("attachment");
+    try {
+      const response = await fetch(
+        "/api/projects/" +
+          encodeURIComponent(projectId) +
+          "/chat/media?requestId=" +
+          crypto.randomUUID(),
+        {
+          method: "POST",
+          headers: { "Content-Type": selected.type },
+          body: selected,
+          signal: controller.signal,
+        },
+      );
+      const data = await response.json();
+      if (!response.ok)
+        throw new Error(
+          typeof data.error === "string"
+            ? data.error
+            : "Import du fichier impossible.",
+        );
+      const parsed = z
+        .object({
+          token: z.string(),
+          type: z.enum(["IMAGE", "AUDIO"]),
+          requestId: z.string().uuid(),
+        })
+        .parse(data);
+      if (!controller.signal.aborted) setAttachment(parsed);
+    } catch (error) {
+      if (!controller.signal.aborted) {
+        const message =
+          error instanceof Error
+            ? error.message
+            : "Import du fichier impossible.";
+        form.setError("attachment", { message });
+        toast.error(message);
+        setFile(null);
+        if (fileRef.current) fileRef.current.value = "";
+      }
+    } finally {
+      if (!controller.signal.aborted) setUploading(false);
+    }
+  }
   const form = useForm<ComposerValues>({
     resolver: zodResolver(ComposerSchema),
-    defaultValues: { content: "" },
-    values: { content: draft },
+    defaultValues: { content: "", attachment: undefined },
+    values: { content: draft, attachment },
   });
   const [busy, setBusy] = useState<"suggest" | "rewrite" | null>(null);
   const [expanded, setExpanded] = useState(false);
@@ -141,7 +226,16 @@ export function ChatComposer({
 
   return (
     <form
-      onSubmit={form.handleSubmit(({ content }) => onSend(content))}
+      className="relative min-w-0"
+      onSubmit={form.handleSubmit(async ({ content, attachment: media }) => {
+        if (uploading || isSending) return;
+        const result = await onSend(content, media);
+        if (result === "accepted" || result === "uncertain") {
+          setAttachment(undefined);
+          setFile(null);
+          if (fileRef.current) fileRef.current.value = "";
+        }
+      })}
       noValidate
     >
       {assistanceEnabled && (
@@ -241,11 +335,94 @@ export function ChatComposer({
       )}
       <FieldGroup>
         <Controller
+          name="attachment"
+          control={form.control}
+          render={({ field, fieldState }) => (
+            <Field data-invalid={fieldState.invalid} className="gap-2">
+              <FieldLabel htmlFor="chat-attachment">
+                Joindre une image ou un audio
+              </FieldLabel>
+              <Input
+                ref={(element) => {
+                  field.ref(element);
+                  fileRef.current = element;
+                }}
+                id="chat-attachment"
+                type="file"
+                accept={Object.keys(MEDIA_TYPES).join(",")}
+                disabled={isSending || uploading}
+                aria-invalid={fieldState.invalid}
+                aria-describedby="chat-attachment-help chat-attachment-error"
+                onBlur={field.onBlur}
+                onChange={(event) => void uploadFile(event.target.files?.[0])}
+              />
+              <p
+                id="chat-attachment-help"
+                className="text-xs text-muted-foreground"
+              >
+                4 Mo maximum. Légende d’image : 1 024 caractères. Envoyez le
+                texte séparément d’un audio.
+              </p>
+              {file && (
+                <div className="space-y-2 rounded-lg border bg-muted p-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="min-w-0 truncate text-sm">{file.name}</p>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      disabled={isSending}
+                      onClick={() => {
+                        uploadController.current?.abort();
+                        setUploading(false);
+                        setAttachment(undefined);
+                        setFile(null);
+                        form.clearErrors("attachment");
+                        if (fileRef.current) fileRef.current.value = "";
+                      }}
+                    >
+                      Retirer
+                    </Button>
+                  </div>
+                  {uploading && (
+                    <p role="status" className="text-sm text-muted-foreground">
+                      Import en cours…
+                    </p>
+                  )}
+                  {preview &&
+                    (file.type.startsWith("image/") ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={preview}
+                        alt="Aperçu de l’image à envoyer"
+                        className="max-h-40 max-w-full rounded-lg object-contain"
+                      />
+                    ) : (
+                      <audio
+                        src={preview}
+                        controls
+                        preload="metadata"
+                        aria-label="Aperçu du fichier audio"
+                        className="max-w-full"
+                      />
+                    ))}
+                </div>
+              )}
+              {fieldState.invalid && (
+                <FieldError
+                  id="chat-attachment-error"
+                  errors={[fieldState.error]}
+                />
+              )}
+            </Field>
+          )}
+        />
+        <Controller
           name="content"
           control={form.control}
           render={({ field, fieldState }) => (
             <Field data-invalid={fieldState.invalid} className="gap-2">
-              <FieldLabel htmlFor="chat-message" className="sr-only">
+              <FieldLabel htmlFor="chat-message" className="sr-only max-w-full">
                 Message pour {contactName}
               </FieldLabel>
               <div className="flex items-end gap-2 rounded-xl border border-input bg-background p-2 shadow-sm focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/50">
@@ -329,7 +506,9 @@ export function ChatComposer({
                     <Button
                       type="submit"
                       size="icon"
-                      disabled={!draft.trim() || isSending}
+                      disabled={
+                        (!draft.trim() && !attachment) || isSending || uploading
+                      }
                       aria-label={
                         isSending ? "Envoi en cours" : "Envoyer le message"
                       }
@@ -351,7 +530,7 @@ export function ChatComposer({
                   </TooltipContent>
                 </Tooltip>
               </div>
-              <p id="chat-composer-help" className="sr-only">
+              <p id="chat-composer-help" className="sr-only max-w-full">
                 Entrée pour une nouvelle ligne. Ctrl ou Commande et Entrée pour
                 envoyer.
               </p>

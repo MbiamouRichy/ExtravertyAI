@@ -1,3 +1,4 @@
+import { readStoredMedia } from "./chat-media-server";
 import type { PrismaClient } from "../src/generated/prisma/client";
 import { latestStatus } from "./evolution-ingestion";
 import { projectBillingStatus } from "./project-status";
@@ -5,6 +6,7 @@ import { projectBillingStatus } from "./project-status";
 export function createOutboundProcessor(
   prisma: PrismaClient,
   notifyProject: (projectId: string) => Promise<void>,
+  loadMedia = readStoredMedia,
 ) {
   function isRecord(value: unknown): value is Record<string, unknown> {
     return typeof value === "object" && value !== null;
@@ -151,6 +153,8 @@ export function createOutboundProcessor(
         instanceName: job.project.instanceName,
         remoteJid: job.message.contact.remoteJid,
         content: job.message.content,
+        type: job.message.type,
+        mediaKey: job.message.mediaUrl,
         typing: job.project.whatsappTyping,
       };
     });
@@ -188,24 +192,64 @@ export function createOutboundProcessor(
     }
 
     let providerId: string | undefined;
+    let endpoint = "sendText";
+    let body: Record<string, unknown> = {
+      number: job.remoteJid,
+      text: job.content,
+      delay: job.typing ? 1200 : 0,
+    };
+    if (job.type === "IMAGE" || job.type === "AUDIO") {
+      try {
+        if (!job.mediaKey) throw new Error("MEDIA_MISSING");
+        const { bytes, mime } = await loadMedia(job.mediaKey, job.projectId);
+        if (!mime.startsWith(job.type === "IMAGE" ? "image/" : "audio/"))
+          throw new Error("MEDIA_INVALID");
+        endpoint = job.type === "IMAGE" ? "sendMedia" : "sendWhatsAppAudio";
+        body =
+          job.type === "IMAGE"
+            ? {
+                number: job.remoteJid,
+                mediatype: "image",
+                mimetype: mime,
+                media: bytes.toString("base64"),
+                caption: job.content === "[IMAGE]" ? "" : job.content,
+              }
+            : { number: job.remoteJid, audio: bytes.toString("base64") };
+      } catch {
+        // No provider call was made, so failure is definitive and safe to report.
+        await prisma.$transaction(async (tx) => {
+          await tx.outboundJob.update({
+            where: { id: job.jobId },
+            data: {
+              state: "CANCELLED",
+              errorCode: "MEDIA_UNAVAILABLE",
+              finishedAt: new Date(),
+            },
+          });
+          await tx.message.update({
+            where: { id: job.messageId },
+            data: { status: "FAILED", errorMessage: "MEDIA_UNAVAILABLE" },
+          });
+        });
+        await notifyProject(job.projectId);
+        return;
+      }
+    }
 
     try {
       // Adaptateur correspondant au format de TON code actuel.
       // À valider sur l'image Evolution réellement installée.
       const response = await fetch(
-        `${baseUrl}/message/sendText/${encodeURIComponent(job.instanceName)}`,
+        `${baseUrl}/message/${endpoint}/${encodeURIComponent(job.instanceName)}`,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
             apikey: apiKey,
           },
-          body: JSON.stringify({
-            number: job.remoteJid,
-            text: job.content,
-            delay: job.typing ? 1200 : 0,
-          }),
-          signal: AbortSignal.timeout(15_000),
+          body: JSON.stringify(body),
+          signal: AbortSignal.timeout(45_000),
+          redirect: "error",
           cache: "no-store",
         },
       );

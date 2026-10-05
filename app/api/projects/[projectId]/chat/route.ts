@@ -1,3 +1,4 @@
+import { chatMediaFields } from "@/lib/chat-media";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -351,6 +352,7 @@ export async function GET(
       select: {
         id: true,
         senderType: true,
+        outboundJob: { select: { state: true, requestId: true } },
         agent: { select: { id: true, name: true, image: true } },
         content: true,
         type: true,
@@ -389,12 +391,11 @@ export async function GET(
               : message.senderType === "AGENT"
                 ? "agent"
                 : "system",
-        content:
-          message.type === "TEXT"
-            ? message.content
-            : `Pièce jointe (${message.type}) — aperçu non disponible.`,
+        ...chatMediaFields(message, projectId),
         timestamp: message.createdAt.toISOString(),
         status: normalizeChatStatus(message.status),
+        outboundState: message.outboundJob?.state ?? null,
+        clientRequestId: message.outboundJob?.requestId ?? null,
       })),
       nextCursor:
         rows.length > PAGE_SIZE && last

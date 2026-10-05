@@ -43,6 +43,8 @@ export type ChatMessage = {
   senderType: "client" | "bot" | "agent" | "system";
   agent?: ChatAgent | null;
   content: string;
+  type?: string;
+  mediaUrl?: string | null;
   timestamp: string;
   status: ChatMessageStatus;
   outboundState?: OutboundState | null;

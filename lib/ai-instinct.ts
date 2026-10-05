@@ -102,6 +102,9 @@ export async function runInstinctCycle(
       CROSS JOIN LATERAL (SELECT m.id FROM message m WHERE m."contactId" = c.id AND m."projectId" = p.id ORDER BY m."createdAt" DESC, m.id DESC LIMIT 1) latest
       WHERE NOT p."deletionPending" AND p."agentQualifyLeads" AND p."agentSetupCompletedAt" IS NOT NULL
         AND (p.status IN ('active', 'trialing') OR (p."automationPaused" AND p.status = 'paused' AND p."statusBeforePause" IN ('active', 'trialing')))
+        AND EXISTS (SELECT 1 FROM quota_period q WHERE q."projectId" = p.id AND q."isCurrent"
+          AND q.kind = CASE WHEN p."automationPaused" AND p.status = 'paused' THEN p."statusBeforePause" ELSE p.status END
+          AND q."startsAt" <= clock_timestamp() AND q."endsAt" > clock_timestamp())
         AND length(trim(p."agentSystemMessage")) > 0
         AND (c."instinctLeaseUntil" IS NULL OR c."instinctLeaseUntil" < clock_timestamp())
         AND (c."instinctSourceId" IS DISTINCT FROM latest.id OR c."instinctConfigVersion" <> p."agentConfigVersion")

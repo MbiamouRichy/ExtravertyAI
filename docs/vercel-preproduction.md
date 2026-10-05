@@ -1,6 +1,6 @@
 # Préproduction sur Vercel
 
-Cette version utilise Vercel pour le site Next.js, les actions serveur et les webhooks. Les deux workers persistants (`workers/ai.ts` et `workers/outbound.ts`) tournent sur un serveur Docker séparé et partagent la même base PostgreSQL de test. Le fichier `compose.yaml` démarre les workers, pas PostgreSQL ni Evolution API. Ne pas lancer ces boucles permanentes dans une fonction Vercel : les [fonctions ont une durée limitée](https://vercel.com/docs/functions/limitations).
+Cette version utilise Vercel pour le site Next.js, les actions serveur et les webhooks. Les trois workers persistants (`workers/ai.ts`, `workers/outbound.ts` et `workers/billing.ts`) tournent sur un serveur Docker séparé et partagent la même base PostgreSQL de test. Le fichier `compose.yaml` démarre les workers, pas PostgreSQL ni Evolution API. Ne pas lancer ces boucles permanentes dans une fonction Vercel : les [fonctions ont une durée limitée](https://vercel.com/docs/functions/limitations).
 
 ## 1. Importer le dépôt et choisir la branche
 
@@ -56,7 +56,8 @@ Dans Stripe en mode test, créer un endpoint vers `https://VOTRE-HOTE/api/webhoo
 
 - `checkout.session.completed`
 - `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted`
-- `invoice.paid`, `invoice.payment_succeeded`, `invoice.payment_failed`
+- `invoice.paid`, `invoice.payment_succeeded`, `invoice.payment_failed`, `invoice.payment_action_required`, `invoice.finalization_failed`
+- `customer.subscription.trial_will_end`
 
 Recopier son secret de signature dans `STRIPE_WEBHOOK_SECRET`, puis redéployer. Activer le portail client Stripe de test pour les actions de facturation. Utiliser uniquement un moyen de paiement de test fourni par Stripe.
 
@@ -72,8 +73,8 @@ Une fois l’instance WhatsApp dédiée et le destinataire de test prêts :
 
 ```sh
 docker compose build
-docker compose up -d ai-worker outbound-worker
-docker compose logs --tail=100 ai-worker outbound-worker
+docker compose up -d ai-worker outbound-worker billing-worker
+docker compose logs --tail=100 ai-worker outbound-worker billing-worker
 ```
 
 Ces commandes activent le traitement et les envois des jobs en attente de cette base. Vérifier qu’elle ne contient que les échanges autorisés pour la recette avant le démarrage. Ne pas réutiliser une instance WhatsApp de clients réels. Un arrêt des workers n’efface pas la file : les jobs restent en base.
@@ -83,3 +84,11 @@ Ces commandes activent le traitement et les envois des jobs en attente de cette 
 Suivre [la grille de recette](recette.md) : pages publiques, compte, création et paiement de test, configuration agent, chat entrant/sortant, reprise humaine, contacts, exports, réglages, facturation et droits d’accès. Vérifier dans les journaux Stripe/Evolution que les webhooks reçoivent bien une réponse applicative, pas une page de connexion Vercel. Un site qui s’affiche ne valide pas les échanges IA.
 
 État avant préproduction : 18 tests métiers réussis sur base isolée ; compilation locale réussie. La validation visuelle complète, le contrat de l’instance Evolution déployée et les échanges réels restent à exécuter. L’audit des dépendances conserve six alertes transitives décrites dans [deployment.md](deployment.md). Les commandes Docker ci-dessus n’ont pas été exécutées sur un serveur distant.
+
+## Cible de validation de la facturation
+
+URL de préproduction : https://extraverty-ai-git-codex-preproduction-richy00s-projects.vercel.app
+
+Les workers existants sont hébergés sur le VPS Docker Hostinger KVM2. Ajouter le service `billing-worker` dans cette installation en conservant la base de test et les clés Stripe de test. Sur le worker de facturation, définir `NEXT_PUBLIC_APP_URL` avec l’URL HTTPS ci-dessus ; conserver les URL locales du poste de développement. Configurer également Resend et son expéditeur vérifié.
+
+Suivre [le guide de facturation](billing-lifecycle.md) pour la migration et le suivi des notifications. Valider cette préproduction avant toute activation en production.

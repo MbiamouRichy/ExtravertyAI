@@ -31,6 +31,7 @@ export async function POST(req: Request) {
         "customer.subscription.updated",
         "customer.subscription.deleted",
         "customer.subscription.created",
+        "customer.subscription.trial_will_end",
       ].includes(event.type)
     ) {
       subscriptionId = (event.data.object as Stripe.Subscription).id;
@@ -39,6 +40,8 @@ export async function POST(req: Request) {
         "invoice.payment_succeeded",
         "invoice.paid",
         "invoice.payment_failed",
+        "invoice.payment_action_required",
+        "invoice.finalization_failed",
       ].includes(event.type)
     ) {
       const invoice = event.data.object as Stripe.Invoice;
@@ -51,6 +54,11 @@ export async function POST(req: Request) {
         expand: ["latest_invoice"],
       });
       await syncSubscription(prisma, subscription, event.created, projectId);
+      // Wake the durable billing sweep; no email is sent in the webhook request.
+      await prisma.project.updateMany({
+        where: { stripeSubscriptionId: subscription.id },
+        data: { billingNextCheckAt: new Date() },
+      });
     }
     return new NextResponse("OK");
   } catch {

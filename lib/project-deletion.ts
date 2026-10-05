@@ -1,5 +1,6 @@
 import "server-only";
 import prisma from "./prisma";
+import { deleteProjectMedia } from "./chat-media-cleanup";
 import { stripe } from "./stripe";
 import { markProjectForDeletion, SettingsError } from "./project-settings";
 import { deleteEvolutionInstance } from "@/app/actions/evolutionAPI";
@@ -41,6 +42,13 @@ export async function deleteProjectResources(
         "Suppression de la connexion WhatsApp impossible. Le projet est conservé en pause ; réessayez.",
       );
     }
+  }
+  try {
+    await deleteProjectMedia(projectId);
+  } catch {
+    throw new SettingsError(
+      "Suppression des médias impossible. Le projet reste en pause ; réessayez.",
+    );
   }
   await prisma.project.delete({ where: { id: projectId } });
 }

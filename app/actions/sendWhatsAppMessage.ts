@@ -2,7 +2,8 @@
 import { projectBillingStatus } from "@/lib/project-status";
 
 import { z } from "zod";
-import { MessageContentSchema } from "@/lib/message-schema";
+import { SendChatMessageSchema } from "@/lib/message-schema";
+import { verifyMediaTicket } from "@/lib/chat-media-server";
 import { revalidatePath } from "next/cache";
 
 import prisma from "@/lib/prisma";
@@ -10,11 +11,10 @@ import { getSession } from "@/lib/auth-server";
 import { notifyChatChanged } from "@/lib/chat-realtime";
 import { MessageQuotaError, reserveMessageQuota } from "@/lib/message-quota";
 
-const SendMessageSchema = z.object({
+const SendMessageSchema = SendChatMessageSchema.safeExtend({
   projectId: z.string().cuid(),
   contactId: z.string().cuid(),
   requestId: z.string().uuid(),
-  content: MessageContentSchema,
 });
 
 class SendRejected extends Error {}
@@ -41,7 +41,7 @@ export async function sendWhatsAppMessage(
   }
 
   const agentId = session.user.id;
-  const { projectId, contactId, requestId, content } = parsed.data;
+  const { projectId, contactId, requestId, content, attachment } = parsed.data;
 
   try {
     const result = await prisma.$transaction(async (tx) => {
@@ -87,11 +87,33 @@ export async function sendWhatsAppMessage(
         include: { message: true },
       });
 
+      let media: ReturnType<typeof verifyMediaTicket> | null = null;
+      if (attachment) {
+        try {
+          media = verifyMediaTicket(
+            attachment.token,
+            projectId,
+            agentId,
+            requestId,
+            !!existing,
+          );
+        } catch {
+          throw new SendRejected(
+            "Pièce jointe invalide ou expirée. Importez à nouveau le fichier.",
+          );
+        }
+        if (
+          (media.mime.startsWith("image/") ? "IMAGE" : "AUDIO") !==
+          attachment.type
+        )
+          throw new SendRejected("Type de pièce jointe invalide.");
+      }
       if (existing) {
         if (
           existing.message.agentId !== agentId ||
           existing.message.contactId !== contactId ||
-          existing.message.content !== content
+          existing.message.content !== (content || `[${attachment?.type}]`) ||
+          existing.message.mediaUrl !== (media?.key ?? null)
         ) {
           throw new SendRejected(
             "Cet identifiant de demande a déjà été utilisé.",
@@ -111,10 +133,14 @@ export async function sendWhatsAppMessage(
           automationPaused: true,
           statusBeforePause: true,
           instanceStatus: true,
+          deletionPending: true,
         },
       });
 
-      if (!["active", "trialing"].includes(projectBillingStatus(project))) {
+      if (
+        project.deletionPending ||
+        !["active", "trialing"].includes(projectBillingStatus(project))
+      ) {
         throw new SendRejected("Le projet n’est pas actif.");
       }
 
@@ -141,10 +167,11 @@ export async function sendWhatsAppMessage(
           projectId,
           contactId,
           agentId,
-          content,
+          content: content || `[${attachment?.type}]`,
           senderType: "AGENT",
           status: "PENDING",
-          type: "TEXT",
+          type: attachment?.type ?? "TEXT",
+          mediaUrl: media?.key ?? null,
           fromMe: true,
           source: "web_dashboard",
         },

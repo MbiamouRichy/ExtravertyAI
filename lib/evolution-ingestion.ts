@@ -1,5 +1,9 @@
 import { z } from "zod";
-import type { MessageStatus, Prisma } from "../src/generated/prisma/client";
+import type {
+  MessageStatus,
+  MessageType,
+  Prisma,
+} from "../src/generated/prisma/client";
 
 export const IncomingSchema = z.object({
   key: z.object({
@@ -48,7 +52,7 @@ export async function saveReceipt(
   projectId: string,
   providerId: string,
   status: MessageStatus,
-  echo?: { remoteJid: string; content: string },
+  echo?: { remoteJid: string; content: string; type?: MessageType },
 ) {
   const old = await tx.providerReceipt.findUnique({
     where: { projectId_providerId: { projectId, providerId } },
@@ -105,6 +109,12 @@ export async function ingestMessage(
   raw: unknown,
 ) {
   const msg = IncomingSchema.parse(raw);
+  for (let depth = 0; depth < 3; depth++) {
+    const wrapped = msg.message?.ephemeralMessage;
+    if (!wrapped || typeof wrapped !== "object" || !("message" in wrapped))
+      break;
+    msg.message = IncomingSchema.shape.message.parse(wrapped.message);
+  }
   const { id: evolutionId, remoteJid, fromMe } = msg.key;
   if (!remoteJid.endsWith("@s.whatsapp.net") && !remoteJid.endsWith("@lid"))
     return;
@@ -114,10 +124,22 @@ export async function ingestMessage(
     msg.message?.imageMessage?.caption ||
     msg.message?.videoMessage?.caption ||
     "";
+  const type = msg.message?.imageMessage
+    ? "IMAGE"
+    : msg.message?.videoMessage
+      ? "VIDEO"
+      : msg.message?.audioMessage
+        ? "AUDIO"
+        : msg.message?.documentMessage
+          ? "DOCUMENT"
+          : text
+            ? "TEXT"
+            : "OTHER";
   if (fromMe) {
     await saveReceipt(tx, projectId, evolutionId, "SENT", {
       remoteJid,
       content: text,
+      type,
     });
     const receipt = await tx.providerReceipt.findUniqueOrThrow({
       where: { projectId_providerId: { projectId, providerId: evolutionId } },
@@ -144,17 +166,6 @@ export async function ingestMessage(
       lastMessageAt: new Date(),
     },
   });
-  const type = msg.message.imageMessage
-    ? "IMAGE"
-    : msg.message.videoMessage
-      ? "VIDEO"
-      : msg.message.audioMessage
-        ? "AUDIO"
-        : msg.message.documentMessage
-          ? "DOCUMENT"
-          : text
-            ? "TEXT"
-            : "OTHER";
   const message = await tx.message.create({
     data: {
       projectId,

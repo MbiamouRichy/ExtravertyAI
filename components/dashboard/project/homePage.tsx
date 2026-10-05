@@ -6,6 +6,7 @@ import { ProjectsTable } from "./dataTable"
 import { ProjectsTableColumns } from "./columnTable"
 import { WhatsAppConnectionStatus } from "./whatsapp-connection-status"
 import { Card } from "@/components/ui/card"
+import { billingAccessLabel, formatBillingDate, type billingAccess } from "@/lib/billing-access"
 
 const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "outline" | "destructive" }> = {
   active: { label: "Actif", variant: "default" },
@@ -19,6 +20,7 @@ export interface CustomProjectProps {
     name: string;
     numero: string;
     status: string;
+    billingAccess?: ReturnType<typeof billingAccess>;
     plan: string;
     messageCount: number;
     allMessagesCount: number;
@@ -75,7 +77,7 @@ export default function HomeProjectsPage({ projects }: CustomProjectProps) {
             {/* VUE MOBILE : Affichage en Cartes */}
             <div className="grid grid-cols-1 my-4 gap-4 md:hidden">
               {projects.map((project) => {
-                const statusInfo = statusConfig[project.status] || { label: "Inconnu", variant: "outline" };
+                const statusInfo = project.billingAccess ? { label: billingAccessLabel(project.billingAccess), variant: project.billingAccess.allowed ? "secondary" as const : "destructive" as const } : statusConfig[project.status] || { label: "Inconnu", variant: "outline" };
                 return (
                   <Card
                     key={project.id}
@@ -117,11 +119,7 @@ export default function HomeProjectsPage({ projects }: CustomProjectProps) {
                         Expire le : {" "}
                         <span className="text-foreground font-medium">
                           {project.stripeCurrentPeriodEnd || project.expiredAt
-                            ? new Intl.DateTimeFormat("fr-FR", {
-                              day: "2-digit",
-                              month: "short",
-                              year: "numeric"
-                            }).format(new Date((project.stripeCurrentPeriodEnd || project.expiredAt) as Date))
+                            ? formatBillingDate((project.stripeCurrentPeriodEnd || project.expiredAt) as Date)
                             : "Non défini"}
                         </span>
                       </p>

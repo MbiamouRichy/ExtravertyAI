@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import z from "zod";
 import { setProjectPaused } from "./project-settings";
 import { deleteProjectResources } from "@/lib/project-deletion";
+import { billingAccess } from "@/lib/billing-access";
 
 // 1. RÉCUPERER TOUS LES PROJETS
 export async function getProjects() {
@@ -27,6 +28,15 @@ export async function getProjects() {
             numero: true,
             status: true,
             automationPaused: true,
+            statusBeforePause: true,
+            stripeStatus: true,
+            deletionPending: true,
+            quotaPeriods: {
+              where: { isCurrent: true },
+              orderBy: { startsAt: "desc" },
+              take: 1,
+              select: { kind: true, startsAt: true, endsAt: true },
+            },
             agentSetupCompletedAt: true,
             plan: true,
             messageCount: true,
@@ -39,7 +49,34 @@ export async function getProjects() {
       },
     });
 
-    return memberships.map((m) => m.project);
+    const [{ now }] = await prisma.$queryRaw<
+      Array<{ now: Date }>
+    >`SELECT clock_timestamp() AS now`;
+    return memberships.map(({ project }) => {
+      const {
+        quotaPeriods,
+        stripeStatus,
+        statusBeforePause,
+        deletionPending,
+        ...visible
+      } = project;
+      const period = quotaPeriods[0];
+      return {
+        ...visible,
+        billingAccess: billingAccess(
+          {
+            ...project,
+            stripeStatus,
+            statusBeforePause,
+            deletionPending,
+            kind: period?.kind ?? null,
+            startsAt: period?.startsAt ?? null,
+            endsAt: period?.endsAt ?? null,
+          },
+          now,
+        ),
+      };
+    });
   } catch (error) {
     console.error("Erreur lors de la récupération des projets:", error);
     return [];

@@ -3,6 +3,7 @@
 import { z } from "zod";
 import { getSession } from "@/lib/auth-server";
 import prisma from "@/lib/prisma";
+import { getBillingAccess } from "@/lib/billing-access";
 import {
   generateConversationSummary,
   prepareSummaryHistory,
@@ -29,6 +30,9 @@ export async function summarizeConversation(input: unknown) {
       select: { id: true },
     });
     if (!membership) return { success: false as const, error: "Accès refusé." };
+    const access = await getBillingAccess(prisma, projectId);
+    if (!access.allowed)
+      return { success: false as const, error: access.message };
     const contact = await prisma.contact.findFirst({
       where: { id: contactId, projectId, project: { deletionPending: false } },
       select: {
@@ -76,6 +80,9 @@ export async function summarizeConversation(input: unknown) {
     });
     if (!stillMember)
       return { success: false as const, error: "Accès refusé." };
+    const currentAccess = await getBillingAccess(prisma, projectId);
+    if (!currentAccess.allowed)
+      return { success: false as const, error: currentAccess.message };
     return {
       success: true as const,
       summary,

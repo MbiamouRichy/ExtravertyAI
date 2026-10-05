@@ -15,6 +15,7 @@ import { ArrowUpDown, MoreHorizontal, Smartphone, Eye, Settings, CreditCardIcon 
 import Link from "next/link"
 import { CustomProjectProps } from "./homePage"
 import { WhatsAppConnectionStatus } from "./whatsapp-connection-status"
+import { billingAccessLabel, formatBillingDate } from "@/lib/billing-access"
 
 // Dictionnaire de configuration des statuts
 const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "outline" | "destructive" }> = {
@@ -81,7 +82,8 @@ export const ProjectsTableColumns: ColumnDef<CustomProjectProps["projects"][0]>[
         cell: ({ row }) => {
             const status = row.original.status;
             // On récupère la config correspondante, avec un fallback sécurisé au cas où un statut inattendu apparaît
-            const config = statusConfig[status] || { label: "Inconnu", variant: "outline" };
+            const access = row.original.billingAccess;
+            const config = access ? { label: billingAccessLabel(access), variant: access.allowed ? "secondary" as const : "destructive" as const } : statusConfig[status] || { label: "Inconnu", variant: "outline" };
 
             return (
                 <Badge
@@ -144,11 +146,7 @@ export const ProjectsTableColumns: ColumnDef<CustomProjectProps["projects"][0]>[
             }
 
             // Formatage sécurisé
-            const formatted = new Intl.DateTimeFormat("fr-FR", {
-                day: "2-digit",
-                month: "short",
-                year: "numeric"
-            }).format(new Date(rawDate));
+            const formatted = formatBillingDate(rawDate);
 
             return <span className="tabular-nums text-muted-foreground text-sm">{formatted}</span>;
         },

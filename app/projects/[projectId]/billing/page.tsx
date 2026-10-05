@@ -14,6 +14,7 @@ import {
 import { getSession } from "@/lib/auth-server";
 import prisma from "@/lib/prisma";
 import { stripe } from "@/lib/stripe";
+import { formatBillingDate } from "@/lib/billing-access";
 import {
   billingStatusLabel,
   formatStripeAmount,
@@ -255,7 +256,9 @@ export default async function BillingPage({
                       : "Fin de période"}
                 </p>
                 <p className="mt-2 text-sm font-medium">
-                  {date(subscription?.cancel_at || endsAt)}
+                  {subscription?.cancel_at || endsAt
+                    ? formatBillingDate(new Date(subscription?.cancel_at ? subscription.cancel_at * 1000 : typeof endsAt === "number" ? endsAt * 1000 : endsAt!))
+                    : "Non disponible"}
                 </p>
               </div>
               <div>

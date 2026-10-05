@@ -94,7 +94,12 @@ export async function reconcileProviderReceipts(prisma: PrismaClient) {
           projectId: receipt.projectId,
           contactId: contact.id,
           evolutionId: receipt.providerId,
-          content: current.content || "[Message WhatsApp]",
+          content:
+            current.content ||
+            (current.type === "TEXT"
+              ? "[Message WhatsApp]"
+              : `[${current.type}]`),
+          type: current.type,
           senderType: "AGENT",
           fromMe: true,
           status: current.status,

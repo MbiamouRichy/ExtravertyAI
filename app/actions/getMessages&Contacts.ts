@@ -1,4 +1,5 @@
 "use server";
+import { chatMediaFields } from "@/lib/chat-media";
 
 import prisma from "@/lib/prisma";
 import { getSession } from "@/lib/auth-server";
@@ -127,10 +128,7 @@ export async function getWorkspaceData(
               : message.senderType === "AGENT"
                 ? "agent"
                 : "system",
-        content:
-          message.type === "TEXT"
-            ? message.content
-            : `Pièce jointe (${message.type}) — aperçu non disponible.`,
+        ...chatMediaFields(message, projectId),
         timestamp: message.createdAt.toISOString(),
         status: normalizeChatStatus(message.status),
         outboundState: message.outboundJob?.state ?? null,

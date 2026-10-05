@@ -182,6 +182,9 @@ model Project {
   settingsVersion Int @default(0)
   settingsAudit SettingsAudit[]
   billingEventCreated Int @default(0)
+  billingRevision Int @default(0)
+  stripeStatus String?
+  billingNextCheckAt DateTime @default(now())
   stripeCustomerId     String?        @unique
   stripeSubscriptionId String?        @unique
   stripePriceId        String?
@@ -202,6 +205,8 @@ model Project {
   quotaPeriods QuotaPeriod[]
   aiJobs AiJob[]
   receipts ProviderReceipt[]
+  billingEmails BillingEmail[]
+  @@index([billingNextCheckAt])
 }
 
 // ------------------------------------------------------
@@ -446,6 +451,7 @@ model ProviderReceipt {
   status MessageStatus @default(SENT)
   remoteJid String?
   content String? @db.Text
+  type MessageType @default(TEXT)
   resolved Boolean @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -477,4 +483,37 @@ model ConversationReadState {
   @@id([membershipId, contactId])
   @@index([contactId])
   @@map("conversation_read_state")
+}
+
+enum BillingEmailState {
+  PENDING
+  SENDING
+  SENT
+  CANCELLED
+  REVIEW_REQUIRED
+}
+
+model BillingEmail {
+  id String @id @default(cuid())
+  projectId String
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  key String @unique
+  kind String
+  periodId String
+  recipientId String
+  recipient String
+  from String
+  subject String
+  text String @db.Text
+  state BillingEmailState @default(PENDING)
+  attempts Int @default(0)
+  availableAt DateTime @default(now())
+  firstAttemptAt DateTime?
+  leaseToken String?
+  leaseUntil DateTime?
+  sentAt DateTime?
+  providerId String?
+  createdAt DateTime @default(now())
+  @@index([state, availableAt])
+  @@map("billing_email")
 }

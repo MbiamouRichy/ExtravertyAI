@@ -149,3 +149,7 @@ Seuls les messages entrants du client sont comptés. Au premier accès, l’hist
 Appliquer `202610040001_ai_instinct` avec `npm run db:deploy` avant le déploiement, puis redémarrer `npm run worker:ai`. Une boucle indépendante analyse les conversations à partir des consignes métier du projet, avec la configuration OpenRouter existante. Elle fonctionne aussi lorsque les réponses automatiques sont désactivées ou le projet mis en pause, si l’abonnement reste actif. Le réglage « qualification des prospects » doit être activé et la configuration de l’agent terminée.
 
 Le résultat est conservé par dernière activité et version des objectifs ; un résultat obsolète est masqué jusqu’à la nouvelle analyse. Les échecs sont retentés après cinq minutes et les workers se coordonnent par bail en base. Aucun message n’est envoyé. L’analyse génère des appels OpenRouter supplémentaires, tout comme l’aperçu automatique des suggestions lors de l’ouverture d’une conversation en mode manuel.
+
+## Fin d’essai et notifications de facturation
+
+Déployer également le service `billing-worker` et appliquer la migration de facturation. Voir [le guide de fin d’abonnement](billing-lifecycle.md) pour les variables, les rappels au propriétaire, le rattrapage Stripe et le suivi des emails.

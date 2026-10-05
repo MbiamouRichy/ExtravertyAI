@@ -43,7 +43,7 @@ export async function reserveMessageQuota(
   if (!period)
     throw new MessageQuotaError(
       "PERIOD_UNAVAILABLE",
-      "La période de quota est indisponible ou expirée.",
+      "Votre période d’accès est terminée ou attend une confirmation de paiement. Consultez la facturation pour reprendre les envois.",
     );
   const updated = await tx.quotaPeriod.updateMany({
     where: { id: period.id, used: { lt: period.limit } },

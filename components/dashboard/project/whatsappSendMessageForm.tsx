@@ -76,7 +76,9 @@ import { ChatComposer } from "./chat-composer";
 import { ConversationSummaryButton } from "./conversation-summary";
 import { useConversationRead } from "@/hooks/use-conversation-read";
 import { createChatDateFormatters } from "@/lib/chat-dates";
-import { MessageContentSchema } from "@/lib/message-schema";
+import { SendChatMessageSchema } from "@/lib/message-schema";
+import { type ChatAttachment, messageMediaPath } from "@/lib/chat-media";
+import { ChatMedia } from "./chat-media";
 
 type WorkspaceProps = {
   initialClient?: ChatClient;
@@ -360,7 +362,14 @@ function ChatBubble({
             {author}
           </MessageHeader>
 
-          {isAi ? (
+          {message.mediaUrl &&
+          (message.type === "IMAGE" || message.type === "AUDIO") ? (
+            <ChatMedia
+              type={message.type}
+              url={message.mediaUrl}
+              caption={message.content}
+            />
+          ) : isAi ? (
             <AiResponseText content={message.content} animate={animate} />
           ) : (
             <Bubble
@@ -399,7 +408,7 @@ function ChatBubble({
             </p>
           )}
 
-          {failed && (
+          {failed && message.type !== "IMAGE" && message.type !== "AUDIO" && (
             <Button
               type="button"
               variant="link"
@@ -520,8 +529,18 @@ export default function WhatsappWorkspace({
           (messages[contactId] ?? []).map((message) => message.id),
         );
 
+        const serverRequests = new Set(
+          (messages[contactId] ?? [])
+            .map((message) => message.clientRequestId)
+            .filter(Boolean),
+        );
         const remaining = entries.filter(
-          (message) => !serverIds.has(message.id),
+          (message) =>
+            !serverIds.has(message.id) &&
+            !(
+              message.clientRequestId &&
+              serverRequests.has(message.clientRequestId)
+            ),
         );
 
         if (remaining.length !== entries.length) {
@@ -567,7 +586,14 @@ export default function WhatsappWorkspace({
         return {
           ...client,
           aiActive: aiOverrides[client.id] ?? client.aiActive,
-          lastMessage: useLocal ? latest.content : client.lastMessage,
+          lastMessage: useLocal
+            ? latest.content ||
+              (latest.type === "IMAGE"
+                ? "Image"
+                : latest.type === "AUDIO"
+                  ? "Message audio"
+                  : "")
+            : client.lastMessage,
           lastActivityAt: useLocal ? latest.timestamp : client.lastActivityAt,
         };
       })
@@ -608,9 +634,12 @@ export default function WhatsappWorkspace({
 
     const serverMessages = messages[activeId] ?? [];
     const serverIds = new Set(serverMessages.map((message) => message.id));
+    const serverRequests = new Set(
+      serverMessages.map((message) => message.clientRequestId).filter(Boolean),
+    );
 
     const pendingMessages = (localMessages[activeId] ?? []).filter(
-      (message) => !serverIds.has(message.id),
+      (message) => !serverIds.has(message.id) && !(message.clientRequestId && serverRequests.has(message.clientRequestId)),
     );
 
     return [...serverMessages, ...pendingMessages].sort(
@@ -674,7 +703,9 @@ export default function WhatsappWorkspace({
   function updateLocalMessage(
     contactId: string,
     localId: string,
-    patch: Partial<Pick<LocalMessage, "id" | "status">>,
+    patch: Partial<
+      Pick<LocalMessage, "id" | "status" | "mediaUrl" | "content">
+    >,
   ) {
     setLocalMessages((previous) => ({
       ...previous,
@@ -684,14 +715,14 @@ export default function WhatsappWorkspace({
     }));
   }
 
-  async function handleSend(content: string) {
+  async function handleSend(content: string, attachment?: ChatAttachment) {
     if (!activeClient) return;
 
     const contactId = activeClient.id;
-    const requestId = crypto.randomUUID();
+    const requestId = attachment?.requestId ?? crypto.randomUUID();
     const localId = `local-${requestId}`;
     if (
-      !MessageContentSchema.safeParse(content).success ||
+      !SendChatMessageSchema.safeParse({ content, attachment }).success ||
       sendLocks.current.has(contactId)
     ) {
       return;
@@ -708,13 +739,21 @@ export default function WhatsappWorkspace({
     const optimisticMessage: LocalMessage = {
       id: localId,
       localId,
+      clientRequestId: requestId,
       senderType: "agent",
       agent: {
         id: user.id,
         name: user.name ?? null,
         image: user.image ?? null,
       },
-      content,
+      content:
+        content ||
+        (attachment?.type === "IMAGE"
+          ? "Image en cours d’envoi…"
+          : attachment
+            ? "Audio en cours d’envoi…"
+            : ""),
+      type: attachment?.type,
       timestamp: new Date().toISOString(),
       status: "sending",
     };
@@ -737,6 +776,7 @@ export default function WhatsappWorkspace({
         contactId,
         requestId,
         content,
+        attachment,
       });
 
       const result = parseSendResult(rawResult);
@@ -750,7 +790,7 @@ export default function WhatsappWorkspace({
         );
 
         refresh();
-        return;
+        return "uncertain" as const;
       }
       if (!result.success) {
         updateLocalMessage(contactId, localId, {
@@ -778,17 +818,19 @@ export default function WhatsappWorkspace({
 
         setAnnouncement("Confirmation d’envoi indisponible.");
         refresh();
-        return;
+        return "uncertain" as const;
       }
-
       updateLocalMessage(contactId, localId, {
         id: result.id,
         // On n'invente pas de statut « distribué ».
         status: result.status,
+        mediaUrl: attachment ? messageMediaPath(project.id, result.id) : null,
+        content,
       });
 
       setAnnouncement("Réponse du serveur reçue.");
       refresh();
+      return "accepted" as const;
     } catch {
       // Une rupture réseau n'est pas la preuve que l'envoi a échoué.
       updateLocalMessage(contactId, localId, {
@@ -798,6 +840,7 @@ export default function WhatsappWorkspace({
       setAnnouncement("Confirmation indisponible. Vérifiez avant de renvoyer.");
 
       toast.error("Confirmation indisponible. Actualisez avant de renvoyer.");
+      return "uncertain" as const;
     } finally {
       sendLocks.current.delete(contactId);
       setSendingIds((previous) => previous.filter((id) => id !== contactId));

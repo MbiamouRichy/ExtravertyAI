@@ -7,7 +7,7 @@ import {
   AssistanceInputSchema,
   generateWritingAssistance,
 } from "@/lib/writing-assistance";
-import { projectBillingStatus } from "@/lib/project-status";
+import { getBillingAccess } from "@/lib/billing-access";
 
 // Best-effort per-instance throttling, following the conversation summary action.
 const requests = new Map<string, number>();
@@ -56,8 +56,9 @@ export async function assistWriting(input: unknown) {
         error:
           "Prenez la main sur la conversation pour utiliser l’assistance IA.",
       };
-    if (!["active", "trialing"].includes(projectBillingStatus(contact.project)))
-      return { success: false as const, error: "Le projet n’est pas actif." };
+    const access = await getBillingAccess(prisma, projectId);
+    if (!access.allowed)
+      return { success: false as const, error: access.message };
     const now = Date.now();
     for (const [key, expiry] of requests)
       if (expiry <= now) requests.delete(key);
@@ -108,6 +109,9 @@ export async function assistWriting(input: unknown) {
         success: false as const,
         error: "La conversation a changé. Réessayez en mode manuel.",
       };
+    const currentAccess = await getBillingAccess(prisma, projectId);
+    if (!currentAccess.allowed)
+      return { success: false as const, error: currentAccess.message };
     return { success: true as const, replies };
   } catch (error) {
     return {
