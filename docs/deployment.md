@@ -143,3 +143,9 @@ La suppression de compte partage désormais le nettoyage contrôlé des projets 
 La migration `202610030001_conversation_reads` ajoute les positions de lecture par membre et par conversation. Appliquer les migrations sur la base cible avant de déployer le code qui utilise ces compteurs (`npm run db:deploy`, après vérification de `DATABASE_URL`). Aucun compteur ni accusé de lecture WhatsApp existant n’est modifié.
 
 Seuls les messages entrants du client sont comptés. Au premier accès, l’historique sans position de lecture est non lu ; afficher les derniers messages dans un onglet actif acquitte la conversation pour ce membre uniquement. Les notifications reçues lorsque le chat est masqué, le résumé ouvert ou l’utilisateur remonte l’historique restent non lues jusqu’au retour aux derniers messages. Une nouvelle réception après le message affiché ne peut pas être acquittée par une requête de lecture plus ancienne.
+
+## Instinct IA
+
+Appliquer `202610040001_ai_instinct` avec `npm run db:deploy` avant le déploiement, puis redémarrer `npm run worker:ai`. Une boucle indépendante analyse les conversations à partir des consignes métier du projet, avec la configuration OpenRouter existante. Elle fonctionne aussi lorsque les réponses automatiques sont désactivées ou le projet mis en pause, si l’abonnement reste actif. Le réglage « qualification des prospects » doit être activé et la configuration de l’agent terminée.
+
+Le résultat est conservé par dernière activité et version des objectifs ; un résultat obsolète est masqué jusqu’à la nouvelle analyse. Les échecs sont retentés après cinq minutes et les workers se coordonnent par bail en base. Aucun message n’est envoyé. L’analyse génère des appels OpenRouter supplémentaires, tout comme l’aperçu automatique des suggestions lors de l’ouverture d’une conversation en mode manuel.

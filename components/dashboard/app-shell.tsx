@@ -4,20 +4,20 @@ import { AppHeader } from "./app-header";
 import { AppSidebar } from "./app-sidebar";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
-	return (
-		<SidebarProvider className={cn("[--app-wrapper-max-width:90rem]")}>
-			<AppSidebar />
-			<SidebarInset className="md:peer-data-[variant=inset]:ml-0">
-				<AppHeader />
-				<div
-					className={cn(
-						"mx-auto flex w-full min-w-0 flex-1 flex-col rounded-b-xl overflow-hidden",
-						"max-w-(--app-wrapper-max-width)"
-					)}
-				>
-					{children}
-				</div>
-			</SidebarInset>
-		</SidebarProvider>
-	);
+  return (
+    <SidebarProvider className={cn("[--app-wrapper-max-width:90rem]")}>
+      <AppSidebar />
+      <SidebarInset className="md:peer-data-[variant=inset]:ml-0">
+        <AppHeader />
+        <div
+          className={cn(
+            "mx-auto flex w-full min-w-0 flex-1 flex-col rounded-b-xl overflow-clip",
+            "max-w-(--app-wrapper-max-width)",
+          )}
+        >
+          {children}
+        </div>
+      </SidebarInset>
+    </SidebarProvider>
+  );
 }

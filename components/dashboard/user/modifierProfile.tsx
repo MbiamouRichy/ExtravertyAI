@@ -198,11 +198,12 @@ function ProfileForm({
           render={({ field, fieldState }) => (
             <Field data-invalid={fieldState.invalid} className="items-center">
               <FieldLabel htmlFor="profile-image">Photo de profil</FieldLabel>
-              <div className="relative w-32 h-32 rounded-full focus-within:ring-2 focus-within:ring-ring">
-                <Avatar className="h-full border border-border">
+              <div className="relative mx-auto size-32 shrink-0 rounded-full focus-within:ring-2 focus-within:ring-ring">
+                <Avatar className="size-full overflow-hidden rounded-full border border-border">
                   <AvatarImage
                     src={preview ?? savedImage ?? undefined}
                     alt={user.name}
+                    className="object-cover object-center"
                   />
                   <AvatarFallback className="bg-muted text-foreground text-xl font-medium">
                     {getInitials(user.name)}

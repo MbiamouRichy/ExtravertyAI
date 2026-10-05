@@ -1,10 +1,23 @@
 "use client";
 
-import { useEffect, useRef, useState, type RefObject } from "react";
+import {
+  useEffect,
+  useEffectEvent,
+  useRef,
+  useState,
+  type RefObject,
+} from "react";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { ArrowUp, Loader2, Sparkles, WandSparkles, X } from "lucide-react";
+import {
+  ArrowUp,
+  ChevronDown,
+  Loader2,
+  Sparkles,
+  WandSparkles,
+  X,
+} from "lucide-react";
 import { toast } from "sonner";
 import { assistWriting } from "@/app/actions/assistWriting";
 import { Button } from "@/components/ui/button";
@@ -58,6 +71,7 @@ export function ChatComposer({
     values: { content: draft },
   });
   const [busy, setBusy] = useState<"suggest" | "rewrite" | null>(null);
+  const [expanded, setExpanded] = useState(false);
   const [proposal, setProposal] = useState<{
     mode: "suggest" | "rewrite";
     replies: string[];
@@ -70,17 +84,37 @@ export function ChatComposer({
     requestLock.current = false;
     setBusy(null);
     setProposal(null);
+    setExpanded(false);
     return () => {
       requestId.current += 1;
     };
   }, [contactId, assistanceEnabled, contextVersion, isSending]);
 
-  async function requestAssistance(mode: "suggest" | "rewrite") {
+  const generatePreview = useEffectEvent(() => {
+    void requestAssistance("suggest", true);
+  });
+  useEffect(() => {
+    if (!assistanceEnabled || !hasClientMessage || isSending) return;
+    const timer = setTimeout(() => generatePreview(), 800);
+    return () => clearTimeout(timer);
+  }, [
+    contactId,
+    assistanceEnabled,
+    contextVersion,
+    hasClientMessage,
+    isSending,
+  ]);
+
+  async function requestAssistance(
+    mode: "suggest" | "rewrite",
+    automatic = false,
+  ) {
     if (requestLock.current || isSending || !assistanceEnabled) return;
     requestLock.current = true;
     const id = ++requestId.current;
     setBusy(mode);
     setProposal(null);
+    if (!automatic) setExpanded(true);
     try {
       const result = await assistWriting({
         projectId,
@@ -90,12 +124,12 @@ export function ChatComposer({
       });
       if (id !== requestId.current) return;
       if (!result.success) {
-        toast.error(result.error);
+        if (!automatic) toast.error(result.error);
         return;
       }
       setProposal({ mode, replies: result.replies, draft });
     } catch {
-      if (id === requestId.current)
+      if (id === requestId.current && !automatic)
         toast.error("L’assistance IA est indisponible. Réessayez.");
     } finally {
       if (id === requestId.current) {
@@ -119,8 +153,15 @@ export function ChatComposer({
             type="button"
             variant="ghost"
             size="sm"
+            className="w-full min-w-0 justify-start"
+            aria-expanded={expanded}
+            aria-controls="chat-ai-proposals"
             disabled={!!busy || isSending || !hasClientMessage}
-            onClick={() => void requestAssistance("suggest")}
+            onClick={() =>
+              proposal?.mode === "suggest"
+                ? setExpanded(!expanded)
+                : void requestAssistance("suggest")
+            }
           >
             {busy === "suggest" ? (
               <Loader2
@@ -131,57 +172,70 @@ export function ChatComposer({
               <Sparkles aria-hidden="true" className="size-4" />
             )}
             {busy === "suggest" ? "Suggestions en cours…" : "Suggestions IA"}
+            <ChevronDown
+              aria-hidden="true"
+              className={`size-4 shrink-0 transition-transform ${expanded ? "rotate-180" : ""}`}
+            />
+            <span className="min-w-0 truncate text-xs font-normal text-muted-foreground">
+              {proposal?.mode === "suggest"
+                ? proposal.replies[0]
+                : busy === "suggest"
+                  ? "Analyse de la discussion…"
+                  : "Afficher des réponses adaptées…"}
+            </span>
           </Button>
-          <div aria-live="polite" aria-busy={!!busy}>
-            {proposal && proposal.draft === draft && (
-              <div className="max-h-60 space-y-2 overflow-y-auto rounded-lg border bg-muted p-3">
-                <div className="flex items-center justify-between gap-2">
-                  <p className="text-xs text-muted-foreground">
-                    {proposal.mode === "rewrite"
-                      ? "Reformulation professionnelle"
-                      : "Réponses suggérées"}{" "}
-                    · À relire avant envoi
-                  </p>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label="Fermer les propositions"
-                    onClick={() => setProposal(null)}
-                  >
-                    <X aria-hidden="true" className="size-4" />
-                  </Button>
-                </div>
-                {proposal.replies.map((reply, index) => (
-                  <div key={index} className="space-y-2 border-t pt-2">
-                    <p
-                      dir="auto"
-                      className="whitespace-pre-wrap wrap-anywhere text-sm"
-                    >
-                      {reply}
+          <div id="chat-ai-proposals" aria-live="polite" aria-busy={!!busy}>
+            {expanded &&
+              proposal &&
+              (proposal.mode === "suggest" || proposal.draft === draft) && (
+                <div className="max-h-60 space-y-2 overflow-y-auto rounded-lg border bg-muted p-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-xs text-muted-foreground">
+                      {proposal.mode === "rewrite"
+                        ? "Reformulation professionnelle"
+                        : "Réponses suggérées"}{" "}
+                      · À relire avant envoi
                     </p>
                     <Button
                       type="button"
-                      variant="outline"
-                      size="sm"
-                      disabled={isSending}
-                      onClick={() => {
-                        form.setValue("content", reply, {
-                          shouldValidate: true,
-                        });
-                        onDraftChange(reply);
-                        setProposal(null);
-                        textareaRef.current?.focus();
-                      }}
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label="Fermer les propositions"
+                      onClick={() => setExpanded(false)}
                     >
-                      {draft.trim()
-                        ? "Remplacer le brouillon"
-                        : "Insérer dans le brouillon"}
+                      <X aria-hidden="true" className="size-4" />
                     </Button>
                   </div>
-                ))}
-              </div>
-            )}
+                  {proposal.replies.map((reply, index) => (
+                    <div key={index} className="space-y-2 border-t pt-2">
+                      <p
+                        dir="auto"
+                        className="whitespace-pre-wrap wrap-anywhere text-sm"
+                      >
+                        {reply}
+                      </p>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={isSending}
+                        onClick={() => {
+                          form.setValue("content", reply, {
+                            shouldValidate: true,
+                          });
+                          onDraftChange(reply);
+                          setProposal(null);
+                          textareaRef.current?.focus();
+                        }}
+                      >
+                        {draft.trim()
+                          ? "Remplacer le brouillon"
+                          : "Insérer dans le brouillon"}
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
           </div>
         </section>
       )}
@@ -280,7 +334,7 @@ export function ChatComposer({
                         isSending ? "Envoi en cours" : "Envoyer le message"
                       }
                       title="Envoyer · Ctrl / ⌘ + Entrée"
-                      className="size-11 shrink-0 rounded-full"
+                      className="my-1 size-9 shrink-0 rounded-full"
                     >
                       {isSending ? (
                         <Loader2

@@ -11,6 +11,7 @@ export type ChatClient = {
   lastMessage: string;
   lastActivityAt: string;
   aiActive: boolean;
+  interestingProspect?: boolean;
   unreadCount?: number;
   agents?: ChatAgent[];
 };

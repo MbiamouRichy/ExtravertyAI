@@ -3,6 +3,7 @@ import "dotenv/config";
 import { workerDatabase, notifyProject } from "./shared";
 import { claimAiJob, runAiJob } from "../lib/ai-jobs";
 import { reconcileProviderReceipts } from "../lib/provider-reconciliation";
+import { runInstinctCycle } from "../lib/ai-instinct";
 
 const prisma = workerDatabase();
 let stopping = false;
@@ -33,8 +34,20 @@ async function main() {
     }
   }
 }
-main()
+async function instinctLoop() {
+  while (!stopping) {
+    try {
+      const projectId = await runInstinctCycle(prisma);
+      if (projectId) await notifyProject(projectId);
+    } catch {
+      console.error("[ai-instinct] Cycle interrompu.");
+    }
+    await sleep(2000);
+  }
+}
+Promise.all([main(), instinctLoop()])
   .catch(() => {
+    stopping = true;
     console.error("[ai-worker] Arrêt sur erreur.");
     process.exitCode = 1;
   })

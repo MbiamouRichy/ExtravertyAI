@@ -23,12 +23,18 @@ import {
   Pause,
   RefreshCw,
   Search,
+  Sparkles,
   UserRound,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -1072,6 +1078,25 @@ export default function WhatsappWorkspace({
                               <span className="truncate text-sm font-semibold">
                                 {client.name}
                               </span>
+                              {client.interestingProspect && (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <span
+                                      tabIndex={0}
+                                      aria-label="Prospect intéressant"
+                                      className="inline-flex shrink-0 rounded-sm text-primary outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                    >
+                                      <Sparkles
+                                        aria-hidden="true"
+                                        className="size-4"
+                                      />
+                                    </span>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    Prospect intéressant
+                                  </TooltipContent>
+                                </Tooltip>
+                              )}
                               <ConversationParticipants
                                 active={client.aiActive}
                                 agents={client.agents ?? []}

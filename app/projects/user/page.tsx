@@ -3,10 +3,24 @@ import { redirect } from "next/navigation";
 import { UAParser } from "ua-parser-js";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Shield, Key, Smartphone, Mail, CalendarDays, UserCog } from "lucide-react";
+import {
+  Shield,
+  Key,
+  Smartphone,
+  Mail,
+  CalendarDays,
+  UserCog,
+} from "lucide-react";
 import SignOutButton from "@/components/dashboard/user/signOutButton";
 import { ModifierProfile } from "@/components/dashboard/user/modifierProfile";
 import { getSession } from "@/lib/auth-server";
@@ -21,7 +35,7 @@ import UserSettingsPage from "@/components/dashboard/user/settingsPage";
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "User | ExtravertyAI",
-}
+};
 export default async function ProfilePage() {
   // Récupération de la session utilisateur via Better Auth
   const sessionData = await getSession();
@@ -54,7 +68,11 @@ export default async function ProfilePage() {
 
     // Formatage propre de l'IP locale
     let displayIp = s.ipAddress || "IP masquée";
-    if (displayIp === "::1" || displayIp === "127.0.0.1" || displayIp.includes("0000:0000")) {
+    if (
+      displayIp === "::1" ||
+      displayIp === "127.0.0.1" ||
+      displayIp.includes("0000:0000")
+    ) {
       displayIp = "Localhost (En développement)";
     }
 
@@ -85,7 +103,9 @@ export default async function ProfilePage() {
   return (
     <div className="max-w-5xl mx-auto p-4 md:p-12 space-y-8 animate-in fade-in duration-500">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Profil Utilisateur</h1>
+        <h1 className="text-3xl font-bold tracking-tight">
+          Profil Utilisateur
+        </h1>
         <p className="text-muted-foreground mt-2">
           Gérez vos informations personnelles et la sécurité de votre compte.
         </p>
@@ -93,7 +113,7 @@ export default async function ProfilePage() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
         {/* Colonne Gauche : Identité */}
-        <div className="space-y-6 lg:col-span-1">
+        <div className="space-y-6 md:sticky md:top-20 md:self-start lg:col-span-1">
           <Card className="border-border shadow-sm">
             <CardContent className="pt-6 flex flex-col items-center text-center">
               <div className="relative mb-4">
@@ -146,7 +166,10 @@ export default async function ProfilePage() {
                       <Mail className="h-4 w-4 text-muted-foreground" />
                       Adresse Email
                     </p>
-                    <Badge className="text-sm" variant={user.emailVerified ? "default" : "destructive"}>
+                    <Badge
+                      className="text-sm"
+                      variant={user.emailVerified ? "default" : "destructive"}
+                    >
                       {user.emailVerified ? "Vérifiée" : "Non vérifiée"}
                     </Badge>
                   </div>
@@ -187,7 +210,7 @@ export default async function ProfilePage() {
                 Connexions récentes
               </CardTitle>
               <CardDescription>
-                Les appareils  récemment connectés à votre compte.
+                Les appareils récemment connectés à votre compte.
               </CardDescription>
             </CardHeader>
             <CardContent>

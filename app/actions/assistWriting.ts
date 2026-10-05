@@ -61,12 +61,13 @@ export async function assistWriting(input: unknown) {
     const now = Date.now();
     for (const [key, expiry] of requests)
       if (expiry <= now) requests.delete(key);
-    if (requests.has(session.user.id))
+    const requestKey = `${session.user.id}:${mode}`;
+    if (requests.has(requestKey))
       return {
         success: false as const,
         error: "Patientez quelques instants avant une nouvelle demande.",
       };
-    requests.set(session.user.id, now + 10000);
+    requests.set(requestKey, now + 10000);
     const messages =
       mode === "suggest"
         ? await prisma.message.findMany({

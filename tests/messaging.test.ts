@@ -25,6 +25,7 @@ import {
   reconcileReceipt,
 } from "../lib/evolution-ingestion";
 import { claimAiJob, runAiJob } from "../lib/ai-jobs";
+import { runInstinctCycle } from "../lib/ai-instinct";
 import { reserveMessageQuota } from "../lib/message-quota";
 import { syncSubscription, subscriptionStatus } from "../lib/billing-quota";
 import type Stripe from "stripe";
@@ -103,6 +104,77 @@ test(
           });
         });
       }
+      await t.test(
+        "AI instinct persists manual-chat assessments, caches and fences concurrent workers",
+        async () => {
+          const project = await fixture();
+          await incoming(project.id, "instinct-first");
+          const contact = await client.contact.findFirstOrThrow({
+            where: { projectId: project.id },
+          });
+          await client.contact.update({
+            where: { id: contact.id },
+            data: { aiActive: false },
+          });
+          let unexpectedCalls = 0;
+          assert.equal(
+            await runInstinctCycle(client, async (goals, history) => {
+              assert.equal(goals, project.agentSystemMessage);
+              assert.equal(history[0].content, "Bonjour");
+              assert.equal(
+                await runInstinctCycle(client, async () => {
+                  unexpectedCalls += 1;
+                  return false;
+                }),
+                null,
+              );
+              return true;
+            }),
+            project.id,
+          );
+          let saved = await client.contact.findUniqueOrThrow({
+            where: { id: contact.id },
+          });
+          assert.equal(saved.instinctInteresting, true);
+          assert.ok(saved.instinctSourceId);
+          assert.equal(unexpectedCalls, 0);
+          assert.equal(
+            await runInstinctCycle(client, async () => {
+              unexpectedCalls += 1;
+              return false;
+            }),
+            null,
+          );
+          await incoming(project.id, "instinct-second");
+          assert.equal(unexpectedCalls, 0);
+          await runInstinctCycle(client, async () => false);
+          saved = await client.contact.findUniqueOrThrow({
+            where: { id: contact.id },
+          });
+          assert.equal(saved.instinctInteresting, false);
+          await client.project.update({
+            where: { id: project.id },
+            data: { agentConfigVersion: { increment: 1 } },
+          });
+          assert.equal(
+            await runInstinctCycle(client, async () => true),
+            project.id,
+          );
+          await incoming(project.id, "instinct-third");
+          await runInstinctCycle(client, async () => {
+            throw new Error("provider down");
+          });
+          assert.equal(
+            await runInstinctCycle(client, async () => {
+              unexpectedCalls += 1;
+              return false;
+            }),
+            null,
+          );
+          await client.project.delete({ where: { id: project.id } });
+          assert.equal(unexpectedCalls, 0);
+        },
+      );
       await t.test(
         "conversation reads are member-scoped, monotonic and isolated by project",
         async () => {

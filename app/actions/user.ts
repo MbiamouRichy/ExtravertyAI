@@ -4,6 +4,7 @@
 import { getSession } from "@/lib/auth-server";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
+import { revalidatePath } from "next/cache";
 
 const ThemeSchema = z.object({
   theme: z.enum(["light", "dark", "system"]),
@@ -28,6 +29,7 @@ export async function updateThemeAction(formData: z.infer<typeof ThemeSchema>) {
       data: { theme: parsed.data.theme },
     });
 
+    revalidatePath("/projects", "layout");
     return { success: true };
   } catch (error: unknown) {
     const errorMessage =

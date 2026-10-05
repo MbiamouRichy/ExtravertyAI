@@ -155,6 +155,12 @@ export async function GET(
           pushName: true,
           phone: true,
           aiActive: true,
+          instinctInteresting: true,
+          instinctSourceId: true,
+          instinctConfigVersion: true,
+          project: {
+            select: { agentConfigVersion: true, agentQualifyLeads: true },
+          },
           createdAt: true,
           updatedAt: true,
           messages: {
@@ -162,6 +168,7 @@ export async function GET(
             orderBy: [{ createdAt: "desc" }, { id: "desc" }],
             take: 1,
             select: {
+              id: true,
               content: true,
               type: true,
               createdAt: true,
@@ -210,6 +217,12 @@ export async function GET(
               "Contact",
             phone: contact.phone,
             aiActive: contact.aiActive,
+            interestingProspect:
+              contact.instinctInteresting &&
+              contact.project.agentQualifyLeads &&
+              contact.instinctConfigVersion ===
+                contact.project.agentConfigVersion &&
+              contact.instinctSourceId === latest?.id,
             unreadCount: unreadCounts.get(contact.id) ?? 0,
             agents: authors
               .filter((author) => author.contactId === contact.id)

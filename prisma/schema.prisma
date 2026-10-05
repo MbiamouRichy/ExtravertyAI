@@ -233,6 +233,11 @@ lastMessageAt DateTime?
 // Incrémentée lors d'un changement de réglage IA.
 // Servira à invalider les générations devenues obsolètes.
   aiVersion Int @default(0)
+  instinctInteresting Boolean @default(false)
+  instinctSourceId String?
+  instinctConfigVersion Int @default(-1)
+  instinctLeaseToken String?
+  instinctLeaseUntil DateTime?
 
   @@index([projectId, lastMessageAt, id])
   // SÉCURITÉ & PERF: Un contact (JID) est unique par projet. Indexé pour recherche rapide.
