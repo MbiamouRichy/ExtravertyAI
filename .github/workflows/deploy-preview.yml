@@ -1,0 +1,48 @@
+name: Deploy preview workers
+
+on:
+  push:
+    branches: [codex/preproduction]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: extravertyai-preview-workers
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: github.ref == 'refs/heads/codex/preproduction'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: preview
+    steps:
+      - name: Configure dedicated SSH identity
+        env:
+          DEPLOY_KEY: ${{ secrets.PREVIEW_VPS_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.PREVIEW_VPS_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          test -n "$DEPLOY_KEY"
+          test -n "$KNOWN_HOSTS"
+          umask 077
+          mkdir -p "$HOME/.ssh"
+          printf '%s\n' "$DEPLOY_KEY" > "$HOME/.ssh/preview_deploy"
+          printf '%s\n' "$KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
+      - name: Build, migrate and restart preview workers
+        env:
+          DEPLOY_HOST: ${{ secrets.PREVIEW_VPS_HOST }}
+          DEPLOY_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          [[ "$DEPLOY_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$DEPLOY_HOST" =~ ^[a-zA-Z0-9.-]+$ ]]
+          ssh -T -i "$HOME/.ssh/preview_deploy" \
+            -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes \
+            -o ConnectTimeout=20 -o ServerAliveInterval=30 -o ServerAliveCountMax=5 \
+            "root@$DEPLOY_HOST" "deploy $DEPLOY_SHA"
+      - name: Remove runner identity
+        if: always()
+        run: rm -f "$HOME/.ssh/preview_deploy"

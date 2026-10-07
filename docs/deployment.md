@@ -56,6 +56,16 @@ npx tsx scripts/bootstrap-quotas.ts manifest.json --apply
 
 ## Conteneurs
 
+### Déploiement automatique de la preview
+
+Le workflow `.github/workflows/deploy-preview.yml` déploie les trois workers du VPS à chaque push sur `codex/preproduction`. L’application web reste déployée par l’intégration Git de Vercel. Les exécutions sont sérialisées ; une révision déjà dépassée est ignorée. Aucun autre environnement ni branche n’est déployé par ce workflow.
+
+Les secrets GitHub `PREVIEW_VPS_HOST`, `PREVIEW_VPS_SSH_KEY` et `PREVIEW_VPS_KNOWN_HOSTS` contiennent une identité SSH dédiée et la clé d’hôte vérifiée. Le mot de passe administrateur n’est pas utilisé. La clé SSH du VPS est limitée par `restrict,command="/usr/local/sbin/extraverty-preview-deploy"` et n’autorise aucun shell interactif.
+
+Le script source `scripts/deploy-preview.sh` est installé root-owned sur le VPS à ce chemin. Il vérifie la branche, la révision et la base `extravertyai_preview`, préserve `.env.production` et `compose.override.yaml`, construit les images et vérifie TypeScript, puis sauvegarde PostgreSQL dans `/var/backups/extravertyai-preview` avant de migrer et redémarrer les workers. Les sauvegardes sont privées et leur rétention doit être suivie selon l’espace disponible. Une erreur de migration redémarre les anciens conteneurs ; aucune restauration destructive de base n’est automatisée. Le contrôle final vérifie les processus et leur absence de redémarrage immédiat, pas une conversation réelle de bout en bout.
+
+Pour relancer, utiliser « Run workflow » sur la branche `codex/preproduction`. Pour changer la procédure elle-même, installer explicitement la nouvelle version du script sur le VPS ; un push ne remplace pas la commande SSH privilégiée. Les réglages et secrets du serveur restent en dehors de Git.
+
 `compose.yaml` lance les deux workers uniquement. Il ne remplace pas votre déploiement Next.js. Le nom du Dockerfile respecte la casse Linux. L'image inclut Prisma CLI pour exécuter les migrations. Aucun secret n'est injecté au build ; `.env.production` sert uniquement à l'exécution.
 
 ```sh
