@@ -35,6 +35,7 @@ export async function Dashboard({ projectId }: { projectId: string }) {
       />
       <SourceMessageChart
         data={statsResult.data}
+        otherSources={statsResult.otherSources}
         totalMessages={statsResult.totalMessages}
         trendPercentage={statsResult.trendPercentage}
         error={

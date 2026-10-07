@@ -5,14 +5,7 @@ import prisma from "@/lib/prisma";
 import { z } from "zod";
 
 export type TimePeriod =
-  | "7d"
-  | "14d"
-  | "21d"
-  | "1m"
-  | "2m"
-  | "3m"
-  | "6m"
-  | "1y";
+  "7d" | "14d" | "21d" | "1m" | "2m" | "3m" | "6m" | "1y";
 export type MessageSourceKey = "android" | "ios" | "ai" | "unknown";
 
 export type SourceDatum = {
@@ -152,14 +145,22 @@ export async function getMessageSourcesStats(
       unknown: 0,
     };
 
+    const otherSources = new Map<string, number>();
     let totalMessages = 0;
 
     groupedMessages.forEach((group) => {
       // 🛡️ 5. Assainissement de la sortie (Type Guarding)
-      const sourceKey =
-        group.source && Object.hasOwn(stats, group.source)
-          ? (group.source as MessageSourceKey)
-          : "unknown";
+      const source = group.source?.trim().toLowerCase() || "unknown";
+      const sourceKey = Object.hasOwn(stats, source)
+        ? (source as MessageSourceKey)
+        : "unknown";
+
+      if (sourceKey === "unknown") {
+        otherSources.set(
+          source,
+          (otherSources.get(source) ?? 0) + group._count._all,
+        );
+      }
 
       stats[sourceKey] += group._count._all;
       totalMessages += group._count._all;
@@ -176,10 +177,20 @@ export async function getMessageSourcesStats(
     return {
       success: true,
       data: chartData,
+      otherSources: [...otherSources.entries()]
+        .map(([source, count]) => ({ source, count }))
+        .sort((a, b) => b.count - a.count || a.source.localeCompare(b.source)),
       totalMessages,
-      trendPercentage: previousTotal === 0
-        ? (totalMessages > 0 ? 100 : 0)
-        : Number((((totalMessages - previousTotal) / previousTotal) * 100).toFixed(1)),
+      trendPercentage:
+        previousTotal === 0
+          ? totalMessages > 0
+            ? 100
+            : 0
+          : Number(
+              (((totalMessages - previousTotal) / previousTotal) * 100).toFixed(
+                1,
+              ),
+            ),
     };
   } catch (error) {
     // 🛡️ 6. Ne jamais fuiter l'erreur brute (Prisma peut révéler la structure de la BDD)
