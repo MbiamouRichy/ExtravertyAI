@@ -12,7 +12,13 @@ export function subscriptionStatus(status: Stripe.Subscription.Status) {
 export function planForPrice(priceId: string) {
   const plans = ["starter", "pro", "business"] as const;
   const plan = plans.find(
-    (p) => process.env[`STRIPE_${p.toUpperCase()}_PLAN_ID`] === priceId,
+    (p) =>
+      process.env[`STRIPE_${p.toUpperCase()}_PLAN_ID`] === priceId ||
+      (process.env[`STRIPE_${p.toUpperCase()}_LEGACY_PRICE_IDS`] || "")
+        .split(",")
+        .map((id) => id.trim())
+        .filter(Boolean)
+        .includes(priceId),
   );
   if (!plan) throw new Error("UNKNOWN_STRIPE_PRICE");
   return plan;

@@ -14,7 +14,7 @@ import {
 import { getSession } from "@/lib/auth-server";
 import prisma from "@/lib/prisma";
 import { stripe } from "@/lib/stripe";
-import { formatBillingDate } from "@/lib/billing-access";
+import { LocalBillingDate } from "@/components/dashboard/project/local-billing-date";
 import {
   billingStatusLabel,
   formatStripeAmount,
@@ -36,17 +36,6 @@ export const metadata: Metadata = {
   title: "Facturation | ExtravertyAI",
   robots: { index: false, follow: false },
 };
-const date = (value: number | Date | null | undefined) =>
-  value
-    ? new Date(
-        typeof value === "number" ? value * 1000 : value,
-      ).toLocaleDateString("fr-FR", {
-        day: "numeric",
-        month: "long",
-        year: "numeric",
-        timeZone: "UTC",
-      })
-    : "Non disponible";
 const idOf = (value: string | { id: string } | null) =>
   typeof value === "string" ? value : value?.id;
 export default async function BillingPage({
@@ -176,6 +165,13 @@ export default async function BillingPage({
           configured={!!p.stripeCustomerId}
         />
       </header>
+      {membership.role === "OWNER" && (
+        <p className="text-sm text-muted-foreground">
+          Le renouvellement ouvre le paiement dû ou la gestion du renouvellement
+          sur Stripe. Un abonnement actif se renouvelle automatiquement ; les
+          changements d’offre sont confirmés sur Stripe avant application.
+        </p>
+      )}
       {unavailable && (
         <div role="alert" className="rounded-xl border bg-muted/50 p-4 text-sm">
           La connexion à Stripe est temporairement indisponible. Les
@@ -256,9 +252,13 @@ export default async function BillingPage({
                       : "Fin de période"}
                 </p>
                 <p className="mt-2 text-sm font-medium">
-                  {subscription?.cancel_at || endsAt
-                    ? formatBillingDate(new Date(subscription?.cancel_at ? subscription.cancel_at * 1000 : typeof endsAt === "number" ? endsAt * 1000 : endsAt!))
-                    : "Non disponible"}
+                  {subscription?.cancel_at || endsAt ? (
+                    <LocalBillingDate
+                      value={subscription?.cancel_at || endsAt}
+                    />
+                  ) : (
+                    "Non disponible"
+                  )}
                 </p>
               </div>
               <div>
@@ -315,7 +315,8 @@ export default async function BillingPage({
                   messages disponibles
                 </p>
                 <p className="border-t pt-4 text-xs leading-relaxed text-muted-foreground">
-                  Du {date(quota.startsAt)} au {date(quota.endsAt)}. Les
+                  Du <LocalBillingDate value={quota.startsAt} dateOnly /> au{" "}
+                  <LocalBillingDate value={quota.endsAt} dateOnly />. Les
                   réponses de l’IA et de votre équipe utilisent le même quota.
                 </p>
                 {quota.endsAt <= new Date() && (
@@ -428,7 +429,10 @@ export default async function BillingPage({
                             {invoice.number || "En préparation"}
                           </td>
                           <td className="whitespace-nowrap px-4 py-4 text-muted-foreground">
-                            {date(invoice.created)}
+                            <LocalBillingDate
+                              value={invoice.created}
+                              dateOnly
+                            />
                           </td>
                           <td className="whitespace-nowrap px-4 py-4">
                             {formatStripeAmount(
@@ -520,7 +524,11 @@ export default async function BillingPage({
                   : "Chaque facture émise pour cet abonnement sera accessible depuis cet espace."}
               </p>
               {cursor && (
-                <Button className="mt-4 h-auto min-h-9 whitespace-normal text-center" variant="outline" asChild>
+                <Button
+                  className="mt-4 h-auto min-h-9 whitespace-normal text-center"
+                  variant="outline"
+                  asChild
+                >
                   <Link href={`/projects/${projectId}/billing`}>
                     Revenir aux dernières factures
                   </Link>

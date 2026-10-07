@@ -1,114 +1,68 @@
-import { DecorIcon } from "@/components/ui/decor-icon"
-import { Skeleton } from "@/components/ui/skeleton"
-
+import { Skeleton } from "@/components/ui/skeleton";
 export default function ProjectsLoading() {
-    return (
-        <div className="flex w-full flex-col mx-auto max-w-7xl space-y-6 md:space-y-8 p-4 sm:p-6 md:p-14">
-
-            {/* En-tête de page (Reprend exactement le layout flex/col->row) */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div className="space-y-2.5">
-                    {/* Skeleton du Titre */}
-                    <Skeleton className="h-8 w-32 md:h-9" />
-                    {/* Skeleton du Sous-titre */}
-                    <Skeleton className="h-4 w-70 sm:w-87.5 md:w-112.5" />
-                </div>
-                {/* Skeleton du Bouton "Nouveau projet" */}
-                <Skeleton className="h-10 w-full md:w-40 shrink-0 rounded-md" />
-            </div>
-
-            <div className="animate-in fade-in duration-500">
-
-                {/* VUE MOBILE : Skeleton des Cartes (Visible uniquement sur mobile) */}
-                <div className="grid grid-cols-1 gap-4 md:hidden">
-                    {[1, 2, 3].map((i) => (
-                        <div
-                            key={`mobile-skeleton-${i}`}
-                            className="flex flex-col p-5 rounded-xl border border-border bg-card shadow-sm space-y-4"
-                        >
-                            {/* Titre + Badge */}
-                            <div className="flex items-start justify-between gap-2">
-                                <Skeleton className="h-6 w-1/2" />
-                                <Skeleton className="h-5 w-16 rounded-full" />
-                            </div>
-
-                            <div className="grid grid-cols-1 gap-3">
-                                {/* Numéro de téléphone */}
-                                <div className="flex items-center gap-3">
-                                    <Skeleton className="h-8 w-8 rounded-full shrink-0" />
-                                    <Skeleton className="h-5 w-32" />
-                                </div>
-
-                                {/* Bloc Instance */}
-                                <Skeleton className="h-10 w-full rounded-lg" />
-
-                                {/* Date d'expiration */}
-                                <Skeleton className="h-4 w-40 mt-1" />
-
-                                {/* Boutons d'action */}
-                                <div className="grid grid-cols-2 gap-2 mt-2 pt-3 border-t border-border/50">
-                                    <Skeleton className="h-9 w-full rounded-md" />
-                                    <Skeleton className="h-9 w-full rounded-md" />
-                                </div>
-                            </div>
-                        </div>
-                    ))}
-                </div>
-
-                {/* VUE DESKTOP : Skeleton du DataTable (Visible uniquement sur desktop) */}
-                <div className="hidden md:flex md:flex-col space-y-4">
-
-                    {/* Toolbar du tableau (Recherche + Bouton d'affichage) */}
-                    <div className="flex items-center justify-between gap-4">
-                        <Skeleton className="h-10 w-full max-w-sm rounded-md" />
-                        <Skeleton className="h-10 w-27.5 rounded-md ml-auto" />
-                    </div>
-
-                    {/* Conteneur du tableau */}
-                    <div className="relative border bg-card overflow-hidden">
-                        <div className="absolute -inset-y-6 -left-px w-px bg-border" />
-                        <div className="absolute -inset-y-6 -right-px w-px bg-border" />
-                        <div className="absolute -inset-x-6 -top-px h-px bg-border" />
-                        <div className="absolute -inset-x-6 -bottom-px h-px bg-border" />
-                        <DecorIcon position="top-left" />
-                        <DecorIcon position="bottom-right" />
-                        {/* Header du tableau */}
-                        <div className="flex items-center bg-muted/50 border-b px-4 py-3 gap-4">
-                            <Skeleton className="h-4 w-[10%] shrink-0" /> {/* Projet */}
-                            <Skeleton className="h-4 w-[15%] shrink-0" /> {/* Numéro */}
-                            <Skeleton className="h-4 w-[8%] shrink-0" /> {/* Plan */}
-                            <Skeleton className="h-4 w-[10%] shrink-0" /> {/* Etat numero */}
-                            <Skeleton className="h-4 w-[10%] shrink-0" /> {/* Statut projet */}
-                            <Skeleton className="h-4 w-[15%] shrink-0" /> {/* utilisation */}
-                            <Skeleton className="h-4 w-[15%] shrink-0" /> {/* Date */}
-                            <Skeleton className="h-4 w-[4%] shrink-0 ml-auto" /> {/* Actions */}
-                        </div>
-
-                        {/* Lignes du tableau */}
-                        {[1, 2, 3, 4, 5].map((i) => (
-                            <div
-                                key={`desktop-skeleton-${i}`}
-                                className="flex items-center px-4 py-4 gap-4 border-b border-border/50 last:border-0"
-                            >
-                                <Skeleton className="h-4 w-[10%] shrink-0" /> {/* Projet */}
-                                <Skeleton className="h-4 w-[15%] shrink-0" /> {/* Numéro */}
-                                <Skeleton className="h-4 w-[8%] shrink-0" /> {/* Plan */}
-                                <Skeleton className="h-4 w-[10%] shrink-0" /> {/* Etat numero */}
-                                <Skeleton className="h-4 w-[10%] shrink-0" /> {/* Statut projet */}
-                                <Skeleton className="h-4 w-[15%] shrink-0" /> {/* utilisation */}
-                                <Skeleton className="h-4 w-[15%] shrink-0" /> {/* Date */}
-                                <Skeleton className="h-4 w-[4%] shrink-0 ml-auto" /> {/* Actions */}
-                            </div>
-                        ))}
-                    </div>
-
-                    {/* Pagination / Compteur */}
-                    <div className="flex items-center justify-end pt-2">
-                        <Skeleton className="h-4 w-48" />
-                    </div>
-                </div>
-
-            </div>
+  return (
+    <div
+      role="status"
+      aria-label="Chargement des projets"
+      className="mx-auto flex w-full min-w-0 max-w-7xl flex-1 flex-col gap-6 p-4 sm:p-6 lg:p-8"
+    >
+      <span className="sr-only">Chargement des projets…</span>
+      <div
+        aria-hidden="true"
+        className="flex min-w-0 flex-col justify-between gap-4 sm:flex-row sm:items-start"
+      >
+        <div className="w-full min-w-0 space-y-3">
+          <Skeleton className="h-8 w-40 max-w-full" />
+          <Skeleton className="h-4 w-full max-w-xl" />
+          <Skeleton className="h-4 w-2/3 max-w-sm" />
         </div>
-    )
+        <Skeleton className="h-9 w-full shrink-0 sm:w-40" />
+      </div>
+      <div
+        aria-hidden="true"
+        className="grid min-w-0 grid-cols-1 gap-4 md:grid-cols-2 xl:hidden"
+      >
+        {[1, 2, 3, 4].map((i) => (
+          <div
+            key={i}
+            className="min-w-0 space-y-4 rounded-xl border bg-card p-4"
+          >
+            <div className="flex justify-between gap-4">
+              <Skeleton className="h-6 w-1/2" />
+              <Skeleton className="h-5 w-20" />
+            </div>
+            <Skeleton className="h-8 w-2/3" />
+            <Skeleton className="h-12 w-full" />
+            <Skeleton className="h-4 w-3/4" />
+            <div className="grid grid-cols-2 gap-2 border-t pt-3">
+              <Skeleton className="h-9" />
+              <Skeleton className="h-9" />
+            </div>
+            <Skeleton className="h-9 w-full" />
+            <Skeleton className="h-9 w-full" />
+          </div>
+        ))}
+      </div>
+      <div aria-hidden="true" className="hidden min-w-0 space-y-4 xl:block">
+        <div className="flex justify-between gap-4">
+          <Skeleton className="h-9 w-full max-w-sm" />
+          <Skeleton className="h-9 w-28 shrink-0" />
+        </div>
+        <div className="overflow-hidden rounded-lg border">
+          <Skeleton className="h-12 w-full rounded-none" />
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="grid grid-cols-8 gap-4 border-t p-4">
+              {[1, 2, 3, 4, 5, 6, 7, 8].map((j) => (
+                <Skeleton key={j} className="h-8 w-full" />
+              ))}
+            </div>
+          ))}
+        </div>
+        <div className="flex justify-between gap-4">
+          <Skeleton className="h-5 w-24" />
+          <Skeleton className="h-8 w-48" />
+        </div>
+      </div>
+    </div>
+  );
 }

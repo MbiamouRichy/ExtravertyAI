@@ -15,7 +15,7 @@ Formats : JPEG, PNG, WebP, MP3, OGG, M4A, WAV, WebM. Le serveur vérifie le type
 
 Les médias reçus sont chargés à la demande auprès d’Evolution, sans archivage permanent dans MinIO. Un média expiré chez WhatsApp/Evolution, absent, non pris en charge ou supérieur à 4 Mo affiche une erreur avec possibilité de réessayer. Les anciens messages dont le type média n’a pas été enregistré ne sont pas reclassés automatiquement.
 
-La compréhension des images, la transcription, la génération de médias par l’IA et l’enregistrement microphone ne font pas partie de cette fonctionnalité. Le traitement IA existant reste textuel (texte/légendes).
+La compréhension des images, la transcription, la génération de médias par l’IA ne font pas partie de cette fonctionnalité. Le traitement IA existant reste textuel (texte/légendes).
 
 ## Recette avec une instance connectée
 
@@ -26,3 +26,7 @@ La compréhension des images, la transcription, la génération de médias par l
 5. Tester un audio envoyé directement depuis le téléphone associé : après rapprochement des reçus, le lecteur doit apparaître.
 
 Contrats fournisseur : https://github.com/EvolutionAPI/evolution-api/blob/main/src/api/dto/sendMessage.dto.ts et https://github.com/EvolutionAPI/evolution-api/blob/main/src/api/dto/chat.dto.ts. Vérifier la compatibilité sur la version Evolution déployée lors de la recette.
+
+## Enregistrement vocal
+
+Le bouton micro enregistre au clic, après autorisation du navigateur, pendant deux minutes maximum. Arrêter ouvre une préécoute ; seul le bouton Envoyer transmet le message WhatsApp. Annuler, changer de conversation ou quitter le compositeur libère le microphone. La limite de 4 Mo et les validations serveur sont communes aux imports et aux enregistrements. Aucun son n’est enregistré automatiquement.

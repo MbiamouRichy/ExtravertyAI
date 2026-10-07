@@ -25,6 +25,7 @@ export default async function ProjectLayout({
       <BillingNotice
         projectId={projectId}
         initial={access}
+        canManageBilling={member.role === "OWNER"}
         canViewBilling={["OWNER", "ADMIN"].includes(member.role)}
       />
       {children}

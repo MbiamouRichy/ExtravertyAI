@@ -148,13 +148,24 @@ export async function reconcileNextBillingProject(
     try {
       const sub = await retrieve(project.stripeSubscriptionId);
       // Never invent a newer Stripe event timestamp: preserve the webhook watermark.
-      await syncSubscription(
-        prisma,
-        sub,
-        project.billingEventCreated,
-        project.id,
-        project.billingRevision,
-      );
+      try {
+        await syncSubscription(
+          prisma,
+          sub,
+          project.billingEventCreated,
+          project.id,
+          project.billingRevision,
+        );
+      } catch {
+        // Stripe answered: do not email from stale state if applying it failed.
+        console.error(
+          "[billing-worker] État Stripe non appliqué ; notification différée.",
+          {
+            projectId: project.id,
+          },
+        );
+        return candidate.id;
+      }
     } catch {
       // Local expiry remains enforceable during a Stripe outage.
       console.error("[billing-worker] Synchronisation à réessayer.", {

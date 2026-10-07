@@ -21,6 +21,7 @@ export async function getProjects() {
         userId: session.user.id,
       },
       select: {
+        role: true,
         project: {
           select: {
             id: true,
@@ -52,7 +53,7 @@ export async function getProjects() {
     const [{ now }] = await prisma.$queryRaw<
       Array<{ now: Date }>
     >`SELECT clock_timestamp() AS now`;
-    return memberships.map(({ project }) => {
+    return memberships.map(({ project, role }) => {
       const {
         quotaPeriods,
         stripeStatus,
@@ -63,6 +64,7 @@ export async function getProjects() {
       const period = quotaPeriods[0];
       return {
         ...visible,
+        canManageBilling: role === "OWNER",
         billingAccess: billingAccess(
           {
             ...project,

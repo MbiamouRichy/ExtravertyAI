@@ -1,5 +1,6 @@
 import "dotenv/config";
 import { stripe } from "../lib/stripe";
+import { paidMessageLimit } from "../lib/billing-quota";
 import { workerDatabase, notifyProject } from "./shared";
 import {
   billingEmailConfig,
@@ -20,6 +21,11 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 async function main() {
   if (!process.env.RESEND_API_KEY || !process.env.STRIPE_SECRET_KEY)
     throw new Error("BILLING_CONFIG_MISSING");
+  for (const plan of ["starter", "pro", "business"]) {
+    if (!process.env[`STRIPE_${plan.toUpperCase()}_PLAN_ID`])
+      throw new Error("BILLING_PLAN_CONFIG_MISSING");
+    paidMessageLimit(plan);
+  }
   const config = billingEmailConfig();
   while (!stopping) {
     let worked = false;

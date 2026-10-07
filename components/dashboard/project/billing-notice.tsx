@@ -3,9 +3,12 @@
 import Link from "next/link";
 import useSWR from "swr";
 import { useEffect } from "react";
-import { AlertCircle, CalendarClock, RefreshCw } from "lucide-react";
+import { AlertCircle, CalendarClock } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { formatBillingDate, type billingAccess } from "@/lib/billing-access";
+import { type billingAccess } from "@/lib/billing-access";
+
+import { LocalBillingDate } from "./local-billing-date";
+import { BillingPlanButton } from "./billing-plan-button";
 
 type Access = ReturnType<typeof billingAccess>;
 async function fetchStatus(url: string): Promise<Access> {
@@ -26,16 +29,17 @@ export function BillingNotice({
   projectId,
   initial,
   canViewBilling,
+  canManageBilling,
 }: {
   projectId: string;
   initial: Access;
   canViewBilling: boolean;
+  canManageBilling: boolean;
 }) {
   const {
     data = initial,
     error,
     mutate,
-    isValidating,
   } = useSWR<Access>(
     `/api/projects/${encodeURIComponent(projectId)}/billing-status`,
     fetchStatus,
@@ -55,7 +59,7 @@ export function BillingNotice({
       aria-label="État de l’abonnement"
       className="mx-4 mt-4 rounded-lg border bg-muted/40 p-4 sm:mx-8"
     >
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
         <div
           className="flex min-w-0 items-start gap-3"
           role="status"
@@ -88,7 +92,7 @@ export function BillingNotice({
                 {data.reason === "trialing"
                   ? "Fin de l’essai"
                   : "Échéance de la période"}{" "}
-                : {formatBillingDate(data.endsAt)}
+                : <LocalBillingDate value={data.endsAt} />
               </p>
             )}
             {!canViewBilling && !data.allowed && (
@@ -105,7 +109,7 @@ export function BillingNotice({
             )}
           </div>
         </div>
-        <div className="flex shrink-0 flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2 xl:shrink-0">
           {canViewBilling && (
             <Button variant="outline" size="sm" asChild>
               <Link href={`/projects/${projectId}/billing`}>
@@ -113,18 +117,9 @@ export function BillingNotice({
               </Link>
             </Button>
           )}
-          <Button
-            variant="ghost"
-            size="sm"
-            disabled={isValidating}
-            onClick={() => void mutate()}
-          >
-            <RefreshCw
-              aria-hidden="true"
-              className={isValidating ? "size-4 animate-spin" : "size-4"}
-            />{" "}
-            Actualiser
-          </Button>
+          {canManageBilling && (
+            <BillingPlanButton projectId={projectId} intent="renew" size="sm" />
+          )}
         </div>
       </div>
     </aside>

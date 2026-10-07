@@ -1,85 +1,39 @@
-import prisma from "@/lib/prisma"; // Ajuste le chemin selon ton setup
-import { SenderType } from "@/src/generated/prisma/client";
-import { subDays, format } from "date-fns";
-
-type ReplyRow = {
-  day: string;
-  minutes: number;
-};
-
-// Fonction mathématique pour calculer la médiane
-const calculateMedian = (values: number[]) => {
-  if (values.length === 0) return 0;
-  values.sort((a, b) => a - b);
-  const half = Math.floor(values.length / 2);
-  if (values.length % 2) return values[half];
-  return (values[half - 1] + values[half]) / 2.0;
-};
-
+import "server-only";
+import prisma from "@/lib/prisma";
+import { getSession } from "@/lib/auth-server";
+import type { ResponseSample } from "@/lib/ai-response-metrics";
 export async function getAiResponseTimeData(
   projectId: string,
-): Promise<ReplyRow[]> {
-  const sevenDaysAgo = subDays(new Date(), 7);
-
-  // 1. Récupérer les messages du projet (Sécurité par projectId)
-  const messages = await prisma.message.findMany({
-    where: {
-      projectId,
-      createdAt: { gte: sevenDaysAgo },
-      senderType: { in: ["CLIENT", "BOT"] },
-    },
-    orderBy: { createdAt: "asc" },
-    select: { senderType: true, createdAt: true, contactId: true },
+): Promise<{ samples: ResponseSample[]; now: string; error: boolean }> {
+  const now = new Date();
+  const empty = { samples: [], now: now.toISOString(), error: true };
+  const session = await getSession();
+  if (!session?.user?.id) return empty;
+  const member = await prisma.projectMembership.findUnique({
+    where: { userId_projectId: { userId: session.user.id, projectId } },
+    select: { role: true },
   });
-
-  // 2. Grouper par contact pour analyser les conversations individuellement
-  const responseTimesByDay: Record<string, number[]> = {
-    Mon: [],
-    Tue: [],
-    Wed: [],
-    Thu: [],
-    Fri: [],
-    Sat: [],
-    Sun: [],
-  };
-
-  const contactThreads = messages.reduce(
-    (acc, msg) => {
-      if (!acc[msg.contactId]) acc[msg.contactId] = [];
-      acc[msg.contactId].push(msg);
-      return acc;
-    },
-    {} as Record<string, typeof messages>,
-  );
-
-  // 3. Calculer le temps d'attente (Client -> Premier message Bot qui suit)
-  for (const thread of Object.values(contactThreads)) {
-    let lastClientMsgTime: Date | null = null;
-
-    for (const msg of thread) {
-      if (msg.senderType === SenderType.CLIENT) {
-        lastClientMsgTime = msg.createdAt;
-      } else if (msg.senderType === SenderType.BOT && lastClientMsgTime) {
-        const diffMs = msg.createdAt.getTime() - lastClientMsgTime.getTime();
-        const diffMinutes = diffMs / 1000 / 60;
-
-        const dayName = format(msg.createdAt, "EEE"); // Ex: "Mon", "Tue"
-        if (responseTimesByDay[dayName]) {
-          responseTimesByDay[dayName].push(diffMinutes);
-        }
-
-        // Reset pour attendre le prochain message client
-        lastClientMsgTime = null;
-      }
-    }
+  if (!member || !["OWNER", "ADMIN"].includes(member.role)) return empty;
+  try {
+    // Correlate the actual client request and accepted outbound, not adjacent messages.
+    const rows = await prisma.$queryRaw<
+      Array<{ receivedAt: Date; sentAt: Date }>
+    >`SELECT m."createdAt" AS "receivedAt", o."finishedAt" AS "sentAt"
+       FROM ai_job a JOIN message m ON m.id = a."messageId" AND m."projectId" = a."projectId"
+       JOIN outbound_job o ON o."projectId" = a."projectId" AND o."requestId" = a."requestId"
+       WHERE a."projectId" = ${projectId} AND o.state = 'ACCEPTED'
+       AND o."finishedAt" >= ${new Date(now.getTime() - 8 * 86400000)}
+       AND o."finishedAt" <= ${now} AND o."finishedAt" >= m."createdAt"
+       ORDER BY o."finishedAt"`;
+    return {
+      samples: rows.map((row) => ({
+        receivedAt: row.receivedAt.toISOString(),
+        sentAt: row.sentAt.toISOString(),
+      })),
+      now: now.toISOString(),
+      error: false,
+    };
+  } catch {
+    return empty;
   }
-
-  // 4. Formater pour le graphique (Calcul des médianes)
-  const daysOrder = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-
-  return daysOrder.map((day) => ({
-    day,
-    // Arrondir à 1 décimale, 0 si pas de données ce jour-là
-    minutes: Number(calculateMedian(responseTimesByDay[day]).toFixed(1)),
-  }));
 }

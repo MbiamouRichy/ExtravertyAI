@@ -27,6 +27,7 @@ Les emails sont en texte brut : les noms des projets ne sont jamais interprété
    - `DATABASE_URL`
    - `STRIPE_SECRET_KEY` dans le même mode test/réel que l’application
    - `STRIPE_STARTER_PLAN_ID`, `STRIPE_PRO_PLAN_ID`, `STRIPE_BUSINESS_PLAN_ID`
+   - `STRIPE_STARTER_LEGACY_PRICE_IDS`, `STRIPE_PRO_LEGACY_PRICE_IDS`, `STRIPE_BUSINESS_LEGACY_PRICE_IDS` facultatifs : anciens tarifs vérifiés de chaque offre, séparés par des virgules. Conserver les identifiants actuels pour les nouveaux achats.
    - `MESSAGE_LIMIT_STARTER`, `MESSAGE_LIMIT_PRO`, `MESSAGE_LIMIT_BUSINESS`
    - `RESEND_API_KEY`
    - `NEXT_PUBLIC_APP_URL` : origine HTTPS publique de l’application
@@ -36,6 +37,8 @@ Les emails sont en texte brut : les noms des projets ne sont jamais interprété
 5. Conserver le webhook Stripe et lui transmettre `customer.subscription.created`, `updated`, `deleted`, `trial_will_end`, `checkout.session.completed`, `invoice.paid`, `invoice.payment_succeeded`, `invoice.payment_failed`, `invoice.payment_action_required` et `invoice.finalization_failed`.
 
 La fin d’essai bloque les opérations même si ce worker ou Stripe est momentanément indisponible. **Les emails et le rattrapage automatique nécessitent le worker en fonctionnement.** Aucune tâche planifiée Vercel supplémentaire n’est nécessaire.
+
+Le worker refuse de démarrer si les offres ou quotas sont absents. Si Stripe répond mais que la synchronisation échoue (tarif inconnu, conflit de données), aucune nouvelle alerte n’est préparée depuis cet état obsolète ; corriger la configuration puis laisser le worker réessayer.
 
 Le worker traite les projets à tour de rôle, généralement au moins une fois toutes les cinq minutes (hors backlog ou indisponibilité). Les webhooks rendent un projet immédiatement éligible au prochain passage. La réconciliation relit Stripe mais ne fabrique jamais de nouvel horodatage d’événement. Un numéro de révision empêche un résultat ancien de réconciliation d’écraser un webhook concurrent.
 

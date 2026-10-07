@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { ArrowUpRight, Loader2, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { openProjectBillingPortal } from "@/app/actions/project-settings";
+import { BillingPlanButton } from "./billing-plan-button";
 export function BillingActions({
   projectId,
   canManage,
@@ -33,7 +34,22 @@ export function BillingActions({
     <div className="min-w-0 space-y-3">
       <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
         {canManage && (
+          <>
+            <BillingPlanButton
+              projectId={projectId}
+              intent="renew"
+              disabled={!configured}
+            />
+            <BillingPlanButton
+              projectId={projectId}
+              intent="upgrade"
+              disabled={!configured}
+            />
+          </>
+        )}
+        {canManage && (
           <Button
+            variant="outline"
             className="h-auto min-h-9 whitespace-normal text-center"
             disabled={busy || !configured}
             onClick={() => void openPortal()}

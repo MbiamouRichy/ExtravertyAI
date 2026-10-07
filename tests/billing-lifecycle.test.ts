@@ -180,6 +180,48 @@ test(
       process.env.MESSAGE_LIMIT_STARTER = "4000";
 
       await t.test(
+        "a recognized legacy price restores access; unknown prices cannot trigger stale expiry emails",
+        async () => {
+          const { project } = await fixture();
+          const sub = subscription(project.id);
+          await client.project.update({
+            where: { id: project.id },
+            data: { stripeSubscriptionId: sub.id },
+          });
+          process.env.STRIPE_STARTER_PLAN_ID = "price_new";
+          try {
+            await reconcileNextBillingProject(client, async () => sub, config);
+            assert.equal(
+              await client.billingEmail.count({
+                where: { projectId: project.id },
+              }),
+              0,
+            );
+            process.env.STRIPE_STARTER_LEGACY_PRICE_IDS =
+              "price_other, price_billing_test";
+            await client.project.update({
+              where: { id: project.id },
+              data: { billingNextCheckAt: new Date(0) },
+            });
+            await reconcileNextBillingProject(client, async () => sub, config);
+            assert.equal(
+              (await getBillingAccess(client, project.id)).allowed,
+              true,
+            );
+            assert.equal(
+              await client.billingEmail.count({
+                where: { projectId: project.id },
+              }),
+              0,
+            );
+          } finally {
+            process.env.STRIPE_STARTER_PLAN_ID = "price_billing_test";
+            delete process.env.STRIPE_STARTER_LEGACY_PRICE_IDS;
+          }
+        },
+      );
+
+      await t.test(
         "expired trials block manual, automatic and auxiliary AI access without a webhook",
         async () => {
           const { project } = await fixture();

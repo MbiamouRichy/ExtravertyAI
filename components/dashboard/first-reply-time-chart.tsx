@@ -1,132 +1,117 @@
 "use client";
-
-import { cn } from "@/lib/utils";
-import type { ComponentProps } from "react";
-import { CartesianGrid, LabelList, Line, LineChart, XAxis } from "recharts";
+import { useSyncExternalStore } from "react";
+import { Clock3 } from "lucide-react";
+import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
 import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle,
-} from "@/components/ui/card";
-import {
-    type ChartConfig,
-    ChartContainer,
-    ChartTooltip,
-    ChartTooltipContent,
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
 } from "@/components/ui/chart";
-import { Delta, DeltaIcon, DeltaValue } from "@/components/delta";
-
-export type ReplyRow = {
-    day: string;
-    minutes: number;
-};
-
-// Définition des props pour accepter les données dynamiques
-interface FirstAiReplyTimeChartProps extends ComponentProps<typeof Card> {
-    data: ReplyRow[];
-}
-
-const chartConfig = {
-    minutes: {
-        label: "Minutes (IA)",
-        color: "var(--chart-2)",
-    },
-} satisfies ChartConfig;
-
+import { AnalyticsCard } from "./analytics-card";
+import { ChartEmptyState } from "./chart-empty-state";
+import {
+  responseTimeSeries,
+  formatResponseTime,
+  type ResponseSample,
+} from "@/lib/ai-response-metrics";
+const subscribe = () => () => {};
 export function FirstAiReplyTimeChart({
-    data,
-    className,
-    ...props
-}: FirstAiReplyTimeChartProps) {
-    // Sécurité UX : Valeurs par défaut si le tableau est vide
-    const firstMinutes = data[0]?.minutes ?? 0;
-    const lastMinutes = data.at(-1)?.minutes ?? firstMinutes;
-
-    /** 
-     * Positive = amélioration (l'IA répond plus vite).
-     * Calcul de l'évolution entre le premier jour de la semaine et le dernier.
-     */
-    const replyImprovementPct =
-        firstMinutes > 0 ? ((firstMinutes - lastMinutes) / firstMinutes) * 100 : 0;
-
-    return (
-        <Card
-            className={cn("shadow-none bg-background md:col-span-2 dark:ring-0", className)}
-            {...props}
+  data,
+  className,
+}: {
+  data: { samples: ResponseSample[]; now: string; error: boolean };
+  className?: string;
+}) {
+  const zone = useSyncExternalStore(
+    subscribe,
+    () => Intl.DateTimeFormat().resolvedOptions().timeZone,
+    () => "",
+  );
+  const points = responseTimeSeries(data.samples, data.now, zone || "UTC");
+  const count = points.reduce((sum, p) => sum + p.count, 0);
+  return (
+    <AnalyticsCard
+      className={className}
+      title="Temps de réponse IA · médiane"
+      description="Délai entre le message client et l’envoi confirmé de sa réponse IA, sur les 7 derniers jours."
+      footer={
+        <p>
+          {count} réponse(s) mesurée(s).{" "}
+          {zone ? "Heure locale · " + zone : "Chargement du fuseau…"} Les jours
+          sans réponse restent sans valeur.
+        </p>
+      }
+    >
+      {data.error || !zone || !count ? (
+        <ChartEmptyState
+          icon={Clock3}
+          title={
+            data.error
+              ? "Mesure indisponible"
+              : !zone
+                ? "Chargement du graphique…"
+                : "Aucune réponse IA envoyée"
+          }
+          description={
+            data.error
+              ? "Les données n’ont pas pu être chargées. Réessayez en actualisant la page."
+              : "Le délai apparaîtra après la première réponse IA envoyée pendant cette période."
+          }
+        />
+      ) : (
+        <ChartContainer
+          config={{
+            seconds: { label: "Délai médian", color: "var(--primary)" },
+          }}
+          className="h-64 w-full min-w-0 aspect-auto sm:h-80"
         >
-            <CardHeader className="space-y-1">
-                <div className="flex flex-wrap items-center gap-2">
-                    <CardTitle>Temps de réponse IA (Médiane)</CardTitle>
-                    {/* On n'affiche le delta que s'il y a de la donnée */}
-                    {firstMinutes > 0 && (
-                        <Delta value={replyImprovementPct} variant="badge">
-                            <DeltaIcon variant="trend" />
-                            <DeltaValue />
-                        </Delta>
-                    )}
-                </div>
-                <CardDescription>
-                    Temps moyen en minutes avant que le Bot ne réponde, 7 derniers jours.
-                </CardDescription>
-            </CardHeader>
-            <CardContent>
-                {data.length === 0 ? (
-                    // UX: État vide élégant si aucune donnée n'est disponible
-                    <div className="flex aspect-video w-full items-center justify-center text-muted-foreground text-sm">
-                        Pas assez de données pour l&apos;instant.
-                    </div>
-                ) : (
-                    <ChartContainer className="aspect-video w-full" config={chartConfig}>
-                        <LineChart
-                            accessibilityLayer
-                            data={data}
-                            margin={{ top: 24, left: 20, right: 12, bottom: 8 }}
-                        >
-                            <CartesianGrid className="stroke-border" vertical={false} />
-                            <XAxis
-                                axisLine={false}
-                                dataKey="day"
-                                interval={0}
-                                tickFormatter={(value) => String(value).slice(0, 3)}
-                                tickLine={false}
-                                tickMargin={8}
-                            />
-                            <ChartTooltip
-                                content={<ChartTooltipContent indicator="line" />}
-                                cursor={false}
-                            />
-                            <Line
-                                activeDot={{ r: 6 }}
-                                dataKey="minutes"
-                                dot={{ fill: "var(--color-minutes)" }}
-                                stroke="var(--color-minutes)"
-                                strokeWidth={2}
-                                type="natural"
-                            >
-                                <LabelList
-                                    className="fill-foreground"
-                                    dataKey="minutes"
-                                    fontSize={12}
-                                    // On ajoute 'null' pour satisfaire le type RenderableText de Recharts
-                                    formatter={(label: string | number | boolean | null | undefined) => {
-                                        // Sécurité : si la donnée est absente ou nulle, on affiche "0m" (ou "")
-                                        if (label === null || label === undefined) return "0m";
-
-                                        const n = Number(label);
-                                        return Number.isFinite(n) && n > 0
-                                            ? `${n.toFixed(1)}m`
-                                            : "0m";
-                                    }}
-                                    offset={12}
-                                    position="top"
-                                />
-                            </Line>
-                        </LineChart>
-                    </ChartContainer>
-                )}
-            </CardContent>
-        </Card>
-    );
+          <LineChart
+            accessibilityLayer
+            data={points}
+            margin={{ top: 16, right: 12, bottom: 8, left: 0 }}
+          >
+            <CartesianGrid vertical={false} className="stroke-border" />
+            <XAxis
+              dataKey="day"
+              tickLine={false}
+              axisLine={false}
+              tickMargin={8}
+              minTickGap={16}
+            />
+            <YAxis
+              domain={[0, "auto"]}
+              width={52}
+              tickLine={false}
+              axisLine={false}
+              tickFormatter={formatResponseTime}
+            />
+            <ChartTooltip
+              content={
+                <ChartTooltipContent
+                  labelFormatter={(_, payload) =>
+                    payload?.[0]?.payload?.date || ""
+                  }
+                  formatter={(value) => (
+                    <span className="font-medium">
+                      {formatResponseTime(Number(value))}
+                    </span>
+                  )}
+                />
+              }
+            />
+            <Line
+              type="linear"
+              dataKey="seconds"
+              stroke="var(--color-seconds)"
+              strokeWidth={2}
+              connectNulls={false}
+              dot={{ r: 4, fill: "var(--color-seconds)" }}
+              activeDot={{ r: 5 }}
+              isAnimationActive={false}
+            />
+          </LineChart>
+        </ChartContainer>
+      )}
+    </AnalyticsCard>
+  );
 }

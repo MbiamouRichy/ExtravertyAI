@@ -166,13 +166,19 @@ export async function saveWhatsAppPreferences(input: unknown) {
     return { success: false as const, error: publicError(error) };
   }
 }
-export async function openProjectBillingPortal(projectId: string) {
+export async function openProjectBillingPortal(
+  projectId: string,
+  intent: "manage" | "renew" | "upgrade" = "manage",
+) {
   try {
     Id.parse(projectId);
+    z.enum(["manage", "renew", "upgrade"]).parse(intent);
     const userId = await actor();
     const { project } = await prisma.$transaction((tx) =>
       requireProjectAdmin(tx, projectId, userId, true),
     );
+    if (project.deletionPending)
+      throw new SettingsError("Ce projet est en cours de suppression.");
     if (!project.stripeCustomerId)
       throw new SettingsError(
         "La facturation n’est pas encore activée. Terminez votre inscription ou réessayez après confirmation du paiement.",
@@ -180,8 +186,83 @@ export async function openProjectBillingPortal(projectId: string) {
     const origin = process.env.NEXT_PUBLIC_APP_URL;
     if (!origin)
       throw new SettingsError("Le portail de facturation n’est pas configuré.");
+    const subscription = project.stripeSubscriptionId
+      ? await stripe.subscriptions.retrieve(
+          project.stripeSubscriptionId,
+          { expand: ["latest_invoice"] },
+          { timeout: 10000, maxNetworkRetries: 0 },
+        )
+      : null;
+    if (
+      subscription &&
+      (typeof subscription.customer === "string"
+        ? subscription.customer
+        : subscription.customer.id) !== project.stripeCustomerId
+    )
+      throw new SettingsError("L’abonnement n’a pas pu être vérifié.");
+    const invoice = subscription?.latest_invoice;
+    if (
+      intent === "renew" &&
+      invoice &&
+      typeof invoice !== "string" &&
+      invoice.status === "open" &&
+      invoice.hosted_invoice_url
+    ) {
+      const url = new URL(invoice.hosted_invoice_url);
+      if (url.protocol === "https:" && url.hostname === "invoice.stripe.com")
+        return { success: true as const, url: url.href };
+    }
+    if (
+      intent === "upgrade" &&
+      (!subscription || !["active", "trialing"].includes(subscription.status))
+    )
+      throw new SettingsError(
+        "Régularisez ou renouvelez l’abonnement avant de changer d’offre.",
+      );
+    if (intent === "upgrade" && subscription) {
+      const priceIds = ["STARTER", "PRO", "BUSINESS"]
+        .map((plan) => process.env["STRIPE_" + plan + "_PLAN_ID"])
+        .filter((id): id is string => !!id);
+      const prices = await Promise.all(
+        priceIds.map((id) =>
+          stripe.prices.retrieve(
+            id,
+            {},
+            { timeout: 10000, maxNetworkRetries: 0 },
+          ),
+        ),
+      );
+      const current = subscription.items.data[0]?.price;
+      if (
+        !current ||
+        !prices.some(
+          (price) =>
+            price.active &&
+            price.currency === current.currency &&
+            price.id !== current.id,
+        )
+      )
+        throw new SettingsError(
+          "Aucune autre offre n’est encore disponible dans la devise de cet abonnement. Contactez-nous pour préparer le changement de devise.",
+        );
+    }
     const portal = await stripe.billingPortal.sessions.create({
       customer: project.stripeCustomerId,
+      locale: "fr",
+      ...(intent === "upgrade" && subscription
+        ? {
+            flow_data: {
+              type: "subscription_update" as const,
+              subscription_update: { subscription: subscription.id },
+              after_completion: {
+                type: "redirect" as const,
+                redirect: {
+                  return_url: origin + "/projects/" + project.id + "/billing",
+                },
+              },
+            },
+          }
+        : {}),
       return_url: `${origin}/projects/${project.id}/billing`,
     });
     return { success: true as const, url: portal.url };
