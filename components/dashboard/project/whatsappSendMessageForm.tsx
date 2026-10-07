@@ -639,7 +639,11 @@ export default function WhatsappWorkspace({
     );
 
     const pendingMessages = (localMessages[activeId] ?? []).filter(
-      (message) => !serverIds.has(message.id) && !(message.clientRequestId && serverRequests.has(message.clientRequestId)),
+      (message) =>
+        !serverIds.has(message.id) &&
+        !(
+          message.clientRequestId && serverRequests.has(message.clientRequestId)
+        ),
     );
 
     return [...serverMessages, ...pendingMessages].sort(
@@ -1100,7 +1104,7 @@ export default function WhatsappWorkspace({
                         aria-current={selected ? "true" : undefined}
                         onClick={() => selectClient(client.id)}
                         className={cn(
-                          "flex h-auto w-full items-start justify-start gap-3 whitespace-normal rounded-lg border border-l-2 p-3 text-left",
+                          "flex h-18 w-full items-center justify-start gap-3 whitespace-normal rounded-lg border border-l-2 p-3 text-left",
                           "transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none",
                           selected
                             ? "border-border border-l-primary bg-accent text-accent-foreground hover:bg-accent"
@@ -1121,22 +1125,47 @@ export default function WhatsappWorkspace({
                               <span className="truncate text-sm font-semibold">
                                 {client.name}
                               </span>
-                              {client.interestingProspect && (
+                              {(client.prospectClassification ===
+                                "interesting" ||
+                                client.prospectClassification ===
+                                  "follow_up") && (
                                 <Tooltip>
                                   <TooltipTrigger asChild>
                                     <span
                                       tabIndex={0}
-                                      aria-label="Prospect intéressant"
-                                      className="inline-flex shrink-0 rounded-sm text-primary outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                      aria-label={
+                                        client.prospectClassification ===
+                                        "follow_up"
+                                          ? "Prospect à suivre"
+                                          : "Prospect intéressant"
+                                      }
+                                      className={cn(
+                                        "inline-flex shrink-0 rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                                        client.prospectClassification ===
+                                          "follow_up"
+                                          ? "text-muted-foreground"
+                                          : "text-primary",
+                                      )}
                                     >
-                                      <Sparkles
-                                        aria-hidden="true"
-                                        className="size-4"
-                                      />
+                                      {client.prospectClassification ===
+                                      "follow_up" ? (
+                                        <Clock3
+                                          aria-hidden="true"
+                                          className="size-4"
+                                        />
+                                      ) : (
+                                        <Sparkles
+                                          aria-hidden="true"
+                                          className="size-4"
+                                        />
+                                      )}
                                     </span>
                                   </TooltipTrigger>
                                   <TooltipContent>
-                                    Prospect intéressant
+                                    {client.prospectClassification ===
+                                    "follow_up"
+                                      ? "Prospect à suivre"
+                                      : "Prospect intéressant"}
                                   </TooltipContent>
                                 </Tooltip>
                               )}
@@ -1158,7 +1187,7 @@ export default function WhatsappWorkspace({
                           </div>
 
                           <span className="mt-1 flex items-center gap-2">
-                            <span className="line-clamp-2 min-w-0 flex-1 wrap-anywhere text-xs font-normal leading-relaxed text-muted-foreground">
+                            <span className="min-w-0 flex-1 truncate text-xs font-normal leading-relaxed text-muted-foreground">
                               {hasDraft ? (
                                 <>
                                   <span className="font-medium text-foreground dark:text-foreground">

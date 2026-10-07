@@ -645,7 +645,7 @@ export function ChatComposer({
                             isSending ? "Envoi en cours" : "Envoyer le message"
                           }
                           title="Envoyer · Ctrl / ⌘ + Entrée"
-                          className="size-11 shrink-0 rounded-full"
+                          className="size-8 shrink-0 rounded-full"
                         >
                           {isSending ? (
                             <Loader2

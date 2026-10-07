@@ -1,4 +1,5 @@
 import { chatMediaFields } from "@/lib/chat-media";
+import { currentProspectClassification } from "@/lib/instinct-classification";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -156,7 +157,7 @@ export async function GET(
           pushName: true,
           phone: true,
           aiActive: true,
-          instinctInteresting: true,
+          instinctClassification: true,
           instinctSourceId: true,
           instinctConfigVersion: true,
           project: {
@@ -208,6 +209,10 @@ export async function GET(
       const result: ChatPage<ChatClient> = {
         items: page.map((contact) => {
           const latest = contact.messages[0];
+          const prospectClassification = currentProspectClassification(
+            contact,
+            latest?.id,
+          );
 
           return {
             id: contact.id,
@@ -218,12 +223,8 @@ export async function GET(
               "Contact",
             phone: contact.phone,
             aiActive: contact.aiActive,
-            interestingProspect:
-              contact.instinctInteresting &&
-              contact.project.agentQualifyLeads &&
-              contact.instinctConfigVersion ===
-                contact.project.agentConfigVersion &&
-              contact.instinctSourceId === latest?.id,
+            prospectClassification,
+            interestingProspect: prospectClassification === "interesting",
             unreadCount: unreadCounts.get(contact.id) ?? 0,
             agents: authors
               .filter((author) => author.contactId === contact.id)

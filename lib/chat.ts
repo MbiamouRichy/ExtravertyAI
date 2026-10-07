@@ -1,3 +1,5 @@
+import type { ProspectClassification } from "./instinct-classification";
+
 export type ChatMessageStatus =
   "pending" | "sent" | "delivered" | "read" | "failed" | "unknown";
 
@@ -12,6 +14,7 @@ export type ChatClient = {
   lastActivityAt: string;
   aiActive: boolean;
   interestingProspect?: boolean;
+  prospectClassification?: ProspectClassification | null;
   unreadCount?: number;
   agents?: ChatAgent[];
 };

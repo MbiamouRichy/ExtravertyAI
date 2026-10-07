@@ -124,11 +124,11 @@ test(
               assert.equal(
                 await runInstinctCycle(client, async () => {
                   unexpectedCalls += 1;
-                  return false;
+                  return "none";
                 }),
                 null,
               );
-              return true;
+              return "interesting";
             }),
             project.id,
           );
@@ -136,28 +136,57 @@ test(
             where: { id: contact.id },
           });
           assert.equal(saved.instinctInteresting, true);
+          assert.equal(saved.instinctClassification, "interesting");
           assert.ok(saved.instinctSourceId);
           assert.equal(unexpectedCalls, 0);
           assert.equal(
             await runInstinctCycle(client, async () => {
               unexpectedCalls += 1;
-              return false;
+              return "none";
             }),
             null,
           );
           await incoming(project.id, "instinct-second");
           assert.equal(unexpectedCalls, 0);
-          await runInstinctCycle(client, async () => false);
+          const completeText =
+            "Contexte commercial. ".repeat(4000) +
+            "Finalement, je préfère réfléchir.";
+          await client.message.updateMany({
+            where: { contactId: contact.id, projectId: project.id },
+            data: { content: completeText },
+          });
+          await runInstinctCycle(client, async (_goals, history) => {
+            assert.ok(history.length > 0);
+            assert.ok(
+              history.every((message) => message.content === completeText),
+            );
+            return "follow_up";
+          });
           saved = await client.contact.findUniqueOrThrow({
             where: { id: contact.id },
           });
+          assert.equal(saved.instinctInteresting, false);
+          assert.equal(saved.instinctClassification, "follow_up");
+          // A pre-Decisions cached contact must be reclassified even with no new message.
+          await client.contact.update({
+            where: { id: contact.id },
+            data: { instinctClassification: null },
+          });
+          assert.equal(
+            await runInstinctCycle(client, async () => "none"),
+            project.id,
+          );
+          saved = await client.contact.findUniqueOrThrow({
+            where: { id: contact.id },
+          });
+          assert.equal(saved.instinctClassification, "none");
           assert.equal(saved.instinctInteresting, false);
           await client.project.update({
             where: { id: project.id },
             data: { agentConfigVersion: { increment: 1 } },
           });
           assert.equal(
-            await runInstinctCycle(client, async () => true),
+            await runInstinctCycle(client, async () => "interesting"),
             project.id,
           );
           await incoming(project.id, "instinct-third");
@@ -167,7 +196,7 @@ test(
           assert.equal(
             await runInstinctCycle(client, async () => {
               unexpectedCalls += 1;
-              return false;
+              return "none";
             }),
             null,
           );
