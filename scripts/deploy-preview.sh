@@ -35,7 +35,9 @@ docker compose config --quiet
 docker compose build ai-worker outbound-worker billing-worker
 image="$(docker image inspect extravertyai-ai-worker --format '{{.Id}}')"
 [[ -n "$image" ]]
-docker run --rm --network none --memory 1536m --cpus 1 "$image" ./node_modules/.bin/tsc --noEmit --incremental false
+docker run --rm --network none --memory 3g --cpus 2 \
+  -e NODE_OPTIONS=--max-old-space-size=2560 \
+  "$image" ./node_modules/.bin/tsc --noEmit --incremental false
 install -d -m 700 /var/backups/extravertyai-preview
 backup="/var/backups/extravertyai-preview/$(date -u +%Y%m%dT%H%M%SZ)-${revision:0:12}.dump"
 umask 077
