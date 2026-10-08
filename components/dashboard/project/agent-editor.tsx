@@ -1,5 +1,12 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import {
+  Controller,
+  useForm,
+  useWatch,
+  type FieldPathValue,
+} from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
@@ -14,6 +21,26 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select";
+import {
+  Field,
+  FieldGroup,
+  FieldLabel,
+  FieldDescription,
+  FieldError,
+} from "@/components/ui/field";
+import { useAutosave } from "@/hooks/use-autosave";
+import { AutosaveStatus } from "./autosave-status";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -35,29 +62,78 @@ export function AgentEditor({
   initial,
   version,
   onboarding = false,
+  onSavingChange,
 }: {
   projectId: string;
   projectName: string;
   initial: AgentConfig;
   version: number;
   onboarding?: boolean;
+  onSavingChange?: (saving: boolean) => void;
 }) {
   const router = useRouter();
-  const [config, setConfig] = useState<AgentConfig>({
-    ...AGENT_DEFAULTS,
-    ...initial,
-    agentSystemMessage:
-      initial.agentSystemMessage || systemMessageTemplate(projectName),
+  const form = useForm<AgentConfig>({
+    resolver: zodResolver(AgentConfigSchema),
+    defaultValues: {
+      ...AGENT_DEFAULTS,
+      ...initial,
+      agentSystemMessage:
+        initial.agentSystemMessage || systemMessageTemplate(projectName),
+    },
   });
+  const config = useWatch({ control: form.control }) as AgentConfig;
+  const autosave = useAutosave<AgentConfig>(
+    version,
+    (config, expectedVersion) =>
+      saveAgentConfiguration({ projectId, expectedVersion, config }),
+  );
+  const saving = autosave.status === "waiting" || autosave.status === "saving";
+  useEffect(() => {
+    onSavingChange?.(saving);
+  }, [saving, onSavingChange]);
+  const { reset } = form;
+  useEffect(() => {
+    if (!autosave.queue.unsaved)
+      reset({
+        ...initial,
+        agentSystemMessage:
+          initial.agentSystemMessage || systemMessageTemplate(projectName),
+      });
+  }, [initial, version, projectName, reset, autosave.queue]);
   const [step, setStep] = useState(0);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
   const [savedVersion, setSavedVersion] = useState(version);
-  const update = <K extends keyof AgentConfig>(key: K, value: AgentConfig[K]) =>
-    setConfig((previous) => ({ ...previous, [key]: value }));
+  const update = <K extends keyof AgentConfig>(
+    key: K,
+    value: FieldPathValue<AgentConfig, K>,
+  ) => {
+    form.setValue(key, value, { shouldDirty: true, shouldValidate: true });
+    if (onboarding) return;
+    const parsed = AgentConfigSchema.safeParse(form.getValues());
+    if (!parsed.success) {
+      autosave.queue.invalidate();
+      void form.trigger();
+      return;
+    }
+    autosave.queue.schedule(
+      parsed.data,
+      key === "agentName" || key === "agentSystemMessage" ? 600 : 0,
+    );
+  };
   const steps = ["Identité", "Mission & connaissances", "Comportements"];
   async function submit() {
     setError("");
+    if (
+      !(await form.trigger(
+        step === 0 && onboarding
+          ? "agentName"
+          : step === 1 && onboarding
+            ? "agentSystemMessage"
+            : undefined,
+      ))
+    )
+      return;
     if (onboarding && step < 2) {
       if (step === 0 && config.agentName.trim().length < 2) {
         setError("Donnez un nom à votre agent (au moins deux caractères).");
@@ -187,11 +263,13 @@ export function AgentEditor({
         <form
           onSubmit={(event) => {
             event.preventDefault();
-            void submit();
+            if (onboarding) void submit();
+            else void autosave.queue.flush();
           }}
           className="min-w-0 space-y-6"
+          noValidate
         >
-          <fieldset disabled={pending} className="space-y-6">
+          <fieldset disabled={onboarding && pending} className="space-y-6">
             {show(0) && (
               <section className="rounded-2xl border bg-card p-5 sm:p-7">
                 <div className="mb-6 flex items-center gap-3">
@@ -207,25 +285,41 @@ export function AgentEditor({
                     </p>
                   </div>
                 </div>
-                <label
-                  htmlFor="agent-name"
-                  className="mb-2 block text-sm font-medium"
-                >
-                  Nom de votre agent
-                </label>
-                <input
-                  id="agent-name"
-                  value={config.agentName}
-                  onChange={(e) => update("agentName", e.target.value)}
-                  maxLength={60}
-                  required
-                  className={inputClass}
-                  placeholder="Ex. Nova, l’assistant de votre entreprise"
-                />
-                <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
-                  L’agent se présente comme un assistant IA. Choisissez un nom
-                  simple, sans usurper l’identité d’un membre de votre équipe.
-                </p>
+                <FieldGroup>
+                  <Controller
+                    name="agentName"
+                    control={form.control}
+                    render={({ field, fieldState }) => (
+                      <Field data-invalid={fieldState.invalid}>
+                        <FieldLabel htmlFor="agent-name">
+                          Nom de votre agent
+                        </FieldLabel>
+                        <Input
+                          {...field}
+                          id="agent-name"
+                          autoComplete="off"
+                          maxLength={60}
+                          aria-invalid={fieldState.invalid}
+                          aria-describedby="agent-name-description agent-name-error"
+                          onChange={(event) =>
+                            update("agentName", event.target.value)
+                          }
+                          className={inputClass}
+                          placeholder="Ex. Nova, l’assistant de votre entreprise"
+                        />
+                        <FieldDescription id="agent-name-description">
+                          L’agent se présente comme un assistant IA. Choisissez
+                          un nom simple, sans usurper l’identité d’un membre de
+                          votre équipe.
+                        </FieldDescription>
+                        <FieldError
+                          id="agent-name-error"
+                          errors={[fieldState.error]}
+                        />
+                      </Field>
+                    )}
+                  />
+                </FieldGroup>
               </section>
             )}
             {show(1) && (
@@ -248,28 +342,46 @@ export function AgentEditor({
                     vérifiées, sans identifiants ni secrets.
                   </p>
                 </div>
-                <label
-                  htmlFor="agent-system"
-                  className="mb-2 block text-sm font-medium"
-                >
-                  Message système de votre entreprise
-                </label>
-                <textarea
-                  id="agent-system"
-                  rows={15}
-                  value={config.agentSystemMessage}
-                  onChange={(e) => update("agentSystemMessage", e.target.value)}
-                  maxLength={12000}
-                  required
-                  className={`${inputClass} resize-y font-mono text-[13px] leading-6`}
+                <Controller
+                  name="agentSystemMessage"
+                  control={form.control}
+                  render={({ field, fieldState }) => (
+                    <Field data-invalid={fieldState.invalid}>
+                      <FieldLabel htmlFor="agent-system">
+                        Message système de votre entreprise
+                      </FieldLabel>
+                      <Textarea
+                        {...field}
+                        id="agent-system"
+                        rows={15}
+                        autoComplete="off"
+                        maxLength={12000}
+                        aria-invalid={fieldState.invalid}
+                        aria-describedby="agent-system-description agent-system-error"
+                        onChange={(event) =>
+                          update("agentSystemMessage", event.target.value)
+                        }
+                        className={`${inputClass} resize-y font-mono text-sm leading-6`}
+                      />
+                      <FieldDescription
+                        id="agent-system-description"
+                        className="flex flex-wrap justify-between gap-2"
+                      >
+                        <span>40 à 12 000 caractères</span>
+                        <span>
+                          {config.agentSystemMessage.length.toLocaleString(
+                            "fr-FR",
+                          )}{" "}
+                          / 12 000
+                        </span>
+                      </FieldDescription>
+                      <FieldError
+                        id="agent-system-error"
+                        errors={[fieldState.error]}
+                      />
+                    </Field>
+                  )}
                 />
-                <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
-                  <span>40 à 12 000 caractères</span>
-                  <span>
-                    {config.agentSystemMessage.length.toLocaleString("fr-FR")} /
-                    12 000
-                  </span>
-                </div>
                 <Button
                   type="button"
                   disabled={config.agentSystemMessage.length > 11880}
@@ -298,85 +410,147 @@ export function AgentEditor({
                     Des comportements adaptés aux conversations WhatsApp.
                   </p>
                 </div>
-                <fieldset>
-                  <legend className="mb-3 text-sm font-medium">
-                    Ton de l’agent
-                  </legend>
-                  <div className="grid gap-3 sm:grid-cols-3">
-                    {AGENT_TONES.map((tone) => (
-                      <label
-                        key={tone.value}
-                        className={`cursor-pointer rounded-xl border p-4 focus-within:ring-2 focus-within:ring-ring ${config.agentTone === tone.value ? "border-border bg-muted/60 dark:bg-muted/30" : "hover:bg-muted/40"}`}
+                <Controller
+                  name="agentTone"
+                  control={form.control}
+                  render={({ field, fieldState }) => (
+                    <Field data-invalid={fieldState.invalid}>
+                      <FieldLabel id="agent-tone-label" htmlFor="agent-tone">
+                        Ton de l’agent
+                      </FieldLabel>
+                      <RadioGroup
+                        id="agent-tone"
+                        name={field.name}
+                        ref={field.ref}
+                        onBlur={field.onBlur}
+                        value={field.value}
+                        onValueChange={(value) =>
+                          update("agentTone", value as AgentConfig["agentTone"])
+                        }
+                        aria-labelledby="agent-tone-label"
+                        aria-invalid={fieldState.invalid}
+                        aria-describedby="agent-tone-error"
+                        className="grid gap-3 sm:grid-cols-3"
                       >
-                        <input
-                          type="radio"
-                          name="agent-tone"
-                          checked={config.agentTone === tone.value}
-                          onChange={() => update("agentTone", tone.value)}
-                          className="sr-only"
-                        />
-                        <span className="mb-2 flex items-center justify-between text-sm font-medium">
-                          {tone.label}
-                          {config.agentTone === tone.value && (
-                            <Check className="size-4 text-foreground" />
-                          )}
-                        </span>
-                        <span className="block text-xs leading-relaxed text-muted-foreground">
-                          {tone.description}
-                        </span>
-                      </label>
-                    ))}
-                  </div>
-                </fieldset>
+                        {AGENT_TONES.map((tone) => (
+                          <FieldLabel
+                            key={tone.value}
+                            htmlFor={`agent-tone-${tone.value}`}
+                            className={`block cursor-pointer rounded-xl border p-4 focus-within:ring-2 focus-within:ring-ring ${config.agentTone === tone.value ? "border-border bg-muted/60 dark:bg-muted/30" : "hover:bg-muted/40"}`}
+                          >
+                            <span className="mb-2 flex items-center justify-between text-sm font-medium">
+                              {tone.label}
+                              <RadioGroupItem
+                                id={`agent-tone-${tone.value}`}
+                                value={tone.value}
+                                aria-describedby={`agent-tone-${tone.value}-description`}
+                              />
+                            </span>
+                            <span
+                              id={`agent-tone-${tone.value}-description`}
+                              className="block text-xs font-normal leading-relaxed text-muted-foreground"
+                            >
+                              {tone.description}
+                            </span>
+                          </FieldLabel>
+                        ))}
+                      </RadioGroup>
+                      <FieldError
+                        id="agent-tone-error"
+                        errors={[fieldState.error]}
+                      />
+                    </Field>
+                  )}
+                />
                 <div className="grid gap-5 sm:grid-cols-2">
-                  <div>
-                    <label
-                      htmlFor="agent-length"
-                      className="mb-2 block text-sm font-medium"
-                    >
-                      Longueur des réponses
-                    </label>
-                    <select
-                      id="agent-length"
-                      value={config.agentResponseLength}
-                      onChange={(e) =>
-                        update(
-                          "agentResponseLength",
-                          e.target.value as AgentConfig["agentResponseLength"],
-                        )
-                      }
-                      className={inputClass}
-                    >
-                      <option value="concise">
-                        Concis · recommandé sur WhatsApp
-                      </option>
-                      <option value="balanced">Équilibré</option>
-                      <option value="detailed">Détaillé</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label
-                      htmlFor="agent-language"
-                      className="mb-2 block text-sm font-medium"
-                    >
-                      Langue
-                    </label>
-                    <select
-                      id="agent-language"
-                      value={config.agentLanguage}
-                      onChange={(e) =>
-                        update(
-                          "agentLanguage",
-                          e.target.value as AgentConfig["agentLanguage"],
-                        )
-                      }
-                      className={inputClass}
-                    >
-                      <option value="auto">S’adapter au prospect</option>
-                      <option value="fr">Toujours en français</option>
-                      <option value="en">Toujours en anglais</option>
-                    </select>
-                  </div>
+                  <Controller
+                    name="agentResponseLength"
+                    control={form.control}
+                    render={({ field, fieldState }) => (
+                      <Field data-invalid={fieldState.invalid}>
+                        <FieldLabel htmlFor="agent-length">
+                          Longueur des réponses
+                        </FieldLabel>
+                        <Select
+                          name={field.name}
+                          value={field.value}
+                          onValueChange={(value) =>
+                            update(
+                              "agentResponseLength",
+                              value as AgentConfig["agentResponseLength"],
+                            )
+                          }
+                        >
+                          <SelectTrigger
+                            id="agent-length"
+                            ref={field.ref}
+                            onBlur={field.onBlur}
+                            aria-invalid={fieldState.invalid}
+                            aria-describedby="agent-length-error"
+                            className="w-full"
+                          >
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="concise">
+                              Concis · recommandé sur WhatsApp
+                            </SelectItem>
+                            <SelectItem value="balanced">Équilibré</SelectItem>
+                            <SelectItem value="detailed">Détaillé</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FieldError
+                          id="agent-length-error"
+                          errors={[fieldState.error]}
+                        />
+                      </Field>
+                    )}
+                  />
+                  <Controller
+                    name="agentLanguage"
+                    control={form.control}
+                    render={({ field, fieldState }) => (
+                      <Field data-invalid={fieldState.invalid}>
+                        <FieldLabel htmlFor="agent-language">Langue</FieldLabel>
+                        <Select
+                          name={field.name}
+                          value={field.value}
+                          onValueChange={(value) =>
+                            update(
+                              "agentLanguage",
+                              value as AgentConfig["agentLanguage"],
+                            )
+                          }
+                        >
+                          <SelectTrigger
+                            id="agent-language"
+                            ref={field.ref}
+                            onBlur={field.onBlur}
+                            aria-invalid={fieldState.invalid}
+                            aria-describedby="agent-language-error"
+                            className="w-full"
+                          >
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="auto">
+                              S’adapter au prospect
+                            </SelectItem>
+                            <SelectItem value="fr">
+                              Toujours en français
+                            </SelectItem>
+                            <SelectItem value="en">
+                              Toujours en anglais
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FieldError
+                          id="agent-language-error"
+                          errors={[fieldState.error]}
+                        />
+                      </Field>
+                    )}
+                  />
                 </div>
                 <div className="divide-y">
                   {[
@@ -405,30 +579,55 @@ export function AgentEditor({
                       recommended: false,
                     },
                   ].map((item) => (
-                    <label
+                    <Controller
                       key={item.key}
-                      className="flex cursor-pointer items-start justify-between gap-5 py-5"
-                    >
-                      <div>
-                        <span className="block text-sm font-medium">
-                          {item.title}{" "}
-                          {item.recommended && (
-                            <span className="ml-1 text-[10px] font-normal uppercase tracking-wide text-muted-foreground">
-                              Par défaut
-                            </span>
-                          )}
-                        </span>
-                        <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">
-                          {item.text}
-                        </span>
-                      </div>
-                      <input
-                        type="checkbox"
-                        checked={config[item.key]}
-                        onChange={(e) => update(item.key, e.target.checked)}
-                        className="mt-1 size-5 shrink-0 accent-primary"
-                      />
-                    </label>
+                      name={item.key}
+                      control={form.control}
+                      render={({ field, fieldState }) => (
+                        <Field
+                          orientation="horizontal"
+                          data-invalid={fieldState.invalid}
+                          className="items-start justify-between gap-5 py-5"
+                        >
+                          <div>
+                            <FieldLabel
+                              htmlFor={`agent-${item.key}`}
+                              className="block text-sm font-medium"
+                            >
+                              {item.title}{" "}
+                              {item.recommended && (
+                                <span className="ml-1 text-[10px] font-normal uppercase tracking-wide text-muted-foreground">
+                                  Par défaut
+                                </span>
+                              )}
+                            </FieldLabel>
+                            <FieldDescription
+                              id={`agent-${item.key}-description`}
+                              className="mt-1 text-xs leading-relaxed"
+                            >
+                              {item.text}
+                            </FieldDescription>
+                            <FieldError
+                              id={`agent-${item.key}-error`}
+                              errors={[fieldState.error]}
+                            />
+                          </div>
+                          <Checkbox
+                            id={`agent-${item.key}`}
+                            name={field.name}
+                            ref={field.ref}
+                            onBlur={field.onBlur}
+                            checked={field.value}
+                            onCheckedChange={(checked) =>
+                              update(item.key, checked === true)
+                            }
+                            aria-invalid={fieldState.invalid}
+                            aria-describedby={`agent-${item.key}-description agent-${item.key}-error`}
+                            className="mt-1 size-5 shrink-0"
+                          />
+                        </Field>
+                      )}
+                    />
                   ))}
                 </div>
               </section>
@@ -462,22 +661,24 @@ export function AgentEditor({
                 équipe
               </span>
             )}
-            <Button disabled={pending} type="submit" size="lg">
-              {pending ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : onboarding && step < 2 ? (
-                <ArrowRight className="size-4" />
-              ) : (
-                <Check className="size-4" />
-              )}
-              {pending
-                ? "Enregistrement…"
-                : onboarding
-                  ? step < 2
+            {onboarding ? (
+              <Button disabled={pending} type="submit" size="lg">
+                {pending ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : step < 2 ? (
+                  <ArrowRight className="size-4" />
+                ) : (
+                  <Check className="size-4" />
+                )}
+                {pending
+                  ? "Enregistrement…"
+                  : step < 2
                     ? "Continuer"
-                    : "Valider et ouvrir le chat"
-                  : "Enregistrer la configuration"}
-            </Button>
+                    : "Valider et ouvrir le chat"}
+              </Button>
+            ) : (
+              <AutosaveStatus status={autosave.status} error={autosave.error} />
+            )}
           </div>
         </form>
         <aside className="self-start rounded-2xl bg-muted/50 p-5 xl:sticky xl:top-6">

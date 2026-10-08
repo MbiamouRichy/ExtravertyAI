@@ -84,6 +84,30 @@ export function ChatComposer({
   const [uploading, setUploading] = useState(false);
   const uploadController = useRef<AbortController | null>(null);
   const fileRef = useRef<HTMLInputElement | null>(null);
+  const [scrollEdges, setScrollEdges] = useState({ top: false, bottom: false });
+  useEffect(() => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+    const updateEdges = () => {
+      const top = textarea.scrollTop > 1;
+      const bottom =
+        textarea.scrollHeight - textarea.clientHeight - textarea.scrollTop > 1;
+      setScrollEdges((previous) =>
+        previous.top === top && previous.bottom === bottom
+          ? previous
+          : { top, bottom },
+      );
+    };
+    const frame = requestAnimationFrame(updateEdges);
+    const observer = new ResizeObserver(updateEdges);
+    observer.observe(textarea);
+    textarea.addEventListener("scroll", updateEdges, { passive: true });
+    return () => {
+      cancelAnimationFrame(frame);
+      observer.disconnect();
+      textarea.removeEventListener("scroll", updateEdges);
+    };
+  }, [draft, contactId, textareaRef]);
   useEffect(() => () => uploadController.current?.abort(), []);
   useEffect(() => {
     if (!file) {
@@ -388,7 +412,7 @@ export function ChatComposer({
           </div>
         </div>
       )}
-      <FieldGroup className="gap-2 rounded-2xl border border-input bg-muted/30 p-2 shadow-sm focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/30">
+      <FieldGroup className="gap-2 rounded-2xl border border-input bg-muted/30 px-2 py-1 shadow-sm focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/30">
         <Controller
           name="attachment"
           control={form.control}
@@ -490,43 +514,53 @@ export function ChatComposer({
                 Message pour {contactName}
               </FieldLabel>
               <div className="flex min-w-0 flex-col gap-1">
-                <Textarea
-                  {...field}
-                  ref={(element) => {
-                    field.ref(element);
-                    textareaRef.current = element;
-                  }}
-                  id="chat-message"
-                  rows={2}
-                  autoComplete="off"
-                  disabled={
-                    isSending ||
-                    audioRecorder.recording ||
-                    audioRecorder.preparing
-                  }
-                  aria-invalid={fieldState.invalid}
-                  aria-describedby={
-                    fieldState.invalid
-                      ? "chat-composer-help chat-composer-error"
-                      : "chat-composer-help"
-                  }
-                  onChange={(event) => {
-                    field.onChange(event);
-                    onDraftChange(event.target.value);
-                  }}
-                  onKeyDown={(event) => {
-                    if (
-                      event.key === "Enter" &&
-                      (event.ctrlKey || event.metaKey) &&
-                      !event.nativeEvent.isComposing
-                    ) {
-                      event.preventDefault();
-                      event.currentTarget.form?.requestSubmit();
+                <div className="relative min-w-0">
+                  <Textarea
+                    {...field}
+                    ref={(element) => {
+                      field.ref(element);
+                      textareaRef.current = element;
+                    }}
+                    id="chat-message"
+                    rows={2}
+                    autoComplete="off"
+                    disabled={
+                      isSending ||
+                      audioRecorder.recording ||
+                      audioRecorder.preparing
                     }
-                  }}
-                  placeholder="Écrire un message…"
-                  className="min-h-16 min-w-0 max-h-40 w-full resize-none rounded-none border-0 bg-transparent px-2 py-3 shadow-none focus-visible:ring-0 dark:bg-transparent"
-                />
+                    aria-invalid={fieldState.invalid}
+                    aria-describedby={
+                      fieldState.invalid
+                        ? "chat-composer-help chat-composer-error"
+                        : "chat-composer-help"
+                    }
+                    onChange={(event) => {
+                      field.onChange(event);
+                      onDraftChange(event.target.value);
+                    }}
+                    onKeyDown={(event) => {
+                      if (
+                        event.key === "Enter" &&
+                        (event.ctrlKey || event.metaKey) &&
+                        !event.nativeEvent.isComposing
+                      ) {
+                        event.preventDefault();
+                        event.currentTarget.form?.requestSubmit();
+                      }
+                    }}
+                    placeholder="Écrire un message…"
+                    className="min-h-16 min-w-0 max-h-40 w-full resize-none rounded-none border-0 bg-transparent px-2 py-2 shadow-none focus-visible:ring-0 dark:bg-transparent"
+                  />
+                  <div
+                    aria-hidden="true"
+                    className={`pointer-events-none absolute inset-x-2 top-0 h-3 mask-b-from-0% mask-b-to-100% backdrop-blur-xs ${scrollEdges.top ? "opacity-100" : "opacity-0"}`}
+                  />
+                  <div
+                    aria-hidden="true"
+                    className={`pointer-events-none absolute inset-x-2 bottom-0 h-3 mask-t-from-0% mask-t-to-100% backdrop-blur-xs ${scrollEdges.bottom ? "opacity-100" : "opacity-0"}`}
+                  />
+                </div>
                 <div className="flex min-w-0 flex-wrap items-center justify-between gap-1">
                   <div className="flex min-w-0 items-center gap-0.5">
                     <Tooltip>

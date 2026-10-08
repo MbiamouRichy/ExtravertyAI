@@ -34,13 +34,6 @@ export function FirstAiReplyTimeChart({
       className={className}
       title="Temps de réponse IA · médiane"
       description="Délai entre le message client et l’envoi confirmé de sa réponse IA, sur les 7 derniers jours."
-      footer={
-        <p>
-          {count} réponse(s) mesurée(s).{" "}
-          {zone ? "Heure locale · " + zone : "Chargement du fuseau…"} Les jours
-          sans réponse restent sans valeur.
-        </p>
-      }
     >
       {data.error || !zone || !count ? (
         <ChartEmptyState

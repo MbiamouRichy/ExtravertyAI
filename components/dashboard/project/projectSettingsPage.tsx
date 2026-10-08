@@ -12,7 +12,6 @@ import {
   ShieldCheck,
   ArrowUpRight,
   Loader2,
-  Check,
   AlertTriangle,
   Trash2,
   MessageSquare,
@@ -21,9 +20,10 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { WhatsAppPreferences } from "./whatsapp-preferences";
 import { AgentEditor } from "./agent-editor";
+import { ProjectNameForm } from "./project-name-form";
+import { Input } from "@/components/ui/input";
 import type { ProjectSettingsView } from "@/lib/settings-types";
 import {
-  saveProjectPreferences,
   setProjectPaused,
   openProjectBillingPortal,
 } from "@/app/actions/project-settings";
@@ -53,7 +53,8 @@ export default function ProjectSettingsPage({
 }) {
   const router = useRouter();
   const [tab, setTab] = useState<string>("agent");
-  const [name, setName] = useState(p.name);
+  const [agentSaving, setAgentSaving] = useState(false);
+  const [nameSaving, setNameSaving] = useState(false);
   const [paused, setPaused] = useState(p.automationPaused);
   const [settingsVersion, setSettingsVersion] = useState(p.settingsVersion);
   const [pending, setPending] = useState("");
@@ -183,6 +184,7 @@ export default function ProjectSettingsPage({
             <Button
               key={item.id}
               type="button"
+              disabled={agentSaving || nameSaving}
               onClick={() => {
                 setTab(item.id);
                 setError("");
@@ -214,132 +216,88 @@ export default function ProjectSettingsPage({
               </Button>
             </div>
           )}
-          {tab === "agent" && (
+          <div hidden={tab !== "agent"}>
             <AgentEditor
-              key={p.agentConfigVersion}
+              key={p.id}
               projectId={p.id}
               projectName={p.name}
               initial={p.config}
               version={p.agentConfigVersion}
+              onSavingChange={setAgentSaving}
             />
-          )}
-          {tab === "general" && (
-            <>
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  void run(
-                    "general",
-                    () =>
-                      saveProjectPreferences({
-                        projectId: p.id,
-                        expectedVersion: settingsVersion,
-                        name,
-                      }),
-                    "Les paramètres du projet sont enregistrés.",
-                  );
-                }}
-                className="space-y-6 rounded-2xl border bg-card p-5 sm:p-7"
-              >
+          </div>
+          <div hidden={tab !== "general"} className="space-y-6">
+            <ProjectNameForm
+              key={p.id}
+              projectId={p.id}
+              name={p.name}
+              version={Math.max(settingsVersion, p.settingsVersion)}
+              disabled={!!pending || p.deletionPending}
+              onVersionChange={setSettingsVersion}
+              onSavingChange={setNameSaving}
+            />
+            <section className="rounded-2xl border bg-card p-5 sm:p-7">
+              <div className="mb-6 flex flex-wrap justify-between gap-3">
                 <div>
-                  <h2 className="text-lg font-semibold">Votre projet</h2>
+                  <h2 className="text-lg font-semibold">Votre utilisation</h2>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    Les informations partagées dans votre espace de travail.
+                    Offre <span className="capitalize">{p.plan}</span> ·{" "}
+                    {p.periodEnd
+                      ? `Fin de période le ${new Date(p.periodEnd).toLocaleDateString("fr-FR")}`
+                      : "Période en attente de confirmation"}
                   </p>
                 </div>
-                <div>
-                  <label
-                    htmlFor="project-name"
-                    className="mb-2 block text-sm font-medium"
+                {owner && (
+                  <Button
+                    disabled={!!pending}
+                    onClick={() => void billing()}
+                    variant="outline"
+                    size="lg"
                   >
-                    Nom du projet
-                  </label>
-                  <input
-                    id="project-name"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    minLength={2}
-                    maxLength={100}
-                    required
-                    className={field}
-                  />
-                </div>
-                <Button
-                  disabled={!!pending || p.deletionPending}
-                  type="submit"
-                  size="lg"
-                >
-                  {pending === "general" ? (
-                    <Loader2 className="size-4 animate-spin" />
-                  ) : (
-                    <Check className="size-4" />
-                  )}{" "}
-                  Enregistrer
-                </Button>
-              </form>
-              <section className="rounded-2xl border bg-card p-5 sm:p-7">
-                <div className="mb-6 flex flex-wrap justify-between gap-3">
-                  <div>
-                    <h2 className="text-lg font-semibold">Votre utilisation</h2>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      Offre <span className="capitalize">{p.plan}</span> ·{" "}
-                      {p.periodEnd
-                        ? `Fin de période le ${new Date(p.periodEnd).toLocaleDateString("fr-FR")}`
-                        : "Période en attente de confirmation"}
+                    {pending === "billing" ? (
+                      <Loader2 className="size-4 animate-spin" />
+                    ) : (
+                      <ArrowUpRight className="size-4" />
+                    )}{" "}
+                    Gérer mon abonnement
+                  </Button>
+                )}
+              </div>
+              <div className="mb-3 flex justify-between gap-4 text-sm">
+                <span>Messages sortants réservés</span>
+                <strong>
+                  {p.messageCount.toLocaleString("fr-FR")} /{" "}
+                  {p.allMessagesCount.toLocaleString("fr-FR")}
+                </strong>
+              </div>
+              <progress
+                aria-label="Quota de messages consommé"
+                max={Math.max(p.allMessagesCount, 1)}
+                value={Math.min(
+                  p.messageCount,
+                  Math.max(p.allMessagesCount, 1),
+                )}
+                className="h-2 w-full overflow-hidden rounded-full accent-primary"
+              />
+              <div className="mt-7 grid grid-cols-3 gap-4 border-t pt-6">
+                {[
+                  ["7 jours", p.stats.week],
+                  ["30 jours", p.stats.month],
+                  ["365 jours", p.stats.year],
+                ].map(([label, count]) => (
+                  <div key={label}>
+                    <p className="text-xs text-muted-foreground">{label}</p>
+                    <p className="mt-2 text-2xl font-semibold">
+                      {Number(count).toLocaleString("fr-FR")}
+                    </p>
+                    <p className="mt-1 text-[11px] text-muted-foreground">
+                      messages envoyés
                     </p>
                   </div>
-                  {owner && (
-                    <Button
-                      disabled={!!pending}
-                      onClick={() => void billing()}
-                      variant="outline"
-                      size="lg"
-                    >
-                      {pending === "billing" ? (
-                        <Loader2 className="size-4 animate-spin" />
-                      ) : (
-                        <ArrowUpRight className="size-4" />
-                      )}{" "}
-                      Gérer mon abonnement
-                    </Button>
-                  )}
-                </div>
-                <div className="mb-3 flex justify-between gap-4 text-sm">
-                  <span>Messages sortants réservés</span>
-                  <strong>
-                    {p.messageCount.toLocaleString("fr-FR")} /{" "}
-                    {p.allMessagesCount.toLocaleString("fr-FR")}
-                  </strong>
-                </div>
-                <progress
-                  aria-label="Quota de messages consommé"
-                  max={Math.max(p.allMessagesCount, 1)}
-                  value={Math.min(
-                    p.messageCount,
-                    Math.max(p.allMessagesCount, 1),
-                  )}
-                  className="h-2 w-full overflow-hidden rounded-full accent-primary"
-                />
-                <div className="mt-7 grid grid-cols-3 gap-4 border-t pt-6">
-                  {[
-                    ["7 jours", p.stats.week],
-                    ["30 jours", p.stats.month],
-                    ["365 jours", p.stats.year],
-                  ].map(([label, count]) => (
-                    <div key={label}>
-                      <p className="text-xs text-muted-foreground">{label}</p>
-                      <p className="mt-2 text-2xl font-semibold">
-                        {Number(count).toLocaleString("fr-FR")}
-                      </p>
-                      <p className="mt-1 text-[11px] text-muted-foreground">
-                        messages envoyés
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </section>
-            </>
-          )}
+                ))}
+              </div>
+            </section>
+          </div>
           {tab === "whatsapp" && (
             <section className="space-y-6 rounded-2xl border bg-card p-5 sm:p-7">
               <div className="flex flex-wrap items-start justify-between gap-4">
@@ -495,7 +453,10 @@ export default function ProjectSettingsPage({
                         async () => {
                           const result = await setProjectPaused({
                             projectId: p.id,
-                            expectedVersion: settingsVersion,
+                            expectedVersion: Math.max(
+                              settingsVersion,
+                              p.settingsVersion,
+                            ),
                             paused: !paused,
                           });
                           if (result.success)
@@ -569,7 +530,7 @@ export default function ProjectSettingsPage({
           <label htmlFor="delete-project-name" className="text-sm font-medium">
             Nom du projet : {p.name}
           </label>
-          <input
+          <Input
             id="delete-project-name"
             value={confirmationName}
             onChange={(e) => setConfirmationName(e.target.value)}
