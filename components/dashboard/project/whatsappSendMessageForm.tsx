@@ -38,6 +38,10 @@ import {
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
+  ConversationListLoading,
+  ConversationMessagesLoading,
+} from "./chat-loading-content";
+import {
   Avatar,
   AvatarFallback,
   AvatarImage,
@@ -1042,18 +1046,7 @@ export default function WhatsappWorkspace({
             className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-2 pb-4"
           >
             {contactsQuery.isLoading && !visibleClients.length ? (
-              <div role="status" className="space-y-3 p-2">
-                <span className="sr-only">Chargement des conversations…</span>
-                {[0, 1, 2].map((index) => (
-                  <div key={index} className="flex items-center gap-3 py-2">
-                    <Skeleton className="size-10 rounded-full" />
-                    <div className="flex-1 space-y-2">
-                      <Skeleton className="h-3 w-2/3" />
-                      <Skeleton className="h-3 w-full" />
-                    </div>
-                  </div>
-                ))}
-              </div>
+              <ConversationListLoading />
             ) : visibleClients.length === 0 ? (
               <div className="px-6 py-12 text-center">
                 <Search
@@ -1383,12 +1376,7 @@ export default function WhatsappWorkspace({
                         </p>
 
                         {historyQuery.isLoading ? (
-                          <div
-                            role="status"
-                            className="py-12 text-center text-sm text-muted-foreground"
-                          >
-                            Chargement de la conversation…
-                          </div>
+                          <ConversationMessagesLoading />
                         ) : activeMessages.length === 0 ? (
                           <div className="flex flex-1 flex-col items-center justify-center px-6 py-12 text-center">
                             <MessageCircle
