@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { Loader2, Pause, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
+import { resolveAudioDuration } from "@/lib/audio-duration";
 const time = (seconds: number) =>
   Math.floor(seconds / 60) +
   ":" +
@@ -23,15 +24,36 @@ export function AudioPlayer({
   const [failed, setFailed] = useState(false);
   useEffect(() => {
     const audio = ref.current;
+    const controller = new AbortController();
+    let resolving = false;
+    const updateDuration = () => {
+      if (!audio) return;
+      if (Number.isFinite(audio.duration) && audio.duration > 0) {
+        setDuration(audio.duration);
+      } else if (!resolving) {
+        resolving = true;
+        void resolveAudioDuration(src, controller.signal)
+          .then(setDuration)
+          .catch(() => {
+            // Metadata failure must not prevent native playback.
+          });
+      }
+    };
+    audio?.addEventListener("loadedmetadata", updateDuration);
+    audio?.addEventListener("durationchange", updateDuration);
+    if (audio && audio.readyState >= 1) updateDuration();
     const pauseOther = (event: Event) => {
       if ((event as CustomEvent).detail !== audio) audio?.pause();
     };
     document.addEventListener("chat-audio-play", pauseOther);
     return () => {
+      controller.abort();
+      audio?.removeEventListener("loadedmetadata", updateDuration);
+      audio?.removeEventListener("durationchange", updateDuration);
       audio?.pause();
       document.removeEventListener("chat-audio-play", pauseOther);
     };
-  }, []);
+  }, [src]);
   return (
     <div className="w-64 max-w-full rounded-2xl border border-border/60 bg-muted/40 px-3 py-2 sm:w-72">
       <audio
@@ -108,6 +130,7 @@ export function AudioPlayer({
         </Button>
         <div className="min-w-0 flex-1 space-y-2">
           <Slider
+            className="min-h-6"
             aria-label="Position dans le message audio"
             min={0}
             max={duration || 1}
@@ -126,20 +149,26 @@ export function AudioPlayer({
             <span>{duration ? time(duration) : "--:--"}</span>
           </div>
         </div>
-        <Button
-          type="button"
-          size="sm"
-          variant="ghost"
-          className="shrink-0 tabular-nums"
-          aria-label={"Vitesse de lecture : " + rate + " fois"}
-          onClick={() => {
-            const next = rate === 2 ? 1 : rate + 0.5;
-            setRate(next);
-            if (ref.current) ref.current.playbackRate = next;
+      </div>
+      <div className="mt-2 flex items-center gap-3 border-t border-border/60 pt-2">
+        <span className="text-xs text-muted-foreground">Vitesse</span>
+        <Slider
+          className="min-h-6 flex-1"
+          aria-label="Vitesse de lecture"
+          aria-valuetext={rate.toLocaleString("fr-FR") + " fois"}
+          min={0.5}
+          max={2}
+          step={0.25}
+          value={[rate]}
+          disabled={failed}
+          onValueChange={([value]) => {
+            setRate(value);
+            if (ref.current) ref.current.playbackRate = value;
           }}
-        >
-          {rate}×
-        </Button>
+        />
+        <output className="min-w-10 text-right text-xs font-medium tabular-nums">
+          {rate.toLocaleString("fr-FR")}×
+        </output>
       </div>
       {failed && (
         <p role="status" className="mt-2 text-xs text-destructive">

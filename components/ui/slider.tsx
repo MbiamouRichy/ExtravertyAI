@@ -25,6 +25,7 @@ export function Slider({
         <SliderPrimitive.Thumb
           key={i}
           aria-label={props["aria-label"]}
+          aria-valuetext={props["aria-valuetext"]}
           className="block size-3 rounded-full border border-primary bg-background shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none"
         />
       ))}
