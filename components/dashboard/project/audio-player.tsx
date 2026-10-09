@@ -1,9 +1,15 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { Loader2, Pause, Play } from "lucide-react";
+import { ChevronDown, Loader2, Pause, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
-import { resolveAudioDuration } from "@/lib/audio-duration";
+import { resolveAudioWaveform } from "@/lib/audio-duration";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
 const time = (seconds: number) =>
   Math.floor(seconds / 60) +
   ":" +
@@ -11,11 +17,14 @@ const time = (seconds: number) =>
 export function AudioPlayer({
   src,
   onError,
+  className,
 }: {
   src: string;
+  className?: string;
   onError?: () => void;
 }) {
   const ref = useRef<HTMLAudioElement>(null);
+  const [peaks, setPeaks] = useState<number[]>([]);
   const [playing, setPlaying] = useState(false);
   const [loading, setLoading] = useState(false);
   const [duration, setDuration] = useState(0);
@@ -30,10 +39,14 @@ export function AudioPlayer({
       if (!audio) return;
       if (Number.isFinite(audio.duration) && audio.duration > 0) {
         setDuration(audio.duration);
-      } else if (!resolving) {
+      }
+      if (!resolving) {
         resolving = true;
-        void resolveAudioDuration(src, controller.signal)
-          .then(setDuration)
+        void resolveAudioWaveform(src, controller.signal)
+          .then((result) => {
+            setDuration(result.duration);
+            setPeaks(result.peaks);
+          })
           .catch(() => {
             // Metadata failure must not prevent native playback.
           });
@@ -55,7 +68,12 @@ export function AudioPlayer({
     };
   }, [src]);
   return (
-    <div className="w-64 max-w-full rounded-2xl border border-border/60 bg-muted/40 px-3 py-2 sm:w-72">
+    <div
+      className={cn(
+        "w-80 max-w-full rounded-full border border-border/60 bg-muted/40 px-3 py-2",
+        className,
+      )}
+    >
       <audio
         ref={ref}
         src={src}
@@ -128,10 +146,39 @@ export function AudioPlayer({
             <Play aria-hidden="true" className="size-5" />
           )}
         </Button>
-        <div className="min-w-0 flex-1 space-y-2">
+
+        <div className="relative min-w-0 flex-1">
+          <svg
+            aria-hidden="true"
+            viewBox="0 0 144 32"
+            preserveAspectRatio="none"
+            className="pointer-events-none h-9 w-full"
+          >
+            {(peaks.length ? peaks : Array(48).fill(0.08)).map(
+              (peak, index) => {
+                const height = Math.max(3, peak * 28);
+                return (
+                  <rect
+                    key={index}
+                    x={index * 3}
+                    y={(32 - height) / 2}
+                    width="1.5"
+                    height={height}
+                    rx="0.75"
+                    className={
+                      duration && index / 48 < position / duration
+                        ? "fill-primary"
+                        : "fill-muted-foreground/40"
+                    }
+                  />
+                );
+              },
+            )}
+          </svg>
           <Slider
-            className="min-h-6"
+            className="absolute inset-0 min-h-9 [&_[data-slot=slider-track]]:opacity-0 [&_[data-slot=slider-thumb]]:opacity-0 [&_[data-slot=slider-thumb]:focus-visible]:opacity-100"
             aria-label="Position dans le message audio"
+            aria-valuetext={time(position) + " sur " + time(duration)}
             min={0}
             max={duration || 1}
             step={0.1}
@@ -144,31 +191,56 @@ export function AudioPlayer({
               }
             }}
           />
-          <div className="flex justify-between gap-2 text-xs tabular-nums text-muted-foreground">
-            <span>{time(position)}</span>
-            <span>{duration ? time(duration) : "--:--"}</span>
-          </div>
         </div>
-      </div>
-      <div className="mt-2 flex items-center gap-3 border-t border-border/60 pt-2">
-        <span className="text-xs text-muted-foreground">Vitesse</span>
-        <Slider
-          className="min-h-6 flex-1"
-          aria-label="Vitesse de lecture"
-          aria-valuetext={rate.toLocaleString("fr-FR") + " fois"}
-          min={0.5}
-          max={2}
-          step={0.25}
-          value={[rate]}
-          disabled={failed}
-          onValueChange={([value]) => {
-            setRate(value);
-            if (ref.current) ref.current.playbackRate = value;
-          }}
-        />
-        <output className="min-w-10 text-right text-xs font-medium tabular-nums">
-          {rate.toLocaleString("fr-FR")}×
-        </output>
+        <span
+          className="shrink-0 text-xs tabular-nums text-muted-foreground"
+          aria-label="Temps de lecture"
+        >
+          {position > 0 ? time(position) + " / " : ""}
+          {duration ? time(duration) : "--:--"}
+        </span>
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              className="shrink-0 gap-1 rounded-full px-2 tabular-nums"
+              aria-label={
+                "Vitesse de lecture : " + rate.toLocaleString("fr-FR") + " fois"
+              }
+              disabled={failed}
+            >
+              {rate.toLocaleString("fr-FR")}×
+              <ChevronDown aria-hidden="true" className="size-3" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent align="end" aria-label="Réglage de la vitesse">
+            <div className="mb-2 flex items-center justify-between text-sm">
+              <span>Vitesse de lecture</span>
+              <output className="font-medium tabular-nums">
+                {rate.toLocaleString("fr-FR")}×
+              </output>
+            </div>
+            <Slider
+              className="min-h-9"
+              aria-label="Vitesse de lecture"
+              aria-valuetext={rate.toLocaleString("fr-FR") + " fois"}
+              min={0.5}
+              max={2}
+              step={0.25}
+              value={[rate]}
+              onValueChange={([value]) => {
+                setRate(value);
+                if (ref.current) ref.current.playbackRate = value;
+              }}
+            />
+            <div className="flex justify-between text-xs text-muted-foreground">
+              <span>0,5×</span>
+              <span>2×</span>
+            </div>
+          </PopoverContent>
+        </Popover>
       </div>
       {failed && (
         <p role="status" className="mt-2 text-xs text-destructive">

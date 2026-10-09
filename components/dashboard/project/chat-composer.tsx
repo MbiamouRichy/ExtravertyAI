@@ -485,13 +485,15 @@ export function ChatComposer({
                 <p
                   id="chat-attachment-help"
                   className={
-                    file ? "px-2 text-xs text-muted-foreground" : "sr-only"
+                    file && !audioMode
+                      ? "px-2 text-xs text-muted-foreground"
+                      : "sr-only"
                   }
                 >
                   4 Mo maximum par fichier. Légende : 1 024 caractères. L’audio
                   est envoyé seul.
                 </p>
-                {file && (
+                {file && !audioMode && (
                   <div className="space-y-2 rounded-lg border bg-muted p-3">
                     <div className="flex items-center justify-between gap-2">
                       <p className="min-w-0 truncate text-sm">{file.name}</p>
@@ -548,6 +550,61 @@ export function ChatComposer({
                           Ko
                         </p>
                       ))}
+                  </div>
+                )}
+                {file && audioMode && (
+                  <div className="flex min-w-0 items-center gap-1 py-2">
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="ghost"
+                      className="shrink-0 rounded-full"
+                      aria-label="Supprimer le message vocal"
+                      disabled={isSending}
+                      onClick={() => {
+                        uploadController.current?.abort();
+                        setUploading(false);
+                        setAttachment(undefined);
+                        setFile(null);
+                        form.clearErrors("attachment");
+                        if (fileRef.current) fileRef.current.value = "";
+                      }}
+                    >
+                      <X aria-hidden="true" className="size-4" />
+                    </Button>
+                    <div className="min-w-0 flex-1">
+                      {preview && (
+                        <AudioPlayer
+                          key={preview}
+                          src={preview}
+                          className="w-full border-0 bg-transparent px-0 py-0"
+                        />
+                      )}
+                      {uploading && (
+                        <p
+                          role="status"
+                          className="text-xs text-muted-foreground"
+                        >
+                          Préparation de l’audio…
+                        </p>
+                      )}
+                    </div>
+                    <Button
+                      type="submit"
+                      size="icon"
+                      className="shrink-0 rounded-full"
+                      aria-label="Envoyer le message vocal"
+                      disabled={!attachment || uploading || isSending}
+                    >
+                      {isSending ? (
+                        <Loader2
+                          aria-hidden="true"
+                          className="size-4 animate-spin"
+                        />
+                      ) : (
+                        <ArrowUp aria-hidden="true" className="size-4" />
+                      )}
+                    </Button>
                   </div>
                 )}
                 {fieldState.invalid && (
@@ -779,21 +836,6 @@ export function ChatComposer({
                 </Field>
               )}
             />
-          )}
-          {audioMode && (
-            <div className="flex justify-end px-2 pb-2">
-              <Button
-                type="submit"
-                disabled={!attachment || uploading || isSending}
-              >
-                {isSending ? (
-                  <Loader2 aria-hidden="true" className="size-4 animate-spin" />
-                ) : (
-                  <ArrowUp aria-hidden="true" className="size-4" />
-                )}
-                Envoyer l’audio
-              </Button>
-            </div>
           )}
         </FieldGroup>
       )}

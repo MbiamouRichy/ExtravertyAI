@@ -196,9 +196,17 @@ function ProfileForm({
           name="image"
           control={form.control}
           render={({ field, fieldState }) => (
-            <Field data-invalid={fieldState.invalid} className="items-center">
-              <FieldLabel htmlFor="profile-image">Photo de profil</FieldLabel>
-              <div className="relative mx-auto size-32 shrink-0 rounded-full focus-within:ring-2 focus-within:ring-ring">
+            <Field
+              data-invalid={fieldState.invalid}
+              className="items-center [&>[data-profile-avatar]]:w-32"
+            >
+              <FieldLabel htmlFor="profile-image" className="justify-center">
+                Photo de profil
+              </FieldLabel>
+              <div
+                data-profile-avatar
+                className="relative mx-auto size-32 shrink-0 rounded-full focus-within:ring-2 focus-within:ring-ring"
+              >
                 <Avatar className="size-full overflow-hidden rounded-full border border-border">
                   <AvatarImage
                     src={preview ?? savedImage ?? undefined}
@@ -246,7 +254,10 @@ function ProfileForm({
                   }}
                 />
               </div>
-              <FieldDescription id="profile-image-description">
+              <FieldDescription
+                id="profile-image-description"
+                className="text-center"
+              >
                 JPEG, PNG ou WEBP, 2 Mo maximum.
               </FieldDescription>
               {fieldState.invalid && (
