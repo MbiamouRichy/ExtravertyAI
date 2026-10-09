@@ -122,12 +122,23 @@ test(
             bytes: Buffer.from("test-media"),
             mime: key.endsWith("png")
               ? ("image/png" as const)
-              : ("audio/ogg" as const),
+              : key.endsWith("mp4")
+                ? ("video/mp4" as const)
+                : key.endsWith("pdf")
+                  ? ("application/pdf" as const)
+                  : ("audio/ogg" as const),
+            filename: "fichier." + key.split(".").at(-1),
           };
         },
       );
       let calls = 0;
-      for (const type of ["IMAGE", "AUDIO", "IMAGE"] as const) {
+      for (const type of [
+        "IMAGE",
+        "AUDIO",
+        "VIDEO",
+        "DOCUMENT",
+        "IMAGE",
+      ] as const) {
         const message = await client.message.create({
           data: {
             projectId: project.id,
@@ -136,8 +147,8 @@ test(
             senderType: "AGENT",
             fromMe: true,
             type,
-            content: type === "IMAGE" ? "Légende" : "[AUDIO]",
-            mediaUrl: `chat-media/${project.id}/${crypto.randomUUID()}.${type === "IMAGE" ? "png" : "ogg"}`,
+            content: type === "AUDIO" ? "[AUDIO]" : "Légende",
+            mediaUrl: `chat-media/${project.id}/${crypto.randomUUID()}.${type === "IMAGE" ? "png" : type === "VIDEO" ? "mp4" : type === "DOCUMENT" ? "pdf" : "ogg"}`,
           },
         });
         await client.outboundJob.create({
@@ -155,20 +166,24 @@ test(
           const body = JSON.parse(String(init?.body));
           assert.equal(body.number, remoteJid);
           assert.equal(
-            body[type === "IMAGE" ? "media" : "audio"],
+            body[type === "AUDIO" ? "audio" : "media"],
             Buffer.from("test-media").toString("base64"),
           );
           assert.ok(
             String(url).includes(
-              type === "IMAGE" ? "/sendMedia/" : "/sendWhatsAppAudio/",
+              type === "AUDIO" ? "/sendWhatsAppAudio/" : "/sendMedia/",
             ),
           );
-          if (type === "IMAGE") assert.equal(body.caption, "Légende");
+          if (type !== "AUDIO") {
+            assert.equal(body.caption, "Légende");
+            assert.equal(body.mediatype, type.toLowerCase());
+            assert.ok(body.fileName);
+          }
           if (type === "AUDIO")
             throw new Error("Transport interrupted after send");
           return Response.json({ key: { id: `outgoing-${calls}` } });
         };
-        storageFailure = calls === 2;
+        storageFailure = calls === 4;
         await processor.dispatch(claimed);
         const job = await client.outboundJob.findUniqueOrThrow({
           where: { messageId: message.id },
@@ -177,13 +192,13 @@ test(
           job.state,
           storageFailure
             ? "CANCELLED"
-            : type === "IMAGE"
+            : type !== "AUDIO"
               ? "ACCEPTED"
               : "UNCERTAIN",
         );
         assert.equal(await processor.claimNextJob(), null);
       }
-      assert.equal(calls, 2, "missing media must never reach the provider");
+      assert.equal(calls, 4, "missing media must never reach the provider");
     } finally {
       globalThis.fetch = oldFetch;
       if (oldUrl === undefined) delete process.env.EVOLUTION_API_URL;

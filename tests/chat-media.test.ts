@@ -185,3 +185,67 @@ test("private audio responses support seeking and reject invalid ranges", async 
     "bytes 3-4/5",
   );
 });
+
+test("video and document uploads enforce signatures, size and safe download responses", () => {
+  const fixtures = [
+    [
+      "video/mp4",
+      Buffer.from([0, 0, 0, 16, 102, 116, 121, 112, 109, 112, 52, 50]),
+    ],
+    ["application/pdf", Buffer.from("%PDF-1.7\nexample")],
+    [
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      Buffer.from([80, 75, 3, 4, 0, 0]),
+    ],
+    ["text/plain", Buffer.from("Bonjour")],
+  ] as const;
+  for (const [mime, bytes] of fixtures) {
+    assert.equal(mediaFileError({ type: mime, size: bytes.length }), null);
+    validateMediaBytes(bytes, mime);
+    assert.throws(() =>
+      validateMediaBytes(Buffer.alloc(MAX_MEDIA_BYTES + 1), mime),
+    );
+  }
+  assert.throws(() =>
+    validateMediaBytes(Buffer.from("not a pdf"), "application/pdf"),
+  );
+  assert.throws(() =>
+    validateMediaBytes(
+      Buffer.from([80, 75, 3, 4]),
+      "application/vnd.openxmlformats-officedocument.fake",
+    ),
+  );
+  for (const type of ["VIDEO", "DOCUMENT"] as const) {
+    assert.equal(
+      SendChatMessageSchema.safeParse({
+        content: "Légende",
+        attachment: { token: "signed", type, requestId },
+      }).success,
+      true,
+    );
+    assert.ok(
+      chatMediaFields(
+        { id: "file", type, content: "[" + type + "]" },
+        projectId,
+      ).mediaUrl,
+    );
+    assert.equal(
+      chatMediaFields(
+        { id: "file", type, content: "[" + type + "]" },
+        projectId,
+      ).content,
+      "",
+    );
+  }
+  const response = mediaResponse(
+    Buffer.from("%PDF-1.7"),
+    "application/pdf",
+    null,
+    "rapport.pdf\r\nX-Evil: true",
+  );
+  assert.ok(
+    response.headers.get("content-disposition")?.startsWith("attachment;"),
+  );
+  assert.equal(response.headers.get("x-evil"), null);
+  assert.equal(response.headers.get("x-content-type-options"), "nosniff");
+});

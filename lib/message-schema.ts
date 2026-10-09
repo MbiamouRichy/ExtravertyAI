@@ -15,7 +15,7 @@ export const SendChatMessageSchema = z
     attachment: z
       .object({
         token: z.string().min(1).max(3000),
-        type: z.enum(["IMAGE", "AUDIO"]),
+        type: z.enum(["IMAGE", "AUDIO", "VIDEO", "DOCUMENT"]),
         requestId: z.string().uuid(),
       })
       .optional(),
@@ -25,7 +25,10 @@ export const SendChatMessageSchema = z
     path: ["content"],
   })
   .refine(
-    (data) => data.attachment?.type !== "IMAGE" || data.content.length <= 1024,
+    (data) =>
+      !data.attachment ||
+      data.attachment.type === "AUDIO" ||
+      data.content.length <= 1024,
     {
       message: "La légende est limitée à 1 024 caractères.",
       path: ["content"],

@@ -1,8 +1,7 @@
 "use client";
-
 import { cn } from "@/lib/utils";
 import type { ComponentProps } from "react";
-import { LabelList, Pie, PieChart } from "recharts";
+import { Pie, PieChart } from "recharts";
 import { PieChart as PieChartIcon } from "lucide-react";
 import {
   Card,
@@ -12,37 +11,26 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import {
-  type ChartConfig,
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
+  type ChartConfig,
 } from "@/components/ui/chart";
 import { Delta, DeltaIcon, DeltaValue } from "@/components/delta";
-
+import { visibleMessageSources } from "@/lib/message-sources";
 export type MessageSourceKey = "android" | "ios" | "ai" | "unknown";
-
 export type SourceDatum = {
   source: MessageSourceKey;
   count: number;
   fill: string;
 };
-
-const chartConfig = {
-  count: { label: "Messages" },
-  android: { label: "Android", color: "var(--chart-1)" },
-  ios: { label: "iOS", color: "var(--chart-2)" },
-  ai: { label: "IA (Bot)", color: "var(--chart-3)" },
-  unknown: { label: "Autres / Inconnu", color: "var(--chart-4)" },
-} satisfies ChartConfig;
-
-interface SourceMessageChartProps extends ComponentProps<typeof Card> {
+interface Props extends ComponentProps<typeof Card> {
   data: SourceDatum[];
   totalMessages: number;
   otherSources?: { source: string; count: number }[];
   trendPercentage?: number;
   error?: string;
 }
-
 export function SourceMessageChart({
   data,
   totalMessages,
@@ -51,18 +39,18 @@ export function SourceMessageChart({
   error,
   className,
   ...props
-}: SourceMessageChartProps) {
+}: Props) {
+  const rows = visibleMessageSources(data, otherSources);
+  const config: ChartConfig = Object.fromEntries(
+    rows.map((row) => [row.key, { label: row.label, color: row.fill }]),
+  );
   return (
-    <Card className={cn("flex flex-col", className)} {...props}>
-      <CardHeader className="items-center space-y-1.5 pb-4 sm:items-start">
-        <div className="flex w-full flex-wrap items-center justify-between gap-2">
+    <Card className={cn("min-w-0", className)} {...props}>
+      <CardHeader>
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <CardTitle>Sources des messages</CardTitle>
           {!error && trendPercentage !== 0 && (
-            <Delta
-              value={trendPercentage}
-              variant="badge"
-              className="scale-95 origin-right"
-            >
+            <Delta value={trendPercentage} variant="badge">
               <DeltaIcon variant="trend" />
               <DeltaValue suffix="%" />
             </Delta>
@@ -74,73 +62,38 @@ export function SourceMessageChart({
             : `Répartition sur les 7 derniers jours (${totalMessages} au total)`}
         </CardDescription>
       </CardHeader>
-
-      <CardContent className="flex-1 pb-6 flex flex-col justify-center">
+      <CardContent>
         {error ? (
-          <p
-            role="alert"
-            className="py-12 text-center text-sm text-muted-foreground"
-          >
+          <p role="alert" className="py-8 text-sm text-muted-foreground">
             {error}
           </p>
-        ) : totalMessages > 0 ? (
-          <div className="space-y-5">
+        ) : rows.length && totalMessages > 0 ? (
+          <div className="space-y-4">
             <ChartContainer
-              className="mx-auto aspect-square max-h-64 w-full"
-              config={chartConfig}
+              config={config}
+              className="mx-auto h-52 w-full max-w-64 aspect-auto"
             >
               <PieChart accessibilityLayer>
-                <ChartTooltip
-                  cursor={false}
-                  content={<ChartTooltipContent hideLabel />}
-                />
-
+                <ChartTooltip content={<ChartTooltipContent hideLabel />} />
                 <Pie
-                  cornerRadius={8}
-                  data={data}
+                  data={rows}
                   dataKey="count"
-                  innerRadius={40}
-                  nameKey="source"
-                  outerRadius={95}
+                  nameKey="key"
+                  innerRadius={52}
+                  outerRadius={84}
+                  paddingAngle={3}
+                  cornerRadius={6}
                   stroke="var(--card)"
                   strokeWidth={2}
-                  paddingAngle={3}
-                >
-                  <LabelList
-                    className="fill-background font-medium"
-                    dataKey="count"
-                    fill="currentColor"
-                    fontWeight={500}
-                    // 🛡️ CORRECTION ICI
-                    // 🛡️ Typage strict avec "unknown" au lieu de "any"
-                    formatter={(val: unknown) => {
-                      // 1. On rejette le vide et les cas de division par zéro
-                      if (totalMessages === 0 || val == null) return "";
-
-                      // 2. Type Guard : on s'assure que "val" est bien transformable en nombre
-                      if (typeof val !== "number" && typeof val !== "string")
-                        return "";
-
-                      // 3. Conversion sécurisée
-                      const numericValue = Number(val);
-                      if (isNaN(numericValue)) return "";
-
-                      // 4. Calcul final
-                      const percent = (
-                        (numericValue / totalMessages) *
-                        100
-                      ).toFixed(0);
-                      return percent !== "0" ? `${percent}%` : "";
-                    }}
-                  />
-                </Pie>
+                  isAnimationActive={false}
+                />
               </PieChart>
             </ChartContainer>
-            <ul className="space-y-3" aria-label="Répartition des sources">
-              {data.map((row) => (
+            <ul aria-label="Répartition des sources" className="divide-y">
+              {rows.map((row) => (
                 <li
                   key={row.source}
-                  className="flex items-center justify-between gap-3 text-sm"
+                  className="flex items-center justify-between gap-4 py-3 text-sm"
                 >
                   <span className="flex min-w-0 items-center gap-2">
                     <span
@@ -148,13 +101,13 @@ export function SourceMessageChart({
                       className="size-2 shrink-0 rounded-full"
                       style={{ backgroundColor: row.fill }}
                     />
-                    <span className="wrap-break-word">
-                      {chartConfig[row.source].label}
-                    </span>
+                    <span className="wrap-anywhere">{row.label}</span>
                   </span>
-                  <span className="shrink-0 text-right tabular-nums">
-                    {row.count.toLocaleString("fr-FR")}
-                    <span className="ml-2 text-xs text-muted-foreground">
+                  <span className="flex shrink-0 items-baseline gap-3 tabular-nums">
+                    <strong className="font-medium">
+                      {row.count.toLocaleString("fr-FR")}
+                    </strong>
+                    <span className="min-w-12 text-right text-xs text-muted-foreground">
                       {((row.count / totalMessages) * 100).toLocaleString(
                         "fr-FR",
                         { maximumFractionDigits: 1 },
@@ -165,47 +118,11 @@ export function SourceMessageChart({
                 </li>
               ))}
             </ul>
-            {otherSources.length > 0 && (
-              <section
-                className="space-y-3 border-t pt-4"
-                aria-label="Détail des autres sources"
-              >
-                <h3 className="text-sm font-medium">
-                  Détail · Autres / Inconnu
-                </h3>
-                <ul className="space-y-2">
-                  {otherSources.map((row) => (
-                    <li
-                      key={row.source}
-                      className="flex items-start justify-between gap-3 text-xs text-muted-foreground"
-                    >
-                      <span className="min-w-0 wrap-anywhere">
-                        {row.source === "unknown"
-                          ? "Origine non renseignée"
-                          : row.source}
-                      </span>
-                      <span className="shrink-0 tabular-nums">
-                        {row.count.toLocaleString("fr-FR")} message
-                        {row.count > 1 ? "s" : ""}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            )}
           </div>
         ) : (
-          <div className="flex flex-col aspect-square max-h-65 w-full items-center justify-center text-center animate-in fade-in zoom-in-95 duration-500">
-            <div className="bg-muted/30 p-4 rounded-full mb-3 ring-1 ring-border/50">
-              <PieChartIcon
-                className="w-8 h-8 text-muted-foreground/60"
-                strokeWidth={1.5}
-              />
-            </div>
-            <p className="text-sm font-medium text-foreground">Aucune donnée</p>
-            <p className="text-xs text-muted-foreground mt-1 max-w-50">
-              Connectez votre API WhatsApp pour voir la répartition ici.
-            </p>
+          <div className="flex flex-col items-center gap-3 py-12 text-center text-muted-foreground">
+            <PieChartIcon aria-hidden="true" className="size-8" />
+            <p className="text-sm">Aucun message sur cette période.</p>
           </div>
         )}
       </CardContent>

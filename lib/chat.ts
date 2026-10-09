@@ -20,6 +20,7 @@ export type ChatClient = {
 };
 
 export type ChatPage<T> = {
+  unreadConversations?: number;
   items: T[];
   nextCursor: string | null;
 };

@@ -3,6 +3,7 @@ import { projectBillingStatus } from "@/lib/project-status";
 
 import { z } from "zod";
 import { SendChatMessageSchema } from "@/lib/message-schema";
+import { mediaKind } from "@/lib/chat-media";
 import { verifyMediaTicket } from "@/lib/chat-media-server";
 import { revalidatePath } from "next/cache";
 
@@ -102,10 +103,7 @@ export async function sendWhatsAppMessage(
             "Pièce jointe invalide ou expirée. Importez à nouveau le fichier.",
           );
         }
-        if (
-          (media.mime.startsWith("image/") ? "IMAGE" : "AUDIO") !==
-          attachment.type
-        )
+        if (mediaKind(media.mime) !== attachment.type)
           throw new SendRejected("Type de pièce jointe invalide.");
       }
       if (existing) {

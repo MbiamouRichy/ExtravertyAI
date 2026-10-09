@@ -1,5 +1,6 @@
 import {
   conversationUnreadCounts,
+  unreadConversationCount,
   markConversationRead,
 } from "../lib/conversation-reads";
 import { createOutboundProcessor } from "../lib/outbound-jobs";
@@ -260,6 +261,61 @@ test(
               ])
             ).get(contact.id) ?? 0;
           assert.equal(await count(first.id), 3);
+          await client.contact.update({
+            where: { id: contact.id },
+            data: { name: "Voiture", aiActive: true },
+          });
+          assert.equal(
+            await unreadConversationCount(
+              client,
+              project.id,
+              first.id,
+              "voiture",
+              "all",
+            ),
+            1,
+          );
+          assert.equal(
+            await unreadConversationCount(
+              client,
+              project.id,
+              first.id,
+              "VOITURE",
+              "ai",
+            ),
+            1,
+          );
+          assert.equal(
+            await unreadConversationCount(
+              client,
+              project.id,
+              first.id,
+              "voiture",
+              "manual",
+            ),
+            0,
+          );
+          assert.equal(
+            await unreadConversationCount(
+              client,
+              project.id,
+              outsider.id,
+              "",
+              "all",
+            ),
+            0,
+          );
+          assert.equal(
+            (
+              await client.contact.findMany({
+                where: {
+                  projectId: project.id,
+                  name: { contains: "voiture", mode: "insensitive" },
+                },
+              })
+            ).length,
+            1,
+          );
           assert.equal(await count(outsider.id), 0);
           assert.equal(
             await markConversationRead(

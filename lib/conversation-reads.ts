@@ -44,3 +44,26 @@ export async function markConversationRead(
       <= (EXCLUDED."lastReadAt", EXCLUDED."lastReadId")
   `;
 }
+
+export async function unreadConversationCount(
+  prisma: PrismaClient,
+  projectId: string,
+  userId: string,
+  query: string,
+  filter: string,
+) {
+  const rows = await prisma.$queryRaw<Array<{ count: number }>>`
+    SELECT COUNT(DISTINCT m."contactId")::int AS count
+    FROM message m
+    JOIN contact c ON c.id = m."contactId" AND c."projectId" = m."projectId"
+    JOIN project_membership pm ON pm."projectId" = m."projectId" AND pm."userId" = ${userId}
+    LEFT JOIN conversation_read_state r ON r."membershipId" = pm.id AND r."contactId" = m."contactId"
+    WHERE m."projectId" = ${projectId} AND m."senderType" = 'CLIENT' AND m."fromMe" = false
+      AND (r."lastReadAt" IS NULL OR (m."createdAt", m.id) > (r."lastReadAt", r."lastReadId"))
+      AND (${filter} = 'all' OR c."aiActive" = ${filter === "ai"})
+      AND (${query} = '' OR strpos(lower(coalesce(c.name, '')), lower(${query})) > 0
+        OR strpos(lower(coalesce(c."pushName", '')), lower(${query})) > 0
+        OR strpos(c.phone, ${query}) > 0)
+  `;
+  return rows[0]?.count ?? 0;
+}

@@ -102,6 +102,7 @@ export function useChatContacts(
   return {
     ...swr,
     items,
+    unreadConversations: swr.data?.[0]?.unreadConversations ?? 0,
     searchPending: search !== query,
     hasMore: !!swr.data?.at(-1)?.nextCursor,
     loadMore: () => swr.setSize((size) => size + 1),

@@ -76,7 +76,11 @@ export function FirstAiReplyTimeChart({
               width={52}
               tickLine={false}
               axisLine={false}
-              tickFormatter={formatResponseTime}
+              tickFormatter={(seconds: number) =>
+                seconds < 1
+                  ? `${new Intl.NumberFormat("fr-FR", { maximumSignificantDigits: 3 }).format(seconds * 1000)} ms`
+                  : formatResponseTime(seconds)
+              }
             />
             <ChartTooltip
               content={

@@ -4,7 +4,10 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import prisma from "@/lib/prisma";
-import { conversationUnreadCounts } from "@/lib/conversation-reads";
+import {
+  conversationUnreadCounts,
+  unreadConversationCount,
+} from "@/lib/conversation-reads";
 import { getSession } from "@/lib/auth-server";
 import {
   normalizeChatStatus,
@@ -123,8 +126,10 @@ export async function GET(
               ? [
                   {
                     OR: [
-                      { name: { contains: q } },
-                      { pushName: { contains: q } },
+                      { name: { contains: q, mode: "insensitive" as const } },
+                      {
+                        pushName: { contains: q, mode: "insensitive" as const },
+                      },
                       { phone: { contains: q } },
                     ],
                   },
@@ -182,7 +187,7 @@ export async function GET(
       const page = rows.slice(0, PAGE_SIZE);
       const last = page.at(-1);
       const contactIds = page.map((contact) => contact.id);
-      const [unreadCounts, authors] = await Promise.all([
+      const [unreadCounts, authors, unreadConversations] = await Promise.all([
         conversationUnreadCounts(
           prisma,
           projectId,
@@ -204,9 +209,11 @@ export async function GET(
           },
           orderBy: [{ agentId: "asc" }],
         }),
+        unreadConversationCount(prisma, projectId, session.user.id, q, filter),
       ]);
 
       const result: ChatPage<ChatClient> = {
+        unreadConversations,
         items: page.map((contact) => {
           const latest = contact.messages[0];
           const prospectClassification = currentProspectClassification(

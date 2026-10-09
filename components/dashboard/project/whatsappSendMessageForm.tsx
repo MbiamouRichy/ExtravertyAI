@@ -46,7 +46,6 @@ import {
   AvatarFallback,
   AvatarImage,
   AvatarGroup,
-  AvatarGroupCount,
 } from "@/components/ui/avatar";
 import {
   Message,
@@ -205,9 +204,16 @@ function ConversationParticipants({
       {active && (
         <span
           title="IA activée"
-          className="flex size-6 items-center justify-center text-primary"
+          className="relative flex size-6 shrink-0 items-center justify-center text-info"
         >
           <Bot aria-hidden="true" className="size-4" />
+          <span
+            aria-hidden="true"
+            className="absolute -right-0.5 -top-0.5 flex size-2"
+          >
+            <span className="absolute inline-flex size-full animate-ping rounded-full bg-info opacity-60 motion-reduce:animate-none" />
+            <span className="relative inline-flex size-2 rounded-full bg-info ring-2 ring-background" />
+          </span>
           <span className="sr-only">IA activée</span>
         </span>
       )}
@@ -218,22 +224,14 @@ function ConversationParticipants({
         />
       )}
       {!!agents.length && (
-        <AvatarGroup aria-label="Agents ayant répondu" className="shrink-0">
-          {agents.slice(0, 2).map((agent) => (
+        <AvatarGroup
+          aria-label="Agents ayant répondu"
+          tabIndex={agents.length > 4 ? 0 : undefined}
+          className="max-w-32 overflow-x-auto py-1 sm:max-w-48"
+        >
+          {agents.map((agent) => (
             <AgentAvatar key={agent.id} agent={agent} small />
           ))}
-          {agents.length > 2 && (
-            <AvatarGroupCount
-              className="size-6 text-xs"
-              title={agents
-                .slice(2)
-                .map((agent) => agent.name || "Agent")
-                .join(", ")}
-            >
-              <span aria-hidden="true">+{agents.length - 2}</span>
-              <span className="sr-only">{agents.length - 2} autres agents</span>
-            </AvatarGroupCount>
-          )}
         </AvatarGroup>
       )}
     </span>
@@ -367,7 +365,10 @@ function ChatBubble({
           </MessageHeader>
 
           {message.mediaUrl &&
-          (message.type === "IMAGE" || message.type === "AUDIO") ? (
+          message.type &&
+          ["IMAGE", "AUDIO", "VIDEO", "DOCUMENT"].includes(
+            message.type || "",
+          ) ? (
             <ChatMedia
               type={message.type}
               url={message.mediaUrl}
@@ -412,16 +413,19 @@ function ChatBubble({
             </p>
           )}
 
-          {failed && message.type !== "IMAGE" && message.type !== "AUDIO" && (
-            <Button
-              type="button"
-              variant="link"
-              onClick={() => onRestore(message.content)}
-              className="h-auto self-start whitespace-normal p-0 text-xs text-destructive"
-            >
-              Remettre en brouillon
-            </Button>
-          )}
+          {failed &&
+            !["IMAGE", "AUDIO", "VIDEO", "DOCUMENT"].includes(
+              message.type || "",
+            ) && (
+              <Button
+                type="button"
+                variant="link"
+                onClick={() => onRestore(message.content)}
+                className="h-auto self-start whitespace-normal p-0 text-xs text-destructive"
+              >
+                Remettre en brouillon
+              </Button>
+            )}
         </MessageContent>
       </Message>
     </article>
@@ -596,7 +600,11 @@ export default function WhatsappWorkspace({
                 ? "Image"
                 : latest.type === "AUDIO"
                   ? "Message audio"
-                  : "")
+                  : latest.type === "VIDEO"
+                    ? "Vidéo"
+                    : latest.type === "DOCUMENT"
+                      ? "Document"
+                      : "")
             : client.lastMessage,
           lastActivityAt: useLocal ? latest.timestamp : client.lastActivityAt,
         };
@@ -758,9 +766,13 @@ export default function WhatsappWorkspace({
         content ||
         (attachment?.type === "IMAGE"
           ? "Image en cours d’envoi…"
-          : attachment
+          : attachment?.type === "AUDIO"
             ? "Audio en cours d’envoi…"
-            : ""),
+            : attachment?.type === "VIDEO"
+              ? "Vidéo en cours d’envoi…"
+              : attachment?.type === "DOCUMENT"
+                ? "Document en cours d’envoi…"
+                : ""),
       type: attachment?.type,
       timestamp: new Date().toISOString(),
       status: "sending",
@@ -1035,8 +1047,9 @@ export default function WhatsappWorkspace({
           <div className="flex items-center justify-between px-4 py-3 text-xs text-muted-foreground">
             <span className="font-medium">Discussions récentes</span>
             <span aria-live="polite">
-              {visibleClients.length} conversation
-              {visibleClients.length > 1 ? "s" : ""}
+              {contactsQuery.unreadConversations} discussion
+              {contactsQuery.unreadConversations > 1 ? "s" : ""} non lue
+              {contactsQuery.unreadConversations > 1 ? "s" : ""}
             </span>
           </div>
 
@@ -1306,16 +1319,14 @@ export default function WhatsappWorkspace({
                       disabled={aiBusyId !== null}
                       aria-busy={aiBusyId === activeClient.id}
                       onClick={toggleAi}
-                      className="size-11 gap-2 p-0 text-sm font-medium xl:w-auto xl:px-3"
+                      size="icon"
+                      className="shrink-0"
                       aria-label={
                         aiActive
                           ? "Prendre la main sur cette conversation"
                           : "Activer l’IA pour ce contact"
                       }
                     >
-                      <span className="hidden xl:inline">
-                        {aiActive ? "Prendre la main" : "Activer l’IA"}
-                      </span>
                       {aiBusyId === activeClient.id ? (
                         <Loader2
                           aria-hidden="true"

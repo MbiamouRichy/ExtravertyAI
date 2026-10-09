@@ -1,7 +1,12 @@
 import { z } from "zod";
 import prisma from "@/lib/prisma";
 import { getSession } from "@/lib/auth-server";
-import { MAX_MEDIA_BYTES, MEDIA_TYPES } from "@/lib/chat-media";
+import {
+  MAX_MEDIA_BYTES,
+  MEDIA_TYPES,
+  mediaKind,
+  safeMediaFilename,
+} from "@/lib/chat-media";
 import {
   readLimitedBody,
   signMediaTicket,
@@ -46,6 +51,10 @@ export async function POST(
   try {
     const bytes = await readLimitedBody(request.body, MAX_MEDIA_BYTES);
     validateMediaBytes(bytes, mime);
+    const filename = safeMediaFilename(
+      decodeURIComponent(request.headers.get("x-file-name") || ""),
+      mime,
+    );
     const key = `chat-media/${projectId}/${crypto.randomUUID()}.${MEDIA_TYPES[mime]}`;
     const token = signMediaTicket({
       key,
@@ -64,6 +73,7 @@ export async function POST(
         Key: key,
         Body: bytes,
         ContentType: mime,
+        Metadata: { filename: encodeURIComponent(filename) },
       }),
       { abortSignal: AbortSignal.timeout(20_000) },
     );
@@ -84,7 +94,7 @@ export async function POST(
     return Response.json(
       {
         token,
-        type: mime.startsWith("image/") ? "IMAGE" : "AUDIO",
+        type: mediaKind(mime),
         requestId: requestId.data,
       },
       { headers: { "Cache-Control": "no-store" } },

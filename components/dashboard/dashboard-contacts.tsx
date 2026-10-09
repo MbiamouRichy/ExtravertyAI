@@ -40,7 +40,7 @@ export async function DashboardContacts({ projectId }: { projectId: string }) {
   });
 
   return (
-    <Card className="relative min-w-0 gap-0 md:col-span-2 lg:col-span-3">
+    <Card className="relative min-w-0 gap-0">
       <CardHeader className="border-b">
         <CardTitle className="text-base">Derniers prospects</CardTitle>
         <CardDescription>

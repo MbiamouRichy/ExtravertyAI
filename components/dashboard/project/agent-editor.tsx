@@ -200,7 +200,7 @@ export function AgentEditor({
           />
           <ol
             aria-label="Étapes de configuration"
-            className="grid gap-3 sm:grid-cols-3"
+            className="grid w-full min-w-0 grid-cols-1 gap-3 lg:grid-cols-3"
           >
             {steps.map((label, index) => {
               const active = step === index;
@@ -436,7 +436,7 @@ export function AgentEditor({
                           <FieldLabel
                             key={tone.value}
                             htmlFor={`agent-tone-${tone.value}`}
-                            className={`block cursor-pointer rounded-xl border p-4 focus-within:ring-2 focus-within:ring-ring ${config.agentTone === tone.value ? "border-border bg-muted/60 dark:bg-muted/30" : "hover:bg-muted/40"}`}
+                            className={`block w-full min-w-0 cursor-pointer rounded-xl border p-4 focus-within:ring-2 focus-within:ring-ring ${config.agentTone === tone.value ? "border-border bg-muted/60 dark:bg-muted/30" : "hover:bg-muted/40"}`}
                           >
                             <span className="mb-2 flex items-center justify-between text-sm font-medium">
                               {tone.label}

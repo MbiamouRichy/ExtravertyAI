@@ -247,7 +247,7 @@ export default function TeamManagement({
   });
 
   return (
-    <div className="max-w-5xl mx-auto p-6 space-y-8">
+    <div className="w-full min-w-0 max-w-5xl mx-auto px-4 py-6 sm:px-6 space-y-8">
       {/* HEADER SECTION */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
@@ -261,7 +261,10 @@ export default function TeamManagement({
         {/* MODAL D'INVITATION */}
         <Dialog open={isInviteOpen} onOpenChange={handleInviteModalChange}>
           <DialogTrigger asChild>
-            <Button variant="outline" className="gap-2 shadow-sm font-medium">
+            <Button
+              variant="outline"
+              className="w-full sm:w-auto sm:shrink-0 gap-2 shadow-sm font-medium"
+            >
               <Plus className="w-4 h-4" />
               Inviter un membre
             </Button>

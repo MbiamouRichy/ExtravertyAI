@@ -95,6 +95,7 @@
   --color-secondary: var(--secondary);
   --color-primary-foreground: var(--primary-foreground);
   --color-primary: var(--primary);
+  --color-info: var(--info);
   --color-popover-foreground: var(--popover-foreground);
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
@@ -113,6 +114,7 @@
 }
 
 :root {
+  --info: var(--color-blue-600);
   --font-bricolage-grotesque:
     "Arial Narrow", "Helvetica Neue", Arial, sans-serif;
   --font-crimson-text: Georgia, "Times New Roman", serif;
@@ -154,6 +156,7 @@
 }
 
 .dark {
+  --info: var(--color-blue-400);
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);
   --card: oklch(0.205 0 0);

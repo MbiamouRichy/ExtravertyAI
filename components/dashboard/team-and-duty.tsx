@@ -94,7 +94,7 @@ export function TeamOnDuty({
           ))}
         </ul>
       </CardContent>
-      <div className="relative mt-2 flex shrink-0 items-center justify-center border-t px-3 py-3 sm:mask-t-from-30% sm:absolute sm:inset-x-0 sm:bottom-0 sm:mt-0 sm:h-1/5 sm:border-0 sm:p-0 sm:bg-linear-to-t sm:from-background sm:to-background/0">
+      <div className="mt-2 flex shrink-0 items-center justify-center border-t px-3 py-3">
         <Button asChild className="relative" variant="ghost" size="sm">
           <Link href={`/projects/${projectId}/team`}>
             Voir l’équipe

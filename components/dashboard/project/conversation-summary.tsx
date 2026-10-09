@@ -66,9 +66,9 @@ export function ConversationSummaryButton({
       <DialogPrimitive.Trigger asChild>
         <Button
           variant="outline"
-          size="sm"
+          size="icon"
           disabled={!enabled}
-          className="size-11 shrink-0 gap-2 p-0 text-sm font-medium xl:w-auto xl:px-3"
+          className="shrink-0"
           title={
             enabled
               ? "Résumé IA de la conversation"
@@ -80,7 +80,6 @@ export function ConversationSummaryButton({
           }}
         >
           <FileText aria-hidden="true" className="size-4" />
-          <span className="hidden xl:inline">Résumé IA</span>
         </Button>
       </DialogPrimitive.Trigger>
       <DialogPrimitive.Portal container={container}>

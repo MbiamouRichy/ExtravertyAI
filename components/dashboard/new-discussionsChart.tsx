@@ -47,7 +47,7 @@ export function DashboardDiscussionsChart({ data, growthPct }: DashboardDiscussi
 	const hasData = data.some((row) => row.currentWeek > 0 || row.previousWeek > 0);
 
 	return (
-		<Card className="gap-0 md:col-span-2">
+		<Card className="gap-0">
 			<CardHeader>
 				<div className="min-w-0 space-y-2">
 					<div className="flex flex-wrap items-center gap-2">

@@ -1,3 +1,4 @@
+import { mediaKind, safeMediaFilename, type MediaMime } from "./chat-media";
 import { readStoredMedia } from "./chat-media-server";
 import type { PrismaClient } from "../src/generated/prisma/client";
 import { latestStatus } from "./evolution-ingestion";
@@ -6,7 +7,14 @@ import { projectBillingStatus } from "./project-status";
 export function createOutboundProcessor(
   prisma: PrismaClient,
   notifyProject: (projectId: string) => Promise<void>,
-  loadMedia = readStoredMedia,
+  loadMedia: (
+    key: string,
+    projectId: string,
+  ) => Promise<{
+    bytes: Buffer;
+    mime: MediaMime;
+    filename?: string;
+  }> = readStoredMedia,
 ) {
   function isRecord(value: unknown): value is Record<string, unknown> {
     return typeof value === "object" && value !== null;
@@ -198,21 +206,24 @@ export function createOutboundProcessor(
       text: job.content,
       delay: job.typing ? 1200 : 0,
     };
-    if (job.type === "IMAGE" || job.type === "AUDIO") {
+    if (["IMAGE", "AUDIO", "VIDEO", "DOCUMENT"].includes(job.type)) {
       try {
         if (!job.mediaKey) throw new Error("MEDIA_MISSING");
-        const { bytes, mime } = await loadMedia(job.mediaKey, job.projectId);
-        if (!mime.startsWith(job.type === "IMAGE" ? "image/" : "audio/"))
-          throw new Error("MEDIA_INVALID");
-        endpoint = job.type === "IMAGE" ? "sendMedia" : "sendWhatsAppAudio";
+        const { bytes, mime, filename } = await loadMedia(
+          job.mediaKey,
+          job.projectId,
+        );
+        if (mediaKind(mime) !== job.type) throw new Error("MEDIA_INVALID");
+        endpoint = job.type === "AUDIO" ? "sendWhatsAppAudio" : "sendMedia";
         body =
-          job.type === "IMAGE"
+          job.type !== "AUDIO"
             ? {
                 number: job.remoteJid,
-                mediatype: "image",
+                mediatype: job.type.toLowerCase(),
+                fileName: filename || safeMediaFilename("", mime),
                 mimetype: mime,
                 media: bytes.toString("base64"),
-                caption: job.content === "[IMAGE]" ? "" : job.content,
+                caption: job.content === `[${job.type}]` ? "" : job.content,
               }
             : { number: job.remoteJid, audio: bytes.toString("base64") };
       } catch {

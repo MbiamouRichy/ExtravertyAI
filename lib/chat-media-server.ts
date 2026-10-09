@@ -1,6 +1,12 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { z } from "zod";
-import { MAX_MEDIA_BYTES, MEDIA_TYPES, type MediaMime } from "./chat-media";
+import {
+  MAX_MEDIA_BYTES,
+  MEDIA_TYPES,
+  mediaKind,
+  safeMediaFilename,
+  type MediaMime,
+} from "./chat-media";
 const Ticket = z.object({
   projectId: z.string().cuid(),
   userId: z.string().min(1),
@@ -71,16 +77,55 @@ export function validateMediaBytes(
             : mime === "audio/mpeg"
               ? ascii(0, 3) === "ID3" ||
                 (b[0] === 0xff && (b[1] & 0xe0) === 0xe0)
-              : mime === "audio/mp4"
+              : mime === "audio/mp4" || mime === "video/mp4"
                 ? ascii(4, 8) === "ftyp"
                 : mime === "audio/wav"
                   ? ascii(0, 4) === "RIFF" && ascii(8, 12) === "WAVE"
-                  : mime === "audio/webm"
+                  : mime === "audio/webm" || mime === "video/webm"
                     ? b
                         .subarray(0, 4)
                         .equals(Buffer.from([0x1a, 0x45, 0xdf, 0xa3]))
-                    : false;
-  if (!valid || !b.length || b.length > MAX_MEDIA_BYTES)
+                    : mime === "application/pdf"
+                      ? ascii(0, 5) === "%PDF-"
+                      : [
+                            "application/msword",
+                            "application/vnd.ms-excel",
+                            "application/vnd.ms-powerpoint",
+                          ].includes(mime)
+                        ? b
+                            .subarray(0, 8)
+                            .equals(
+                              Buffer.from([
+                                0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1,
+                              ]),
+                            )
+                        : mime === "application/zip" ||
+                            mime.startsWith(
+                              "application/vnd.openxmlformats-officedocument.",
+                            )
+                          ? b[0] === 0x50 &&
+                            b[1] === 0x4b &&
+                            b[2] === 3 &&
+                            b[3] === 4
+                          : ["text/plain", "text/csv"].includes(mime)
+                            ? !b.includes(0) &&
+                              (() => {
+                                try {
+                                  new TextDecoder("utf-8", {
+                                    fatal: true,
+                                  }).decode(b);
+                                  return true;
+                                } catch {
+                                  return false;
+                                }
+                              })()
+                            : false;
+  if (
+    !Object.hasOwn(MEDIA_TYPES, mime) ||
+    !valid ||
+    !b.length ||
+    b.length > MAX_MEDIA_BYTES
+  )
     throw new Error("MEDIA_INVALID");
 }
 export async function readLimitedBody(
@@ -123,7 +168,14 @@ export async function readStoredMedia(key: string, projectId: string) {
   );
   const mime = result.ContentType?.split(";")[0].trim() || "";
   validateMediaBytes(bytes, mime);
-  return { bytes, mime };
+  return {
+    bytes,
+    mime,
+    filename: safeMediaFilename(
+      decodeURIComponent(result.Metadata?.filename || ""),
+      mime,
+    ),
+  };
 }
 export async function readProviderMedia(message: {
   evolutionId: string;
@@ -168,9 +220,8 @@ export async function readProviderMedia(message: {
   const bytes = Buffer.from(encoded, "base64");
   const mime = payload.mimetype.split(";")[0].trim().toLowerCase();
   validateMediaBytes(bytes, mime);
-  if (!mime.startsWith(message.type === "IMAGE" ? "image/" : "audio/"))
-    throw new Error("MEDIA_INVALID");
-  return { bytes, mime };
+  if (mediaKind(mime) !== message.type) throw new Error("MEDIA_INVALID");
+  return { bytes, mime, filename: safeMediaFilename("", mime) };
 }
 
 // Browser audio players (notably Safari) request byte ranges when seeking.
@@ -178,12 +229,20 @@ export function mediaResponse(
   bytes: Uint8Array,
   mime: string,
   range: string | null,
+  filename?: string,
 ) {
   const headers = {
     "Cache-Control": "private, no-store",
     "X-Content-Type-Options": "nosniff",
     "Content-Type": mime,
-    "Content-Disposition": "inline",
+    "Content-Disposition":
+      mediaKind(mime) === "DOCUMENT"
+        ? "attachment; filename*=UTF-8''" +
+          encodeURIComponent(safeMediaFilename(filename || "", mime)).replace(
+            /['()*]/g,
+            (char) => "%" + char.charCodeAt(0).toString(16),
+          )
+        : "inline",
     "Accept-Ranges": "bytes",
   };
   if (!range)

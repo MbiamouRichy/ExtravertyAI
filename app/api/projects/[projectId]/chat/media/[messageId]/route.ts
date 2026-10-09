@@ -26,7 +26,7 @@ export async function GET(
     where: {
       id: messageId,
       projectId,
-      type: { in: ["IMAGE", "AUDIO"] },
+      type: { in: ["IMAGE", "AUDIO", "VIDEO", "DOCUMENT"] },
       project: { deletionPending: false },
     },
     include: {
@@ -48,7 +48,12 @@ export async function GET(
           })
         : null;
     if (!media) return new Response(null, { status: 404, headers });
-    return mediaResponse(media.bytes, media.mime, request.headers.get("range"));
+    return mediaResponse(
+      media.bytes,
+      media.mime,
+      request.headers.get("range"),
+      media.filename,
+    );
   } catch {
     return Response.json(
       {

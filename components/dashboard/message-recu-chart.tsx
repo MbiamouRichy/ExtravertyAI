@@ -67,7 +67,7 @@ export function MessagesChart({
 	description = "Volume de messages entrants.",
 	data,
 	growthPct,
-	className = "gap-0 md:col-span-2",
+	className = "gap-0 ",
 }: MessagesChartProps) {
 	return (
 		<Card className={className}>

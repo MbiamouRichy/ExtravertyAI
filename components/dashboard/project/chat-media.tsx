@@ -1,5 +1,7 @@
 "use client";
 import { useState } from "react";
+import { AudioPlayer } from "./audio-player";
+import { FileText, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export function ChatMedia({
@@ -61,18 +63,30 @@ export function ChatMedia({
             className="max-h-80 max-w-full rounded-lg object-contain"
           />
         </a>
-      ) : (
-        <audio
-          key={src}
+      ) : type === "VIDEO" ? (
+        <video
           src={src}
           controls
-          preload="none"
-          aria-label="Message audio"
+          preload="metadata"
+          playsInline
+          aria-label="Vidéo de la conversation"
           onError={() => setFailed(true)}
-          className="max-w-full"
+          className="max-h-80 max-w-full rounded-xl"
+        />
+      ) : type === "DOCUMENT" ? (
+        <Button
+          asChild
+          variant="outline"
+          className="h-auto max-w-full justify-start gap-3 whitespace-normal py-3"
         >
-          Votre navigateur ne prend pas en charge la lecture audio.
-        </audio>
+          <a href={url} download>
+            <FileText aria-hidden="true" className="size-5 shrink-0" />
+            <span>Télécharger le document</span>
+            <Download aria-hidden="true" className="size-4 shrink-0" />
+          </a>
+        </Button>
+      ) : (
+        <AudioPlayer key={src} src={src} onError={() => setFailed(true)} />
       )}
       {caption && (
         <p dir="auto" className="whitespace-pre-wrap wrap-anywhere">
