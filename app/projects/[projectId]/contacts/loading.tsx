@@ -1,105 +1,96 @@
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { ProjectLoadingShell } from "@/components/dashboard/project/project-loading-shell";
 
 export default function ContactsLoading() {
   return (
-    <ProjectLoadingShell label="Chargement des contacts…" className="space-y-7">
-      <div className="grid gap-3 sm:grid-cols-3">
-        {Array.from({ length: 3 }, (_, index) => (
-          <Card key={index} className="gap-0 p-5">
-            <div className="mb-4 flex items-center justify-between gap-3">
-              <Skeleton className="h-4 w-32 max-w-full" />
-              <Skeleton className="size-5 shrink-0" />
-            </div>
-            <Skeleton className="h-9 w-20" />
-            <Skeleton className="mt-2 h-3 w-48 max-w-full" />
-          </Card>
-        ))}
-      </div>
-      <Card className="gap-0 py-0">
-        <CardHeader className="space-y-4 border-b p-4 sm:p-5">
-          <Skeleton className="h-9 w-full sm:w-56" />
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex flex-wrap gap-2">
-              {["w-16", "w-28", "w-32"].map((width) => (
-                <Skeleton
-                  key={width}
-                  className={`h-10 rounded-full ${width}`}
-                />
-              ))}
-            </div>
-            <Skeleton className="h-3 w-24" />
+    <main
+      className="mx-auto w-full min-w-0 max-w-7xl px-4 py-7 sm:px-8 lg:py-10"
+      aria-busy="true"
+    >
+      <p role="status" className="sr-only">
+        Chargement des contacts…
+      </p>
+      <div
+        aria-hidden="true"
+        className="space-y-7 motion-reduce:**:data-[slot=skeleton]:animate-none"
+      >
+        <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
+          <div className="min-w-0 flex-1">
+            <Skeleton className="mb-2 h-4 w-56 max-w-full" />
+            <Skeleton className="h-9 w-80 max-w-full" />
+            <Skeleton className="mt-3 h-5 w-full max-w-lg" />
           </div>
-        </CardHeader>
-        <CardContent className="space-y-4 p-4 sm:p-5">
-          <div className="flex items-center justify-between gap-3">
-            <Skeleton className="h-10 w-full sm:max-w-sm" />
-            <Skeleton className="size-10 shrink-0 sm:w-28" />
-          </div>
-          <div className="overflow-hidden rounded-xl border">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-muted/40">
-                  {Array.from({ length: 5 }, (_, index) => (
-                    <TableHead
-                      key={index}
-                      className={
-                        index > 0 && index < 4 ? "hidden md:table-cell" : ""
-                      }
-                    >
-                      <Skeleton className="h-4 w-20" />
-                    </TableHead>
-                  ))}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {Array.from({ length: 5 }, (_, index) => (
-                  <TableRow key={index}>
-                    <TableCell className="py-3">
-                      <div className="flex items-center gap-3">
-                        <Skeleton className="size-8 shrink-0 rounded-full" />
-                        <div className="space-y-2">
-                          <Skeleton className="h-4 w-24 sm:w-32" />
-                          <Skeleton className="h-3 w-20" />
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell className="hidden md:table-cell">
-                      <Skeleton className="h-4 w-32" />
-                    </TableCell>
-                    <TableCell className="hidden md:table-cell">
-                      <Skeleton className="h-9 w-28 rounded-full" />
-                    </TableCell>
-                    <TableCell className="hidden md:table-cell">
-                      <Skeleton className="h-4 w-24" />
-                    </TableCell>
-                    <TableCell>
-                      <Skeleton className="ml-auto h-10 w-20 sm:w-32" />
-                    </TableCell>
-                  </TableRow>
+          <Skeleton className="h-9 w-full shrink-0 sm:w-52" />
+        </div>
+        <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-3">
+          {[0, 1, 2].map((index) => (
+            <div key={index} className="min-w-0 rounded-2xl border bg-card p-5">
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <Skeleton className="h-5 w-36 max-w-full" />
+                <Skeleton className="size-5 shrink-0" />
+              </div>
+              <Skeleton className="h-9 w-12" />
+              <Skeleton className="mt-2 h-4 w-52 max-w-full" />
+            </div>
+          ))}
+        </div>
+        <div className="min-w-0 overflow-hidden rounded-2xl border bg-card">
+          <div className="space-y-4 border-b p-4 sm:p-5">
+            <Skeleton className="h-9 w-full sm:w-56" />
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex max-w-full flex-wrap gap-2">
+                {["w-16", "w-28", "w-32"].map((width) => (
+                  <Skeleton
+                    key={width}
+                    className={`h-10 rounded-full ${width}`}
+                  />
                 ))}
-              </TableBody>
-            </Table>
-          </div>
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <Skeleton className="h-4 w-32" />
-            <div className="flex gap-2">
-              <Skeleton className="h-9 w-24" />
-              <Skeleton className="size-9" />
-              <Skeleton className="size-9" />
+              </div>
+              <Skeleton className="h-4 w-24" />
             </div>
           </div>
-        </CardContent>
-      </Card>
-    </ProjectLoadingShell>
+          <div className="space-y-4 p-4 sm:p-5">
+            <div className="flex items-center justify-between gap-3">
+              <Skeleton className="h-9 w-full max-w-sm" />
+              <Skeleton className="size-9 shrink-0 sm:w-28" />
+            </div>
+            <div className="overflow-hidden rounded-xl border">
+              <div className="hidden grid-cols-5 gap-6 border-b bg-muted/30 px-4 py-3 md:grid">
+                {[0, 1, 2, 3, 4].map((index) => (
+                  <Skeleton key={index} className="h-4 w-20 max-w-full" />
+                ))}
+              </div>
+              <div className="divide-y">
+                {[0, 1, 2, 3, 4].map((index) => (
+                  <div
+                    key={index}
+                    className="flex min-w-0 items-center gap-3 px-4 py-4 md:grid md:grid-cols-5 md:gap-6"
+                  >
+                    <div className="flex min-w-0 flex-1 items-center gap-3">
+                      <Skeleton className="size-8 shrink-0 rounded-full" />
+                      <div className="min-w-0 flex-1 space-y-2">
+                        <Skeleton className="h-4 w-28 max-w-full" />
+                        <Skeleton className="h-3 w-20 max-w-full" />
+                      </div>
+                    </div>
+                    <Skeleton className="hidden h-4 w-full max-w-28 md:block" />
+                    <Skeleton className="hidden h-8 w-24 max-w-full rounded-full md:block" />
+                    <Skeleton className="hidden h-4 w-20 max-w-full md:block" />
+                    <Skeleton className="ml-auto h-9 w-20 shrink-0 md:w-full md:max-w-28" />
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <Skeleton className="h-4 w-28" />
+              <div className="flex gap-2">
+                <Skeleton className="h-9 w-24" />
+                <Skeleton className="size-9" />
+                <Skeleton className="size-9" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
   );
 }
