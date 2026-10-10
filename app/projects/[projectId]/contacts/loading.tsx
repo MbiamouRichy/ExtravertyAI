@@ -63,7 +63,7 @@ export default function ContactsLoading() {
                 {[0, 1, 2, 3, 4].map((index) => (
                   <div
                     key={index}
-                    className="flex min-w-0 items-center gap-3 px-4 py-4 md:grid md:grid-cols-5 md:gap-6"
+                    className="flex min-w-0 flex-col items-stretch gap-3 px-4 py-4 md:grid md:items-center md:grid-cols-5 md:gap-6"
                   >
                     <div className="flex min-w-0 flex-1 items-center gap-3">
                       <Skeleton className="size-8 shrink-0 rounded-full" />
@@ -75,7 +75,7 @@ export default function ContactsLoading() {
                     <Skeleton className="hidden h-4 w-full max-w-28 md:block" />
                     <Skeleton className="hidden h-8 w-24 max-w-full rounded-full md:block" />
                     <Skeleton className="hidden h-4 w-20 max-w-full md:block" />
-                    <Skeleton className="ml-auto h-9 w-20 shrink-0 md:w-full md:max-w-28" />
+                    <Skeleton className="h-9 w-full shrink-0 md:ml-auto md:max-w-28" />
                   </div>
                 ))}
               </div>

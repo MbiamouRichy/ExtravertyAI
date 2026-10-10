@@ -26,15 +26,15 @@ export function ContactsTableColumns(options: {
       header: "Identité",
       enableHiding: false,
       cell: ({ row: { original: contact } }) => (
-        <div className="flex items-center gap-3">
+        <div className="flex min-w-0 items-center gap-3">
           <Avatar className="size-8">
             <AvatarFallback>{getInitials(contact.displayName)}</AvatarFallback>
           </Avatar>
-          <div className="min-w-0">
-            <p className="max-w-48 truncate font-medium">
+          <div className="min-w-0 flex-1">
+            <p className="whitespace-normal wrap-anywhere font-medium md:max-w-48 md:truncate">
               {contact.displayName}
             </p>
-            <p className="text-xs text-muted-foreground md:hidden">
+            <p className="wrap-anywhere text-xs text-muted-foreground md:hidden">
               {contact.phone}
             </p>
             {!contact.name && contact.displayName !== contact.phone && (

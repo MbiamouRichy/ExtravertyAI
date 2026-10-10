@@ -78,19 +78,25 @@ export function ContactsTable(p: Props) {
     renderStatus: p.renderStatus,
     renderActions: (contact) => (
       <div className="flex items-center justify-end gap-1">
-        <Button asChild variant="ghost" size="icon" className="size-10">
+        <Button
+          asChild
+          variant="ghost"
+          size="icon"
+          className="h-10 w-auto min-w-0 flex-1 gap-2 px-3 md:size-10 md:flex-none md:p-0"
+        >
           <Link
             href={`/projects/${p.projectId}/chat?contactId=${encodeURIComponent(contact.id)}`}
             aria-label={`Chatter avec ${contact.displayName}`}
             title="Chatter"
           >
-            <MessageSquare className="size-4" />
+            <MessageSquare className="size-4 shrink-0" />
+            <span className="md:hidden">Discuter</span>
           </Link>
         </Button>
         <Button
           variant="ghost"
           size="icon"
-          className="size-10"
+          className="size-10 shrink-0"
           disabled={p.busy || p.pending}
           onClick={() => p.onRename(contact)}
           aria-label={`Modifier le nom de ${contact.displayName}`}
@@ -101,7 +107,7 @@ export function ContactsTable(p: Props) {
         <Button
           variant="ghost"
           size="icon"
-          className="size-10 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+          className="size-10 shrink-0 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
           disabled={p.busy || p.pending}
           onClick={() => p.onDelete(contact)}
           aria-label={`Supprimer ${contact.displayName}`}
@@ -135,9 +141,9 @@ export function ContactsTable(p: Props) {
     createdAt: "Date d’ajout",
   };
   return (
-    <div className="space-y-4">
+    <div className="min-w-0 space-y-4">
       <div className="flex items-center justify-between gap-3">
-        <div className="relative w-full sm:max-w-sm">
+        <div className="relative min-w-0 flex-1 sm:max-w-sm">
           <Search
             aria-hidden="true"
             className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
@@ -164,7 +170,7 @@ export function ContactsTable(p: Props) {
         </div>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="outline" className="h-10">
+            <Button variant="outline" className="h-10 shrink-0">
               <Settings2 className="size-4" />
               <span className="hidden sm:inline">Colonnes</span>
               <span className="sr-only sm:hidden">Choisir les colonnes</span>
@@ -187,7 +193,71 @@ export function ContactsTable(p: Props) {
         </DropdownMenu>
       </div>
       <div
-        className={`overflow-hidden rounded-xl border bg-card ${p.pending ? "opacity-60" : ""}`}
+        className={
+          "overflow-hidden rounded-xl border bg-card md:hidden " +
+          (p.pending ? "opacity-60" : "")
+        }
+        aria-busy={p.pending}
+      >
+        {table.getRowModel().rows.length ? (
+          <ul aria-label="Contacts" className="divide-y">
+            {table.getRowModel().rows.map((row) => {
+              const cells = row.getVisibleCells();
+              const identity = cells.find((cell) => cell.column.id === "name");
+              const actions = cells.find(
+                (cell) => cell.column.id === "actions",
+              );
+              const details = cells.filter(
+                (cell) => !["name", "actions"].includes(cell.column.id),
+              );
+              return (
+                <li key={row.id} className="min-w-0 space-y-3 p-3">
+                  {identity &&
+                    flexRender(
+                      identity.column.columnDef.cell,
+                      identity.getContext(),
+                    )}
+                  {!!details.length && (
+                    <dl className="space-y-2">
+                      {details.map((cell) => (
+                        <div
+                          key={cell.id}
+                          className="flex min-w-0 flex-wrap items-center justify-between gap-2 text-xs"
+                        >
+                          <dt className="text-muted-foreground">
+                            {labels[cell.column.id]}
+                          </dt>
+                          <dd className="min-w-0 max-w-full whitespace-normal wrap-anywhere">
+                            {flexRender(
+                              cell.column.columnDef.cell,
+                              cell.getContext(),
+                            )}
+                          </dd>
+                        </div>
+                      ))}
+                    </dl>
+                  )}
+                  <div className="border-t border-border/60 pt-2">
+                    {actions &&
+                      flexRender(
+                        actions.column.columnDef.cell,
+                        actions.getContext(),
+                      )}
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        ) : (
+          <p className="px-4 py-8 text-center text-sm text-muted-foreground">
+            {p.pending
+              ? "Recherche en cours…"
+              : "Aucun contact trouvé. Les nouveaux contacts WhatsApp apparaîtront ici."}
+          </p>
+        )}
+      </div>
+      <div
+        className={`hidden overflow-hidden rounded-xl border bg-card md:block ${p.pending ? "opacity-60" : ""}`}
       >
         <Table>
           <TableHeader>
@@ -240,12 +310,12 @@ export function ContactsTable(p: Props) {
           </TableBody>
         </Table>
       </div>
-      <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground">
+      <div className="flex flex-col gap-3 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
         <span>
           {p.total.toLocaleString("fr-FR")} contact{p.total !== 1 ? "s" : ""}
         </span>
-        <div className="flex items-center gap-2">
-          <span>
+        <div className="flex w-full items-center gap-2 sm:w-auto">
+          <span className="mr-auto sm:mr-0">
             Page {p.page} sur {p.pageCount}
           </span>
           <Button
