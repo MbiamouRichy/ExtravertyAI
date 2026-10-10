@@ -9,7 +9,6 @@ export type OutboundState =
 export type ChatClient = {
   id: string;
   name: string;
-  phone: string;
   lastMessage: string;
   lastActivityAt: string;
   aiActive: boolean;

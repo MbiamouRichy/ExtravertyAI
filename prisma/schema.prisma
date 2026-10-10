@@ -232,6 +232,7 @@ model Contact {
   // --- Relations ---
   projectId   String
   project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  summaryCache ConversationSummaryCache?
   readStates  ConversationReadState[]
   messages    Message[]
   aiJobs      AiJob[]
@@ -523,4 +524,16 @@ model BillingEmail {
   createdAt DateTime @default(now())
   @@index([state, availableAt])
   @@map("billing_email")
+}
+
+model ConversationSummaryCache {
+  contactId String @id
+  contact Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  fingerprint String?
+  summary Json?
+  partial Boolean @default(false)
+  generatedAt DateTime? @db.Timestamptz(3)
+  leaseToken String?
+  leaseUntil DateTime? @db.Timestamptz(3)
+  @@map("conversation_summary")
 }

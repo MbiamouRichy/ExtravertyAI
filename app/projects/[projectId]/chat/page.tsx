@@ -1,3 +1,4 @@
+import { chatContactName } from "@/lib/chat-privacy";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { MessageCircle, WifiOff } from "lucide-react";
@@ -138,7 +139,6 @@ export default async function ChatPage({ params, searchParams }: PageProps) {
           id: true,
           name: true,
           pushName: true,
-          phone: true,
           aiActive: true,
           lastMessageAt: true,
           createdAt: true,
@@ -153,8 +153,7 @@ export default async function ChatPage({ params, searchParams }: PageProps) {
   const initialClient = contact
     ? {
         id: contact.id,
-        name: contact.name || contact.pushName || contact.phone,
-        phone: contact.phone,
+        name: chatContactName(contact),
         aiActive: contact.aiActive,
         lastActivityAt: (
           contact.lastMessageAt || contact.createdAt
@@ -180,9 +179,7 @@ export default async function ChatPage({ params, searchParams }: PageProps) {
           image: session.user.image,
         }}
         isSuccess={query.success === "true"}
-        canManageAi={
-          project.userRole === "OWNER" || project.userRole === "ADMIN"
-        }
+        canManageAi={true}
       />
     </>
   );

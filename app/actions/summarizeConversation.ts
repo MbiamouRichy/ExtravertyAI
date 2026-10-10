@@ -1,5 +1,9 @@
 "use server";
 
+import {
+  cachedConversationSummary,
+  summaryFingerprint,
+} from "@/lib/conversation-summary-cache";
 import { z } from "zod";
 import { getSession } from "@/lib/auth-server";
 import prisma from "@/lib/prisma";
@@ -13,8 +17,6 @@ const InputSchema = z.object({
   projectId: z.string().cuid(),
   contactId: z.string().cuid(),
 });
-// Best-effort per-instance protection against repeated clicks; never used for authorization.
-const requests = new Map<string, number>();
 
 export async function summarizeConversation(input: unknown) {
   const parsed = InputSchema.safeParse(input);
@@ -49,15 +51,6 @@ export async function summarizeConversation(input: unknown) {
         success: false as const,
         error: "Un message du client est nécessaire pour générer un résumé.",
       };
-    const now = Date.now();
-    for (const [key, expiresAt] of requests)
-      if (expiresAt <= now) requests.delete(key);
-    if (requests.has(session.user.id))
-      return {
-        success: false as const,
-        error: "Patientez quelques instants avant de générer un autre résumé.",
-      };
-    requests.set(session.user.id, now + 30_000);
     const messages = await prisma.message.findMany({
       where: {
         projectId,
@@ -69,10 +62,21 @@ export async function summarizeConversation(input: unknown) {
       },
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       take: 201,
-      select: { senderType: true, content: true, type: true },
+      select: {
+        id: true,
+        senderType: true,
+        content: true,
+        type: true,
+      },
     });
     const { history, partial } = prepareSummaryHistory(messages.slice(0, 200));
-    const summary = await generateConversationSummary(history);
+    const result = await cachedConversationSummary(
+      prisma,
+      contactId,
+      summaryFingerprint(messages),
+      partial || messages.length > 200,
+      () => generateConversationSummary(history),
+    );
     // Membership may have been revoked while the provider was responding.
     const stillMember = await prisma.projectMembership.findUnique({
       where: { userId_projectId: { userId: session.user.id, projectId } },
@@ -85,9 +89,7 @@ export async function summarizeConversation(input: unknown) {
       return { success: false as const, error: currentAccess.message };
     return {
       success: true as const,
-      summary,
-      partial: partial || messages.length > 200,
-      generatedAt: new Date().toISOString(),
+      ...result,
     };
   } catch (error) {
     // Do not log provider bodies, conversation contents or credentials.
@@ -99,9 +101,11 @@ export async function summarizeConversation(input: unknown) {
     return {
       success: false as const,
       error:
-        code === "SUMMARY_CONFIG_MISSING"
-          ? "Le résumé IA n’est pas configuré sur le serveur du site. Demandez à un administrateur de vérifier la configuration IA."
-          : "Le résumé est indisponible pour le moment. Réessayez dans quelques instants.",
+        code === "SUMMARY_BUSY"
+          ? "Un résumé est déjà en cours de génération. Réessayez dans quelques instants."
+          : code === "SUMMARY_CONFIG_MISSING"
+            ? "Le résumé IA n’est pas configuré sur le serveur du site. Demandez à un administrateur de vérifier la configuration IA."
+            : "Le résumé est indisponible pour le moment. Réessayez dans quelques instants.",
     };
   }
 }

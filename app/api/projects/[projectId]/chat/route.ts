@@ -1,3 +1,4 @@
+import { chatContactName } from "@/lib/chat-privacy";
 import { chatMediaFields } from "@/lib/chat-media";
 import { currentProspectClassification } from "@/lib/instinct-classification";
 import { NextResponse } from "next/server";
@@ -130,7 +131,6 @@ export async function GET(
                       {
                         pushName: { contains: q, mode: "insensitive" as const },
                       },
-                      { phone: { contains: q } },
                     ],
                   },
                 ]
@@ -160,7 +160,6 @@ export async function GET(
           id: true,
           name: true,
           pushName: true,
-          phone: true,
           aiActive: true,
           instinctClassification: true,
           instinctSourceId: true,
@@ -223,12 +222,7 @@ export async function GET(
 
           return {
             id: contact.id,
-            name:
-              contact.name?.trim() ||
-              contact.pushName?.trim() ||
-              contact.phone ||
-              "Contact",
-            phone: contact.phone,
+            name: chatContactName(contact),
             aiActive: contact.aiActive,
             prospectClassification,
             interestingProspect: prospectClassification === "interesting",

@@ -1,4 +1,5 @@
 "use server";
+import { chatContactName } from "@/lib/chat-privacy";
 import { chatMediaFields } from "@/lib/chat-media";
 
 import prisma from "@/lib/prisma";
@@ -65,7 +66,6 @@ export async function getWorkspaceData(
         id: true,
         name: true,
         pushName: true,
-        phone: true,
         aiActive: true,
         createdAt: true,
         messages: {
@@ -101,12 +101,7 @@ export async function getWorkspaceData(
 
       clients.push({
         id: contact.id,
-        name:
-          contact.name?.trim() ||
-          contact.pushName?.trim() ||
-          contact.phone ||
-          "Contact",
-        phone: contact.phone,
+        name: chatContactName(contact),
         aiActive: contact.aiActive,
         lastActivityAt: (
           lastMessage?.createdAt ?? contact.createdAt

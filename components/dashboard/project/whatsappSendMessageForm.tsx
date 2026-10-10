@@ -579,7 +579,6 @@ export default function WhatsappWorkspace({
   }, [activeId, clients]);
   const visibleClients = useMemo(() => {
     const textQuery = normalizeSearch(search);
-    const phoneQuery = search.replace(/\D/g, "");
 
     return clients
       .map((client) => {
@@ -617,10 +616,7 @@ export default function WhatsappWorkspace({
 
         const matchesSearch =
           !textQuery ||
-          normalizeSearch(client.name).includes(textQuery) ||
-          normalizeSearch(client.phone).includes(textQuery) ||
-          (phoneQuery.length > 0 &&
-            client.phone.replace(/\D/g, "").includes(phoneQuery));
+          normalizeSearch(client.name).includes(textQuery);
 
         return matchesFilter && matchesSearch;
       })
@@ -977,7 +973,7 @@ export default function WhatsappWorkspace({
 
             <div className="relative">
               <label htmlFor="chat-search" className="sr-only">
-                Rechercher par nom ou téléphone
+                Rechercher par nom
               </label>
 
               <Search
@@ -990,7 +986,7 @@ export default function WhatsappWorkspace({
                 id="chat-search"
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
-                placeholder="Nom ou téléphone…"
+                placeholder="Rechercher un contact…"
                 className="h-10 rounded-xl bg-muted/30 pl-9 pr-10 shadow-none"
                 autoComplete="off"
               />
@@ -1269,11 +1265,11 @@ export default function WhatsappWorkspace({
                     type="button"
                     variant="ghost"
                     size="icon"
-                    className="size-11 shrink-0 md:hidden"
+                    className="shrink-0 md:hidden"
                     onClick={goBack}
                     aria-label="Revenir aux conversations"
                   >
-                    <ArrowLeft aria-hidden="true" className="size-5" />
+                    <ArrowLeft aria-hidden="true" />
                   </Button>
 
                   <Avatar className="hidden size-10 shrink-0 border sm:flex">
@@ -1293,10 +1289,6 @@ export default function WhatsappWorkspace({
                         loading={historyQuery.isLoading}
                       />
                     </div>
-
-                    <p className="mt-1 truncate text-xs tabular-nums text-muted-foreground">
-                      {activeClient.phone}
-                    </p>
                   </div>
                 </div>
 

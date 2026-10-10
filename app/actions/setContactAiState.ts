@@ -1,5 +1,6 @@
 "use server";
 
+import { writeContactAiState } from "@/lib/contact-ai-state";
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import prisma from "@/lib/prisma";
@@ -34,41 +35,16 @@ export async function setContactAiState(
   const { projectId, contactId, enabled, expectedVersion } = parsed.data;
 
   try {
-    const membership = await prisma.projectMembership.findUnique({
-      where: {
-        userId_projectId: {
-          userId: session.user.id,
-          projectId,
-        },
-      },
-      select: { role: true },
-    });
+    const count = await writeContactAiState(
+      prisma,
+      projectId,
+      contactId,
+      session.user.id,
+      enabled,
+      expectedVersion,
+    );
 
-    if (
-      !membership ||
-      (membership.role !== "OWNER" && membership.role !== "ADMIN")
-    ) {
-      return {
-        success: false,
-        error: "Vous ne pouvez pas modifier ce réglage.",
-      };
-    }
-
-    const result = await prisma.contact.updateMany({
-      where: {
-        id: contactId,
-        projectId,
-        ...(expectedVersion !== undefined
-          ? { aiVersion: expectedVersion }
-          : {}),
-      },
-      data: {
-        aiActive: enabled,
-        aiVersion: { increment: 1 },
-      },
-    });
-
-    if (result.count !== 1) {
+    if (count !== 1) {
       return {
         success: false,
         error: "Le contact a changé ou est indisponible. Actualisez la page.",
