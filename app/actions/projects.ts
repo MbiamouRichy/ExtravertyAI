@@ -7,6 +7,7 @@ import z from "zod";
 import { setProjectPaused } from "./project-settings";
 import { deleteProjectResources } from "@/lib/project-deletion";
 import { billingAccess } from "@/lib/billing-access";
+import { isRecentSession } from "@/lib/recent-session";
 
 // 1. RÉCUPERER TOUS LES PROJETS
 export async function getProjects() {
@@ -202,9 +203,13 @@ export async function disableProject(
 export async function deleteProjectAction(
   formData: z.infer<typeof ProjectActionSchema> & { confirmationName: string },
 ) {
-  const session = await getSession();
+  const session = await getSession({ fresh: true });
   if (!session?.user?.id) {
-    return { success: false, error: "Utilisateur non authentifié" };
+    return {
+      success: false,
+      code: "REAUTH_REQUIRED",
+      error: "Reconnectez-vous pour supprimer ce projet.",
+    };
   }
 
   try {
@@ -237,6 +242,15 @@ export async function deleteProjectAction(
     const project = membership.project;
     if (parsed.data.confirmationName !== project.name)
       throw new Error("Le nom de confirmation ne correspond pas au projet.");
+
+    if (!isRecentSession(session.session.createdAt)) {
+      return {
+        success: false,
+        code: "REAUTH_REQUIRED",
+        error:
+          "Votre connexion doit dater de moins de 10 minutes. Reconnectez-vous, puis confirmez à nouveau la suppression.",
+      };
+    }
 
     await deleteProjectResources(projectId, session.user.id);
 

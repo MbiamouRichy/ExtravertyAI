@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -21,25 +21,13 @@ import { Button } from "@/components/ui/button";
 import { WhatsAppPreferences } from "./whatsapp-preferences";
 import { AgentEditor } from "./agent-editor";
 import { ProjectNameForm } from "./project-name-form";
-import { Input } from "@/components/ui/input";
 import type { ProjectSettingsView } from "@/lib/settings-types";
 import {
   setProjectPaused,
   openProjectBillingPortal,
 } from "@/app/actions/project-settings";
-import { deleteProjectAction } from "@/app/actions/projects";
-import {
-  AlertDialog,
-  AlertDialogContent,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogCancel,
-} from "@/components/ui/alert-dialog";
+import { DeleteProjectDialog } from "./delete-project-dialog";
 
-const field =
-  "w-full rounded-xl border bg-background px-4 py-3 text-sm outline-none focus:border-border focus:ring-2 focus:ring-ring/20";
 const tabs = [
   { id: "agent", label: "Agent IA", icon: Bot },
   { id: "general", label: "Projet & utilisation", icon: Settings2 },
@@ -52,6 +40,7 @@ export default function ProjectSettingsPage({
   project: ProjectSettingsView;
 }) {
   const router = useRouter();
+  const deleteButton = useRef<HTMLButtonElement>(null);
   const [tab, setTab] = useState<string>("agent");
   const [agentSaving, setAgentSaving] = useState(false);
   const [nameSaving, setNameSaving] = useState(false);
@@ -60,7 +49,6 @@ export default function ProjectSettingsPage({
   const [pending, setPending] = useState("");
   const [error, setError] = useState("");
   const [deleting, setDeleting] = useState(false);
-  const [confirmationName, setConfirmationName] = useState("");
   const owner = p.role === "OWNER";
   const canPause = owner || p.role === "ADMIN";
   useEffect(() => {
@@ -496,6 +484,7 @@ export default function ProjectSettingsPage({
                     </p>
                   </div>
                   <Button
+                    ref={deleteButton}
                     onClick={() => setDeleting(true)}
                     type="button"
                     variant="destructive"
@@ -512,65 +501,15 @@ export default function ProjectSettingsPage({
           )}
         </div>
       </div>
-      <AlertDialog
-        open={deleting}
-        onOpenChange={(value) => {
-          if (!pending) setDeleting(value);
-        }}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Supprimer {p.name} ?</AlertDialogTitle>
-            <AlertDialogDescription>
-              L’abonnement et l’instance WhatsApp seront supprimés avant les
-              données. Recopiez le nom du projet pour confirmer cette action
-              définitive.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <label htmlFor="delete-project-name" className="text-sm font-medium">
-            Nom du projet : {p.name}
-          </label>
-          <Input
-            id="delete-project-name"
-            value={confirmationName}
-            onChange={(e) => setConfirmationName(e.target.value)}
-            autoComplete="off"
-            className={field}
-          />
-          {error && (
-            <p role="alert" className="text-sm text-destructive">
-              {error}
-            </p>
-          )}
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={!!pending}>Annuler</AlertDialogCancel>
-            <Button
-              disabled={!!pending || confirmationName !== p.name}
-              onClick={() =>
-                void run(
-                  "delete",
-                  async () => {
-                    const result = await deleteProjectAction({
-                      projectId: p.id,
-                      confirmationName,
-                    });
-                    if (result.success) router.push("/projects");
-                    return result;
-                  },
-                  "Projet supprimé.",
-                )
-              }
-              type="button"
-              variant="destructive"
-            >
-              {pending === "delete" && (
-                <Loader2 className="size-4 animate-spin" />
-              )}{" "}
-              Supprimer définitivement
-            </Button>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {deleting && (
+        <DeleteProjectDialog
+          project={p}
+          onClose={() => {
+            setDeleting(false);
+            requestAnimationFrame(() => deleteButton.current?.focus());
+          }}
+        />
+      )}
     </main>
   );
 }

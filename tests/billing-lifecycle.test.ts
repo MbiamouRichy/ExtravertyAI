@@ -283,6 +283,8 @@ test(
             assert.equal(email.recipient, owner.email);
             assert.equal(email.kind, "access_ended");
             assert.match(email.text, /UTC/);
+            assert.match(email.html ?? "", /Essai &lt;test&gt;/);
+            assert.match(email.html ?? "", /Consulter la facturation/);
             assert.match(email.text, /https:\/\/app.example.test\/projects\//);
             return "sent_expiry";
           });
@@ -385,6 +387,7 @@ test(
               email.recipient,
               email.subject,
               email.text,
+              email.html,
               email.from,
             ]);
             throw Error("Provider response lost");
@@ -400,6 +403,7 @@ test(
                 email.recipient,
                 email.subject,
                 email.text,
+                email.html,
                 email.from,
               ]),
               previous,

@@ -1,64 +1,134 @@
 "use client";
-// components/PhoneMockup.tsx
-import React, { useState } from "react";
-import { Skeleton } from "../ui/skeleton";
-import { LoaderIcon } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Loader2, Pause, Play, VideoOff } from "lucide-react";
+import { Button } from "../ui/button";
 
-type PhoneMockupProps = {
-  videoSrc: string;
-};
+// Front silhouette follows Apple's 78 × 163.4 mm enclosure dimensions.
+export default function PhoneMockup({ videoSrc }: { videoSrc: string }) {
+  const video = useRef<HTMLVideoElement>(null);
+  const [loading, setLoading] = useState(true);
+  const [failed, setFailed] = useState(false);
+  const [playing, setPlaying] = useState(false);
 
-export default function PhoneMockup({
-  videoSrc,
-}: PhoneMockupProps) {
-  const [isLoading, setIsLoading] = useState(true);
+  useEffect(() => {
+    const media = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const respectMotion = () => {
+      if (media.matches) video.current?.pause();
+      else void video.current?.play().catch(() => {});
+    };
+    respectMotion();
+    media.addEventListener("change", respectMotion);
+    return () => media.removeEventListener("change", respectMotion);
+  }, [videoSrc]);
 
   return (
-    <div
-      className={`relative w-full md:w-auto flex  items-center md:ml-auto justify-center md:justify-end`}
-    >
-      {/* Téléphone */}
-      <div className="relative w-full aspect-9/19.5 sm:w-80 rounded-[2.5rem] border-2 border-zinc-800 bg-zinc-950 shadow-md">
-        {/* Boutons latéraux */}
-        <div className="absolute -left-1.5 top-2/10 h-7 w-1 rounded-l-full bg-zinc-700" />
-        <div className="absolute -left-1.5 top-3/10 h-10 w-1 rounded-l-full bg-zinc-700" />
-        <div className="absolute -left-1.5 top-4/10 h-10 w-1 rounded-l-full bg-zinc-700" />
-        <div className="absolute -right-1.5 top-3/9 h-14 w-1 rounded-r-full bg-zinc-700" />
-
-        {/* Écran */}
-        <div className="absolute  inset-2.5 overflow-hidden rounded-[2rem] bg-black">
-
+    <figure className="flex w-full max-w-80 shrink-0 flex-col items-center gap-4 md:ml-auto md:w-72 lg:w-80">
+      <div
+        className="relative w-full max-w-80 rounded-4xl border border-border bg-gradient-to-br from-muted via-background to-muted-foreground p-1 shadow-2xl"
+        style={{ aspectRatio: "78 / 163.4" }}
+      >
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -left-1 top-24 h-5 w-1 rounded-l-sm bg-muted-foreground"
+        />
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -left-1 top-36 h-10 w-1 rounded-l-sm bg-muted-foreground"
+        />
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -left-1 top-48 h-10 w-1 rounded-l-sm bg-muted-foreground"
+        />
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -right-1 top-40 h-16 w-1 rounded-r-sm bg-muted-foreground"
+        />
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -right-1 bottom-40 h-10 w-1 rounded-r-sm bg-muted-foreground"
+        />
+        <div className="relative h-full overflow-hidden rounded-4xl border-4 border-foreground bg-background">
           <video
-            className="h-full w-full aspect-9/16 object-cover"
-
-            autoPlay
+            ref={video}
+            className="h-full w-full object-contain"
             muted
             loop
             playsInline
-            onCanPlay={() =>
-              setIsLoading(false)
-            }
+            preload="metadata"
+            aria-label="Démonstration d’ExtravertyAI sur un iPhone 17 Pro Max"
+            onLoadedMetadata={() => setLoading(false)}
+            onCanPlay={() => setLoading(false)}
+            onPlay={() => setPlaying(true)}
+            onPause={() => setPlaying(false)}
+            onError={() => {
+              setFailed(true);
+              setLoading(false);
+              setPlaying(false);
+            }}
+            src={videoSrc}
           >
-            <source src={videoSrc} type="video/mp4" />
-            Votre navigateur ne supporte pas la lecture de vidéos.
+            Votre navigateur ne prend pas en charge cette vidéo.
           </video>
-
-          {/* skeleton */}
-          {isLoading && (
-            <div className="absolute inset-0 z-20 flex items-center justify-center">
-              <Skeleton className="absolute inset-0 h-full w-full" />
-              <LoaderIcon className="h-6 w-6 animate-spin" />
+          {loading && (
+            <div
+              role="status"
+              className="absolute inset-0 flex items-center justify-center bg-muted"
+            >
+              <Loader2
+                aria-hidden
+                className="size-6 animate-spin motion-reduce:animate-none"
+              />
+              <span className="sr-only">Chargement de la démonstration…</span>
             </div>
           )}
-
-          {/* Optionnel : léger overlay pour un look plus clean */}
-          <div className="pointer-events-none absolute inset-0 bg-muted/10" />
+          {failed && (
+            <div
+              role="status"
+              className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-muted p-6 text-center text-sm text-muted-foreground"
+            >
+              <VideoOff aria-hidden className="size-6" />
+              La démonstration est momentanément indisponible.
+            </div>
+          )}
+          <div
+            aria-hidden
+            className="pointer-events-none absolute left-1/2 top-3 flex h-7 w-24 -translate-x-1/2 items-center justify-end rounded-full bg-foreground px-2"
+          >
+            <span className="size-2 rounded-full bg-muted-foreground/40 ring-2 ring-background/10" />
+          </div>
+          <div
+            aria-hidden
+            className="pointer-events-none absolute bottom-2 left-1/2 h-1 w-24 -translate-x-1/2 rounded-full bg-foreground/70"
+          />
         </div>
-
-        {/* Barre home */}
-        <div className="absolute bottom-5 left-1/2 h-2 w-20 -translate-x-1/2 rounded-full bg-zinc-600" />
       </div>
-    </div >
+      <figcaption className="flex flex-col items-center gap-2">
+        <span className="text-xs text-muted-foreground">
+          Démonstration · iPhone 17 Pro Max
+        </span>
+        {!failed && (
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            onClick={() => {
+              if (playing) video.current?.pause();
+              else
+                void video.current?.play().catch(() => {
+                  setFailed(true);
+                  setLoading(false);
+                });
+            }}
+          >
+            {playing ? (
+              <Pause aria-hidden className="size-4" />
+            ) : (
+              <Play aria-hidden className="size-4" />
+            )}
+            {playing ? "Mettre en pause" : "Lire la démonstration"}
+          </Button>
+        )}
+      </figcaption>
+    </figure>
   );
 }
-

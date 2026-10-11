@@ -513,6 +513,7 @@ model BillingEmail {
   from String
   subject String
   text String @db.Text
+  html String? @db.Text
   state BillingEmailState @default(PENDING)
   attempts Int @default(0)
   availableAt DateTime @default(now())

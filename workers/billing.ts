@@ -64,6 +64,7 @@ async function main() {
               to: email.recipient,
               subject: email.subject,
               text: email.text,
+              ...(email.html ? { html: email.html } : {}),
             }),
             signal: AbortSignal.any([
               controller.signal,

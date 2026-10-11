@@ -6,6 +6,7 @@ import type {
 } from "../src/generated/prisma/client";
 import { getBillingAccess, formatBillingDate } from "./billing-access";
 import { syncSubscription } from "./billing-quota";
+import { BillingEmailTemplate } from "../components/emailTemplate/billingEmailTemplate";
 
 export type BillingEmailConfig = { from: string; origin: string };
 export type BillingSender = (email: BillingEmail) => Promise<string>;
@@ -97,6 +98,20 @@ export async function queueBillingEmails(
       `Consulter la facturation : ${config.origin}/projects/${encodeURIComponent(project.id)}/billing`,
       "L’équipe ExtravertyAI",
     ].join("\n\n");
+    const html = BillingEmailTemplate({
+      title,
+      projectName: name,
+      deadline: formatBillingDate(period.endsAt),
+      message: reminder
+        ? "Votre essai arrive bientôt à son terme."
+        : access.message,
+      reminder,
+      billingUrl:
+        config.origin +
+        "/projects/" +
+        encodeURIComponent(project.id) +
+        "/billing",
+    });
     for (const owner of project.members) {
       const recipientHash = createHash("sha256")
         .update(owner.user.email)
@@ -117,6 +132,7 @@ export async function queueBillingEmails(
           from: config.from,
           subject: `${title} — ${name}`,
           text,
+          html,
         },
       });
     }
