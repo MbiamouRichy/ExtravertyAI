@@ -1,7 +1,7 @@
 "use client";
 import { cn } from "@/lib/utils";
 import type { ComponentProps } from "react";
-import { Pie, PieChart } from "recharts";
+import { LabelList, Pie, PieChart } from "recharts";
 import { PieChart as PieChartIcon } from "lucide-react";
 import {
   Card,
@@ -71,7 +71,7 @@ export function SourceMessageChart({
           <div className="space-y-4">
             <ChartContainer
               config={config}
-              className="mx-auto h-52 w-full max-w-64 aspect-auto"
+              className="mx-auto aspect-square w-full max-w-64"
             >
               <PieChart accessibilityLayer>
                 <ChartTooltip content={<ChartTooltipContent hideLabel />} />
@@ -79,14 +79,17 @@ export function SourceMessageChart({
                   data={rows}
                   dataKey="count"
                   nameKey="key"
-                  innerRadius={52}
-                  outerRadius={84}
+                  innerRadius={44}
+                  outerRadius={104}
                   paddingAngle={3}
-                  cornerRadius={6}
+                  cornerRadius={8}
                   stroke="var(--card)"
                   strokeWidth={2}
                   isAnimationActive={false}
-                />
+                >
+                  <LabelList dataKey="count" position="inside" stroke="rgba(0,0,0,0.35)" strokeWidth={2} paintOrder="stroke" fill="white" fontSize={12} fontWeight={700}
+                    formatter={(value) => Number(value) / totalMessages >= 0.08 ? Math.round(Number(value) / totalMessages * 100) + "%" : ""} />
+                </Pie>
               </PieChart>
             </ChartContainer>
             <ul aria-label="Répartition des sources" className="divide-y">

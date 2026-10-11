@@ -86,7 +86,7 @@ import {
 } from "@/app/actions/team";
 import { Role } from "@/src/generated/prisma/client";
 import { ChangeRoleModal } from "./changeRoleModal";
-import { StatusIndicator } from "@/components/ui/indicator";
+import { MemberPresence, useProjectPresence } from "../user/member-presence";
 import { getInitials } from "@/components/getInitials";
 
 // --- 1. SCHÉMA DE VALIDATION ZOD ---
@@ -113,6 +113,7 @@ export default function TeamManagement({
   currentUserId,
   data,
 }: TeamManagementProps) {
+  const presence = useProjectPresence(projectId);
   const router = useRouter(); // <-- Initialisation du router
 
   // État global
@@ -146,8 +147,8 @@ export default function TeamManagement({
   });
 
   // Rôle de l'utilisateur connecté
-  const currentUserMembership = members.find((m) => m.id === currentUserId);
-  const currentUserRole: Role = currentUserMembership?.role ?? "OWNER";
+  const currentUserMembership = members.find((m) => m.userId === currentUserId);
+  const currentUserRole: Role = currentUserMembership?.role ?? "USER";
 
   // Filtrage dynamique
   const filteredMembers = members.filter(
@@ -442,15 +443,15 @@ export default function TeamManagement({
 
                       {/* NOUVEAU : Statut et conversations (comme sur le Dashboard) */}
                       <div className="flex items-center gap-2 text-[10px] text-muted-foreground mt-0.5">
-                        <span className="flex shrink-0 items-center gap-1">
-                          <StatusIndicator
-                            color={
-                              member.status === "Online" ? "emerald" : "amber"
-                            }
-                            pulse={member.status === "Online"}
-                          />
-                          {member.status === "Online" ? "En ligne" : "Absent"}
-                        </span>
+                        <MemberPresence
+                          status={
+                            presence.error
+                              ? undefined
+                              : presence.data?.find(
+                                  (p) => p.userId === member.userId,
+                                )?.status
+                          }
+                        />
                         <span className="inline-flex size-1 rounded-full bg-foreground/30" />
                         <span>{member.open || 0} conv. assignées</span>
                       </div>
@@ -465,7 +466,7 @@ export default function TeamManagement({
                     <div className="hidden md:block">
                       {getRoleBadge(member.role)}
                     </div>
-                    {member.id !== currentUserId && canManageMember && (
+                    {member.userId !== currentUserId && canManageMember && (
                       <>
                         {member.role !== "OWNER" && (
                           <DropdownMenu>

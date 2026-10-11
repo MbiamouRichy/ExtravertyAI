@@ -327,6 +327,8 @@ model ProjectMembership {
 // 👤 UTILISATEURS & AUTHENTIFICATION (Better Auth)
 // ------------------------------------------------------
 model User {
+  presence UserPresence[]
+  notificationReceipts NotificationReceipt[]
   id            String    @id
   name          String
   email         String
@@ -537,4 +539,25 @@ model ConversationSummaryCache {
   leaseToken String?
   leaseUntil DateTime? @db.Timestamptz(3)
   @@map("conversation_summary")
+}
+
+model UserPresence {
+  userId String
+  tabId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lastSeenAt DateTime @db.Timestamptz(3)
+  lastActiveAt DateTime? @db.Timestamptz(3)
+  @@id([userId, tabId])
+  @@index([lastSeenAt])
+  @@map("user_presence")
+}
+
+model NotificationReceipt {
+  userId String
+  key String
+  version String
+  readAt DateTime @default(now()) @db.Timestamptz(3)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@id([userId, key])
+  @@map("notification_receipt")
 }

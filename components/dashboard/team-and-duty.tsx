@@ -1,7 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { type ComponentProps, useState } from "react";
+import { type ComponentProps } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Card,
@@ -10,7 +10,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { StatusIndicator } from "@/components/ui/indicator";
+import { MemberPresence, useProjectPresence } from "./user/member-presence";
 import { ArrowRightIcon } from "lucide-react";
 import { Button } from "../ui/button";
 import { getInitials } from "../getInitials";
@@ -18,9 +18,10 @@ import Link from "next/link";
 
 // On met à jour le type pour accepter null (venant de Prisma pour l'image)
 export type Teammate = {
-  id: string; // Correspondra au userId
+  id: string;
+  userId: string;
   name: string;
-  status: "Online" | "Away";
+
   open: number;
   image?: string | null;
 };
@@ -38,7 +39,8 @@ export function TeamOnDuty({
   ...props
 }: TeamOnDutyProps) {
   // Le state est maintenant initialisé avec les données de la DB
-  const [teammates] = useState<Teammate[]>(initialTeammates);
+  const teammates = initialTeammates;
+  const presence = useProjectPresence(projectId);
 
   return (
     <Card
@@ -79,13 +81,7 @@ export function TeamOnDuty({
                   {t.name}
                 </p>
                 <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs leading-relaxed sm:flex-nowrap sm:text-[10px] sm:leading-snug">
-                  <span className="flex shrink-0 items-center gap-1">
-                    <StatusIndicator
-                      color={t.status === "Online" ? "emerald" : "amber"}
-                      pulse={t.status === "Online"}
-                    />
-                    {t.status === "Online" ? "En ligne" : "Absent"}
-                  </span>
+                  <MemberPresence status={presence.error ? undefined : presence.data?.find(p => p.userId === t.userId)?.status} />
                   <span className="inline-flex size-1 rounded-full bg-foreground/80" />
                   <span>{t.open} conv. assignées</span>
                 </p>

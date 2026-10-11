@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { AppBreadcrumbs } from "@/components/dashboard/app-breadcrumbs";
 import { NavUser } from "@/components/dashboard/nav-user";
-import { BellIcon, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import { Notifications } from "./notifications";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 import Link from "next/link";
@@ -42,12 +42,7 @@ export async function AppHeader() {
 						<p className="text-sm leading-relaxed">Nouveau projet</p>
 					</TooltipContent>
 				</Tooltip>
-				<Notifications>
-					<Button aria-label="Notifications" size="icon-sm" variant="outline">
-						<BellIcon
-						/>
-					</Button>
-				</Notifications>
+				<Notifications />
 				<Separator
 					className="h-4 data-[orientation=vertical]:self-center"
 					orientation="vertical"

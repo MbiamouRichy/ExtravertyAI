@@ -12,12 +12,12 @@ import z from "zod";
 
 export type TeamMember = {
   id: string;
+  userId: string;
   name: string;
   email: string;
   image: string | null;
   role: Role;
   createdAt: Date | string;
-  status?: "Online" | "Away";
   open?: number;
 };
 
@@ -28,6 +28,12 @@ export async function getTeamMembers(projectId: string) {
   const session = await getSession();
   if (!session?.user?.id) throw new Error("Non autorisé");
 
+  const access = await prisma.projectMembership.findUnique({
+    where: { userId_projectId: { userId: session.user.id, projectId } },
+    select: { role: true },
+  });
+  if (!access || !["OWNER", "ADMIN"].includes(access.role))
+    throw new Error("Accès refusé");
   // 1. Récupérer les membres de l'équipe
   const memberships = await prisma.projectMembership.findMany({
     where: { projectId },
@@ -38,7 +44,6 @@ export async function getTeamMembers(projectId: string) {
           name: true,
           email: true,
           image: true,
-          lastActiveAt: true,
         },
       },
     },
@@ -70,24 +75,15 @@ export async function getTeamMembers(projectId: string) {
   );
 
   // 4. Formater les données pour le composant
-  const FIVE_MINUTES_IN_MS = 5 * 60 * 1000;
-  const now = Date.now();
-
   return memberships.map((m) => {
-    // Calcul du statut en ligne
-    const lastActive = m.user.lastActiveAt
-      ? new Date(m.user.lastActiveAt).getTime()
-      : 0;
-    const isOnline = now - lastActive < FIVE_MINUTES_IN_MS;
-
     return {
       id: m.id,
+      userId: m.user.id,
       name: m.user.name,
       email: m.user.email,
       role: m.role,
       image: m.user.image,
       createdAt: m.createdAt,
-      status: isOnline ? ("Online" as const) : ("Away" as const),
       open: countParAgent[m.user.id] || 0, // <-- Le vrai chiffre calculé !
     };
   });

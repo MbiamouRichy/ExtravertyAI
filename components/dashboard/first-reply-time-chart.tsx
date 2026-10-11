@@ -88,13 +88,34 @@ export function FirstAiReplyTimeChart({
                 content={
                   <ChartTooltipContent
                     indicator="line"
+                    hideLabel
                     labelFormatter={(_, payload) =>
                       payload?.[0]?.payload?.date || ""
                     }
-                    formatter={(value) => (
-                      <span className="font-medium">
-                        {formatResponseTime(Number(value))}
-                      </span>
+                    formatter={(value, _name, item) => (
+                      <div className="flex min-w-40 items-stretch gap-2">
+                        <span className="w-1 shrink-0 rounded-full bg-(--color-seconds)" />
+                        <div className="flex-1 space-y-1">
+                          <p className="font-medium">
+                            {new Intl.DateTimeFormat("fr-FR", {
+                              weekday: "short",
+                              day: "numeric",
+                              month: "short",
+                              timeZone: "UTC",
+                            }).format(
+                              new Date(item.payload.date + "T12:00:00Z"),
+                            )}
+                          </p>
+                          <div className="flex items-center justify-between gap-4">
+                            <span className="text-muted-foreground">
+                              Délai médian
+                            </span>
+                            <span className="font-mono font-medium tabular-nums">
+                              {formatResponseTime(Number(value))}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
                     )}
                   />
                 }
