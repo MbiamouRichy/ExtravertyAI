@@ -1,4 +1,5 @@
 "use client";
+import { getInitials } from "@/components/getInitials";
 import {
   useChatContacts,
   useChatMessages,
@@ -129,17 +130,6 @@ function useChatDates() {
   return useMemo(() => createChatDateFormatters(timeZone), [timeZone]);
 }
 
-function initials(name: string): string {
-  return (
-    name
-      .trim()
-      .split(/\s+/)
-      .slice(0, 2)
-      .map((part) => part[0]?.toUpperCase() ?? "")
-      .join("") || "?"
-  );
-}
-
 function normalizeSearch(value: string): string {
   return value
     .normalize("NFD")
@@ -181,7 +171,7 @@ function AgentAvatar({
       <AvatarImage src={agent?.image || undefined} alt="" />
       <AvatarFallback className="text-xs">
         {agent?.name?.trim() ? (
-          initials(name)
+          getInitials(name)
         ) : (
           <UserRound aria-hidden="true" className="size-4" />
         )}
@@ -1116,7 +1106,7 @@ export default function WhatsappWorkspace({
                         <div className="relative shrink-0">
                           <Avatar className="size-10 border border-border/60">
                             <AvatarFallback className="bg-muted text-xs font-semibold">
-                              {initials(client.name)}
+                              {getInitials(client.name)}
                             </AvatarFallback>
                           </Avatar>
                         </div>
@@ -1274,7 +1264,7 @@ export default function WhatsappWorkspace({
 
                   <Avatar className="hidden size-10 shrink-0 border sm:flex">
                     <AvatarFallback className="text-xs font-semibold">
-                      {initials(activeClient.name)}
+                      {getInitials(activeClient.name)}
                     </AvatarFallback>
                   </Avatar>
 
