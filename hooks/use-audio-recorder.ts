@@ -8,6 +8,7 @@ export function useAudioRecorder(
 ) {
   const [recording, setRecording] = useState(false);
   const [preparing, setPreparing] = useState(false);
+  const [microphone, setMicrophone] = useState<MediaStream | null>(null);
   const [seconds, setSeconds] = useState(0);
   const recorder = useRef<MediaRecorder | null>(null);
   const stream = useRef<MediaStream | null>(null);
@@ -23,6 +24,7 @@ export function useAudioRecorder(
     timer.current = null;
     stream.current?.getTracks().forEach((track) => track.stop());
     stream.current = null;
+    setMicrophone(null);
   }
   function cancel() {
     generation.current++;
@@ -38,6 +40,7 @@ export function useAudioRecorder(
     setRecording(false);
     setPreparing(false);
     setSeconds(0);
+    setMicrophone(null);
     // This ref is an async operation generation, not a DOM ref.
     const scopeGeneration = generation;
     return () => {
@@ -122,6 +125,7 @@ export function useAudioRecorder(
         );
       };
       instance.start(1000);
+      setMicrophone(acquired);
       setRecording(true);
       setSeconds(0);
       timer.current = setInterval(() => {
@@ -147,6 +151,7 @@ export function useAudioRecorder(
     }
   }
   return {
+    microphone,
     recording,
     preparing,
     seconds,

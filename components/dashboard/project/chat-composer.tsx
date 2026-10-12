@@ -14,7 +14,6 @@ import {
   ArrowUp,
   Paperclip,
   Mic,
-  Square,
   ChevronDown,
   Loader2,
   Sparkles,
@@ -46,6 +45,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
+import { AudioRecording } from "./audio-recording";
 import { AudioPlayer } from "./audio-player";
 import { ChatEmojiPicker } from "./chat-emoji-picker";
 
@@ -405,48 +405,13 @@ export function ChatComposer({
         </section>
       )}
       {(audioRecorder.recording || audioRecorder.preparing) && (
-        <div className="space-y-4 rounded-2xl border bg-card p-4 shadow-sm">
-          <p
-            role="status"
-            className="flex items-center gap-3 text-sm font-medium tabular-nums"
-          >
-            <span aria-hidden="true" className="relative flex size-3">
-              <span className="absolute inline-flex size-full animate-ping rounded-full bg-destructive/60 motion-reduce:animate-none" />
-              <span className="relative inline-flex size-3 rounded-full bg-destructive" />
-            </span>
-            {audioRecorder.preparing
-              ? "Autorisation du microphone…"
-              : "Enregistrement · " +
-                Math.floor(audioRecorder.seconds / 60) +
-                ":" +
-                String(audioRecorder.seconds % 60).padStart(2, "0")}
-          </p>
-          <p className="text-xs text-muted-foreground">
-            Message vocal · 2 minutes maximum. Écoutez votre enregistrement
-            avant de l’envoyer.
-          </p>
-          <div className="flex flex-wrap justify-end gap-2">
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={audioRecorder.cancel}
-            >
-              Annuler
-            </Button>
-            {audioRecorder.recording && (
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                onClick={audioRecorder.stop}
-              >
-                <Square className="size-4" />
-                Arrêter et écouter
-              </Button>
-            )}
-          </div>
-        </div>
+        <AudioRecording
+          stream={audioRecorder.microphone}
+          preparing={audioRecorder.preparing}
+          seconds={audioRecorder.seconds}
+          onCancel={audioRecorder.cancel}
+          onStop={audioRecorder.stop}
+        />
       )}
       {!recordingMode && (
         <FieldGroup className="gap-2 rounded-2xl border border-input bg-muted/30 px-2 py-1 shadow-sm focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/30">
@@ -637,7 +602,7 @@ export function ChatComposer({
                           textareaRef.current = element;
                         }}
                         id="chat-message"
-                        rows={2}
+                        rows={1}
                         autoComplete="off"
                         disabled={
                           isSending ||
@@ -665,7 +630,7 @@ export function ChatComposer({
                           }
                         }}
                         placeholder="Écrire un message…"
-                        className="min-h-16 min-w-0 max-h-40 w-full resize-none rounded-none border-0 bg-transparent px-2 py-2 shadow-none focus-visible:ring-0 dark:bg-transparent"
+                        className="min-h-10 min-w-0 max-h-40 w-full resize-none rounded-none border-0 bg-transparent px-2 py-2 shadow-none focus-visible:ring-0 dark:bg-transparent"
                       />
                       <div
                         aria-hidden="true"
