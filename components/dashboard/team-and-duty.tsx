@@ -57,7 +57,7 @@ export function TeamOnDuty({
         className={cn(
           "p-0",
           teammates.length > 10 &&
-            "max-h-72 min-h-16 mask-b-from-50% mask-b-to-100%",
+            "max-h-72 h-full min-h-16 mask-b-from-50% mask-b-to-100%",
         )}
       >
         {teammates.length === 0 && (
@@ -81,9 +81,14 @@ export function TeamOnDuty({
                   {t.name}
                 </p>
                 <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs leading-relaxed sm:flex-nowrap sm:text-[10px] sm:leading-snug">
-                  <MemberPresence status={presence.error ? undefined : presence.data?.find(p => p.userId === t.userId)?.status} />
-                  <span className="inline-flex size-1 rounded-full bg-foreground/80" />
-                  <span>{t.open} conv. assignées</span>
+                  <MemberPresence
+                    status={
+                      presence.error
+                        ? undefined
+                        : presence.data?.find((p) => p.userId === t.userId)
+                            ?.status
+                    }
+                  />
                 </p>
               </div>
             </li>

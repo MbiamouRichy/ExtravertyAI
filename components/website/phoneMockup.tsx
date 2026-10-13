@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { Loader2, Pause, Play, VideoOff } from "lucide-react";
+import { Loader2, Pause, Play, RotateCcw, VideoOff } from "lucide-react";
 import { Button } from "../ui/button";
 
 // Front silhouette follows Apple's 78 × 163.4 mm enclosure dimensions.
@@ -11,14 +11,36 @@ export default function PhoneMockup({ videoSrc }: { videoSrc: string }) {
   const [playing, setPlaying] = useState(false);
 
   useEffect(() => {
+    const element = video.current;
+    if (!element) return;
     const media = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const respectMotion = () => {
-      if (media.matches) video.current?.pause();
-      else void video.current?.play().catch(() => {});
+    // A cached video can emit its readiness events before React hydrates.
+    const sync = () => {
+      if (element.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
+        setLoading(false);
+        setFailed(false);
+      }
+      setPlaying(!element.paused);
     };
+    const respectMotion = () => {
+      if (media.matches) element.pause();
+      else void element.play().catch(sync);
+    };
+    sync();
     respectMotion();
+    const poll = window.setInterval(sync, 1000);
+    const timeout = window.setTimeout(() => {
+      if (element.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) {
+        setLoading(false);
+        setFailed(true);
+      }
+    }, 20000);
     media.addEventListener("change", respectMotion);
-    return () => media.removeEventListener("change", respectMotion);
+    return () => {
+      window.clearInterval(poll);
+      window.clearTimeout(timeout);
+      media.removeEventListener("change", respectMotion);
+    };
   }, [videoSrc]);
 
   return (
@@ -54,11 +76,18 @@ export default function PhoneMockup({ videoSrc }: { videoSrc: string }) {
             muted
             loop
             playsInline
-            preload="metadata"
+            preload="auto"
             aria-label="Démonstration d’ExtravertyAI sur un iPhone 17 Pro Max"
-            onLoadedMetadata={() => setLoading(false)}
+            onLoadedData={() => {
+              setLoading(false);
+              setFailed(false);
+            }}
             onCanPlay={() => setLoading(false)}
-            onPlay={() => setPlaying(true)}
+            onPlaying={() => {
+              setPlaying(true);
+              setLoading(false);
+              setFailed(false);
+            }}
             onPause={() => setPlaying(false)}
             onError={() => {
               setFailed(true);
@@ -69,6 +98,25 @@ export default function PhoneMockup({ videoSrc }: { videoSrc: string }) {
           >
             Votre navigateur ne prend pas en charge cette vidéo.
           </video>
+          {!loading && !failed && (
+            <Button
+              type="button"
+              variant="secondary"
+              size="icon"
+              className="absolute right-3 top-14 rounded-full"
+              aria-label={
+                playing
+                  ? "Mettre la démonstration en pause"
+                  : "Lire la démonstration"
+              }
+              onClick={() => {
+                if (playing) video.current?.pause();
+                else void video.current?.play().catch(() => setPlaying(false));
+              }}
+            >
+              {playing ? <Pause aria-hidden /> : <Play aria-hidden />}
+            </Button>
+          )}
           {loading && (
             <div
               role="status"
@@ -87,7 +135,23 @@ export default function PhoneMockup({ videoSrc }: { videoSrc: string }) {
               className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-muted p-6 text-center text-sm text-muted-foreground"
             >
               <VideoOff aria-hidden className="size-6" />
-              La démonstration est momentanément indisponible.
+              La vidéo n’a pas pu se charger.
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setFailed(false);
+                  setLoading(false);
+                  video.current?.load();
+                  void video.current?.play().catch(() => {
+                    setFailed(true);
+                  });
+                }}
+              >
+                <RotateCcw aria-hidden />
+                Réessayer
+              </Button>
             </div>
           )}
           <div
@@ -102,33 +166,6 @@ export default function PhoneMockup({ videoSrc }: { videoSrc: string }) {
           />
         </div>
       </div>
-      <figcaption className="flex flex-col items-center gap-2">
-        <span className="text-xs text-muted-foreground">
-          Démonstration · iPhone 17 Pro Max
-        </span>
-        {!failed && (
-          <Button
-            type="button"
-            size="sm"
-            variant="ghost"
-            onClick={() => {
-              if (playing) video.current?.pause();
-              else
-                void video.current?.play().catch(() => {
-                  setFailed(true);
-                  setLoading(false);
-                });
-            }}
-          >
-            {playing ? (
-              <Pause aria-hidden className="size-4" />
-            ) : (
-              <Play aria-hidden className="size-4" />
-            )}
-            {playing ? "Mettre en pause" : "Lire la démonstration"}
-          </Button>
-        )}
-      </figcaption>
     </figure>
   );
 }

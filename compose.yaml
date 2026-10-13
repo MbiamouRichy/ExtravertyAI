@@ -1,4 +1,17 @@
 services:
+  reports-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    command: ["./node_modules/.bin/tsx", "workers/reports.ts"]
+    env_file:
+      - ${WORKER_ENV_FILE:-.env.production}
+    restart: unless-stopped
+    init: true
+    stop_grace_period: 60s
+    mem_limit: 384m
+    cpus: 0.50
+
   outbound-worker:
     build:
       context: .

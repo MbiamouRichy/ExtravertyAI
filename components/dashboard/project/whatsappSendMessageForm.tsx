@@ -22,7 +22,6 @@ import {
   Loader2,
   MessageCircle,
   Pause,
-  RefreshCw,
   Search,
   Sparkles,
   UserRound,
@@ -380,6 +379,48 @@ function ChatBubble({
             </Bubble>
           )}
 
+          {(message.type === "AUDIO" || message.type === "IMAGE") &&
+            message.extractionStatus === "COMPLETED" &&
+            message.extractedText && (
+              <details className="max-w-prose rounded-lg border border-border bg-muted/30 p-3 text-sm">
+                <summary className="cursor-pointer rounded-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                  {message.type === "IMAGE"
+                    ? "Analyse de l’image"
+                    : "Transcription du vocal"}
+                </summary>
+                <p
+                  dir="auto"
+                  className="mt-2 whitespace-pre-wrap wrap-anywhere text-foreground"
+                >
+                  {message.extractedText}
+                </p>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  {message.type === "IMAGE"
+                    ? "Analyse automatique"
+                    : "Transcription automatique"}{" "}
+                  · à vérifier en cas de doute.
+                </p>
+              </details>
+            )}
+          {(message.type === "AUDIO" || message.type === "IMAGE") &&
+            ["PENDING", "PROCESSING"].includes(
+              message.extractionStatus ?? "",
+            ) && (
+              <p role="status" className="px-1 text-xs text-muted-foreground">
+                {message.type === "IMAGE"
+                  ? "Analyse de l’image en cours…"
+                  : "Transcription du vocal en cours…"}
+              </p>
+            )}
+          {(message.type === "AUDIO" || message.type === "IMAGE") &&
+            message.extractionStatus === "FAILED" && (
+              <p className="px-1 text-xs text-muted-foreground">
+                {message.type === "IMAGE"
+                  ? "Analyse indisponible. L’image reste consultable."
+                  : "Transcription indisponible. Le vocal reste consultable."}
+              </p>
+            )}
+
           <MessageFooter
             className={cn(
               "flex-wrap gap-x-2 gap-y-1 px-1 text-[10px] font-normal",
@@ -605,8 +646,7 @@ export default function WhatsappWorkspace({
           (filter === "manual" && !client.aiActive);
 
         const matchesSearch =
-          !textQuery ||
-          normalizeSearch(client.name).includes(textQuery);
+          !textQuery || normalizeSearch(client.name).includes(textQuery);
 
         return matchesFilter && matchesSearch;
       })
@@ -941,24 +981,6 @@ export default function WhatsappWorkspace({
                   Conversations
                 </h1>
               </div>
-
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="size-10 shrink-0 rounded-xl"
-                disabled={refreshing}
-                aria-label="Actualiser les conversations"
-                onClick={refresh}
-              >
-                <RefreshCw
-                  aria-hidden="true"
-                  className={cn(
-                    "size-4",
-                    refreshing && "animate-spin motion-reduce:animate-none",
-                  )}
-                />
-              </Button>
             </div>
 
             <div className="relative">

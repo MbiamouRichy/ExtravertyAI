@@ -48,6 +48,8 @@ export type ChatMessage = {
   content: string;
   type?: string;
   mediaUrl?: string | null;
+  extractedText?: string | null;
+  extractionStatus?: string | null;
   timestamp: string;
   status: ChatMessageStatus;
   outboundState?: OutboundState | null;

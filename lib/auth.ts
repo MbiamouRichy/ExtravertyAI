@@ -1,13 +1,16 @@
 import { EmailTemplate } from "@/components/emailTemplate/emailTemplate";
 import { betterAuth } from "better-auth";
-import { APIError, createAuthMiddleware } from "better-auth/api";
-import { passwordVerificationSchema } from "./password-verification-schema";
+import {
+  APIError,
+  createAuthMiddleware,
+  getAuthoritativeSessionFromCtx,
+} from "better-auth/api";
+import { isRecentSession } from "./recent-session";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import prisma from "./prisma";
 import { resend } from "./resend";
 import { ResetPasswordTemplate } from "@/components/emailTemplate/resetPasswordTemplate";
 import { ChangeEmailTemplate } from "@/components/emailTemplate/changeEmailTemplate";
-import { DeleteAccountEmailTemplate } from "@/components/emailTemplate/DeleteAccountEmailTemplate";
 
 import { deleteProjectResources } from "./project-deletion";
 
@@ -18,13 +21,15 @@ export const auth = betterAuth({
   }),
   hooks: {
     before: createAuthMiddleware(async (ctx) => {
-      // Better Auth verifies this password before creating the deletion email.
-      // Require it even for fresh sessions and direct API requests.
-      if (ctx.path === "/delete-user" && !passwordVerificationSchema.safeParse(ctx.body).success) {
-        throw new APIError("BAD_REQUEST", {
-          code: "PASSWORD_REQUIRED",
-          message: "Le mot de passe actuel est requis pour supprimer le compte.",
-        });
+      if (ctx.path === "/delete-user" || ctx.path === "/delete-user/callback") {
+        const session = await getAuthoritativeSessionFromCtx(ctx);
+        if (!session || !isRecentSession(session.session.createdAt)) {
+          throw new APIError("FORBIDDEN", {
+            code: "REAUTH_REQUIRED",
+            message:
+              "Reconnectez-vous avant de supprimer votre compte (connexion de moins de 10 minutes requise).",
+          });
+        }
       }
     }),
   },
@@ -89,14 +94,6 @@ export const auth = betterAuth({
   user: {
     deleteUser: {
       enabled: true,
-      sendDeleteAccountVerification: async ({ user, url }) => {
-        await resend.emails.send({
-          to: user.email,
-          subject: "Approuver la suppression de votre compte",
-          html: DeleteAccountEmailTemplate({ url }),
-          from: "ExtravertyAI <notification@extravertyai.com>",
-        });
-      },
     },
     changeEmail: {
       enabled: true,

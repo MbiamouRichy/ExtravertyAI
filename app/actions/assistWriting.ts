@@ -82,7 +82,13 @@ export async function assistWriting(input: unknown) {
             },
             orderBy: [{ createdAt: "desc" }, { id: "desc" }],
             take: 40,
-            select: { senderType: true, content: true, type: true },
+            select: {
+              senderType: true,
+              content: true,
+              type: true,
+              extractedText: true,
+              extractionStatus: true,
+            },
           })
         : [];
     if (
@@ -94,6 +100,20 @@ export async function assistWriting(input: unknown) {
         error:
           "Un message récent du client est nécessaire pour proposer des réponses.",
       };
+    if (
+      messages.some(
+        (message) =>
+          message.extractionStatus === "PENDING" ||
+          message.extractionStatus === "PROCESSING",
+      )
+    ) {
+      requests.delete(requestKey);
+      return {
+        success: false as const,
+        error:
+          "Un média est en cours d’analyse. Réessayez dans quelques instants.",
+      };
+    }
     const replies = await generateWritingAssistance({
       mode,
       draft: parsed.data.mode === "rewrite" ? parsed.data.draft : undefined,

@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import React, { useState, useTransition } from "react";
 import { useTheme } from "next-themes";
 import { toast } from "sonner";
@@ -27,22 +28,14 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useHaptics } from "@/lib/webHaptics";
-import { Controller, useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
-import { VerifyPasswordAction } from "@/app/actions/verify-password";
-import { passwordVerificationSchema } from "@/lib/password-verification-schema";
-import { Input } from "@/components/ui/input";
-import {
-  Field,
-  FieldGroup,
-  FieldLabel,
-  FieldDescription,
-  FieldError,
-} from "@/components/ui/field";
-
-export default function UserSettingsPage() {
+import { isRecentSession } from "@/lib/recent-session";
+export default function UserSettingsPage({
+  sessionCreatedAt,
+}: {
+  sessionCreatedAt: string;
+}) {
   const { playHaptic } = useHaptics();
+  const router = useRouter();
 
   // Pour le thème
   const { theme, setTheme } = useTheme();
@@ -51,45 +44,27 @@ export default function UserSettingsPage() {
   // Pour la suppression
   const [isDeleting, setIsDeleting] = useState(false);
   const [openDeleteModal, setOpenDeleteModal] = useState(false);
-  const [passwordVerified, setPasswordVerified] = useState(false);
-  const passwordForm = useForm<z.infer<typeof passwordVerificationSchema>>({
-    resolver: zodResolver(passwordVerificationSchema),
-    defaultValues: { password: "" },
-    mode: "onChange",
-  });
-  const isVerifying = passwordForm.formState.isSubmitting;
+  const [reauthRequired, setReauthRequired] = useState(false);
+  const [reconnecting, setReconnecting] = useState(false);
   const handleDeleteModalChange = (open: boolean) => {
-    if (isDeleting || isVerifying) return;
-    passwordForm.reset();
-    setPasswordVerified(false);
+    if (isDeleting || reconnecting) return;
+    setReauthRequired(!isRecentSession(sessionCreatedAt));
     setOpenDeleteModal(open);
   };
-  const handleVerifyPassword = passwordForm.handleSubmit(
-    async ({ password }) => {
-      setPasswordVerified(false);
-      try {
-        const result = await VerifyPasswordAction(password);
-        if (!result.success) {
-          passwordForm.setError(
-            "password",
-            {
-              message:
-                result.error || "Impossible de vérifier le mot de passe.",
-            },
-            { shouldFocus: true },
-          );
-          return;
-        }
-        setPasswordVerified(true);
-      } catch {
-        passwordForm.setError(
-          "password",
-          { message: "Impossible de vérifier le mot de passe. Réessayez." },
-          { shouldFocus: true },
-        );
-      }
-    },
-  );
+  async function reconnect() {
+    setReconnecting(true);
+    try {
+      const result = await authClient.signOut();
+      if (result.error) throw new Error();
+      router.replace(
+        "/sign-in?callbackUrl=" + encodeURIComponent("/projects/user"),
+      );
+      router.refresh();
+    } catch {
+      toast.error("Impossible de vous déconnecter. Réessayez.");
+      setReconnecting(false);
+    }
+  }
 
   // --- GESTION DU THÈME ---
   const handleThemeChange = (newTheme: "light" | "dark" | "system") => {
@@ -112,41 +87,36 @@ export default function UserSettingsPage() {
 
   // --- GESTION DE LA SUPPRESSION DE COMPTE ---
   const handleDeleteAccount = async () => {
-    if (!passwordVerified || isDeleting || isVerifying) return;
+    if (isDeleting) return;
+    if (!isRecentSession(sessionCreatedAt)) {
+      setReauthRequired(true);
+      return;
+    }
     setIsDeleting(true);
     try {
-      // Utilisation du client better-auth pour supprimer l'utilisateur
-      await authClient.deleteUser({
-        password: passwordForm.getValues("password"),
-        callbackURL: "/goodbye",
-        fetchOptions: {
-          onSuccess: () => {
-            passwordForm.reset();
-            setOpenDeleteModal(false);
-            toast.success(
-              "Un e-mail de confirmation vous a été envoyé. Cliquez sur son lien pour supprimer votre compte.",
-              {
-                position: "top-center",
-              },
-            );
-            playHaptic("success");
-          },
-          onError: () => {
-            toast.error("Impossible de supprimer le compte.", {
-              position: "top-center",
-            });
-            playHaptic("error");
-          },
-        },
-      });
+      const result = await authClient.deleteUser({ callbackURL: "/goodbye" });
+      if (result.error) {
+        if (
+          ["REAUTH_REQUIRED", "SESSION_EXPIRED"].includes(
+            result.error.code || "",
+          )
+        )
+          setReauthRequired(true);
+        toast.error(
+          result.error.code === "REAUTH_REQUIRED"
+            ? "Reconnectez-vous avant de supprimer votre compte."
+            : "Impossible de supprimer le compte. Vos données sont conservées ; réessayez.",
+        );
+        return;
+      }
+      playHaptic("success");
+      router.replace("/goodbye");
     } catch {
-      toast.error("Une erreur inattendue est survenue.", {
-        position: "top-center",
-      });
-      playHaptic("error");
+      toast.error(
+        "Suppression non confirmée. Actualisez pour vérifier le résultat.",
+      );
     } finally {
       setIsDeleting(false);
-      setPasswordVerified(false);
     }
   };
 
@@ -262,97 +232,35 @@ export default function UserSettingsPage() {
                       les données associées de nos serveurs.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
-                  <form
-                    onSubmit={handleVerifyPassword}
-                    className="space-y-4"
-                    noValidate
-                    aria-busy={isVerifying}
+                  <p
+                    role="status"
+                    className="rounded-lg border bg-muted p-4 text-sm leading-relaxed"
                   >
-                    <FieldGroup>
-                      <Controller
-                        name="password"
-                        control={passwordForm.control}
-                        render={({ field, fieldState }) => (
-                          <Field data-invalid={fieldState.invalid}>
-                            <FieldLabel htmlFor="delete-account-password">
-                              Mot de passe actuel
-                            </FieldLabel>
-                            <Input
-                              {...field}
-                              id="delete-account-password"
-                              type="password"
-                              autoComplete="current-password"
-                              maxLength={255}
-                              disabled={isDeleting || isVerifying}
-                              aria-invalid={fieldState.invalid}
-                              aria-describedby={`delete-password-description${fieldState.invalid ? " delete-password-error" : ""}`}
-                              onChange={(event) => {
-                                setPasswordVerified(false);
-                                field.onChange(event);
-                              }}
-                            />
-                            <FieldDescription id="delete-password-description">
-                              Vérifiez votre mot de passe pour activer la
-                              suppression. Vous recevrez ensuite un lien de
-                              confirmation par e-mail. Si vous utilisez
-                              uniquement une connexion sociale, définissez
-                              d’abord un mot de passe via « Mot de passe oublié
-                              ».
-                            </FieldDescription>
-                            {fieldState.invalid && (
-                              <FieldError
-                                id="delete-password-error"
-                                errors={[fieldState.error]}
-                              />
-                            )}
-                          </Field>
-                        )}
-                      />
-                    </FieldGroup>
-                    <Button
-                      type="submit"
-                      variant="outline"
-                      className="w-full"
-                      disabled={
-                        !passwordForm.formState.isValid ||
-                        isVerifying ||
-                        isDeleting ||
-                        passwordVerified
-                      }
-                    >
-                      {isVerifying && (
-                        <Loader2
-                          className="size-4 animate-spin"
-                          aria-hidden="true"
-                        />
-                      )}
-                      {isVerifying
-                        ? "Vérification…"
-                        : passwordVerified
-                          ? "Mot de passe vérifié"
-                          : "Vérifier le mot de passe"}
-                    </Button>
-                    <p role="status" className="text-sm text-muted-foreground">
-                      {passwordVerified
-                        ? "Votre identité est confirmée. Vous pouvez demander la suppression."
-                        : "Le bouton de suppression restera désactivé jusqu’à la vérification."}
-                    </p>
-                  </form>
+                    {reauthRequired
+                      ? "Votre connexion date de plus de 10 minutes. Reconnectez-vous, puis confirmez à nouveau la suppression."
+                      : "Une connexion de moins de 10 minutes est requise. La suppression est définitive dès votre confirmation."}
+                  </p>
                   <AlertDialogFooter>
-                    <AlertDialogCancel disabled={isDeleting || isVerifying}>
+                    <AlertDialogCancel disabled={isDeleting || reconnecting}>
                       Annuler
                     </AlertDialogCancel>
                     <Button
                       variant="destructive"
                       type="button"
-                      disabled={!passwordVerified || isDeleting || isVerifying}
-                      onClick={handleDeleteAccount}
+                      disabled={isDeleting || reconnecting}
+                      onClick={reauthRequired ? reconnect : handleDeleteAccount}
                     >
                       {isDeleting ? (
                         <>
                           <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                          Envoi en cours…
+                          Suppression en cours…
                         </>
+                      ) : reauthRequired ? (
+                        reconnecting ? (
+                          "Reconnexion…"
+                        ) : (
+                          "Se reconnecter"
+                        )
                       ) : (
                         "Oui, supprimer mon compte"
                       )}

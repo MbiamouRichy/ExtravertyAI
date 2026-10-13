@@ -33,6 +33,7 @@ function setup({
   anonymous = false,
   member = true,
   invalid = false,
+  exported = true,
 } = {}) {
   const calls: string[] = [];
   const exports: Record<
@@ -75,6 +76,7 @@ function setup({
       },
     },
     "@/lib/billing-access": {},
+    "@/lib/contact-export": { contactExportSnapshot: async () => ({ hash: "snapshot" }), verifyExportReceipt: () => exported },
     "@/lib/recent-session": {
       isRecentSession: (created: unknown) => isRecentSession(created, now),
     },
@@ -102,6 +104,8 @@ function setup({
       exports.deleteProjectAction({
         projectId: "cmuhe8ap1000004l64j9yddk1",
         confirmationName,
+        csvReceipt: "csv-receipt",
+        xlsxReceipt: "xlsx-receipt",
       }),
   };
 }
@@ -144,3 +148,5 @@ test("missing membership and wrong confirmation have no side effects", async () 
   assert.equal((await wrong.remove("Autre projet")).success, false);
   assert.deepEqual(wrong.calls, []);
 });
+
+test("project deletion refuses absent, expired or obsolete export proof", async () => { const app = setup({ exported: false }); assert.equal((await app.remove()).code, "EXPORT_REQUIRED"); assert.deepEqual(app.calls, []); });

@@ -22,10 +22,16 @@ import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
   Settings2,
+  MoreHorizontal,
+  Bot,
+  UserRound,
   Search,
   ChevronLeft,
   ChevronRight,
@@ -57,6 +63,7 @@ type Props = {
   onPageChange: (page: number) => void;
   onRename: (contact: ContactTableType) => void;
   onDelete: (contact: ContactTableType) => void;
+  onToggleAi: (contact: ContactTableType) => void;
   renderStatus: (contact: ContactTableType) => ReactNode;
 };
 
@@ -204,19 +211,78 @@ export function ContactsTable(p: Props) {
             {table.getRowModel().rows.map((row) => {
               const cells = row.getVisibleCells();
               const identity = cells.find((cell) => cell.column.id === "name");
-              const actions = cells.find(
-                (cell) => cell.column.id === "actions",
-              );
+              const contact = row.original;
+              const chatHref = `/projects/${p.projectId}/chat?contactId=${encodeURIComponent(contact.id)}`;
               const details = cells.filter(
                 (cell) => !["name", "actions"].includes(cell.column.id),
               );
               return (
                 <li key={row.id} className="min-w-0 space-y-3 p-3">
-                  {identity &&
-                    flexRender(
-                      identity.column.columnDef.cell,
-                      identity.getContext(),
-                    )}
+                  <div className="flex items-start gap-3">
+                    <div className="min-w-0 flex-1">
+                      {identity &&
+                        flexRender(
+                          identity.column.columnDef.cell,
+                          identity.getContext(),
+                        )}
+                    </div>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="size-11 shrink-0 rounded-full"
+                          disabled={p.busy || p.pending}
+                          aria-label={"Actions pour " + contact.displayName}
+                        >
+                          <MoreHorizontal aria-hidden />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent
+                        align="end"
+                        className="w-64 max-w-[calc(100vw-2rem)]"
+                      >
+                        <DropdownMenuLabel className="space-y-1 whitespace-normal break-words">
+                          <span className="block">{contact.displayName}</span>
+                          <span className="block text-xs font-normal text-muted-foreground">
+                            Actions du contact
+                          </span>
+                        </DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem asChild>
+                          <Link href={chatHref}>
+                            <MessageSquare aria-hidden />
+                            Discuter
+                          </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => p.onRename(contact)}>
+                          <Pencil aria-hidden />
+                          Modifier le nom
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onSelect={() => p.onToggleAi(contact)}
+                        >
+                          {contact.aiActive ? (
+                            <UserRound aria-hidden />
+                          ) : (
+                            <Bot aria-hidden />
+                          )}
+                          {contact.aiActive
+                            ? "Confier à l’équipe"
+                            : "Activer l’assistant IA"}
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          variant="destructive"
+                          onSelect={() => p.onDelete(contact)}
+                        >
+                          <Trash2 aria-hidden />
+                          Supprimer le contact
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
                   {!!details.length && (
                     <dl className="space-y-2">
                       {details.map((cell) => (
@@ -228,21 +294,40 @@ export function ContactsTable(p: Props) {
                             {labels[cell.column.id]}
                           </dt>
                           <dd className="min-w-0 max-w-full whitespace-normal wrap-anywhere">
-                            {flexRender(
-                              cell.column.columnDef.cell,
-                              cell.getContext(),
-                            )}
+                            {cell.column.id === "aiActive"
+                              ? contact.aiActive
+                                ? "Assistant IA"
+                                : "Équipe humaine"
+                              : flexRender(
+                                  cell.column.columnDef.cell,
+                                  cell.getContext(),
+                                )}
                           </dd>
                         </div>
                       ))}
                     </dl>
                   )}
-                  <div className="border-t border-border/60 pt-2">
-                    {actions &&
-                      flexRender(
-                        actions.column.columnDef.cell,
-                        actions.getContext(),
+                  <div className="flex items-center justify-between gap-3 border-t border-border/60 pt-3">
+                    <span className="inline-flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
+                      {contact.aiActive ? (
+                        <Bot aria-hidden className="size-3.5 shrink-0" />
+                      ) : (
+                        <UserRound aria-hidden className="size-3.5 shrink-0" />
                       )}
+                      {contact.aiActive ? "Assistant IA" : "Équipe humaine"}
+                    </span>
+                    <Button
+                      asChild
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-10 shrink-0"
+                    >
+                      <Link href={chatHref}>
+                        <MessageSquare aria-hidden className="size-4" />
+                        Discuter
+                      </Link>
+                    </Button>
                   </div>
                 </li>
               );

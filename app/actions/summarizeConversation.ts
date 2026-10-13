@@ -67,8 +67,23 @@ export async function summarizeConversation(input: unknown) {
         senderType: true,
         content: true,
         type: true,
+        extractedText: true,
+        extractionStatus: true,
       },
     });
+    if (
+      messages.some(
+        (message) =>
+          message.extractionStatus === "PENDING" ||
+          message.extractionStatus === "PROCESSING",
+      )
+    ) {
+      return {
+        success: false as const,
+        error:
+          "Un média est en cours d’analyse. Réessayez dans quelques instants.",
+      };
+    }
     const { history, partial } = prepareSummaryHistory(messages.slice(0, 200));
     const result = await cachedConversationSummary(
       prisma,

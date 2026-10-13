@@ -32,7 +32,7 @@ PY
 git merge --ff-only "$revision"
 docker compose config --quiet
 # Build and typecheck before stopping the running workers.
-docker compose build ai-worker outbound-worker billing-worker
+docker compose build ai-worker outbound-worker billing-worker reports-worker
 image="$(docker image inspect extravertyai-ai-worker --format '{{.Id}}')"
 [[ -n "$image" ]]
 docker run --rm --network none --memory 3g --cpus 2 \
@@ -44,7 +44,7 @@ umask 077
 docker exec postgresql-mi4k-postgresql-1 sh -c 'exec pg_dump -U "$POSTGRES_USER" -Fc extravertyai_preview' > "$backup"
 test -s "$backup"
 
-services=(ai-worker outbound-worker billing-worker)
+services=(ai-worker outbound-worker billing-worker reports-worker)
 docker compose stop "${services[@]}"
 if ! docker compose run --rm --no-deps ai-worker ./node_modules/.bin/prisma migrate deploy; then
   echo "Migration failed; restarting the previous containers. Backup: $backup" >&2

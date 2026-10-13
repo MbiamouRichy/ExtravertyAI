@@ -358,6 +358,8 @@ export async function GET(
         agent: { select: { id: true, name: true, image: true } },
         content: true,
         type: true,
+        extractedText: true,
+        extractionStatus: true,
         createdAt: true,
         status: true,
       },

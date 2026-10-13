@@ -71,11 +71,17 @@ export default function ContactsLoading() {
                         <Skeleton className="h-4 w-28 max-w-full" />
                         <Skeleton className="h-3 w-20 max-w-full" />
                       </div>
+                      <Skeleton className="size-10 shrink-0 rounded-full md:hidden" />
                     </div>
                     <Skeleton className="hidden h-4 w-full max-w-28 md:block" />
                     <Skeleton className="hidden h-8 w-24 max-w-full rounded-full md:block" />
                     <Skeleton className="hidden h-4 w-20 max-w-full md:block" />
-                    <Skeleton className="h-9 w-full shrink-0 md:ml-auto md:max-w-28" />
+                    <div className="flex items-center justify-between gap-3 border-t pt-3 md:border-0 md:pt-0">
+                      <Skeleton className="h-4 w-24 md:hidden" />
+                      <div className="flex items-center gap-2">
+                        <Skeleton className="h-10 w-24 md:h-9 md:w-20" />
+                      </div>
+                    </div>
                   </div>
                 ))}
               </div>

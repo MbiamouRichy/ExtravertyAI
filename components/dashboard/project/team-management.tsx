@@ -441,7 +441,7 @@ export default function TeamManagement({
                         {member.email}
                       </span>
 
-                      {/* NOUVEAU : Statut et conversations (comme sur le Dashboard) */}
+                      {/* NOUVEAU : Statut de présence */}
                       <div className="flex items-center gap-2 text-[10px] text-muted-foreground mt-0.5">
                         <MemberPresence
                           status={
@@ -452,8 +452,6 @@ export default function TeamManagement({
                                 )?.status
                           }
                         />
-                        <span className="inline-flex size-1 rounded-full bg-foreground/30" />
-                        <span>{member.open || 0} conv. assignées</span>
                       </div>
                       <div className="md:hidden">
                         {getRoleBadge(member.role)}

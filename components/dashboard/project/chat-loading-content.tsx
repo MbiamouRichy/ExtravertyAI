@@ -11,9 +11,9 @@ export function ConversationListLoading() {
         {[0, 1, 2, 3, 4, 5].map((index) => (
           <div
             key={index}
-            className="flex h-18 items-center gap-3 rounded-xl px-3 py-3"
+            className="flex min-h-20 items-start gap-3 rounded-xl px-3 py-4"
           >
-            <Skeleton className="size-10 shrink-0 rounded-full" />
+            <Skeleton className="size-11 shrink-0 rounded-full" />
             <div className="min-w-0 flex-1 space-y-2">
               <div className="flex items-center justify-between gap-3">
                 <Skeleton className={`h-4 ${index % 2 ? "w-1/2" : "w-2/3"}`} />
@@ -44,7 +44,7 @@ export function ConversationMessagesLoading() {
           >
             <Skeleton className={`h-3 w-24 ${outgoing ? "ml-auto" : ""}`} />
             <div
-              className={`space-y-2 rounded-2xl bg-muted/40 p-4 ${outgoing ? "rounded-br-sm" : "rounded-bl-sm"}`}
+              className={`space-y-2 rounded-2xl ${outgoing ? "rounded-br-sm bg-muted/50 p-4" : "py-2"}`}
             >
               <Skeleton className="h-3 w-full" />
               <Skeleton className={`h-3 ${outgoing ? "w-1/2" : "w-3/4"}`} />

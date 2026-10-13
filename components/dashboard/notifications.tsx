@@ -8,6 +8,7 @@ import {
   MessageSquare,
   TriangleAlert,
   Inbox,
+  ArrowUpRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -168,7 +169,7 @@ export function Notifications() {
               </p>
             </div>
           ) : (
-            <ul className="divide-y">
+            <ul className="space-y-1 p-2">
               {visible.map((item) => (
                 <li key={item.key}>
                   <Link
@@ -178,24 +179,28 @@ export function Notifications() {
                       setOpen(false);
                     }}
                     className={cn(
-                      "flex gap-3 p-4 text-sm transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
+                      "group flex items-start gap-3 rounded-xl p-3 text-sm transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
                       !item.read && "bg-primary/5",
                     )}
                   >
-                    <span className="mt-0.5 rounded-lg border bg-background p-2">
+                    <span className="mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-xl bg-muted text-foreground">
                       {item.kind === "message" ? (
                         <MessageSquare className="size-4" />
                       ) : (
-                        <TriangleAlert className="size-4 text-amber-500" />
+                        <TriangleAlert className="size-4 text-destructive" />
                       )}
                     </span>
                     <span className="min-w-0 flex-1 space-y-1">
                       <span className="block truncate text-[11px] text-muted-foreground">
                         {item.projectName}
                       </span>
-                      <span className="block wrap-anywhere font-medium">{item.title}</span>
-                      <span className="block text-xs leading-relaxed text-muted-foreground">
-                        {item.description}
+                      <span className="block wrap-anywhere font-semibold leading-snug">
+                        {item.title}
+                      </span>
+                      <span className="block line-clamp-2 text-xs leading-relaxed text-muted-foreground">
+                        {item.kind === "message"
+                          ? "Consulter la conversation"
+                          : item.description}
                       </span>
                       {item.date && (
                         <time
@@ -211,6 +216,10 @@ export function Notifications() {
                         </time>
                       )}
                     </span>
+                    <ArrowUpRight
+                      aria-hidden
+                      className="mt-1 size-4 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100"
+                    />
                     {!item.read && (
                       <span className="mt-2 size-2 shrink-0 rounded-full bg-primary">
                         <span className="sr-only">Non lue</span>

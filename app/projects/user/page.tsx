@@ -7,20 +7,12 @@ import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import {
-  Shield,
-  Key,
-  Smartphone,
-  Mail,
-  CalendarDays,
-  UserCog,
-} from "lucide-react";
+import { Shield, Key, Smartphone, Mail, UserCog } from "lucide-react";
 import SignOutButton from "@/components/dashboard/user/signOutButton";
 import { ModifierProfile } from "@/components/dashboard/user/modifierProfile";
 import { getSession } from "@/lib/auth-server";
@@ -95,11 +87,6 @@ export default async function ProfilePage() {
     };
   });
 
-  const joinedDate = new Date(user.createdAt).toLocaleDateString("fr-FR", {
-    month: "long",
-    year: "numeric",
-  });
-
   return (
     <div className="max-w-5xl mx-auto p-4 md:p-12 space-y-8 animate-in fade-in duration-500">
       <div>
@@ -139,10 +126,6 @@ export default async function ProfilePage() {
                 <SignOutButton className="w-full cursor-pointer" />
               </div>
             </CardContent>
-            <CardFooter className="text-sm text-muted-foreground flex items-center justify-center gap-2">
-              <CalendarDays className="h-4 w-4" />
-              Membre depuis {joinedDate}
-            </CardFooter>
           </Card>
         </div>
 
@@ -217,7 +200,9 @@ export default async function ProfilePage() {
               <RecentSessions sessions={sessions} />
             </CardContent>
           </Card>
-          <UserSettingsPage />
+          <UserSettingsPage
+            sessionCreatedAt={sessionData.session.createdAt.toISOString()}
+          />
         </div>
       </div>
     </div>

@@ -177,14 +177,20 @@ export async function ingestMessage(
       status: "DELIVERED",
       type,
       source: "whatsapp",
+      ...(type === "AUDIO" || type === "IMAGE"
+        ? {
+            extractionStatus: "PENDING" as const,
+            extractionAvailableAt: new Date(),
+          }
+        : {}),
     },
   });
   const project = await tx.project.findUniqueOrThrow({
     where: { id: projectId },
   });
-  // Media is visible, but only text/captions enter the text model.
+  // Media jobs wait for the durable extraction before generating a reply.
   if (
-    text.trim() &&
+    (text.trim() || type === "AUDIO" || type === "IMAGE") &&
     contact.aiActive &&
     project.agentSetupCompletedAt &&
     !project.automationPaused &&

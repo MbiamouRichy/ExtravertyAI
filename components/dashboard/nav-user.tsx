@@ -9,17 +9,44 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
 } from "@/components/ui/dropdown-menu";
-import { UserIcon, CreditCardIcon, UserCog, Loader2Icon } from "lucide-react";
+import { UserIcon, Palette, UserCog, Loader2Icon } from "lucide-react";
 import Link from "next/link";
 import { ModifierProfile } from "./user/modifierProfile";
 import React from "react";
+import { useTheme } from "next-themes";
+import { updateThemeAction } from "@/app/actions/user";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
 import SignOutButton from "./user/signOutButton";
 import { useSession } from "@/lib/auth-client";
 import { redirect } from "next/navigation";
 import { getInitials } from "../getInitials";
 
 export function NavUser() {
+  const { theme, setTheme } = useTheme();
+  const [savingTheme, startThemeTransition] = React.useTransition();
+  const changeTheme = (value: string) => {
+    if (savingTheme || !["light", "dark", "system"].includes(value)) return;
+    const previous = theme || "system";
+    setTheme(value);
+    startThemeTransition(async () => {
+      try {
+        const result = await updateThemeAction({
+          theme: value as "light" | "dark" | "system",
+        });
+        if (!result.success) throw new Error();
+      } catch {
+        setTheme(previous);
+        toast.error("Le thème n’a pas pu être enregistré.");
+      }
+    });
+  };
   const [isModalOpen, setIsModalOpen] = React.useState(false);
   const { data: session, isPending } = useSession();
   if (isPending) {
@@ -40,10 +67,17 @@ export function NavUser() {
       />
       <DropdownMenu>
         <DropdownMenuTrigger className="cursor-pointer" asChild>
-          <Avatar className="size-8 ">
-            <AvatarImage src={user.image ?? undefined} />
-            <AvatarFallback>{getInitials(user.name)}</AvatarFallback>
-          </Avatar>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="rounded-full"
+            aria-label="Menu du compte"
+          >
+            <Avatar className="size-8">
+              <AvatarImage src={user.image ?? undefined} />
+              <AvatarFallback>{getInitials(user.name)}</AvatarFallback>
+            </Avatar>
+          </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-60">
           <DropdownMenuItem
@@ -86,12 +120,28 @@ export function NavUser() {
           </DropdownMenuGroup>
           <DropdownMenuSeparator />
           <DropdownMenuGroup>
-            <DropdownMenuItem className="cursor-pointer" asChild>
-              <Link href="/projects/billing" className="w-full">
-                <CreditCardIcon />
-                Plan & Tarifs
-              </Link>
-            </DropdownMenuItem>
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger>
+                <Palette aria-hidden />
+                Thème
+              </DropdownMenuSubTrigger>
+              <DropdownMenuSubContent>
+                <DropdownMenuRadioGroup
+                  value={theme || "system"}
+                  onValueChange={changeTheme}
+                >
+                  <DropdownMenuRadioItem disabled={savingTheme} value="light">
+                    Clair
+                  </DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem disabled={savingTheme} value="dark">
+                    Sombre
+                  </DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem disabled={savingTheme} value="system">
+                    Système
+                  </DropdownMenuRadioItem>
+                </DropdownMenuRadioGroup>
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
           </DropdownMenuGroup>
           <DropdownMenuSeparator />
           <DropdownMenuGroup>

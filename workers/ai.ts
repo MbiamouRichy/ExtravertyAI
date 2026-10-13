@@ -4,6 +4,10 @@ import { workerDatabase, notifyProject } from "./shared";
 import { claimAiJob, runAiJob } from "../lib/ai-jobs";
 import { reconcileProviderReceipts } from "../lib/provider-reconciliation";
 import { runInstinctCycle } from "../lib/ai-instinct";
+import {
+  claimMessageExtraction,
+  runMessageExtraction,
+} from "../lib/message-extraction";
 
 const prisma = workerDatabase();
 let stopping = false;
@@ -45,7 +49,21 @@ async function instinctLoop() {
     await sleep(2000);
   }
 }
-Promise.all([main(), instinctLoop()])
+async function extractionLoop() {
+  while (!stopping) {
+    try {
+      const job = await claimMessageExtraction(prisma);
+      if (job) {
+        await runMessageExtraction(prisma, job);
+        await notifyProject(job.projectId);
+      } else await sleep(1000);
+    } catch {
+      console.error("[media-extraction] Cycle interrompu.");
+      await sleep(2000);
+    }
+  }
+}
+Promise.all([main(), instinctLoop(), extractionLoop()])
   .catch(() => {
     stopping = true;
     console.error("[ai-worker] Arrêt sur erreur.");

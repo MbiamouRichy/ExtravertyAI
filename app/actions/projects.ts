@@ -7,6 +7,10 @@ import z from "zod";
 import { setProjectPaused } from "./project-settings";
 import { deleteProjectResources } from "@/lib/project-deletion";
 import { billingAccess } from "@/lib/billing-access";
+import {
+  contactExportSnapshot,
+  verifyExportReceipt,
+} from "@/lib/contact-export";
 import { isRecentSession } from "@/lib/recent-session";
 
 // 1. RÉCUPERER TOUS LES PROJETS
@@ -201,7 +205,11 @@ export async function disableProject(
 }
 // 4. SUPPRIMER LE PROJET (IRRÉVERSIBLE)
 export async function deleteProjectAction(
-  formData: z.infer<typeof ProjectActionSchema> & { confirmationName: string },
+  formData: z.infer<typeof ProjectActionSchema> & {
+    confirmationName: string;
+    csvReceipt: string;
+    xlsxReceipt: string;
+  },
 ) {
   const session = await getSession({ fresh: true });
   if (!session?.user?.id) {
@@ -215,6 +223,8 @@ export async function deleteProjectAction(
   try {
     const parsed = ProjectActionSchema.extend({
       confirmationName: z.string().min(1).max(100),
+      csvReceipt: z.string().min(1).max(2000),
+      xlsxReceipt: z.string().min(1).max(2000),
     }).safeParse(formData);
     if (!parsed.success) throw new Error("Données invalides");
 
@@ -252,6 +262,25 @@ export async function deleteProjectAction(
       };
     }
 
+    const { hash } = await contactExportSnapshot(prisma, projectId);
+    const expected = { userId: session.user.id, projectId, hash };
+    if (
+      !verifyExportReceipt(parsed.data.csvReceipt, {
+        ...expected,
+        format: "csv",
+      }) ||
+      !verifyExportReceipt(parsed.data.xlsxReceipt, {
+        ...expected,
+        format: "xlsx",
+      })
+    ) {
+      return {
+        success: false,
+        code: "EXPORT_REQUIRED",
+        error:
+          "Exportez à nouveau les contacts en CSV et Excel : les données ont changé ou la sauvegarde a expiré.",
+      };
+    }
     await deleteProjectResources(projectId, session.user.id);
 
     // Optionnel mais recommandé : purger depuis la racine pour éviter le bug de cache du header

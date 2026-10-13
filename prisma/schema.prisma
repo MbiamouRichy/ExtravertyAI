@@ -68,6 +68,13 @@ enum MessageStatus {
   FAILED
 }
 
+enum ExtractionStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
 enum MessageType {
   TEXT
   IMAGE
@@ -212,6 +219,14 @@ model Project {
   aiJobs AiJob[]
   receipts ProviderReceipt[]
   billingEmails BillingEmail[]
+  weeklyReports WeeklyReport[]
+  reportsEnabled Boolean @default(true)
+  reportsSkipEmpty Boolean @default(false)
+  reportsIncludeTips Boolean @default(true)
+  reportsHourUtc Int @default(8)
+  reportsVersion Int @default(0)
+  reportsCheckAt DateTime @default(now())
+  @@index([reportsCheckAt])
   @@index([billingNextCheckAt])
 }
 
@@ -275,6 +290,18 @@ model Message {
   type         MessageType   @default(TEXT)
   mediaUrl     String?       // URL du fichier si c'est un média
   
+  // Durable media extraction, reused by every AI consumer.
+  extractedText String? @db.Text
+  extractionStatus ExtractionStatus?
+  extractionModel String?
+  extractionVersion Int?
+  extractedAt DateTime?
+  extractionAttempts Int @default(0)
+  extractionAvailableAt DateTime?
+  extractionLeaseToken String? @db.Uuid
+  extractionLeaseUntil DateTime?
+  extractionErrorCode String?
+
   senderType   SenderType
   status       MessageStatus @default(PENDING)
   errorMessage String?       @db.Text // Stocke le log d'erreur si status == FAILED
@@ -300,6 +327,8 @@ model Message {
   @@index([contactId, createdAt(sort: Desc)])
   @@index([evolutionId])
   @@index([projectId, contactId, createdAt, id])
+  @@index([projectId, createdAt])
+  @@index([extractionStatus, extractionAvailableAt])
   @@map("message")
 }
 
@@ -482,6 +511,20 @@ model SettingsAudit {
   @@map("settings_audit")
 }
 
+// Short-lived spending ledger, independent of project deletion so a user cannot
+// reset the daily limit by recreating a project. Contains no prompt or output.
+model AiEditorRequest {
+  id String @id
+  projectId String
+  actorId String
+  state String
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  @@index([projectId, createdAt])
+  @@index([actorId, createdAt])
+  @@index([createdAt])
+  @@map("ai_editor_request")
+}
+
 // A member's read position is independent of WhatsApp delivery receipts.
 model ConversationReadState {
   membershipId String
@@ -560,4 +603,41 @@ model NotificationReceipt {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   @@id([userId, key])
   @@map("notification_receipt")
+}
+
+model WeeklyReport {
+  id String @id @default(cuid())
+  projectId String
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  weekStart DateTime
+  weekEnd DateTime
+  snapshot Json
+  skipped Boolean @default(false)
+  createdAt DateTime @default(now())
+  emails ReportEmail[]
+  @@unique([projectId, weekStart])
+  @@map("weekly_report")
+}
+
+model ReportEmail {
+  id String @id @default(cuid())
+  reportId String
+  report WeeklyReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  recipientId String
+  recipient String
+  from String
+  subject String
+  text String @db.Text
+  html String @db.Text
+  state BillingEmailState @default(PENDING)
+  attempts Int @default(0)
+  availableAt DateTime @default(now())
+  firstAttemptAt DateTime?
+  leaseToken String?
+  leaseUntil DateTime?
+  sentAt DateTime?
+  providerId String?
+  @@unique([reportId, recipientId])
+  @@index([state, availableAt])
+  @@map("report_email")
 }

@@ -77,6 +77,8 @@ export async function getWorkspaceData(
             senderType: true,
             content: true,
             type: true,
+            extractedText: true,
+            extractionStatus: true,
             createdAt: true,
             status: true,
             outboundJob: {

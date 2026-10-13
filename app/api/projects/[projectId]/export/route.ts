@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth-server";
 import prisma from "@/lib/prisma";
 import { csvCell } from "@/lib/export-csv";
+import { contactExportSnapshot, signExportReceipt } from "@/lib/contact-export";
 export const runtime = "nodejs";
 export async function GET(
   req: Request,
@@ -21,26 +22,13 @@ export async function GET(
   if (!["csv", "xlsx"].includes(format))
     return NextResponse.json({ error: "Format invalide." }, { status: 400 });
   try {
-    const contacts = await prisma.contact.findMany({
-      where: { projectId },
-      orderBy: { id: "asc" },
-      take: 10001,
-      select: {
-        name: true,
-        pushName: true,
-        phone: true,
-        aiActive: true,
-        createdAt: true,
-      },
-    });
-    if (contacts.length > 10000)
+    const forDeletion = new URL(req.url).searchParams.get("deletion") === "1";
+    if (forDeletion && membership.role !== "OWNER")
       return NextResponse.json(
-        {
-          error:
-            "Cet export dépasse 10 000 contacts. Demandez un export accompagné au support.",
-        },
-        { status: 413 },
+        { error: "Seul le propriétaire peut préparer la suppression." },
+        { status: 403 },
       );
+    const { contacts, hash } = await contactExportSnapshot(prisma, projectId);
     const header = [
       "Nom",
       "Nom WhatsApp",
@@ -57,6 +45,16 @@ export async function GET(
     ]);
     const headers = {
       "Cache-Control": "private, no-store",
+      ...(forDeletion
+        ? {
+            "X-Export-Receipt": signExportReceipt({
+              userId: session.user.id,
+              projectId,
+              hash,
+              format: format as "csv" | "xlsx",
+            }),
+          }
+        : {}),
       "Content-Disposition": `attachment; filename="contacts.${format}"`,
       "X-Content-Type-Options": "nosniff",
     };
@@ -70,23 +68,27 @@ export async function GET(
     }
     const { default: ExcelJS } = await import("exceljs");
     const workbook = new ExcelJS.Workbook();
-    const sheet = workbook.addWorksheet("Contacts");
-    sheet.addRow(header);
-    sheet.addRows(rows);
-    sheet.getRow(1).font = { bold: true, color: { argb: "FFFFFFFF" } };
-    sheet.getRow(1).fill = {
-      type: "pattern",
-      pattern: "solid",
-      fgColor: { argb: "FF1D4ED8" },
-    };
-    sheet.columns.forEach((column) => {
-      column.width = 28;
-    });
-    sheet.views = [{ state: "frozen", ySplit: 1 }];
-    sheet.autoFilter = {
-      from: { row: 1, column: 1 },
-      to: { row: 1, column: header.length },
-    };
+    for (let offset = 0; offset < Math.max(1, rows.length); offset += 1000000) {
+      const sheet = workbook.addWorksheet(
+        "Contacts " + (Math.floor(offset / 1000000) + 1),
+      );
+      sheet.addRow(header);
+      sheet.addRows(rows.slice(offset, offset + 1000000));
+      sheet.getRow(1).font = { bold: true, color: { argb: "FFFFFFFF" } };
+      sheet.getRow(1).fill = {
+        type: "pattern",
+        pattern: "solid",
+        fgColor: { argb: "FF1D4ED8" },
+      };
+      sheet.columns.forEach((column) => {
+        column.width = 28;
+      });
+      sheet.views = [{ state: "frozen", ySplit: 1 }];
+      sheet.autoFilter = {
+        from: { row: 1, column: 1 },
+        to: { row: 1, column: header.length },
+      };
+    }
     // ExcelJS stores these values as strings, never as executable cell formulas.
     return new Response(new Uint8Array(await workbook.xlsx.writeBuffer()), {
       headers: {

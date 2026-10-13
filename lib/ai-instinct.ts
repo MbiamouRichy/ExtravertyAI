@@ -29,7 +29,8 @@ export async function runInstinctCycle(
         AND length(trim(p."agentSystemMessage")) > 0
         AND (c."instinctLeaseUntil" IS NULL OR c."instinctLeaseUntil" < clock_timestamp())
         AND (c."instinctClassification" IS NULL OR c."instinctSourceId" IS DISTINCT FROM latest.id OR c."instinctConfigVersion" <> p."agentConfigVersion")
-        AND EXISTS (SELECT 1 FROM message m WHERE m."contactId" = c.id AND m."projectId" = p.id AND m."senderType" = 'CLIENT' AND m.type = 'TEXT')
+        AND EXISTS (SELECT 1 FROM message m WHERE m."contactId" = c.id AND m."projectId" = p.id AND m."senderType" = 'CLIENT' AND (m.type = 'TEXT' OR (m.type IN ('AUDIO', 'IMAGE') AND m."extractionStatus" = 'COMPLETED' AND length(trim(m."extractedText")) > 0)))
+        AND NOT EXISTS (SELECT 1 FROM message m WHERE m."contactId" = c.id AND m."projectId" = p.id AND m."extractionStatus" IN ('PENDING', 'PROCESSING'))
       ORDER BY c."instinctLeaseUntil" NULLS FIRST, c.id
       LIMIT 1 FOR UPDATE OF c SKIP LOCKED
     )
@@ -41,7 +42,18 @@ export async function runInstinctCycle(
       where: {
         projectId: candidate.projectId,
         contactId: candidate.id,
-        type: "TEXT",
+        AND: [
+          {
+            OR: [
+              { type: "TEXT" },
+              {
+                type: { in: ["AUDIO", "IMAGE"] },
+                extractionStatus: "COMPLETED",
+                extractedText: { not: null },
+              },
+            ],
+          },
+        ],
         OR: [
           { senderType: "CLIENT", fromMe: false },
           { status: { in: ["SENT", "DELIVERED", "READ"] } },
@@ -49,7 +61,13 @@ export async function runInstinctCycle(
       },
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       take: 60,
-      select: { senderType: true, content: true, type: true },
+      select: {
+        senderType: true,
+        content: true,
+        type: true,
+        extractedText: true,
+        extractionStatus: true,
+      },
     });
     const classification = await assess(candidate.goals, messages.reverse());
     const saved = await prisma.contact.updateMany({

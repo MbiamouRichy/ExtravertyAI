@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import {
   BarChart3Icon,
+  CalendarClock,
   BriefcaseIcon,
   UsersIcon,
   SettingsIcon,
@@ -41,6 +42,11 @@ export const getNavGroups = (projectId: string): SidebarNavGroup[] => [
         title: "Analytics",
         path: `/projects/${projectId}/analytics`,
         icon: <BarChart3Icon />,
+      },
+      {
+        title: "Rapports",
+        path: `/projects/${projectId}/reports`,
+        icon: <CalendarClock />,
       },
       {
         title: "Chat",

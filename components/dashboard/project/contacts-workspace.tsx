@@ -337,6 +337,9 @@ export function ContactsWorkspace(p: Props) {
             pending={navigationPending}
             busy={!!busy}
             renderStatus={status}
+            onToggleAi={(contact) => {
+              if (!busy && !navigationPending) void handling(contact);
+            }}
             onPageChange={(page) => navigate({ page })}
             onRename={(contact) => {
               setName(contact.name || "");

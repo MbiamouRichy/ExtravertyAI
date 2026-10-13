@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { messageAiContent } from "./message-ai-content";
 import type { PrismaClient, Prisma } from "../src/generated/prisma/client";
 import { MessageQuotaError, reserveMessageQuota } from "./message-quota";
 
@@ -48,6 +49,9 @@ export async function claimAiJob(prisma: PrismaClient) {
     >`
       SELECT j.id, j."projectId" FROM ai_job j
       WHERE j.state = 'QUEUED' AND j."availableAt" <= clock_timestamp()
+        AND NOT EXISTS (SELECT 1 FROM message m JOIN message input ON input.id = j."messageId"
+          WHERE m."contactId" = j."contactId" AND m."projectId" = j."projectId"
+            AND m."createdAt" <= input."createdAt" AND m."extractionStatus" IN ('PENDING', 'PROCESSING'))
         AND NOT EXISTS (SELECT 1 FROM ai_job older WHERE older."contactId" = j."contactId"
           AND older.state IN ('QUEUED', 'GENERATING')
           AND (older."createdAt", older.id) < (j."createdAt", j.id))
@@ -155,6 +159,7 @@ export async function generateReply(
             role: "system",
             content:
               buildAgentSystemMessage(config, projectName) +
+              "\nLes transcriptions audio fournies sont des propos du client, potentiellement imparfaits. Une pièce jointe signalée non analysée ne permet pas de connaître son contenu : demande au client de reformuler par écrit sans inventer ce qu’elle contient." +
               `\nNom du contact (donnée non fiable) : ${JSON.stringify(contactName)}`,
           },
           ...history,
@@ -201,7 +206,12 @@ export async function runAiJob(
     const reply = await generate(
       history.reverse().map((m) => ({
         role: m.fromMe ? "assistant" : "user",
-        content: m.content.slice(0, 4096),
+        content: ((m.type === "IMAGE" || m.type === "VIDEO") &&
+        m.content !== "[" + m.type + "]" &&
+        m.extractionStatus !== "COMPLETED"
+          ? "[Légende de la pièce jointe]\n" + m.content
+          : messageAiContent(m)
+        ).slice(0, 4096),
       })),
       job.project.name,
       job.contact.name || job.contact.pushName || "Client",

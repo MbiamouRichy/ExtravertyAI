@@ -17,12 +17,11 @@ import {
   Loader2,
   MessageSquare,
   ShieldCheck,
-  Sparkles,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { SystemMessageDialog } from "./system-message-dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
@@ -345,23 +344,24 @@ export function AgentEditor({
                 <Controller
                   name="agentSystemMessage"
                   control={form.control}
-                  render={({ field, fieldState }) => (
+                  render={({ fieldState }) => (
                     <Field data-invalid={fieldState.invalid}>
                       <FieldLabel htmlFor="agent-system">
                         Message système de votre entreprise
                       </FieldLabel>
-                      <Textarea
-                        {...field}
-                        id="agent-system"
-                        rows={15}
-                        autoComplete="off"
-                        maxLength={12000}
-                        aria-invalid={fieldState.invalid}
-                        aria-describedby="agent-system-description agent-system-error"
-                        onChange={(event) =>
-                          update("agentSystemMessage", event.target.value)
+                      <SystemMessageDialog
+                        projectId={projectId}
+                        config={config}
+                        onChange={(value) =>
+                          update("agentSystemMessage", value)
                         }
-                        className={`${inputClass} resize-y font-mono text-sm leading-6`}
+                        onClose={() => {
+                          if (!onboarding) void autosave.queue.flush();
+                        }}
+                        status={autosave.status}
+                        saveError={autosave.error}
+                        error={fieldState.error}
+                        onboarding={onboarding}
                       />
                       <FieldDescription
                         id="agent-system-description"
@@ -382,22 +382,6 @@ export function AgentEditor({
                     </Field>
                   )}
                 />
-                <Button
-                  type="button"
-                  disabled={config.agentSystemMessage.length > 11880}
-                  onClick={() =>
-                    update(
-                      "agentSystemMessage",
-                      `${config.agentSystemMessage}\n\nHORAIRES ET CONTACT HUMAIN\n\nOFFRES ET TARIFS VÉRIFIÉS\n\nQUESTIONS FRÉQUENTES\n`,
-                    )
-                  }
-                  variant="ghost"
-                  size="lg"
-                  className="mt-4 h-auto whitespace-normal text-left"
-                >
-                  <Sparkles className="size-4" /> Ajouter des rubriques à
-                  compléter
-                </Button>
               </section>
             )}
             {show(2) && (

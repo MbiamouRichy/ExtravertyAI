@@ -44,13 +44,28 @@ export function messageMediaPath(projectId: string, messageId: string) {
   return `/api/projects/${encodeURIComponent(projectId)}/chat/media/${encodeURIComponent(messageId)}`;
 }
 export function chatMediaFields(
-  message: { id: string; type: string; content: string },
+  message: {
+    id: string;
+    type: string;
+    content: string;
+    extractedText?: string | null;
+    extractionStatus?: string | null;
+  },
   projectId: string,
 ) {
   const supported = ["IMAGE", "AUDIO", "VIDEO", "DOCUMENT"].includes(
     message.type,
   );
   return {
+    ...(message.extractionStatus
+      ? {
+          extractionStatus: message.extractionStatus,
+          extractedText:
+            message.extractionStatus === "COMPLETED"
+              ? (message.extractedText ?? null)
+              : null,
+        }
+      : {}),
     type: message.type,
     mediaUrl: supported ? messageMediaPath(projectId, message.id) : null,
     content: supported

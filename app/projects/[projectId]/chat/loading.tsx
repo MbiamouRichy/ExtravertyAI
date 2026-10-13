@@ -25,7 +25,6 @@ export default function ChatLoading() {
                 <Skeleton className="h-3 w-28" />
                 <Skeleton className="h-6 w-44" />
               </div>
-              <Skeleton className="size-10 shrink-0 rounded-xl" />
             </div>
             <Skeleton className="h-10 w-full rounded-xl" />
             <div className="flex gap-1 rounded-xl bg-muted/50 p-1">
@@ -46,30 +45,36 @@ export default function ChatLoading() {
           </div>
         </div>
         <div className="relative hidden min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-border md:flex">
-          <div className="flex shrink-0 items-center gap-3 border-b border-border px-5 py-3">
+          <div className="chat-floating-header relative z-10 flex shrink-0 items-center gap-3 bg-background px-5 py-4">
             <Skeleton className="size-10 shrink-0 rounded-full" />
             <div className="min-w-0 flex-1 space-y-2">
               <Skeleton className="h-4 w-36 max-w-full" />
-              <Skeleton className="h-3 w-24 max-w-full" />
+              <div className="flex -space-x-1">
+                <Skeleton className="size-5 rounded-full ring-2 ring-background" />
+                <Skeleton className="size-5 rounded-full ring-2 ring-background" />
+              </div>
             </div>
-            <Skeleton className="size-11 shrink-0 rounded-xl" />
-            <Skeleton className="size-11 shrink-0 rounded-xl" />
+            <Skeleton className="size-9 shrink-0 rounded-lg" />
+            <Skeleton className="size-9 shrink-0 rounded-lg" />
           </div>
           <div className="min-h-0 flex-1 overflow-hidden px-5">
             <ConversationMessagesLoading />
           </div>
           <div className="shrink-0 px-5 pt-4 pb-3">
             <div className="mx-auto max-w-4xl">
-              <div className="mb-2 flex h-9 items-center gap-3 px-2">
-                <Skeleton className="h-4 w-32 shrink-0" />
-                <Skeleton className="h-3 min-w-0 flex-1" />
+              <div className="mb-3 flex items-start gap-3 rounded-xl bg-muted/40 p-3">
+                <Skeleton className="size-4 shrink-0" />
+                <div className="min-w-0 flex-1 space-y-2">
+                  <Skeleton className="h-3 w-full" />
+                  <Skeleton className="h-3 w-2/3" />
+                </div>
               </div>
               <div className="space-y-1 rounded-2xl border border-input bg-muted/30 px-2 py-1 shadow-sm">
                 <div className="min-h-16 px-2 py-2">
                   <Skeleton className="h-4 w-40 max-w-full" />
                 </div>
                 <div className="flex h-11 items-center gap-3 px-2">
-                  {[0, 1, 2].map((index) => (
+                  {[0, 1].map((index) => (
                     <Skeleton key={index} className="size-5 rounded-full" />
                   ))}
                   <Skeleton className="ml-auto size-5 rounded-full" />

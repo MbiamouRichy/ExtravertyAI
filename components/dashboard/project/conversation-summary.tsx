@@ -120,8 +120,10 @@ export function ConversationSummaryButton({
               >
                 {result.partial && (
                   <p className="rounded-lg bg-muted p-3 text-sm text-muted-foreground">
-                    Analyse partielle : jusqu’à 200 messages récents, texte
-                    limité et pièces jointes exclues.
+                    Ce résumé porte sur les échanges récents (200 messages
+                    maximum). Il inclut les transcriptions audio et les analyses
+                    d’images disponibles. Certains textes peuvent être abrégés ;
+                    les médias non analysés ne sont pas pris en compte.
                   </p>
                 )}
                 <p role="status" className="sr-only">

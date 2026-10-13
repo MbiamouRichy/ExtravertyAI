@@ -58,7 +58,7 @@ npx tsx scripts/bootstrap-quotas.ts manifest.json --apply
 
 ### Déploiement automatique de la preview
 
-Le workflow `.github/workflows/deploy-preview.yml` déploie les trois workers du VPS à chaque push sur `codex/preproduction`. L’application web reste déployée par l’intégration Git de Vercel. Les exécutions sont sérialisées ; une révision déjà dépassée est ignorée. Aucun autre environnement ni branche n’est déployé par ce workflow.
+Le workflow `.github/workflows/deploy-preview.yml` déploie les quatre workers du VPS (IA, messages sortants, facturation et rapports Business) à chaque push sur `codex/preproduction`. L’application web reste déployée par l’intégration Git de Vercel. Les exécutions sont sérialisées ; une révision déjà dépassée est ignorée. Aucun autre environnement ni branche n’est déployé par ce workflow.
 
 Les secrets GitHub `PREVIEW_VPS_HOST`, `PREVIEW_VPS_SSH_KEY` et `PREVIEW_VPS_KNOWN_HOSTS` contiennent une identité SSH dédiée et la clé d’hôte vérifiée. Le mot de passe administrateur n’est pas utilisé. La clé SSH du VPS est limitée par `restrict,command="/usr/local/sbin/extraverty-preview-deploy"` et n’autorise aucun shell interactif.
 
