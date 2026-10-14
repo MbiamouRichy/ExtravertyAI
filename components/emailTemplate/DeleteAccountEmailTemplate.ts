@@ -47,7 +47,6 @@ export function DeleteAccountEmailTemplate({ url }: { url: string }) {
         .warning-box { background-color: #450a0a !important; border-color: #7f1d1d !important; }
         .warning-title { color: #fca5a5 !important; }
         .warning-text { color: #f87171 !important; }
-        .logo-img { filter: invert(1) hue-rotate(180deg); } /* Optionnel: inverse le logo si c'est un PNG noir */
       }
     </style>
   </head>
@@ -77,7 +76,7 @@ export function DeleteAccountEmailTemplate({ url }: { url: string }) {
                         <!-- Remplacez le src par l'URL absolue de votre logo -->
                         <img 
                           class="logo-img"
-                          src="https://extravertyai.com/logo.png" 
+                          src="https://extravertyai.com/logo-email.png" 
                           alt="ExtravertyAI"
                           width="120"
                           style="display: block; border: 0; height: auto;"

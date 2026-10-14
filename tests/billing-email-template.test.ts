@@ -13,7 +13,8 @@ const props = {
 test("billing email escapes untrusted content and exposes the secure billing link", () => {
   const html = BillingEmailTemplate(props);
   assert.ok(html.includes("&lt;img"));
-  assert.ok(!html.includes("<img"));
+  assert.ok(!html.includes("<img src=x"));
+  assert.ok(html.includes('src="https://extravertyai.com/logo-email.png"'));
   assert.ok(html.includes("Votre accès &lt;test&gt; est suspendu."));
   assert.ok(
     html.includes(

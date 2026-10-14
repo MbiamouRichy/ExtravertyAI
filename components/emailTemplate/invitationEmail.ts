@@ -49,7 +49,7 @@ export function ProjectInvitationEmail({
                   <tr>
                     <td style="padding-bottom: 30px;">
                       <a href="https://extravertyai.com" target="_blank">
-                        <img src="https://extravertyai.com/logo.png" alt="ExtravertyAI" width="120" style="display: block; border: 0; height: auto;" />
+                        <img src="https://extravertyai.com/logo-email.png" alt="ExtravertyAI" width="120" style="display: block; border: 0; height: auto;" />
                       </a>
                     </td>
                   </tr>

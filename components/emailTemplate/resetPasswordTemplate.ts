@@ -47,7 +47,7 @@ export function ResetPasswordTemplate({
                     <td align="center" style="padding-bottom:32px;">
                       <a href="https://extravertyai.com" target="_blank">
                         <img 
-                          src="https://extravertyai.com/logo.png" 
+                          src="https://extravertyai.com/logo-email.png" 
                           alt="ExtravertyAI"
                           width="56"
                           style="display:block; border:0; border-radius:8px;"

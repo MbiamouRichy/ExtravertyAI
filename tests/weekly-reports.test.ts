@@ -66,7 +66,7 @@ test("email escapes untrusted values, rejects unsafe links and has a text versio
     "https://example.test/reports",
   );
   assert.ok(!result.html.includes("<script>"));
-  assert.ok(!result.html.includes("<img"));
+  assert.ok(!result.html.includes("<img src=x"));
   assert.ok(!result.subject.includes("\n"));
   assert.match(result.text, /Messages reçus/);
   assert.throws(() =>
