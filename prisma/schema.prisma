@@ -449,6 +449,33 @@ model Invitation {
   @@map("invitation")
 }
 
+// Proof that an account erasure was carried out, holding no personal data: the
+// e-mail is only stored as a keyed HMAC so a later request can be matched.
+model AccountDeletionRecord {
+  id              String   @id @default(cuid())
+  emailHash       String
+  projectsDeleted Int
+  projectsLeft    Int
+  deletedAt       DateTime @default(now())
+
+  @@index([emailHash])
+  @@map("account_deletion_record")
+}
+
+// Anonymous exit survey. Deliberately unlinked from AccountDeletionRecord:
+// random UUID, no creation timestamp, expiry rounded to the hour.
+model AccountDeletionFeedback {
+  id          String    @id @default(uuid())
+  tokenHash   String    @unique
+  expiresAt   DateTime
+  reason      String?
+  comment     String?
+  submittedAt DateTime?
+
+  @@index([expiresAt])
+  @@map("account_deletion_feedback")
+}
+
 enum AiJobState {
   QUEUED
   GENERATING

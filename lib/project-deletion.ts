@@ -34,6 +34,23 @@ export async function deleteProjectResources(
       );
     }
   }
+  if (project.stripeCustomerId) {
+    // Erases the customer's personal data at Stripe (name, e-mail, payment
+    // methods). Invoices and payments remain in Stripe for legal retention.
+    try {
+      await stripe.customers.del(
+        project.stripeCustomerId,
+        {},
+        { timeout: 10000, maxNetworkRetries: 1 },
+      );
+    } catch (error) {
+      // Already deleted on a previous attempt: nothing left to erase.
+      if ((error as { code?: string }).code !== "resource_missing")
+        throw new SettingsError(
+          "Suppression des données de facturation impossible. Le projet est conservé en pause ; réessayez.",
+        );
+    }
+  }
   if (project.instanceName) {
     try {
       await deleteEvolutionInstance(project.instanceName);

@@ -10,16 +10,18 @@ import {
   MessageCircleOff,
   Users,
 } from "lucide-react";
+import { cookies } from "next/headers";
 import { LogoIcon } from "@/components/logo";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { DELETION_FEEDBACK_COOKIE } from "@/lib/account-deletion-records";
+import { ExitSurvey } from "./exit-survey";
 
 export const metadata: Metadata = {
   title: "Compte supprimé | ExtravertyAI",
   description: "Votre compte ExtravertyAI a été supprimé.",
   robots: { index: false, follow: false },
 };
-export const dynamic = "force-static";
 
 // Mirrors what the deletion flow actually does (lib/auth.ts before-hook →
 // lib/project-deletion.ts, then Prisma cascades on the user row).
@@ -34,7 +36,7 @@ const completed = [
     icon: CreditCard,
     title: "Abonnements arrêtés",
     description:
-      "Les abonnements liés à ces projets ont été annulés. Aucun nouveau prélèvement ne sera effectué.",
+      "Les abonnements liés à ces projets ont été annulés et vos données de facturation effacées chez Stripe. Aucun nouveau prélèvement ne sera effectué.",
   },
   {
     icon: MessageCircleOff,
@@ -50,7 +52,8 @@ const completed = [
   },
 ] as const;
 
-export default function GoodbyePage() {
+export default async function GoodbyePage() {
+  const canAnswerSurvey = (await cookies()).has(DELETION_FEEDBACK_COOKIE);
   return (
     <div className="relative flex min-h-dvh flex-col bg-background">
       <div
@@ -127,6 +130,13 @@ export default function GoodbyePage() {
             prestataire de paiement, conformément aux obligations légales.
           </p>
         </div>
+
+        {/* Shown only right after a real deletion (one-time cookie). */}
+        {canAnswerSurvey && (
+          <div className="mt-8">
+            <ExitSurvey />
+          </div>
+        )}
 
         <Separator className="my-8" />
 

@@ -15,13 +15,37 @@ import { ChangeEmailTemplate } from "@/components/emailTemplate/changeEmailTempl
 import { AccountDeletedEmailTemplate } from "@/components/emailTemplate/accountDeletedEmailTemplate";
 import { deleteProjectResources } from "./project-deletion";
 import { getAccountDeletionPlan } from "./account-deletion";
+import {
+  createDeletionFeedbackToken,
+  DELETION_FEEDBACK_COOKIE,
+  DELETION_FEEDBACK_TTL_SECONDS,
+  recordAccountDeletion,
+} from "./account-deletion-records";
 
 // Filled by the user delete hook and read by afterDelete in the same request,
 // once the user row (and the data used to describe the deletion) is gone.
-const pendingDeletionEmails = new Map<
+// Entries of deletions that failed after the hook expire instead of piling up.
+const PENDING_DELETION_TTL_MS = 10 * 60 * 1000;
+const pendingDeletions = new Map<
   string,
-  { projects: string[]; left: number }
+  { projects: string[]; left: number; at: number }
 >();
+function takePendingDeletion(userId: string) {
+  const entry = pendingDeletions.get(userId);
+  pendingDeletions.delete(userId);
+  return entry && Date.now() - entry.at < PENDING_DELETION_TTL_MS
+    ? entry
+    : undefined;
+}
+function setPendingDeletion(userId: string, projects: string[], left: number) {
+  const now = Date.now();
+  for (const [id, entry] of pendingDeletions)
+    if (now - entry.at >= PENDING_DELETION_TTL_MS) pendingDeletions.delete(id);
+  pendingDeletions.set(userId, { projects, left, at: now });
+}
+// Exit-survey token handed from afterDelete to the after hook of the same
+// request, which owns the response and can set the cookie.
+const feedbackTokens = new WeakMap<Request, string>();
 
 async function assertNoOwnershipBlockers(userId: string) {
   const plan = await getAccountDeletionPlan(userId);
@@ -53,6 +77,20 @@ export const auth = betterAuth({
         await assertNoOwnershipBlockers(session.session.userId);
       }
     }),
+    after: createAuthMiddleware(async (ctx) => {
+      if (ctx.path !== "/delete-user" || !ctx.request) return;
+      const token = feedbackTokens.get(ctx.request);
+      if (!token) return;
+      feedbackTokens.delete(ctx.request);
+      // Only readable by the goodbye page's server action, for a single answer.
+      ctx.setCookie(DELETION_FEEDBACK_COOKIE, token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        path: "/goodbye",
+        maxAge: DELETION_FEEDBACK_TTL_SECONDS,
+      });
+    }),
   },
 
   databaseHooks: {
@@ -68,10 +106,11 @@ export const auth = betterAuth({
           for (const project of plan.deleted) {
             await deleteProjectResources(project.id, user.id);
           }
-          pendingDeletionEmails.set(user.id, {
-            projects: plan.deleted.map((project) => project.name),
-            left: plan.left,
-          });
+          setPendingDeletion(
+            user.id,
+            plan.deleted.map((project) => project.name),
+            plan.left,
+          );
         },
       },
     },
@@ -119,11 +158,26 @@ export const auth = betterAuth({
   user: {
     deleteUser: {
       enabled: true,
-      afterDelete: async (user) => {
-        const summary = pendingDeletionEmails.get(user.id);
-        pendingDeletionEmails.delete(user.id);
-        // The account is already gone: a mail failure must not report the
-        // deletion as failed to the user.
+      afterDelete: async (user, request) => {
+        const summary = takePendingDeletion(user.id);
+        // The account is already gone: none of the follow-ups below may
+        // report the deletion as failed to the user.
+        try {
+          await recordAccountDeletion({
+            email: user.email,
+            projectsDeleted: summary?.projects.length ?? 0,
+            projectsLeft: summary?.left ?? 0,
+          });
+        } catch (error) {
+          console.error("ACCOUNT_DELETION_RECORD_FAILED", error);
+        }
+        if (request) {
+          try {
+            feedbackTokens.set(request, await createDeletionFeedbackToken());
+          } catch (error) {
+            console.error("DELETION_FEEDBACK_TOKEN_FAILED", error);
+          }
+        }
         try {
           await resend.emails.send({
             to: user.email,

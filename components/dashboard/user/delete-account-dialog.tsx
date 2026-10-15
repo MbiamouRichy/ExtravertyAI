@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { ArrowRight, Crown, Loader2, Trash2 } from "lucide-react";
+import { ArrowRight, Crown, Download, Loader2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import {
@@ -224,6 +224,54 @@ export function DeleteAccountDialog({
                 Votre profil, vos connexions et toutes vos sessions.
               </li>
             </ul>
+
+            {plan.deleted.length > 0 && (
+              <section
+                aria-labelledby="delete-account-export"
+                className="mb-4 rounded-lg border p-4"
+              >
+                <h3
+                  id="delete-account-export"
+                  className="flex items-center gap-2 text-sm! font-medium! tracking-normal!"
+                >
+                  <Download aria-hidden className="size-4" />
+                  Exportez vos contacts avant de partir
+                </h3>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Ils ne pourront plus être récupérés après la suppression.
+                </p>
+                <ul className="mt-3 space-y-2">
+                  {plan.deleted.map((project) => (
+                    <li
+                      key={project.id}
+                      className="flex items-center justify-between gap-3"
+                    >
+                      <span className="min-w-0 truncate text-sm">
+                        {project.name}
+                      </span>
+                      <span className="flex shrink-0 gap-2">
+                        {(["csv", "xlsx"] as const).map((format) => (
+                          <Button
+                            key={format}
+                            asChild
+                            size="sm"
+                            variant="outline"
+                          >
+                            <a
+                              href={`/api/projects/${encodeURIComponent(project.id)}/export?format=${format}`}
+                              download
+                              aria-label={`Exporter les contacts de ${project.name} en ${format === "csv" ? "CSV" : "Excel"}`}
+                            >
+                              {format === "csv" ? "CSV" : "Excel"}
+                            </a>
+                          </Button>
+                        ))}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
 
             {reauthRequired ? (
               <p
