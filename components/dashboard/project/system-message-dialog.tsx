@@ -1,6 +1,6 @@
 "use client";
 import { useRef, useState } from "react";
-import { Expand, Loader2, Sparkles, Wand2, Undo2 } from "lucide-react";
+import { Pencil, Loader2, Sparkles, Wand2, Undo2, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -11,12 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Field,
-  FieldDescription,
-  FieldError,
-  FieldLabel,
-} from "@/components/ui/field";
+import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { assistSystemMessage } from "@/app/actions/assist-system-message";
 import type { AgentConfig } from "@/lib/agent-config";
 import type { AutosaveStatus as SaveStatus } from "@/lib/autosave-queue";
@@ -97,7 +92,7 @@ export function SystemMessageDialog({
           {config.agentSystemMessage ||
             "Cliquez pour écrire la mission et les connaissances de votre agent…"}
         </span>
-        <Expand
+        <Pencil
           aria-hidden
           className="mt-1 size-4 shrink-0 text-muted-foreground"
         />
@@ -108,7 +103,8 @@ export function SystemMessageDialog({
             event.preventDefault();
             trigger.current?.focus();
           }}
-          className="flex max-h-[90dvh] flex-col gap-4 sm:max-w-4xl"
+          showCloseButton={false}
+          className="flex h-dvh max-h-dvh max-w-full flex-col gap-0 overflow-hidden rounded-none p-0 sm:h-[85dvh] sm:max-w-4xl sm:rounded-xl"
           onEscapeKeyDown={(event) => {
             if (pending) event.preventDefault();
           }}
@@ -116,16 +112,33 @@ export function SystemMessageDialog({
             if (pending) event.preventDefault();
           }}
         >
-          <DialogHeader>
-            <DialogTitle>Message système de votre agent</DialogTitle>
-            <DialogDescription>
-              Décrivez votre entreprise, ses offres et les règles de l’agent.{" "}
-              {onboarding
-                ? "Le brouillon sera enregistré à la fin de la configuration."
-                : "Vos modifications sont enregistrées automatiquement."}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex shrink-0 items-center justify-between gap-3 border-b px-4 py-3 sm:px-6">
+            <DialogHeader className="min-w-0 gap-1">
+              <DialogTitle className="text-base sm:text-lg">
+                Message système
+              </DialogTitle>
+              <DialogDescription className="sr-only">
+                Modifiez les instructions de votre agent.
+                {onboarding
+                  ? "Le brouillon sera enregistré à la fin de la configuration."
+                  : "Les modifications sont enregistrées automatiquement."}
+              </DialogDescription>
+              <p className="text-xs text-muted-foreground">
+                Instructions de l’agent
+              </p>
+            </DialogHeader>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              disabled={!!pending}
+              aria-label="Fermer l’éditeur"
+              onClick={() => changeOpen(false)}
+            >
+              <X aria-hidden />
+            </Button>
+          </div>
+          <div className="flex shrink-0 flex-wrap items-center gap-2 border-b bg-muted/30 px-4 py-3 sm:px-6">
             <Button
               type="button"
               variant="secondary"
@@ -158,6 +171,9 @@ export function SystemMessageDialog({
               <Button
                 type="button"
                 variant="ghost"
+                size="icon"
+                aria-label="Annuler la proposition IA"
+                title="Annuler la proposition IA"
                 disabled={!!pending}
                 onClick={() => {
                   onChange(previous);
@@ -165,13 +181,12 @@ export function SystemMessageDialog({
                 }}
               >
                 <Undo2 aria-hidden />
-                Annuler la proposition
               </Button>
             )}
           </div>
           <Field
             data-invalid={!!error}
-            className="min-h-0 flex-1 overflow-y-auto"
+            className="min-h-0 flex-1 gap-0 overflow-hidden p-3 sm:p-5"
           >
             <FieldLabel htmlFor="agent-system-editor" className="sr-only">
               Instructions et connaissances de l’agent
@@ -184,31 +199,29 @@ export function SystemMessageDialog({
               maxLength={12000}
               autoComplete="off"
               spellCheck
-              rows={18}
+              rows={1}
               aria-invalid={!!error}
-              aria-describedby="system-editor-help system-editor-error"
-              className="min-h-56 resize-none font-mono text-sm leading-relaxed"
+              aria-describedby={error ? "system-editor-error" : undefined}
+              className="h-full min-h-0 flex-1 resize-none field-sizing-fixed overflow-y-auto overscroll-contain rounded-lg border-0 bg-background p-3 font-mono text-base leading-relaxed shadow-none focus-visible:ring-1 sm:p-4 sm:text-sm"
             />
-            <FieldDescription
-              id="system-editor-help"
-              className="flex justify-between gap-3"
-            >
-              <span>40 à 12 000 caractères · Ne partagez aucun secret.</span>
-              <span className="shrink-0 tabular-nums">
+            <FieldError
+              id="system-editor-error"
+              className="shrink-0 px-3 pt-2"
+              errors={[error]}
+            />
+          </Field>
+          <div className="flex shrink-0 items-center justify-between gap-3 border-t px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-6">
+            <div className="min-w-0 space-y-1">
+              <span
+                className="text-xs tabular-nums text-muted-foreground"
+                aria-label={`${config.agentSystemMessage.length} caractères sur 12000`}
+              >
                 {config.agentSystemMessage.length.toLocaleString("fr-FR")} / 12
                 000
               </span>
-            </FieldDescription>
-            <FieldError id="system-editor-error" errors={[error]} />
-          </Field>
-          <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-4">
-            <div className="space-y-1">
-              {!onboarding && (
+              {!onboarding && status !== "idle" && (
                 <AutosaveStatus status={status} error={saveError} />
               )}
-              <p className="text-xs text-muted-foreground">
-                IA : 30 s entre les demandes · 10 par projet / 24 h.
-              </p>
             </div>
             <Button
               type="button"

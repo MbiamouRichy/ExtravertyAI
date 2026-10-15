@@ -1,10 +1,12 @@
+import { getUserTimeZone } from "@/lib/server-time-zone";
+import { LocalDate } from "@/components/local-date";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { CalendarClock, Mail, ArrowUpRight, ShieldCheck } from "lucide-react";
 import { getSession } from "@/lib/auth-server";
 import prisma from "@/lib/prisma";
-import { getBillingAccess, formatBillingDate } from "@/lib/billing-access";
+import { getBillingAccess } from "@/lib/billing-access";
 import {
   ReportSnapshotSchema,
   reportMetricLabels,
@@ -49,6 +51,7 @@ export default async function ReportsPage({
   params: Promise<{ projectId: string }>;
   searchParams: Promise<{ report?: string | string[] }>;
 }) {
+  const timeZone = await getUserTimeZone();
   const { projectId } = await params;
   const session = await getSession();
   const base = `/projects/${encodeURIComponent(projectId)}`;
@@ -75,7 +78,7 @@ export default async function ReportsPage({
           Votre semaine, en un rapport.
         </h1>
         <p className="text-muted-foreground">
-          Recevez chaque lundi vos indicateurs, leur évolution et des pistes
+          Recevez chaque semaine vos indicateurs, leur évolution et des pistes
           d’amélioration. Les rapports programmés sont inclus dans le plan
           Business et destinés aux Owner et Admin.
         </p>
@@ -162,13 +165,15 @@ export default async function ReportsPage({
                   : "Prochain envoi prévu"}
           </p>
           <p className="mt-1 text-sm text-muted-foreground">
-            {!eligible
-              ? access.message
-              : !project.reportsEnabled
-                ? "Réactivez les rapports dans les réglages."
-                : catchingUp
-                  ? "La dernière semaine complète sera traitée au prochain passage du service."
-                  : formatBillingDate(nextScheduled)}
+            {!eligible ? (
+              access.message
+            ) : !project.reportsEnabled ? (
+              "Réactivez les rapports dans les réglages."
+            ) : catchingUp ? (
+              "La dernière semaine complète sera traitée au prochain passage du service."
+            ) : (
+              <LocalDate value={nextScheduled} />
+            )}
           </p>
         </div>
         <div>
@@ -201,8 +206,8 @@ export default async function ReportsPage({
               </h2>
               <p className="mt-1 text-sm text-muted-foreground">
                 {selected
-                  ? `${reportRange(selected.weekStart, selected.weekEnd)} · UTC · comparaison avec les 7 jours précédents`
-                  : "Les rapports couvrent le lundi à 00:00 jusqu’au lundi suivant à 00:00 UTC. Vous retrouverez ici les données dès le premier calcul."}
+                  ? `${reportRange(selected.weekStart, selected.weekEnd, timeZone)} · comparaison avec les 7 jours précédents`
+                  : "Les rapports couvrent une semaine complète. Vous retrouverez ici les données dès le premier calcul."}
               </p>
             </div>
             {snapshot && (
@@ -262,7 +267,7 @@ export default async function ReportsPage({
                       href={`${base}/reports?report=${report.id}`}
                       className="rounded text-sm font-medium underline-offset-4 hover:underline focus-visible:outline-ring"
                     >
-                      {reportRange(report.weekStart, report.weekEnd)}
+                      {reportRange(report.weekStart, report.weekEnd, timeZone)}
                     </Link>
                     <span className="text-xs text-muted-foreground">
                       {report.skipped
@@ -328,6 +333,7 @@ export default async function ReportsPage({
             <h2 className="mb-5 text-lg font-semibold">Programmation</h2>
             {eligible ? (
               <ReportSettingsForm
+                referenceDate={now.toISOString()}
                 projectId={projectId}
                 initial={{
                   reportsEnabled: project.reportsEnabled,

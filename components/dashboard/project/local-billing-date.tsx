@@ -1,8 +1,5 @@
 "use client";
-import { useSyncExternalStore } from "react";
-const subscribe = () => () => {};
-const browserZone = () => Intl.DateTimeFormat().resolvedOptions().timeZone;
-const serverZone = () => "";
+import { useUserTimeZone } from "@/components/local-date";
 export function LocalBillingDate({
   value,
   dateOnly = false,
@@ -10,7 +7,7 @@ export function LocalBillingDate({
   value: Date | string | number | null | undefined;
   dateOnly?: boolean;
 }) {
-  const timeZone = useSyncExternalStore(subscribe, browserZone, serverZone);
+  const timeZone = useUserTimeZone();
   if (value == null) return <span>Non disponible</span>;
   const date = new Date(typeof value === "number" ? value * 1000 : value);
   if (!Number.isFinite(date.getTime())) return <span>Non disponible</span>;
@@ -29,7 +26,6 @@ export function LocalBillingDate({
               ? ({
                   hour: "2-digit",
                   minute: "2-digit",
-                  timeZoneName: "short",
                 } as const)
               : {}),
           }).format(date)

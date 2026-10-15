@@ -1,4 +1,5 @@
 "use client";
+import { LocalDate } from "@/components/local-date";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { ReactNode } from "react";
 import { Phone } from "lucide-react";
@@ -70,12 +71,10 @@ export function ContactsTableColumns(options: {
       header: "Ajouté le",
       cell: ({ row }) => (
         <span className="text-xs text-muted-foreground">
-          {new Intl.DateTimeFormat("fr-FR", {
-            day: "2-digit",
-            month: "short",
-            year: "numeric",
-            timeZone: "UTC",
-          }).format(new Date(row.original.createdAt))}
+          <LocalDate
+            value={row.original.createdAt}
+            options={{ day: "2-digit", month: "short", year: "numeric" }}
+          />
         </span>
       ),
     },

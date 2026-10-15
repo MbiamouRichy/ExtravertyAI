@@ -1,4 +1,6 @@
 "use client";
+import { useUserTimeZone } from "@/components/local-date";
+import { reportWindow } from "@/lib/weekly-report";
 import { useState, useTransition } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -24,13 +26,16 @@ import { saveReportSettings } from "@/app/actions/reports";
 
 export function ReportSettingsForm({
   projectId,
+  referenceDate,
   initial,
   version: initialVersion,
 }: {
   projectId: string;
+  referenceDate: string;
   initial: ReportSettings;
   version: number;
 }) {
+  const timeZone = useUserTimeZone();
   const [version, setVersion] = useState(initialVersion);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -122,11 +127,13 @@ export function ReportSettingsForm({
           control={form.control}
           render={({ field, fieldState }) => (
             <Field data-invalid={fieldState.invalid}>
-              <FieldLabel htmlFor="reports-hour">Chaque lundi à</FieldLabel>
+              <FieldLabel htmlFor="reports-hour">
+                Horaire hebdomadaire
+              </FieldLabel>
               <Select
                 value={String(field.value)}
                 onValueChange={(value) => field.onChange(Number(value))}
-                disabled={pending}
+                disabled={pending || !timeZone}
               >
                 <SelectTrigger
                   id="reports-hour"
@@ -140,14 +147,23 @@ export function ReportSettingsForm({
                 <SelectContent>
                   {Array.from({ length: 24 }, (_, hour) => (
                     <SelectItem key={hour} value={String(hour)}>
-                      {String(hour).padStart(2, "0")}:00 UTC
+                      {timeZone
+                        ? new Intl.DateTimeFormat("fr-FR", {
+                            timeZone,
+                            weekday: "long",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          }).format(
+                            reportWindow(new Date(referenceDate), hour).next,
+                          )
+                        : "…"}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
               <FieldDescription id="reports-hour-description">
-                Heure UTC fixe, sans changement saisonnier. 08:00 UTC correspond
-                à 09:00 à Libreville. L’envoi peut prendre quelques minutes.
+                Horaire affiché dans votre fuseau ({timeZone || "…"}) pour le
+                prochain envoi. Il peut évoluer lors d’un changement d’heure.
               </FieldDescription>
               <FieldError errors={[fieldState.error]} />
             </Field>

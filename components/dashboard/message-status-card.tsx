@@ -33,7 +33,6 @@ export function MessageStatusCard({
           {formatNumberFr(total)} sortants
         </span>
       }
-      footer="Statut actuellement enregistré pour chaque message créé pendant la période. Les accusés peuvent évoluer."
     >
       {total === 0 ? (
         <ChartEmptyState

@@ -1,5 +1,6 @@
 "use server";
 
+import { getUserTimeZone } from "@/lib/server-time-zone";
 import prisma from "@/lib/prisma";
 import { getAnalyticsAccess } from "@/lib/analytics-access";
 import { isAnalyticsPeriod } from "@/lib/analytics";
@@ -46,6 +47,7 @@ export async function getAnalyticsOverview(
     throw new Error("Période invalide.");
   }
 
+  const timeZone = await getUserTimeZone();
   const days = PERIOD_DAYS[period];
   const end = new Date();
   const start = new Date(end.getTime() - days * DAY_MS);
@@ -199,14 +201,14 @@ export async function getAnalyticsOverview(
 
   // ------------------------- Séries temporelles -------------------------
   const bucketMode = getBucketMode(period);
-  const keys = buildBucketKeys(start, end, bucketMode);
+  const keys = buildBucketKeys(start, end, bucketMode, timeZone);
 
   const volumeByBucket = new Map<string, { received: number; sent: number }>(
     keys.map((key) => [key, { received: 0, sent: 0 }]),
   );
   for (const message of messages) {
     const bucket = volumeByBucket.get(
-      bucketKeyFor(message.createdAt, bucketMode),
+      bucketKeyFor(message.createdAt, bucketMode, timeZone),
     );
     if (!bucket) continue;
     if (message.senderType === "CLIENT") {
@@ -220,7 +222,7 @@ export async function getAnalyticsOverview(
     keys.map((key) => [key, 0]),
   );
   for (const contact of newContacts) {
-    const key = bucketKeyFor(contact.createdAt, bucketMode);
+    const key = bucketKeyFor(contact.createdAt, bucketMode, timeZone);
     const current = discussionsByBucket.get(key);
     if (current === undefined) continue;
     discussionsByBucket.set(key, current + 1);
@@ -316,7 +318,7 @@ export async function getAnalyticsOverview(
       month: "short",
       hour: "2-digit",
       minute: "2-digit",
-      timeZone: "UTC",
+      timeZone,
     });
 
     topContacts = topContactIds.map((id) => {
@@ -349,17 +351,18 @@ export async function getAnalyticsOverview(
   const rangeLabel = `du ${new Intl.DateTimeFormat("fr-FR", {
     day: "numeric",
     month: "short",
-    timeZone: "UTC",
+    timeZone,
   }).format(start)} au ${new Intl.DateTimeFormat("fr-FR", {
     day: "numeric",
     month: "short",
     year: "numeric",
-    timeZone: "UTC",
+    timeZone,
   }).format(end)}`;
 
   return {
     period,
     rangeLabel,
+    timeZone,
     kpis,
     volumeSeries,
     discussionsSeries,

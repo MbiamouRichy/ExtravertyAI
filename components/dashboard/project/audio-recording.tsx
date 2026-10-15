@@ -7,7 +7,11 @@ import { Button } from "@/components/ui/button";
 const BAR_COUNT = 40;
 
 export function AudioRecording({
-  stream, preparing, seconds, onCancel, onStop,
+  stream,
+  preparing,
+  seconds,
+  onCancel,
+  onStop,
 }: {
   stream: MediaStream | null;
   preparing: boolean;
@@ -25,7 +29,9 @@ export function AudioRecording({
     let analyser: AnalyserNode | undefined;
     let frame = 0;
     let lastFrame = 0;
-    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const reducedMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
     try {
       context = new AudioContext();
       source = context.createMediaStreamSource(stream);
@@ -35,18 +41,24 @@ export function AudioRecording({
       source.connect(analyser);
       // Analyse locally without connecting the microphone to the speakers.
       void context.resume().catch(() => {});
-      const samples = new Uint8Array(analyser.frequencyBinCount);
+      const samples = new Uint8Array(analyser.fftSize);
+      let level = 0;
       const draw = (now: number) => {
         frame = requestAnimationFrame(draw);
         if (now - lastFrame < (reducedMotion ? 200 : 33)) return;
         lastFrame = now;
-        analyser!.getByteFrequencyData(samples);
+        analyser!.getByteTimeDomainData(samples);
+        let energy = 0;
+        for (const sample of samples) energy += ((sample - 128) / 128) ** 2;
+        // Gate quiet room noise; every bar follows the same live voice level.
+        const rms = Math.sqrt(energy / samples.length);
+        const target = rms < 0.012 ? 0 : Math.min(1, (rms - 0.012) * 12);
+        level += (target - level) * (target > level ? 0.65 : 0.4);
+        if (level < 0.01) level = 0;
         bars.forEach((bar, index) => {
-          const from = Math.floor(index * samples.length / BAR_COUNT);
-          const to = Math.max(from + 1, Math.floor((index + 1) * samples.length / BAR_COUNT));
-          let peak = 0;
-          for (let bin = from; bin < to; bin++) peak = Math.max(peak, samples[bin]);
-          const height = 3 + (peak / 255) * 37;
+          const wave =
+            0.35 + 0.65 * Math.abs(Math.sin(index * 0.55 - now / 180));
+          const height = 2 + level * wave * 38;
           bar.setAttribute("height", String(height));
           bar.setAttribute("y", String((44 - height) / 2));
         });
@@ -59,33 +71,95 @@ export function AudioRecording({
       cancelAnimationFrame(frame);
       source?.disconnect();
       analyser?.disconnect();
-      if (context && context.state !== "closed") void context.close().catch(() => {});
+      if (context && context.state !== "closed")
+        void context.close().catch(() => {});
     };
   }, [stream]);
 
-  const time = Math.floor(seconds / 60) + ":" + String(seconds % 60).padStart(2, "0");
+  const time =
+    Math.floor(seconds / 60) + ":" + String(seconds % 60).padStart(2, "0");
 
   return (
-    <section aria-label="Enregistrement du message vocal" className="min-w-0 space-y-3 rounded-2xl border border-input bg-muted/30 p-3 shadow-sm">
+    <section
+      aria-label="Enregistrement du message vocal"
+      className="min-w-0 space-y-3 rounded-2xl border border-input bg-muted/30 p-3 shadow-sm"
+    >
       <div className="flex items-center justify-between gap-2 text-xs">
-        <span role="status" className="flex min-w-0 items-center gap-2 font-medium">
-          {preparing ? <Loader2 aria-hidden="true" className="size-3.5 shrink-0 animate-spin motion-reduce:animate-none" /> : <span aria-hidden="true" className="size-2 shrink-0 rounded-full bg-destructive motion-safe:animate-pulse" />}
+        <span
+          role="status"
+          className="flex min-w-0 items-center gap-2 font-medium"
+        >
+          {preparing ? (
+            <Loader2
+              aria-hidden="true"
+              className="size-3.5 shrink-0 animate-spin motion-reduce:animate-none"
+            />
+          ) : (
+            <span
+              aria-hidden="true"
+              className="size-2 shrink-0 rounded-full bg-destructive motion-safe:animate-pulse"
+            />
+          )}
           {preparing ? "Autorisation du microphone…" : "Enregistrement"}
         </span>
-        {!preparing && <span role="timer" aria-label={"Durée enregistrée : " + time} className="shrink-0 font-mono tabular-nums">{time}<span className="text-muted-foreground"> / 2:00</span></span>}
+        {!preparing && (
+          <span
+            role="timer"
+            aria-label={"Durée enregistrée : " + time}
+            className="shrink-0 font-mono tabular-nums"
+          >
+            {time}
+            <span className="text-muted-foreground"> / 2:00</span>
+          </span>
+        )}
       </div>
       <div className="flex min-w-0 items-center gap-3">
-        <Button type="button" variant="ghost" size="icon" className="shrink-0 rounded-full" aria-label="Annuler l’enregistrement" title="Annuler l’enregistrement" onClick={onCancel}>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="shrink-0 rounded-full"
+          aria-label="Annuler l’enregistrement"
+          title="Annuler l’enregistrement"
+          onClick={onCancel}
+        >
           <X aria-hidden="true" />
         </Button>
-        <svg ref={spectrum} aria-hidden="true" viewBox="0 0 200 44" preserveAspectRatio="none" className="h-11 min-w-0 flex-1 text-foreground">
-          {Array.from({ length: BAR_COUNT }, (_, index) => <rect key={index} x={index * 5 + 1} y={20.5} width={3} height={3} rx={1.5} fill="currentColor" />)}
+        <svg
+          ref={spectrum}
+          aria-hidden="true"
+          viewBox="0 0 200 44"
+          preserveAspectRatio="none"
+          className="h-11 min-w-0 flex-1 text-foreground"
+        >
+          {Array.from({ length: BAR_COUNT }, (_, index) => (
+            <rect
+              key={index}
+              x={index * 5 + 1}
+              y={21}
+              width={3}
+              height={2}
+              rx={1}
+              fill="currentColor"
+            />
+          ))}
         </svg>
-        <Button type="button" variant="default" size="icon" className="shrink-0 rounded-full" disabled={preparing} aria-label="Arrêter et écouter" title="Arrêter et écouter" onClick={onStop}>
+        <Button
+          type="button"
+          variant="default"
+          size="icon"
+          className="shrink-0 rounded-full"
+          disabled={preparing}
+          aria-label="Arrêter et écouter"
+          title="Arrêter et écouter"
+          onClick={onStop}
+        >
           <Square aria-hidden="true" className="size-4 fill-current" />
         </Button>
       </div>
-      <p className="text-center text-xs text-muted-foreground">Arrêtez pour écouter avant l’envoi.</p>
+      <p className="text-center text-xs text-muted-foreground">
+        Arrêtez pour écouter avant l’envoi.
+      </p>
     </section>
   );
 }

@@ -1,5 +1,7 @@
+import { getUserTimeZone } from "@/lib/server-time-zone";
+import { localDayKey } from "@/lib/user-time-zone";
 import prisma from "@/lib/prisma"; // Ajuste selon ton architecture
-import { subDays, startOfDay, endOfDay, format } from "date-fns";
+import { subDays, startOfDay, format } from "date-fns";
 
 // --- Types retournés par le service ---
 export type DashboardDiscussionRow = {
@@ -23,90 +25,41 @@ function calculateGrowthPct(current: number, previous: number): number {
  * 📊 DASHBOARD : Compare les 7 derniers jours avec les 7 jours précédents
  */
 export async function getDashboardDiscussionsMetrics(projectId: string) {
+  const timeZone = await getUserTimeZone();
   const now = new Date();
-
-  // Période courante : Aujourd'hui minuit -> Il y a 6 jours (soit 7 jours glissants inclus)
-  const endOfCurrent = endOfDay(now);
-  const startOfCurrent = startOfDay(subDays(now, 6));
-
-  // Période précédente : Il y a 7 jours -> Il y a 13 jours
-  const startOfPrevious = startOfDay(subDays(startOfCurrent, 7));
-
-  // SÉCURITÉ: Filtrage strict par projectId
-  // PERF: On ne récupère QUE la date de création
+  const dayMs = 86400000;
+  const today = new Date(localDayKey(now, timeZone) + "T00:00:00Z");
+  const keys = Array.from({ length: 14 }, (_, index) =>
+    new Date(today.getTime() - (13 - index) * dayMs).toISOString().slice(0, 10),
+  );
+  // Fetch a margin for all local offsets, then assign only the 14 calendar days.
   const contacts = await prisma.contact.findMany({
     where: {
       projectId,
-      createdAt: {
-        gte: startOfPrevious,
-        lte: endOfCurrent,
-      },
+      createdAt: { gte: new Date(now.getTime() - 15 * dayMs), lte: now },
     },
     select: { createdAt: true },
   });
-
-  // 1. Initialiser une structure de données sans "trous" pour Recharts
-  const daysMap = new Map<string, DashboardDiscussionRow>();
-  const frenchDays = ["Dim", "Lun", "Mar", "Mer", "Jeu", "Ven", "Sam"];
-
-  for (let i = 0; i < 7; i++) {
-    const currentDate = subDays(now, 6 - i);
-    const prevDate = subDays(currentDate, 7);
-
-    daysMap.set(format(currentDate, "yyyy-MM-dd"), {
-      day: frenchDays[currentDate.getDay()],
-      currentWeek: 0,
-      previousWeek: 0,
-    });
-
-    // On stocke aussi la date précédente pour l'associer au bon jour
-    daysMap.set(`${format(prevDate, "yyyy-MM-dd")}-prev`, {
-      // Le nom du jour ne sera pas utilisé pour la clé prev,
-      // on s'en sert juste pour le mapping
-      day: "",
-      currentWeek: 0,
-      previousWeek: 0,
-    });
+  const counts = new Map(keys.map((key) => [key, 0]));
+  for (const contact of contacts) {
+    const key = localDayKey(contact.createdAt, timeZone);
+    if (counts.has(key)) counts.set(key, counts.get(key)! + 1);
   }
-
-  // Variables pour calculer la croissance globale
-  let currentWeekTotal = 0;
-  let previousWeekTotal = 0;
-
-  // 2. Assigner chaque contact dans son "bucket" de date
-  contacts.forEach((contact) => {
-    const dateStr = format(contact.createdAt, "yyyy-MM-dd");
-    const isCurrentWeek = contact.createdAt >= startOfCurrent;
-
-    if (isCurrentWeek) {
-      const row = daysMap.get(dateStr);
-      if (row) {
-        row.currentWeek += 1;
-        currentWeekTotal += 1;
-      }
-    } else {
-      // C'est la semaine dernière. On doit trouver à quel jour de CETTE semaine cela correspond
-      // ex: Si contact créé mardi dernier, on l'ajoute au "previousWeek" de CE mardi.
-      const correspondingCurrentDateStr = format(
-        subDays(contact.createdAt, -7), // On rajoute 7j pour retomber sur la date de cette semaine
-        "yyyy-MM-dd",
-      );
-      const row = daysMap.get(correspondingCurrentDateStr);
-      if (row) {
-        row.previousWeek += 1;
-        previousWeekTotal += 1;
-      }
-    }
+  const label = new Intl.DateTimeFormat("fr-FR", {
+    weekday: "short",
+    timeZone: "UTC",
   });
-
-  // 3. Nettoyer la map pour ne retourner que le tableau final ordonné (7 éléments)
-  const chartData = Array.from(daysMap.values()).filter(
-    (row) => row.day !== "",
-  );
-
+  const chartData = keys.slice(7).map((key, index) => ({
+    day: label.format(new Date(key + "T00:00:00Z")),
+    currentWeek: counts.get(key)!,
+    previousWeek: counts.get(keys[index])!,
+  }));
   return {
     chartData,
-    growthPct: calculateGrowthPct(currentWeekTotal, previousWeekTotal),
+    growthPct: calculateGrowthPct(
+      chartData.reduce((sum, row) => sum + row.currentWeek, 0),
+      chartData.reduce((sum, row) => sum + row.previousWeek, 0),
+    ),
   };
 }
 

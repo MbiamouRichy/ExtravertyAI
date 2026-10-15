@@ -1,13 +1,11 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import React, { useState, useTransition } from "react";
+import React, { useTransition } from "react";
 import { useTheme } from "next-themes";
 import { toast } from "sonner";
-import { authClient } from "@/lib/auth-client"; // Ajuste le chemin vers ton client better-auth
 import { updateThemeAction } from "@/app/actions/user"; // Ajuste le chemin
 
-import { Trash2, AlertTriangle, Loader2 } from "lucide-react";
+import { AlertTriangle, Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -17,54 +15,23 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  AlertDialog,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
 import { useHaptics } from "@/lib/webHaptics";
-import { isRecentSession } from "@/lib/recent-session";
+import type { AccountDeletionPlan } from "@/lib/account-deletion";
+import { DeleteAccountDialog } from "./delete-account-dialog";
 export default function UserSettingsPage({
   sessionCreatedAt,
+  email,
+  deletionPlan,
 }: {
   sessionCreatedAt: string;
+  email: string;
+  deletionPlan: AccountDeletionPlan;
 }) {
   const { playHaptic } = useHaptics();
-  const router = useRouter();
 
   // Pour le thème
   const { theme, setTheme } = useTheme();
   const [isPendingTheme, startThemeTransition] = useTransition();
-
-  // Pour la suppression
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [openDeleteModal, setOpenDeleteModal] = useState(false);
-  const [reauthRequired, setReauthRequired] = useState(false);
-  const [reconnecting, setReconnecting] = useState(false);
-  const handleDeleteModalChange = (open: boolean) => {
-    if (isDeleting || reconnecting) return;
-    setReauthRequired(!isRecentSession(sessionCreatedAt));
-    setOpenDeleteModal(open);
-  };
-  async function reconnect() {
-    setReconnecting(true);
-    try {
-      const result = await authClient.signOut();
-      if (result.error) throw new Error();
-      router.replace(
-        "/sign-in?callbackUrl=" + encodeURIComponent("/projects/user"),
-      );
-      router.refresh();
-    } catch {
-      toast.error("Impossible de vous déconnecter. Réessayez.");
-      setReconnecting(false);
-    }
-  }
 
   // --- GESTION DU THÈME ---
   const handleThemeChange = (newTheme: "light" | "dark" | "system") => {
@@ -83,41 +50,6 @@ export default function UserSettingsPage({
         toast.error("Erreur lors de la sauvegarde du thème");
       }
     });
-  };
-
-  // --- GESTION DE LA SUPPRESSION DE COMPTE ---
-  const handleDeleteAccount = async () => {
-    if (isDeleting) return;
-    if (!isRecentSession(sessionCreatedAt)) {
-      setReauthRequired(true);
-      return;
-    }
-    setIsDeleting(true);
-    try {
-      const result = await authClient.deleteUser({ callbackURL: "/goodbye" });
-      if (result.error) {
-        if (
-          ["REAUTH_REQUIRED", "SESSION_EXPIRED"].includes(
-            result.error.code || "",
-          )
-        )
-          setReauthRequired(true);
-        toast.error(
-          result.error.code === "REAUTH_REQUIRED"
-            ? "Reconnectez-vous avant de supprimer votre compte."
-            : "Impossible de supprimer le compte. Vos données sont conservées ; réessayez.",
-        );
-        return;
-      }
-      playHaptic("success");
-      router.replace("/goodbye");
-    } catch {
-      toast.error(
-        "Suppression non confirmée. Actualisez pour vérifier le résultat.",
-      );
-    } finally {
-      setIsDeleting(false);
-    }
   };
 
   return (
@@ -204,70 +136,15 @@ export default function UserSettingsPage({
               <div>
                 <h4 className="font-medium">Supprimer le compte</h4>
                 <p className="text-sm text-muted-foreground mt-1">
-                  Supprime définitivement vos données, bots et configurations.
+                  Supprime votre profil et les projets dont vous êtes l’unique membre. Les projets partagés doivent d’abord être transférés.
                 </p>
               </div>
 
-              <AlertDialog
-                open={openDeleteModal}
-                onOpenChange={handleDeleteModalChange}
-              >
-                <AlertDialogTrigger asChild>
-                  <Button
-                    variant="destructive"
-                    className="whitespace-nowrap shrink-0"
-                  >
-                    <Trash2 className="w-4 h-4 mr-2" />
-                    Supprimer mon compte
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent className="max-h-[90dvh] overflow-y-auto">
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>
-                      Êtes-vous absolument sûr ?
-                    </AlertDialogTitle>
-                    <AlertDialogDescription>
-                      Cette action est <strong>irréversible</strong>. Cela
-                      supprimera définitivement votre compte ainsi que toutes
-                      les données associées de nos serveurs.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <p
-                    role="status"
-                    className="rounded-lg border bg-muted p-4 text-sm leading-relaxed"
-                  >
-                    {reauthRequired
-                      ? "Votre connexion date de plus de 10 minutes. Reconnectez-vous, puis confirmez à nouveau la suppression."
-                      : "Une connexion de moins de 10 minutes est requise. La suppression est définitive dès votre confirmation."}
-                  </p>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel disabled={isDeleting || reconnecting}>
-                      Annuler
-                    </AlertDialogCancel>
-                    <Button
-                      variant="destructive"
-                      type="button"
-                      disabled={isDeleting || reconnecting}
-                      onClick={reauthRequired ? reconnect : handleDeleteAccount}
-                    >
-                      {isDeleting ? (
-                        <>
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                          Suppression en cours…
-                        </>
-                      ) : reauthRequired ? (
-                        reconnecting ? (
-                          "Reconnexion…"
-                        ) : (
-                          "Se reconnecter"
-                        )
-                      ) : (
-                        "Oui, supprimer mon compte"
-                      )}
-                    </Button>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
+              <DeleteAccountDialog
+                email={email}
+                plan={deletionPlan}
+                sessionCreatedAt={sessionCreatedAt}
+              />
             </div>
           </CardContent>
         </Card>

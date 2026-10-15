@@ -12,7 +12,27 @@ import { resend } from "./resend";
 import { ResetPasswordTemplate } from "@/components/emailTemplate/resetPasswordTemplate";
 import { ChangeEmailTemplate } from "@/components/emailTemplate/changeEmailTemplate";
 
+import { AccountDeletedEmailTemplate } from "@/components/emailTemplate/accountDeletedEmailTemplate";
 import { deleteProjectResources } from "./project-deletion";
+import { getAccountDeletionPlan } from "./account-deletion";
+
+// Filled by the user delete hook and read by afterDelete in the same request,
+// once the user row (and the data used to describe the deletion) is gone.
+const pendingDeletionEmails = new Map<
+  string,
+  { projects: string[]; left: number }
+>();
+
+async function assertNoOwnershipBlockers(userId: string) {
+  const plan = await getAccountDeletionPlan(userId);
+  if (plan.blockers.length)
+    throw new APIError("FORBIDDEN", {
+      code: "OWNERSHIP_TRANSFER_REQUIRED",
+      message:
+        "Transférez la propriété de vos projets partagés avant de supprimer votre compte.",
+    });
+  return plan;
+}
 
 export const auth = betterAuth({
   baseURL: process.env.NEXT_PUBLIC_APP_URL as string,
@@ -30,6 +50,7 @@ export const auth = betterAuth({
               "Reconnectez-vous avant de supprimer votre compte (connexion de moins de 10 minutes requise).",
           });
         }
+        await assertNoOwnershipBlockers(session.session.userId);
       }
     }),
   },
@@ -38,15 +59,19 @@ export const auth = betterAuth({
     user: {
       delete: {
         before: async (user) => {
-          const memberships = await prisma.projectMembership.findMany({
-            where: { userId: user.id, role: "OWNER" },
-            select: { projectId: true },
-          });
+          // Re-checked here: this hook also runs for deletions that bypass the
+          // HTTP routes. Shared projects must be transferred, never deleted
+          // for the whole team; co-owned projects only lose this membership.
+          const plan = await assertNoOwnershipBlockers(user.id);
           // Abort account deletion on cleanup failure; otherwise a subscription
           // could keep billing after its only management account disappeared.
-          for (const membership of memberships) {
-            await deleteProjectResources(membership.projectId, user.id);
+          for (const project of plan.deleted) {
+            await deleteProjectResources(project.id, user.id);
           }
+          pendingDeletionEmails.set(user.id, {
+            projects: plan.deleted.map((project) => project.name),
+            left: plan.left,
+          });
         },
       },
     },
@@ -94,6 +119,27 @@ export const auth = betterAuth({
   user: {
     deleteUser: {
       enabled: true,
+      afterDelete: async (user) => {
+        const summary = pendingDeletionEmails.get(user.id);
+        pendingDeletionEmails.delete(user.id);
+        // The account is already gone: a mail failure must not report the
+        // deletion as failed to the user.
+        try {
+          await resend.emails.send({
+            to: user.email,
+            subject: "Votre compte ExtravertyAI a été supprimé",
+            html: AccountDeletedEmailTemplate({
+              email: user.email,
+              deletedAt: new Date(),
+              projects: summary?.projects ?? [],
+              leftProjects: summary?.left ?? 0,
+            }),
+            from: "ExtravertyAI <notification@extravertyai.com>",
+          });
+        } catch (error) {
+          console.error("ACCOUNT_DELETED_EMAIL_FAILED", error);
+        }
+      },
     },
     changeEmail: {
       enabled: true,

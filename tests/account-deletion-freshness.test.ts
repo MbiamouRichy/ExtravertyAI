@@ -9,6 +9,7 @@ test("direct account deletion and legacy callbacks require authoritative login u
   const now = Date.now();
   let createdAt: unknown = new Date(now);
   let reads = 0;
+  let blockers: { id: string; name: string; members: number }[] = [];
   let config: {
     hooks: { before: (ctx: { path: string; body?: unknown }) => Promise<void> };
     user: { deleteUser: Record<string, unknown> };
@@ -45,6 +46,10 @@ test("direct account deletion and legacy callbacks require authoritative login u
         return {
           isRecentSession: (value: unknown) => isRecentSession(value, now),
         };
+      if (id === "./account-deletion")
+        return {
+          getAccountDeletionPlan: async () => ({ blockers, deleted: [], left: 0 }),
+        };
       if (id === "better-auth/adapters/prisma")
         return { prismaAdapter: () => ({}) };
       return {};
@@ -74,4 +79,14 @@ test("direct account deletion and legacy callbacks require authoritative login u
   assert.equal(reads, 10);
   await config!.hooks.before({ path: "/update-user" });
   assert.equal(reads, 10);
+
+  // A fresh session still cannot delete an account that solely owns a shared project.
+  createdAt = new Date(now);
+  blockers = [{ id: "p1", name: "Shared", members: 2 }];
+  for (const path of ["/delete-user", "/delete-user/callback"]) {
+    await assert.rejects(
+      config!.hooks.before({ path }),
+      /OWNERSHIP_TRANSFER_REQUIRED/,
+    );
+  }
 });

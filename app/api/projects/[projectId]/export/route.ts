@@ -1,3 +1,4 @@
+import { getUserTimeZone } from "@/lib/server-time-zone";
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth-server";
 import prisma from "@/lib/prisma";
@@ -29,19 +30,25 @@ export async function GET(
         { status: 403 },
       );
     const { contacts, hash } = await contactExportSnapshot(prisma, projectId);
+    const timeZone = await getUserTimeZone();
+    const dateFormat = new Intl.DateTimeFormat("fr-FR", {
+      timeZone,
+      dateStyle: "short",
+      timeStyle: "medium",
+    });
     const header = [
       "Nom",
       "Nom WhatsApp",
       "Téléphone",
       "Assistant actif",
-      "Date de création",
+      `Date de création (${timeZone})`,
     ];
     const rows = contacts.map((c) => [
       c.name || "",
       c.pushName || "",
       c.phone,
       c.aiActive ? "Oui" : "Non",
-      c.createdAt.toISOString(),
+      dateFormat.format(c.createdAt),
     ]);
     const headers = {
       "Cache-Control": "private, no-store",

@@ -1,4 +1,5 @@
 "use client";
+import { LocalDate } from "@/components/local-date";
 import { useState } from "react";
 import useSWR from "swr";
 import Link from "next/link";
@@ -203,17 +204,17 @@ export function Notifications() {
                           : item.description}
                       </span>
                       {item.date && (
-                        <time
-                          dateTime={item.date}
-                          className="block text-[11px] text-muted-foreground"
-                        >
-                          {new Intl.DateTimeFormat("fr-FR", {
-                            day: "numeric",
-                            month: "short",
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          }).format(new Date(item.date))}
-                        </time>
+                        <span className="block text-[11px] text-muted-foreground">
+                          <LocalDate
+                            value={item.date}
+                            options={{
+                              day: "numeric",
+                              month: "short",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            }}
+                          />
+                        </span>
                       )}
                     </span>
                     <ArrowUpRight

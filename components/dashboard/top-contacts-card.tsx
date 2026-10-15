@@ -60,7 +60,6 @@ export function TopContactsCard({
     <AnalyticsCard
       title="Contacts les plus actifs"
       description={`Jusqu’à 5 contacts, classés par volume d’échanges · ${rangeLabel}`}
-      footer="Téléphones partiellement masqués. Le réglage IA affiché est le réglage actuel du contact."
     >
       {contacts.length === 0 ? (
         <ChartEmptyState
@@ -71,8 +70,8 @@ export function TopContactsCard({
       ) : (
         <Table className="table-fixed">
           <TableCaption className="sr-only">
-            Contacts classés par nombre de messages reçus et envoyés. Dates en
-            UTC.
+            Contacts classés par nombre de messages reçus et envoyés. Dates
+            locales.
           </TableCaption>
 
           <TableHeader>
@@ -129,9 +128,6 @@ export function TopContactsCard({
                             </span>
                             <span className="block text-foreground/80">
                               {contact.lastActivityLabel}{" "}
-                              <span className="text-[10px] text-muted-foreground">
-                                UTC
-                              </span>
                             </span>
                           </div>
                         </div>

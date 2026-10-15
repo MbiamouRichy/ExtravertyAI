@@ -23,6 +23,7 @@ import type { Metadata } from "next";
 import { getInitials } from "@/components/getInitials";
 import { RecentSessions } from "@/components/dashboard/user/recent-sessions";
 import UserSettingsPage from "@/components/dashboard/user/settingsPage";
+import { getAccountDeletionPlan } from "@/lib/account-deletion";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
@@ -47,6 +48,8 @@ export default async function ProfilePage() {
     ? formatTimeAgo(passwordAccount.updatedAt)
     : "Géré par un fournisseur externe (Google/GitHub)";
 
+  const deletionPlan = await getAccountDeletionPlan(user.id);
+
   // 2. Récupérer les sessions actives
   const rawSessions = await prisma.session.findMany({
     where: { userId: user.id, expiresAt: { gt: new Date() } },
@@ -69,12 +72,7 @@ export default async function ProfilePage() {
     }
 
     // NOUVEAU : Formatage de la date façon Réseaux Sociaux (ex: "21 juil. à 14:30")
-    const sessionDate = new Intl.DateTimeFormat("fr-FR", {
-      day: "numeric",
-      month: "short",
-      hour: "2-digit",
-      minute: "2-digit",
-    }).format(new Date(s.createdAt));
+    const sessionDate = s.createdAt.toISOString();
 
     return {
       id: s.id,
@@ -202,6 +200,8 @@ export default async function ProfilePage() {
           </Card>
           <UserSettingsPage
             sessionCreatedAt={sessionData.session.createdAt.toISOString()}
+            email={user.email}
+            deletionPlan={deletionPlan}
           />
         </div>
       </div>

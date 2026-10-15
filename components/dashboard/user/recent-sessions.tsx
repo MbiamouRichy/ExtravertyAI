@@ -1,4 +1,5 @@
 "use client";
+import { LocalDate } from "@/components/local-date";
 
 import { useLayoutEffect, useRef, useState, useTransition } from "react";
 import { Loader2, LogOut, Monitor, Smartphone } from "lucide-react";
@@ -151,7 +152,8 @@ export function RecentSessions({ sessions }: { sessions: RecentSession[] }) {
                     )}
                   </div>
                   <p className="mt-0.5 break-words text-xs text-muted-foreground">
-                    {session.ip} • Connecté le {session.date}
+                    {session.ip} • Connecté le{" "}
+                    <LocalDate value={session.date} />
                   </p>
                   <Button
                     variant="outline"
@@ -159,7 +161,7 @@ export function RecentSessions({ sessions }: { sessions: RecentSession[] }) {
                     className="mt-3"
                     disabled={isPending}
                     onClick={() => disconnect(session.id)}
-                    aria-label={`Déconnecter ${session.device}, ${session.os}, ${session.browser}, ${session.ip}, connecté le ${session.date}${session.isCurrent ? ", session actuelle" : ""}`}
+                    aria-label={`Déconnecter ${session.device}, ${session.os}, ${session.browser}, ${session.ip}${session.isCurrent ? ", session actuelle" : ""}`}
                   >
                     {isPending && pendingTarget === session.id ? (
                       <Loader2 className="animate-spin" aria-hidden="true" />

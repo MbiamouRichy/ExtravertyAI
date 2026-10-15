@@ -20,6 +20,7 @@ import {
   InfoIcon,
   Loader2,
   AlertTriangle,
+  Crown,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -86,6 +87,7 @@ import {
 } from "@/app/actions/team";
 import { Role } from "@/src/generated/prisma/client";
 import { ChangeRoleModal } from "./changeRoleModal";
+import { TransferOwnershipDialog } from "./transfer-ownership-dialog";
 import { MemberPresence, useProjectPresence } from "../user/member-presence";
 import { getInitials } from "@/components/getInitials";
 
@@ -133,6 +135,9 @@ export default function TeamManagement({
   const [memberToDelete, setMemberToDelete] = useState<TeamMember | null>(null);
   const [isDeleting, startDeleteTransition] = useTransition();
   const [memberToEditRole, setMemberToEditRole] = useState<TeamMember | null>(
+    null,
+  );
+  const [memberToTransfer, setMemberToTransfer] = useState<TeamMember | null>(
     null,
   );
   const { playHaptic } = useHaptics();
@@ -491,6 +496,14 @@ export default function TeamManagement({
                               >
                                 Changer le rôle
                               </DropdownMenuItem>
+                              {currentUserRole === "OWNER" && (
+                                <DropdownMenuItem
+                                  onSelect={() => setMemberToTransfer(member)}
+                                >
+                                  <Crown className="w-4 h-4 mr-2" />
+                                  Transférer la propriété
+                                </DropdownMenuItem>
+                              )}
                               <DropdownMenuSeparator />
                               <DropdownMenuItem
                                 className="text-destructive focus:bg-destructive/10 focus:text-destructive cursor-pointer"
@@ -553,6 +566,12 @@ export default function TeamManagement({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <TransferOwnershipDialog
+        member={memberToTransfer}
+        projectId={projectId}
+        onClose={() => setMemberToTransfer(null)}
+      />
 
       <ChangeRoleModal
         isOpen={!!memberToEditRole}

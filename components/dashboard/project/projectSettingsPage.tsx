@@ -1,4 +1,5 @@
 "use client";
+import { LocalDate } from "@/components/local-date";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -230,9 +231,21 @@ export default function ProjectSettingsPage({
                   <h2 className="text-lg font-semibold">Votre utilisation</h2>
                   <p className="mt-1 text-sm text-muted-foreground">
                     Offre <span className="capitalize">{p.plan}</span> ·{" "}
-                    {p.periodEnd
-                      ? `Fin de période le ${new Date(p.periodEnd).toLocaleDateString("fr-FR")}`
-                      : "Période en attente de confirmation"}
+                    {p.periodEnd ? (
+                      <>
+                        Fin de période le{" "}
+                        <LocalDate
+                          value={p.periodEnd}
+                          options={{
+                            day: "numeric",
+                            month: "long",
+                            year: "numeric",
+                          }}
+                        />
+                      </>
+                    ) : (
+                      "Période en attente de confirmation"
+                    )}
                   </p>
                 </div>
                 {owner && (
@@ -392,7 +405,7 @@ export default function ProjectSettingsPage({
                                   : "Paramètres du projet"}
                         </span>
                         <time className="text-xs text-muted-foreground">
-                          {new Date(item.createdAt).toLocaleString("fr-FR")}
+                          <LocalDate value={item.createdAt} />
                         </time>
                       </li>
                     ))}

@@ -2,12 +2,14 @@ import { cn } from "@/lib/utils";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { AppHeader } from "./app-header";
 import { AppSidebar } from "./app-sidebar";
+import { TimeZoneSync } from "@/components/local-date";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <SidebarProvider className={cn("[--app-wrapper-max-width:90rem]")}>
+      <TimeZoneSync />
       <AppSidebar />
-      <SidebarInset className="min-w-0 md:peer-data-[variant=inset]:ml-0">
+      <SidebarInset className="min-w-0 pt-14 md:pt-0 md:peer-data-[variant=inset]:ml-0">
         <AppHeader />
         <div
           className={cn(

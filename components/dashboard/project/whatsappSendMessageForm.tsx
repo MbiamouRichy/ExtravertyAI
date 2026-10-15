@@ -1191,7 +1191,7 @@ export default function WhatsappWorkspace({
                             </span>
                             <time
                               dateTime={client.lastActivityAt}
-                              title={`${new Date(client.lastActivityAt).toISOString()} (UTC)`}
+                              title={`${dateFormatter.format(new Date(client.lastActivityAt))} · ${timeZone}`}
                               className="shrink-0 text-[10px] tabular-nums text-muted-foreground"
                             >
                               {previewDateFormatter.format(

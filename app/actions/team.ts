@@ -9,6 +9,7 @@ import { resend } from "@/lib/resend";
 import { ProjectInvitationEmail } from "@/components/emailTemplate/invitationEmail";
 import { ProjectMemberConfirmationEmail } from "@/components/emailTemplate/projectMemberConfirmationEmail";
 import z from "zod";
+import { isRecentSession } from "@/lib/recent-session";
 
 export type TeamMember = {
   id: string;
@@ -373,5 +374,69 @@ export async function updateMemberRole(
       success: false,
       error: "Une erreur interne est survenue lors de la mise à jour.",
     };
+  }
+}
+
+// ============================================================================
+// TRANSFÉRER LA PROPRIÉTÉ (OWNER → membre existant)
+// ============================================================================
+const transferOwnershipSchema = z.object({
+  projectId: z.string().min(1),
+  membershipId: z.string().min(1),
+});
+
+export async function transferProjectOwnership(
+  input: z.infer<typeof transferOwnershipSchema>,
+): Promise<
+  | { success: true; message: string }
+  | { success: false; error: string; code?: "REAUTH_REQUIRED" }
+> {
+  const parse = transferOwnershipSchema.safeParse(input);
+  if (!parse.success)
+    return { success: false, error: "Données de requête invalides." };
+  const { projectId, membershipId } = parse.data;
+
+  try {
+    const session = await getSession();
+    if (!session?.user) return { success: false, error: "Vous devez être connecté." };
+    // Handing over billing and full control is as sensitive as deleting the
+    // account: require the same recent login.
+    if (!isRecentSession(session.session.createdAt))
+      return {
+        success: false,
+        code: "REAUTH_REQUIRED",
+        error: "Reconnectez-vous pour transférer la propriété (connexion de moins de 10 minutes requise).",
+      };
+    const userId = session.user.id;
+
+    const result = await prisma.$transaction(async (tx) => {
+      const requester = await tx.projectMembership.findUnique({
+        where: { userId_projectId: { userId, projectId } },
+        select: { id: true, role: true },
+      });
+      if (requester?.role !== "OWNER")
+        return { success: false as const, error: "Seul le propriétaire peut transférer la propriété du projet." };
+      const target = await tx.projectMembership.findUnique({
+        where: { id: membershipId },
+        select: { id: true, projectId: true, userId: true, role: true, user: { select: { name: true, email: true } } },
+      });
+      if (!target || target.projectId !== projectId || target.userId === userId)
+        return { success: false as const, error: "Membre introuvable dans ce projet." };
+      if (target.role === "OWNER")
+        return { success: false as const, error: "Ce membre est déjà propriétaire du projet." };
+      await tx.projectMembership.update({ where: { id: target.id }, data: { role: "OWNER" } });
+      // The previous owner keeps team management rights but loses billing.
+      await tx.projectMembership.update({ where: { id: requester.id }, data: { role: "ADMIN" } });
+      return {
+        success: true as const,
+        message: `${target.user.name || target.user.email} est désormais propriétaire du projet.`,
+      };
+    });
+
+    if (result.success) revalidatePath(`/projects/${projectId}`, "layout");
+    return result;
+  } catch (error) {
+    console.error("Erreur transfert de propriété:", error);
+    return { success: false, error: "Le transfert n’a pas pu être effectué. Réessayez." };
   }
 }

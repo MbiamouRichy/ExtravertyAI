@@ -1,3 +1,4 @@
+import { localDayKey } from "./user-time-zone";
 export type AnalyticsPeriod = "7d" | "14d" | "21d" | "30d" | "3m" | "6m" | "1y";
 
 export type BucketMode = "day" | "week" | "month";
@@ -94,11 +95,7 @@ export type DiscussionPoint = {
 export type SourceDatum = { source: string; count: number };
 
 export type MessageStatusKey =
-  | "READ"
-  | "DELIVERED"
-  | "SENT"
-  | "PENDING"
-  | "FAILED";
+  "READ" | "DELIVERED" | "SENT" | "PENDING" | "FAILED";
 export type StatusDatum = { status: MessageStatusKey; count: number };
 
 export type TopContactRow = {
@@ -123,6 +120,7 @@ export type AnalyticsKpis = {
 export type AnalyticsOverview = {
   period: AnalyticsPeriod;
   rangeLabel: string;
+  timeZone: string;
   kpis: AnalyticsKpis;
   volumeSeries: VolumePoint[];
   discussionsSeries: DiscussionPoint[];
@@ -164,7 +162,7 @@ export function formatPctFr(
 }
 
 // ------------------------------------------------------------------
-// Bucketing UTC (jour / semaine lundi / mois) — cohérent serveur/client
+// Regroupements par calendrier local (jour / semaine lundi / mois)
 // ------------------------------------------------------------------
 const DAY_MS = 86_400_000;
 const pad2 = (n: number) => String(n).padStart(2, "0");
@@ -179,7 +177,12 @@ export function getBucketMode(period: AnalyticsPeriod): BucketMode {
   return "day";
 }
 
-export function bucketKeyFor(date: Date, mode: BucketMode): string {
+export function bucketKeyFor(
+  instant: Date,
+  mode: BucketMode,
+  timeZone = "UTC",
+): string {
+  const date = new Date(`${localDayKey(instant, timeZone)}T00:00:00.000Z`);
   if (mode === "day") return utcDayKey(date);
   if (mode === "month")
     return `${date.getUTCFullYear()}-${pad2(date.getUTCMonth() + 1)}`;
@@ -216,10 +219,14 @@ export function buildBucketKeys(
   start: Date,
   endExclusive: Date,
   mode: BucketMode,
+  timeZone = "UTC",
 ): string[] {
   if (start.getTime() >= endExclusive.getTime()) return [];
 
-  const end = new Date(endExclusive.getTime() - 1);
+  const end = new Date(
+    `${localDayKey(new Date(endExclusive.getTime() - 1), timeZone)}T00:00:00.000Z`,
+  );
+  start = new Date(`${localDayKey(start, timeZone)}T00:00:00.000Z`);
   const keys: string[] = [];
 
   if (mode === "day") {
