@@ -1,10 +1,4 @@
-import { HeroSection } from "@/components/website/hero";
-import AvantApres from "@/components/website/avantApres";
-import Footer from "@/components/website/footer";
-import { Faq } from "@/components/website/faq";
-import { Tarifs } from "@/components/website/pricing-section";
-import Demo from "@/components/website/demo";
-import { Header } from "@/components/website/header";
+import { LandingPage } from "@/components/website/landing/landing-page";
 import type { Metadata } from "next";
 export const metadata: Metadata = {
   metadataBase: new URL(
@@ -76,21 +70,5 @@ export const metadata: Metadata = {
 export const dynamic = "force-static";
 
 export default function page() {
-  return (
-    <>
-      <Header />
-      <div className="relative h-full overflow-hidden">
-        <main
-          className="relative md:mx-auto max-w-7xl h-full grow">
-          <HeroSection />
-          {/* <LogosSection /> */}
-          <Demo />
-          <AvantApres />
-          <Tarifs />
-          <Faq />
-          <Footer />
-        </main>
-      </div>
-    </>
-  );
+  return <LandingPage />;
 }

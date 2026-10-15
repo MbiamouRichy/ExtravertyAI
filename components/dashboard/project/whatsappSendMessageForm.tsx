@@ -35,7 +35,15 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Input } from "@/components/ui/input";
+import { Kbd } from "@/components/ui/kbd";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupInput,
+} from "@/components/ui/input-group";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   ConversationListLoading,
@@ -224,6 +232,40 @@ function ConversationParticipants({
         </AvatarGroup>
       )}
     </span>
+  );
+}
+
+function InstinctBadge({
+  classification,
+}: {
+  classification: ChatClient["prospectClassification"];
+}) {
+  if (classification !== "interesting" && classification !== "follow_up") {
+    return null;
+  }
+  const interesting = classification === "interesting";
+  const Icon = interesting ? Sparkles : Clock3;
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span
+          tabIndex={0}
+          className={cn(
+            "inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-sm text-[11px] outline-none focus-visible:ring-2 focus-visible:ring-ring",
+            interesting
+              ? "bg-primary px-1.5 py-px font-medium text-primary-foreground"
+              : "border px-1.5 text-muted-foreground",
+          )}
+        >
+          <Icon aria-hidden="true" className="size-3" />
+          {interesting ? "Prospect intéressant" : "À suivre"}
+        </span>
+      </TooltipTrigger>
+      <TooltipContent className="max-w-60">
+        Instinct IA : analyse recalculée après chaque nouveau message, selon les
+        objectifs de votre agent.
+      </TooltipContent>
+    </Tooltip>
   );
 }
 
@@ -717,6 +759,49 @@ export default function WhatsappWorkspace({
     element.style.height = `${Math.min(element.scrollHeight, 160)}px`;
   }, [draft, activeId, mobileChat]);
 
+  const selectClientRef = useRef(selectClient);
+  useEffect(() => {
+    selectClientRef.current = selectClient;
+  });
+
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      const target = event.target as HTMLElement | null;
+      const typing =
+        target?.tagName === "INPUT" ||
+        target?.tagName === "TEXTAREA" ||
+        target?.isContentEditable;
+      if (
+        (event.key.toLowerCase() === "k" && (event.metaKey || event.ctrlKey)) ||
+        (event.key === "/" && !typing)
+      ) {
+        event.preventDefault();
+        setMobileChat(false);
+        searchRef.current?.focus();
+        return;
+      }
+      if (
+        event.altKey &&
+        (event.key === "ArrowDown" || event.key === "ArrowUp")
+      ) {
+        event.preventDefault();
+        const index = visibleClients.findIndex(
+          (client) => client.id === activeId,
+        );
+        const next =
+          visibleClients[index + (event.key === "ArrowDown" ? 1 : -1)];
+        if (next) {
+          selectClientRef.current(next.id);
+          contactButtonRefs.current.get(next.id)?.scrollIntoView({
+            block: "nearest",
+          });
+        }
+      }
+    }
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [visibleClients, activeId]);
+
   function selectClient(id: string) {
     setSummaryOpen(false);
     const client = clients.find((item) => item.id === id);
@@ -952,7 +1037,7 @@ export default function WhatsappWorkspace({
       {project.automationPaused && (
         <div
           role="status"
-          className="mb-3 flex shrink-0 items-start gap-2 rounded-xl border bg-muted p-3 text-sm"
+          className="flex shrink-0 items-start gap-2 border-b bg-muted px-4 py-2.5 text-sm"
         >
           <Pause aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
           <p>
@@ -962,109 +1047,106 @@ export default function WhatsappWorkspace({
           </p>
         </div>
       )}
-      <div className="flex min-h-0 w-full flex-1 gap-3 overflow-hidden p-3">
+      <div className="flex min-h-0 w-full flex-1 overflow-hidden">
         {/* Liste des conversations */}
         <aside
           aria-label="Conversations"
           className={cn(
-            "w-full min-h-0 shrink-0 flex-col overflow-hidden rounded-xl border border-border bg-card md:w-80 xl:w-96",
+            "w-full min-h-0 shrink-0 flex-col overflow-hidden border-r bg-background md:w-80 xl:w-96",
             mobileChat ? "hidden md:flex" : "flex",
           )}
         >
-          <header className="space-y-4 border-b border-border/70 p-4 xl:p-5">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="truncate text-xs font-medium text-muted-foreground">
-                  {project.name}
-                </p>
-                <h1 className="mt-1 text-xl font-semibold tracking-tight">
-                  Conversations
-                </h1>
-              </div>
+          <header className="space-y-3 border-b px-3 pb-3 pt-4">
+            <div className="px-1">
+              <p className="truncate text-xs text-muted-foreground">
+                {project.name}
+              </p>
+              <h1 className="font-heading text-xl font-bold tracking-tight">
+                Messagerie
+              </h1>
+              <p aria-live="polite" className="text-xs text-muted-foreground">
+                {contactsQuery.unreadConversations
+                  ? `${contactsQuery.unreadConversations} discussion${contactsQuery.unreadConversations > 1 ? "s" : ""} non lue${contactsQuery.unreadConversations > 1 ? "s" : ""}`
+                  : "Tout est lu"}
+              </p>
             </div>
 
-            <div className="relative">
-              <label htmlFor="chat-search" className="sr-only">
-                Rechercher par nom
-              </label>
-
-              <Search
-                aria-hidden="true"
-                className="pointer-events-none absolute left-3 top-3 size-4 text-muted-foreground"
-              />
-
-              <Input
+            <InputGroup>
+              <InputGroupInput
                 ref={searchRef}
                 id="chat-search"
+                type="search"
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Escape") setSearch("");
+                }}
                 placeholder="Rechercher un contact…"
-                className="h-10 rounded-xl bg-muted/30 pl-9 pr-10 shadow-none"
+                aria-label="Rechercher un contact par nom"
                 autoComplete="off"
+                maxLength={100}
               />
-
-              {search && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  aria-label="Effacer la recherche"
-                  onClick={() => {
-                    setSearch("");
-                    searchRef.current?.focus();
-                  }}
-                  className="absolute right-0 top-0 flex size-10 items-center justify-center rounded-xl text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                >
-                  <X aria-hidden="true" className="size-4" />
-                </Button>
-              )}
-            </div>
+              <InputGroupAddon align="inline-start">
+                <Search />
+              </InputGroupAddon>
+              <InputGroupAddon align="inline-end">
+                {search ? (
+                  <InputGroupButton
+                    size="icon-xs"
+                    aria-label="Effacer la recherche"
+                    onClick={() => {
+                      setSearch("");
+                      searchRef.current?.focus();
+                    }}
+                  >
+                    <X />
+                  </InputGroupButton>
+                ) : (
+                  <Kbd aria-hidden="true">/</Kbd>
+                )}
+              </InputGroupAddon>
+            </InputGroup>
 
             <div
               role="group"
               aria-label="Filtrer les conversations"
-              className="flex gap-1 rounded-xl bg-muted/50 p-1"
+              className="flex gap-1"
             >
               {(
                 [
-                  ["all", "Toutes"],
-                  ["ai", "Assistant IA"],
-                  ["manual", "Équipe"],
+                  ["all", "Toutes", "Toutes les conversations"],
+                  ["ai", "Assistant IA", "L’assistant répond seul à ces contacts"],
+                  ["manual", "Équipe", "Un membre de l’équipe a repris la main"],
                 ] as const
-              ).map(([value, label]) => (
-                <Button
-                  key={value}
-                  type="button"
-                  variant="ghost"
-                  aria-pressed={filter === value}
-                  onClick={() => setFilter(value)}
-                  className={cn(
-                    "min-h-9 flex-1 rounded-lg px-2 text-xs font-medium transition-colors",
-                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none",
-                    filter === value
-                      ? "bg-background text-foreground shadow-sm"
-                      : "text-muted-foreground hover:text-foreground",
-                  )}
-                >
-                  {label}
-                </Button>
+              ).map(([value, label, hint]) => (
+                <Tooltip key={value}>
+                  <TooltipTrigger asChild>
+                    <Button
+                      type="button"
+                      size="xs"
+                      variant={filter === value ? "secondary" : "ghost"}
+                      aria-pressed={filter === value}
+                      onClick={() => setFilter(value)}
+                      className={cn(
+                        "rounded-full px-2.5",
+                        filter === value
+                          ? "text-foreground"
+                          : "text-muted-foreground",
+                      )}
+                    >
+                      {label}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>{hint}</TooltipContent>
+                </Tooltip>
               ))}
             </div>
           </header>
 
-          <div className="flex items-center justify-between px-4 py-3 text-xs text-muted-foreground">
-            <span className="font-medium">Discussions récentes</span>
-            <span aria-live="polite">
-              {contactsQuery.unreadConversations} discussion
-              {contactsQuery.unreadConversations > 1 ? "s" : ""} non lue
-              {contactsQuery.unreadConversations > 1 ? "s" : ""}
-            </span>
-          </div>
-
           <nav
             aria-label="Liste des contacts"
             aria-busy={contactsQuery.isLoading}
-            className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-2 pb-4"
+            className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-1.5 pb-4"
           >
             {contactsQuery.isLoading && !visibleClients.length ? (
               <ConversationListLoading />
@@ -1098,7 +1180,7 @@ export default function WhatsappWorkspace({
                 )}
               </div>
             ) : (
-              <ul className="space-y-2">
+              <ul className="space-y-0.5">
                 {visibleClients.map((client) => {
                   const selected = activeId === client.id;
                   const hasDraft = !!drafts[client.id]?.trim();
@@ -1118,71 +1200,36 @@ export default function WhatsappWorkspace({
                         aria-current={selected ? "true" : undefined}
                         onClick={() => selectClient(client.id)}
                         className={cn(
-                          "flex h-18 w-full items-center justify-start gap-3 whitespace-normal rounded-lg border border-l-2 p-3 text-left",
+                          "relative flex h-auto w-full items-start justify-start gap-3 whitespace-normal rounded-lg px-2.5 py-2.5 text-left font-normal",
                           "transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none",
-                          selected
-                            ? "border-border border-l-primary bg-accent text-accent-foreground hover:bg-accent"
-                            : "border-transparent hover:border-border hover:bg-muted/50",
+                          selected ? "bg-muted hover:bg-muted" : "hover:bg-muted/60",
                         )}
                       >
-                        <div className="relative shrink-0">
-                          <Avatar className="size-10 border border-border/60">
-                            <AvatarFallback className="bg-muted text-xs font-semibold">
-                              {getInitials(client.name)}
-                            </AvatarFallback>
-                          </Avatar>
-                        </div>
+                        {selected && (
+                          <span
+                            aria-hidden="true"
+                            className="absolute inset-y-2 left-0 w-0.5 rounded-full bg-foreground"
+                          />
+                        )}
+                        <Avatar className="size-9 shrink-0">
+                          <AvatarFallback className="bg-muted font-heading text-xs font-semibold">
+                            {getInitials(client.name)}
+                          </AvatarFallback>
+                        </Avatar>
 
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center justify-between gap-2">
+                        <span className="min-w-0 flex-1">
+                          <span className="flex items-center justify-between gap-2">
                             <span className="flex min-w-0 items-center gap-1.5">
-                              <span className="truncate text-sm font-semibold">
+                              <span
+                                className={cn(
+                                  "truncate text-sm",
+                                  client.unreadCount
+                                    ? "font-semibold"
+                                    : "font-medium",
+                                )}
+                              >
                                 {client.name}
                               </span>
-                              {(client.prospectClassification ===
-                                "interesting" ||
-                                client.prospectClassification ===
-                                  "follow_up") && (
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <span
-                                      tabIndex={0}
-                                      aria-label={
-                                        client.prospectClassification ===
-                                        "follow_up"
-                                          ? "Prospect à suivre"
-                                          : "Prospect intéressant"
-                                      }
-                                      className={cn(
-                                        "inline-flex shrink-0 rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                                        client.prospectClassification ===
-                                          "follow_up"
-                                          ? "text-muted-foreground"
-                                          : "text-primary",
-                                      )}
-                                    >
-                                      {client.prospectClassification ===
-                                      "follow_up" ? (
-                                        <Clock3
-                                          aria-hidden="true"
-                                          className="size-4"
-                                        />
-                                      ) : (
-                                        <Sparkles
-                                          aria-hidden="true"
-                                          className="size-4"
-                                        />
-                                      )}
-                                    </span>
-                                  </TooltipTrigger>
-                                  <TooltipContent>
-                                    {client.prospectClassification ===
-                                    "follow_up"
-                                      ? "Prospect à suivre"
-                                      : "Prospect intéressant"}
-                                  </TooltipContent>
-                                </Tooltip>
-                              )}
                               <ConversationParticipants
                                 active={client.aiActive}
                                 agents={client.agents ?? []}
@@ -1192,19 +1239,31 @@ export default function WhatsappWorkspace({
                             <time
                               dateTime={client.lastActivityAt}
                               title={`${dateFormatter.format(new Date(client.lastActivityAt))} · ${timeZone}`}
-                              className="shrink-0 text-[10px] tabular-nums text-muted-foreground"
+                              className={cn(
+                                "shrink-0 text-[11px] tabular-nums",
+                                client.unreadCount
+                                  ? "text-foreground"
+                                  : "text-muted-foreground",
+                              )}
                             >
                               {previewDateFormatter.format(
                                 new Date(client.lastActivityAt),
                               )}
                             </time>
-                          </div>
+                          </span>
 
-                          <span className="mt-1 flex items-center gap-2">
-                            <span className="min-w-0 flex-1 truncate text-xs font-normal leading-relaxed text-muted-foreground">
+                          <span className="mt-0.5 flex items-center gap-2">
+                            <span
+                              className={cn(
+                                "min-w-0 flex-1 truncate text-xs",
+                                client.unreadCount
+                                  ? "text-foreground"
+                                  : "text-muted-foreground",
+                              )}
+                            >
                               {hasDraft ? (
                                 <>
-                                  <span className="font-medium text-foreground dark:text-foreground">
+                                  <span className="font-medium text-foreground">
                                     Brouillon :{" "}
                                   </span>
                                   {drafts[client.id]}
@@ -1215,7 +1274,7 @@ export default function WhatsappWorkspace({
                               )}
                             </span>
                             {!!client.unreadCount && (
-                              <span className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-primary px-1.5 text-xs font-semibold tabular-nums text-primary-foreground">
+                              <span className="flex h-4.5 min-w-4.5 shrink-0 items-center justify-center rounded-full bg-primary px-1 font-mono text-[10px] tabular-nums text-primary-foreground">
                                 <span aria-hidden="true">
                                   {client.unreadCount > 99
                                     ? "99+"
@@ -1227,7 +1286,16 @@ export default function WhatsappWorkspace({
                               </span>
                             )}
                           </span>
-                        </div>
+
+                          {(client.prospectClassification === "interesting" ||
+                            client.prospectClassification === "follow_up") && (
+                            <span className="mt-1.5 flex">
+                              <InstinctBadge
+                                classification={client.prospectClassification}
+                              />
+                            </span>
+                          )}
+                        </span>
                       </Button>
                     </li>
                   );
@@ -1265,7 +1333,7 @@ export default function WhatsappWorkspace({
           ref={setConversationElement}
           aria-label="Conversation active"
           className={cn(
-            "relative min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-border",
+            "relative min-h-0 min-w-0 flex-1 flex-col overflow-hidden",
             mobileChat ? "flex" : "hidden md:flex",
           )}
         >
@@ -1284,8 +1352,8 @@ export default function WhatsappWorkspace({
                     <ArrowLeft aria-hidden="true" />
                   </Button>
 
-                  <Avatar className="hidden size-10 shrink-0 border sm:flex">
-                    <AvatarFallback className="text-xs font-semibold">
+                  <Avatar className="hidden size-9 shrink-0 sm:flex">
+                    <AvatarFallback className="font-heading text-xs font-semibold">
                       {getInitials(activeClient.name)}
                     </AvatarFallback>
                   </Avatar>
@@ -1301,6 +1369,11 @@ export default function WhatsappWorkspace({
                         loading={historyQuery.isLoading}
                       />
                     </div>
+                    <div className="mt-0.5 hidden sm:flex">
+                      <InstinctBadge
+                        classification={activeClient.prospectClassification}
+                      />
+                    </div>
                   </div>
                 </div>
 
@@ -1314,34 +1387,44 @@ export default function WhatsappWorkspace({
                     enabled={historyQuery.hasClientMessage}
                     container={conversationElement}
                   />
-                  {canManageAi && (
-                    <Button
-                      type="button"
-                      variant={aiActive ? "secondary" : "outline"}
-                      aria-pressed={aiActive}
-                      title={aiActive ? "Prendre la main" : "Activer l’IA"}
-                      disabled={aiBusyId !== null}
-                      aria-busy={aiBusyId === activeClient.id}
-                      onClick={toggleAi}
-                      size="icon"
-                      className="shrink-0"
-                      aria-label={
-                        aiActive
-                          ? "Prendre la main sur cette conversation"
-                          : "Activer l’IA pour ce contact"
-                      }
-                    >
+                  {canManageAi ? (
+                    <div className="flex shrink-0 items-center gap-2 rounded-lg border px-2.5 py-1.5">
                       {aiBusyId === activeClient.id ? (
                         <Loader2
                           aria-hidden="true"
-                          className="size-4 animate-spin motion-reduce:animate-none"
+                          className="size-4 animate-spin text-muted-foreground motion-reduce:animate-none"
                         />
-                      ) : aiActive ? (
-                        <Pause aria-hidden="true" className="size-4" />
                       ) : (
-                        <Bot aria-hidden="true" className="size-4" />
+                        <Bot
+                          aria-hidden="true"
+                          className="size-4 text-muted-foreground"
+                        />
                       )}
-                    </Button>
+                      <Label
+                        htmlFor="chat-ai-toggle"
+                        className="hidden cursor-pointer text-xs sm:block"
+                      >
+                        Assistant IA
+                      </Label>
+                      <Switch
+                        id="chat-ai-toggle"
+                        size="sm"
+                        checked={aiActive}
+                        disabled={aiBusyId !== null}
+                        aria-busy={aiBusyId === activeClient.id}
+                        onCheckedChange={() => void toggleAi()}
+                        aria-label={
+                          aiActive
+                            ? "Désactiver l’IA et prendre la main sur cette conversation"
+                            : "Activer l’IA pour ce contact"
+                        }
+                      />
+                    </div>
+                  ) : (
+                    <span className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs text-muted-foreground">
+                      <Bot aria-hidden="true" className="size-3.5" />
+                      {aiActive ? "IA active" : "IA en pause"}
+                    </span>
                   )}
                 </div>
               </header>
@@ -1360,7 +1443,7 @@ export default function WhatsappWorkspace({
                 </div>
               )}
 
-              <div className="min-h-0 flex-1 bg-background">
+              <div className="min-h-0 flex-1 bg-[radial-gradient(var(--border)_1px,transparent_1px)] bg-size-[20px_20px]">
                 <MessageScrollerProvider
                   key={activeClient.id}
                   autoScroll
@@ -1429,7 +1512,7 @@ export default function WhatsappWorkspace({
                               >
                                 {day !== previousDay && (
                                   <div className="mb-5 mt-2 flex justify-center">
-                                    <span className="rounded-full border border-border/60 bg-background px-3 py-1 text-[10px] font-medium text-muted-foreground">
+                                    <span className="rounded-full border bg-background/90 px-3 py-1 text-[11px] font-medium text-muted-foreground shadow-xs backdrop-blur">
                                       {dateFormatter.format(
                                         new Date(message.timestamp),
                                       )}
@@ -1475,7 +1558,7 @@ export default function WhatsappWorkspace({
               <footer className="chat-floating-composer relative z-10 shrink-0 bg-background px-3 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-5 sm:pt-4">
                 <div className="mx-auto max-w-4xl">
                   {aiActive && (
-                    <div className="mb-3 flex items-start gap-2 rounded-xl border border-border/20 bg-primary/5 px-3 py-2">
+                    <div className="mb-3 flex items-start gap-2 rounded-xl border border-dashed px-3 py-2">
                       <Bot
                         aria-hidden="true"
                         className="mt-0.5 size-4 shrink-0 text-foreground dark:text-foreground"
@@ -1484,7 +1567,7 @@ export default function WhatsappWorkspace({
                         L’IA est activée et peut également répondre à ce
                         contact.
                         {canManageAi &&
-                          " Cliquez sur « Prendre la main » pour répondre."}
+                          " Désactivez « Assistant IA » pour reprendre la main."}
                       </p>
                     </div>
                   )}

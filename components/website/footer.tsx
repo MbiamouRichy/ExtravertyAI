@@ -1,46 +1,83 @@
-"use client";
+import Link from "next/link";
 
 import { LogoIcon } from "@/components/logo";
 import { Button } from "@/components/ui/button";
-import { LogIn } from "lucide-react";
-import Link from "next/link";
-import { navLinks } from "./header";
-import { FacebookIcon } from "../social-icon";
+import { FacebookIcon, WhatsAppIcon } from "@/components/social-icon";
+
+const columns = [
+  {
+    title: "Produit",
+    links: [
+      { label: "Fonctionnalités", href: "/#produit" },
+      { label: "Cas d’usage", href: "/#cas-usage" },
+      { label: "Tarifs", href: "/tarifs" },
+      { label: "Questions fréquentes", href: "/#faq" },
+    ],
+  },
+  {
+    title: "Entreprise",
+    links: [
+      { label: "À propos", href: "/apropos" },
+      { label: "Contact", href: "/contact" },
+      { label: "Mon espace", href: "/projects" },
+    ],
+  },
+  {
+    title: "Légal",
+    links: [
+      { label: "Données et confidentialité", href: "/donneesEtConfidentialite" },
+    ],
+  },
+];
 
 export default function Footer() {
   return (
-    <footer className="w-full border-t bg-background">
-      <div className="mx-auto max-w-7xl px-5 sm:px-8 lg:px-12">
-        <div className="grid gap-10 py-10 sm:grid-cols-2 lg:grid-cols-[1.2fr_1fr_1fr] lg:gap-16">
-          <div className="min-w-0">
-            <Link
-              href="/"
-              aria-label="ExtravertyAI — accueil"
-              className="inline-flex rounded-sm focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
-            >
-              <LogoIcon LogoClassName="w-7" />
-            </Link>
-            <p className="mt-4 max-w-xs text-sm leading-relaxed text-muted-foreground">
-              Vos conversations WhatsApp, votre assistant IA et votre équipe
-              dans un même espace.
-            </p>
-            <Button asChild size="icon-sm" variant="ghost" className="mt-3">
+    <footer className="border-t">
+      <div className="mx-auto grid w-full max-w-6xl gap-10 px-4 py-14 sm:px-6 md:grid-cols-[1.4fr_repeat(3,1fr)]">
+        <div className="space-y-4">
+          <Link
+            href="/"
+            className="inline-flex rounded-md outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+          >
+            <LogoIcon LogoClassName="w-6" className="gap-1.5" />
+            <span className="sr-only">Accueil ExtravertyAI</span>
+          </Link>
+          <p className="max-w-xs text-sm text-muted-foreground">
+            L’assistant WhatsApp qui répond, qualifie et passe la main à votre
+            équipe au bon moment.
+          </p>
+          <div className="flex gap-1">
+            <Button asChild size="icon-sm" variant="outline">
               <a
                 href="https://www.facebook.com/profile.php?id=61576441577255"
+                target="_blank"
+                rel="noopener noreferrer"
                 aria-label="ExtravertyAI sur Facebook"
               >
                 <FacebookIcon />
               </a>
             </Button>
+            <Button asChild size="icon-sm" variant="outline">
+              <a
+                href="https://wa.me/24176205629"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Écrire à ExtravertyAI sur WhatsApp"
+              >
+                <WhatsAppIcon />
+              </a>
+            </Button>
           </div>
-          <nav aria-label="Navigation de bas de page">
-            <p className="mb-4 text-sm font-semibold">Découvrir</p>
-            <ul className="grid grid-cols-2 gap-x-5 gap-y-1 text-sm text-muted-foreground">
-              {navLinks.map((link) => (
+        </div>
+        {columns.map((column) => (
+          <nav key={column.title} aria-label={column.title}>
+            <p className="mb-3 font-heading text-sm font-semibold">{column.title}</p>
+            <ul className="space-y-2">
+              {column.links.map((link) => (
                 <li key={link.href}>
                   <Link
                     href={link.href}
-                    className="inline-flex min-h-5 items-center rounded-sm hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
+                    className="text-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:text-foreground focus-visible:underline focus-visible:outline-none"
                   >
                     {link.label}
                   </Link>
@@ -48,27 +85,12 @@ export default function Footer() {
               ))}
             </ul>
           </nav>
-          <div>
-            <p className="text-sm font-semibold">Votre espace</p>
-            <p className="mt-4 max-w-xs text-sm leading-relaxed text-muted-foreground">
-              Retrouvez vos projets et vos conversations.
-            </p>
-            <Button variant="outline" asChild className="mt-5">
-              <Link href="/sign-in">
-                <LogIn aria-hidden="true" />
-                Se connecter
-              </Link>
-            </Button>
-          </div>
-        </div>
-        <div className="flex flex-col gap-3 border-t py-5 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
-          <p>© ExtravertyAI. Tous droits réservés.</p>
-          <Link
-            href="/donneesEtConfidentialite"
-            className="inline-flex min-h-10 items-center rounded-sm underline-offset-4 hover:text-foreground hover:underline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
-          >
-            Données et confidentialité
-          </Link>
+        ))}
+      </div>
+      <div className="border-t">
+        <div className="mx-auto flex w-full max-w-6xl flex-col gap-2 px-4 py-6 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:px-6">
+          <p>© {new Date().getFullYear()} ExtravertyAI. Tous droits réservés.</p>
+          <p>WhatsApp est une marque de Meta Platforms, Inc.</p>
         </div>
       </div>
     </footer>

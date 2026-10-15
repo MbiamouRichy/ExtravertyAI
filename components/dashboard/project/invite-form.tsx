@@ -127,9 +127,7 @@ export function InviteForm({
         <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
           Invitation à collaborer
         </p>
-        <h1 className="text-2xl font-bold tracking-tight">
-          Votre équipe vous attend.
-        </h1>
+        <h1 className="text-3xl md:text-4xl">Votre équipe vous attend.</h1>
         <p className="text-sm leading-relaxed text-muted-foreground">
           <span className="font-medium text-foreground">{inviterName}</span>{" "}
           vous invite à rejoindre{" "}
@@ -266,12 +264,13 @@ export function InviteForm({
         <Button
           type="submit"
           form="invite-form"
+          size="lg"
           className="w-full"
           disabled={isLoading}
         >
           {isLoading ? (
             <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              <Loader2 className="animate-spin" aria-hidden="true" />
               Création du compte...
             </>
           ) : (

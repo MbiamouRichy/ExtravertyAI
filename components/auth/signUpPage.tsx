@@ -23,7 +23,7 @@ import {
 	InputGroupInput,
 } from "@/components/ui/input-group";
 import { AuthDivider } from "@/components/dashboard/auth-divider";
-import { FloatingPaths } from "@/components/dashboard/floating-paths";
+import { AuthShowcase } from "./auth-showcase";
 import { ChevronLeftIcon, AtSignIcon, Loader, Eye, EyeOff, UserIcon, KeySquareIcon } from "lucide-react";
 import { SignInSocialButton } from "./signInSocialButton";
 import Link from "next/link";
@@ -110,27 +110,7 @@ export function AuthPage({ callbackUrl }: { callbackUrl?: string }) {
 	}
 	return (
 		<main className="relative md:min-h-screen h-full overflow-x-hidden lg:grid lg:grid-cols-2">
-			<div className="relative hidden h-full flex-col border-r bg-secondary p-10 lg:flex dark:bg-secondary/20">
-				<div className="absolute inset-0 bg-linear-to-b from-transparent via-transparent to-background" />
-				<Link className="z-10" href="/" title="Page d'accueil">
-					<LogoIcon className="mr-auto w-10" />
-				</Link>
-
-				<div className="z-10 mt-auto">
-					<blockquote className="space-y-2">
-						<p className="text-xl">
-							&ldquo;Cette plateforme m&apos;a aidé à gagner du temps et à servir mes clients plus rapidement qu&apos;aucune autre avant.&rdquo;
-						</p>
-						<footer className="font-mono font-semibold text-sm">
-							~ Mbiamou Tchogna
-						</footer>
-					</blockquote>
-				</div>
-				<div className="absolute inset-0">
-					<FloatingPaths position={1} />
-					<FloatingPaths position={-1} />
-				</div>
-			</div>
+			<AuthShowcase eyebrow="Essai gratuit · 10 jours" title="Votre assistant WhatsApp, prêt en quelques minutes." />
 			<div className="relative flex min-h-screen flex-col justify-center pt-8 lg:pt-0 px-4">
 				{/* Top Shades */}
 				<div
@@ -141,12 +121,21 @@ export function AuthPage({ callbackUrl }: { callbackUrl?: string }) {
 					<div className="absolute top-0 right-0 h-320 w-60 rounded-full bg-[radial-gradient(50%_50%_at_50%_50%,--theme(--color-foreground/.04)_0,--theme(--color-foreground/.01)_80%,transparent_100%)] [translate:5%_-50%]" />
 					<div className="absolute top-0 right-0 h-320 w-60 -translate-y-87.5 rounded-full bg-[radial-gradient(50%_50%_at_50%_50%,--theme(--color-foreground/.04)_0,--theme(--color-foreground/.01)_80%,transparent_100%)]" />
 				</div>
-				<Button asChild className="md:hidden flex self-start mb-5 lg:mb-0" variant="ghost">
-					<Link href="/" title="page d'accueil">
-						<ChevronLeftIcon data-icon="inline-start" />
-						Accueil
+				<div className="mx-auto mb-8 flex w-full max-w-sm items-center justify-between">
+					<Link
+						href="/"
+						className="rounded-md outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+					>
+						<LogoIcon LogoClassName="w-6" className="gap-1.5" />
+						<span className="sr-only">Retour à l’accueil</span>
 					</Link>
-				</Button>
+					<Button asChild variant="ghost" size="sm">
+						<Link href="/">
+							<ChevronLeftIcon data-icon="inline-start" />
+							Accueil
+						</Link>
+					</Button>
+				</div>
 
 				<div className="mx-auto space-y-4 sm:w-sm">
 					<div className="flex flex-col space-y-1">
@@ -266,7 +255,7 @@ export function AuthPage({ callbackUrl }: { callbackUrl?: string }) {
 									En cliquant sur continuer, vous acceptez nos{" "}
 									<Link
 										className="underline underline-offset-4 hover:text-primary"
-										href="/donneeEtConfidentialite"
+										href="/donneesEtConfidentialite"
 									>
 										Politique de confidentialité
 									</Link>

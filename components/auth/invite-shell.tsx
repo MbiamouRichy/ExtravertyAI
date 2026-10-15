@@ -1,26 +1,86 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { LogoIcon } from "@/components/logo";
-import { Button } from "@/components/ui/button";
-import { DecorIcon } from "@/components/ui/decor-icon";
+import { Inbox, Sparkles, UsersRound } from "lucide-react";
 
-export function InviteShell({ children }: { children: ReactNode }) {
+import { getInitials } from "@/components/getInitials";
+import { LogoIcon } from "@/components/logo";
+
+type Invitation = { projectName: string; inviterName: string };
+
+const perks = [
+  { icon: Inbox, text: "La messagerie WhatsApp partagée du projet" },
+  { icon: Sparkles, text: "Les prospects repérés par Instinct IA" },
+  { icon: UsersRound, text: "Une équipe qui voit qui répond à qui" },
+];
+
+function InvitationCard({ invitation }: { invitation?: Invitation }) {
   return (
-    <main className="flex min-h-svh items-center justify-center bg-background px-6 py-16 text-foreground">
-      <div className="relative w-full max-w-md border-y border-border px-1 py-8 sm:border sm:p-8">
-        <DecorIcon position="top-left" />
-        <DecorIcon position="bottom-right" />
-        <Button
-          asChild
-          variant="ghost"
-          className="mb-8 px-0 hover:bg-transparent"
+    <aside
+      aria-label="Votre invitation"
+      className="relative isolate hidden overflow-hidden bg-primary p-12 text-primary-foreground lg:flex lg:flex-col lg:justify-center"
+    >
+      <div
+        aria-hidden="true"
+        className="absolute inset-0 -z-10 bg-[radial-gradient(var(--primary-foreground)_1px,transparent_1px)] opacity-10 mask-[radial-gradient(ellipse_at_top_right,black,transparent_70%)] bg-size-[20px_20px]"
+      />
+      <div className="mx-auto w-full max-w-md">
+        <p className="font-mono text-xs uppercase tracking-[0.2em] opacity-60">
+          {invitation ? "Invitation à collaborer" : "Travailler en équipe"}
+        </p>
+        {invitation ? (
+          <div className="mt-6 rounded-2xl bg-primary-foreground p-6 text-primary shadow-2xl motion-safe:animate-in motion-safe:fade-in motion-safe:zoom-in-95 motion-safe:duration-500">
+            <div className="flex items-center gap-3">
+              <span className="flex size-11 items-center justify-center rounded-full bg-primary font-heading text-sm font-semibold text-primary-foreground">
+                {getInitials(invitation.inviterName)}
+              </span>
+              <p className="min-w-0 text-sm">
+                <span className="block truncate font-semibold">{invitation.inviterName}</span>
+                <span className="block opacity-60">vous invite à rejoindre</span>
+              </p>
+            </div>
+            <p className="mt-5 break-words font-heading text-2xl font-bold">{invitation.projectName}</p>
+          </div>
+        ) : (
+          <p className="mt-6 font-heading text-3xl leading-tight">
+            Rejoignez votre équipe sur ExtravertyAI.
+          </p>
+        )}
+        <ul className="mt-8 space-y-3">
+          {perks.map(({ icon: Icon, text }) => (
+            <li key={text} className="flex items-center gap-3 text-sm">
+              <span className="flex size-8 items-center justify-center rounded-lg bg-primary-foreground/10">
+                <Icon aria-hidden="true" className="size-4" />
+              </span>
+              {text}
+            </li>
+          ))}
+        </ul>
+      </div>
+    </aside>
+  );
+}
+
+export function InviteShell({
+  children,
+  invitation,
+}: {
+  children: ReactNode;
+  invitation?: Invitation;
+}) {
+  return (
+    <main className="grid min-h-svh bg-background text-foreground lg:grid-cols-2">
+      <div className="flex flex-col px-4 py-6 sm:px-10">
+        <Link
+          href="/"
+          className="self-start rounded-md outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
         >
-          <Link href="/" aria-label="ExtravertyAI — Accueil">
-            <LogoIcon LogoClassName="size-7" className="gap-1" />
-          </Link>
-        </Button>
-        {children}
-        <p className="mt-8 border-t border-border pt-5 text-xs leading-relaxed text-muted-foreground">
+          <LogoIcon LogoClassName="w-6" className="gap-1.5" />
+          <span className="sr-only">ExtravertyAI — Accueil</span>
+        </Link>
+        <div className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center py-12 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-500">
+          {children}
+        </div>
+        <p className="text-center text-xs text-muted-foreground">
           Votre espace de travail ExtravertyAI. Consultez notre{" "}
           <Link
             href="/donneesEtConfidentialite"
@@ -31,6 +91,7 @@ export function InviteShell({ children }: { children: ReactNode }) {
           .
         </p>
       </div>
+      <InvitationCard invitation={invitation} />
     </main>
   );
 }

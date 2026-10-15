@@ -42,8 +42,8 @@ export default function AboutPage() {
     <>
       <Header />
       <main
-        id="main-content"
-        className="mx-auto max-w-7xl px-5 pt-32 sm:px-8 lg:px-12 lg:pt-40"
+        id="contenu"
+        className="mx-auto max-w-7xl px-5 pt-14 sm:px-8 lg:px-12 lg:pt-20"
       >
         <section className="grid items-end gap-8 border-b pb-14 lg:grid-cols-[1.4fr_1fr] lg:gap-16 lg:pb-20">
           <div>
@@ -194,7 +194,7 @@ export default function AboutPage() {
               <br />à vos premiers échanges.
             </h2>
             <Button asChild variant="link" className="mt-6 min-h-11 px-0">
-              <Link href="/#tarifs">
+              <Link href="/tarifs">
                 Découvrir nos offres <ArrowRight className="size-4" />
               </Link>
             </Button>

@@ -1,260 +1,349 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
+import { Controller, useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import { toast } from "sonner";
 import {
-  ArrowUpRight,
   ArrowRight,
+  ArrowUpRight,
+  Building2,
+  Loader2,
   Mail,
-  Globe2,
-  MessageCircle,
-  Check,
   Phone,
+  ShieldCheck,
+  UserRound,
 } from "lucide-react";
 
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import {
+  Field,
+  FieldDescription,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+  FieldLegend,
+  FieldSet,
+} from "@/components/ui/field";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from "@/components/ui/input-group";
+import { Textarea } from "@/components/ui/textarea";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { WhatsAppIcon } from "@/components/social-icon";
+
+const WHATSAPP_NUMBER = "24176205629";
+const EMAIL = "extravertyai@gmail.com";
+
 const needs = [
-  "Découvrir la solution",
-  "Automatiser mon activité",
-  "Obtenir de l’aide",
+  { value: "discover", label: "Découvrir la solution" },
+  { value: "automate", label: "Automatiser mon activité" },
+  { value: "help", label: "Obtenir de l’aide" },
+] as const;
+
+const formSchema = z.object({
+  need: z.enum(["discover", "automate", "help"]),
+  name: z.string().trim().min(2, "Indiquez votre nom.").max(100, "100 caractères maximum."),
+  business: z
+    .string()
+    .trim()
+    .min(2, "Indiquez le nom de votre activité.")
+    .max(150, "150 caractères maximum."),
+  message: z
+    .string()
+    .trim()
+    .min(10, "Décrivez votre besoin en quelques mots (10 caractères minimum).")
+    .max(1500, "1 500 caractères maximum."),
+});
+
+type FormValues = z.infer<typeof formSchema>;
+
+const channels = [
+  {
+    icon: WhatsAppIcon,
+    label: "WhatsApp",
+    value: "+241 76 20 56 29",
+    href: `https://wa.me/${WHATSAPP_NUMBER}`,
+    external: true,
+  },
+  { icon: Phone, label: "Téléphone", value: "+241 76 20 56 29", href: "tel:+24176205629" },
+  { icon: Mail, label: "E-mail", value: EMAIL, href: `mailto:${EMAIL}` },
 ];
+
+const nextSteps = [
+  { title: "Vous relisez", text: "Votre message s’ouvre dans WhatsApp, prêt à être envoyé." },
+  { title: "Nous répondons", text: "Un membre de l’équipe vous répond directement sur WhatsApp." },
+  { title: "On avance ensemble", text: "Démo, configuration ou aide : nous partons de votre quotidien." },
+];
+
 export function Contact() {
-  const [need, setNeed] = useState(needs[0]);
+  const form = useForm<FormValues>({
+    resolver: zodResolver(formSchema),
+    mode: "onTouched",
+    defaultValues: { need: "discover", name: "", business: "", message: "" },
+  });
+
+  function onSubmit(values: FormValues) {
+    const need = needs.find((item) => item.value === values.need)?.label ?? "";
+    const text = `Bonjour ExtravertyAI !\nJe m'appelle ${values.name}, de ${values.business}.\nMon besoin : ${need}.\n${values.message}`;
+    const url = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(text)}`;
+    const opened = window.open(url, "_blank", "noopener,noreferrer");
+    if (!opened) window.location.assign(url);
+    toast.success("Votre message est prêt dans WhatsApp", {
+      description: "Relisez-le, puis envoyez-le depuis WhatsApp.",
+    });
+    form.reset();
+  }
+
+  const submitting = form.formState.isSubmitting;
+
   return (
-    <main
-      id="main-content"
-      className="mx-auto max-w-7xl px-5 pb-20 pt-32 sm:px-8 lg:px-12 lg:pt-40"
-    >
-      <div className="mb-10 flex items-center gap-3 text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-        <span className="size-2 rounded-full bg-primary" /> Parlons de votre
-        prochain chapitre
-      </div>
-      <div className="grid gap-12 lg:grid-cols-[1fr_1fr] lg:gap-20">
-        <section aria-labelledby="contact-title">
-          <h1
-            id="contact-title"
-            className="max-w-xl text-5xl! leading-[1.06]! tracking-[-0.055em]! sm:text-6xl! lg:text-7xl!"
-          >
-            Une conversation.
-            <br />
-            <span className="text-foreground dark:text-foreground">
-              De nouvelles
-              <br className="hidden sm:block" /> possibilités.
-            </span>
-          </h1>
-          <p className="mt-7 max-w-md text-lg leading-relaxed text-muted-foreground">
-            Votre WhatsApp peut faire plus pour votre entreprise. Racontez-nous
-            votre quotidien, nous réfléchirons à la suite ensemble.
-          </p>
-          <div className="mt-10 flex items-center gap-3 border-t pt-6 text-sm">
-            <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-muted">
-              <Globe2 className="size-4" />
-            </span>
-            <div>
-              <p className="font-medium">Échangeons à distance</p>
-              <p className="text-muted-foreground">
-                Par WhatsApp, téléphone ou e-mail, où que vous travailliez.
-              </p>
-            </div>
-          </div>
-          <div className="mt-10 rounded-2xl bg-primary p-6 text-primary-foreground sm:p-8">
-            <MessageCircle className="mb-5 size-6 text-primary-foreground" />
-            <p className="text-xl font-medium leading-snug">
-              Les bonnes solutions commencent
-              <br />
-              par les bonnes questions.
-            </p>
-            <p className="mt-3 max-w-sm text-sm leading-relaxed text-primary-foreground/80">
-              Vos clients posent souvent les mêmes questions ? Votre équipe
-              manque de temps pour répondre ? C’est un bon point de départ.
-            </p>
-            <div className="mt-6 flex items-center gap-2 text-xs text-primary-foreground">
-              <Check className="size-4" /> Un premier échange, sans engagement
-            </div>
-          </div>
-        </section>
-        <section
-          aria-labelledby="form-title"
-          className="self-start rounded-3xl border bg-card p-6 shadow-[0_16px_60px_-35px_rgba(0,0,0,0.3)] sm:p-9"
-        >
-          <div className="mb-8 flex items-start justify-between gap-4">
-            <div>
-              <p className="mb-2 text-xs uppercase tracking-widest text-muted-foreground">
-                Préparons votre message
-              </p>
-              <h2
-                id="form-title"
-                className="text-2xl font-semibold tracking-tight"
-              >
-                Parlons sur WhatsApp
-              </h2>
-              <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-                Décrivez votre besoin pour préparer un message à notre équipe.
-                Vous le relirez et l’enverrez vous-même dans WhatsApp.
-              </p>
-            </div>
-            <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-muted text-foreground dark:bg-muted dark:text-foreground">
-              <ArrowUpRight className="size-5" />
-            </span>
-          </div>
-          <form
-            onSubmit={(event) => {
-              event.preventDefault();
-              const values = new FormData(event.currentTarget);
-              const text = `Bonjour ExtravertyAI !\nJe m'appelle ${values.get("name")}, de ${values.get("business")}.\nMon besoin : ${need}.\n${values.get("message")}`;
-              window.location.assign(
-                `https://wa.me/24176205629?text=${encodeURIComponent(text)}`,
-              );
-            }}
-            className="space-y-6"
-          >
-            <fieldset>
-              <legend className="mb-3 text-sm font-medium">Je souhaite…</legend>
-              <div className="flex flex-wrap gap-2">
-                {needs.map((value) => (
-                  <label
-                    key={value}
-                    className={`relative cursor-pointer rounded-full border px-4 py-2.5 text-sm transition-colors focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 ${need === value ? "border-border bg-primary text-primary-foreground" : "hover:bg-muted"}`}
-                  >
-                    <input
-                      type="radio"
-                      name="need"
-                      value={value}
-                      checked={need === value}
-                      onChange={() => setNeed(value)}
-                      className="sr-only"
-                    />
-                    {value}
-                  </label>
-                ))}
-              </div>
-            </fieldset>
-            <div className="grid gap-5 sm:grid-cols-2">
-              <div>
-                <label
-                  htmlFor="contact-name"
-                  className="mb-2 block text-sm font-medium"
-                >
-                  Votre nom <span className="text-muted-foreground">*</span>
-                </label>
-                <input
-                  id="contact-name"
-                  name="name"
-                  autoComplete="name"
-                  placeholder="Marie Dupont"
-                  required
-                  maxLength={100}
-                  className="h-12 w-full rounded-xl border bg-background px-4 text-base outline-none focus:border-border focus:ring-2 focus:ring-ring/20"
-                />
-              </div>
-              <div>
-                <label
-                  htmlFor="contact-business"
-                  className="mb-2 block text-sm font-medium"
-                >
-                  Votre entreprise{" "}
-                  <span className="text-muted-foreground">*</span>
-                </label>
-                <input
-                  id="contact-business"
-                  name="business"
-                  autoComplete="organization"
-                  placeholder="Le nom de votre activité"
-                  required
-                  maxLength={150}
-                  className="h-12 w-full rounded-xl border bg-background px-4 text-base outline-none focus:border-border focus:ring-2 focus:ring-ring/20"
-                />
-              </div>
-            </div>
-            <div>
-              <label
-                htmlFor="contact-message"
-                className="mb-2 block text-sm font-medium"
-              >
-                Quelques mots sur votre besoin{" "}
-                <span className="text-muted-foreground">*</span>
-              </label>
-              <textarea
-                id="contact-message"
-                name="message"
-                rows={4}
-                required
-                maxLength={1500}
-                placeholder="Votre activité, les questions de vos clients, ce que vous aimeriez simplifier…"
-                className="w-full resize-y rounded-xl border bg-background p-4 text-base outline-none focus:border-border focus:ring-2 focus:ring-ring/20"
-              />
-              <p className="mt-1 text-xs text-muted-foreground">
-                * Champs requis
-              </p>
-            </div>
-            <button
-              type="submit"
-              className="flex min-h-12 w-full items-center justify-center gap-3 rounded-xl bg-primary px-4 py-3 font-medium text-primary-foreground transition-colors hover:bg-primary focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
-            >
-              Ouvrir mon message dans WhatsApp <ArrowRight className="size-4 shrink-0" />
-            </button>
-            <p className="text-center text-xs leading-relaxed text-muted-foreground">
-              Vous pourrez relire votre message avant de l’envoyer dans
-              WhatsApp. Vos informations ne sont pas enregistrées par ce
-              formulaire.{" "}
-              <Link
-                href="/donneesEtConfidentialite"
-                className="underline underline-offset-4"
-              >
-                Confidentialité
-              </Link>
-            </p>
-          </form>
-          <div className="mt-7 flex items-center gap-3 border-t pt-6 text-sm text-muted-foreground">
-            <Mail className="size-4 shrink-0" />
-            <span>
-              Plutôt par e-mail ?<br />
-              <a
-                href="mailto:extravertyai@gmail.com"
-                className="break-all font-medium text-foreground underline-offset-4 hover:underline"
-              >
-                extravertyai@gmail.com
-              </a>
-            </span>
-          </div>
-        </section>
-      </div>
+    <main id="contenu" className="overflow-x-clip">
       <section
-        aria-label="Autres moyens de contact"
-        className="mt-16 grid gap-6 border-y py-7 sm:grid-cols-3 lg:mt-24"
+        aria-labelledby="contact-title"
+        className="relative isolate px-4 pb-16 pt-14 sm:px-6 md:pt-20"
       >
-        <div>
-          <p className="mb-2 text-xs uppercase tracking-widest text-muted-foreground">
-            Une question rapide
-          </p>
-          <a
-            href="tel:+24176205629"
-            className="inline-flex min-h-10 items-center gap-2 text-sm font-medium"
+        <div
+          aria-hidden="true"
+          className="absolute inset-0 -z-10 bg-[radial-gradient(var(--border)_1px,transparent_1px)] mask-[radial-gradient(ellipse_70%_60%_at_30%_0%,black,transparent)] bg-size-[22px_22px]"
+        />
+        <div className="mx-auto grid w-full max-w-6xl gap-12 lg:grid-cols-[1fr_1.1fr] lg:gap-16">
+          <div className="lg:pt-6">
+            <p className="mb-4 font-mono text-xs uppercase tracking-[0.2em] text-muted-foreground">
+              Contact
+            </p>
+            <h1
+              id="contact-title"
+              className="text-[2.6rem] text-balance sm:text-5xl md:text-6xl"
+            >
+              Une conversation.
+              <span className="block text-muted-foreground">De nouvelles possibilités.</span>
+            </h1>
+            <p className="mt-6 max-w-md text-pretty text-muted-foreground md:text-lg">
+              Racontez-nous votre quotidien sur WhatsApp. Nous vous aidons à
+              voir ce que l’automatisation peut changer, sans engagement.
+            </p>
+
+            <ul className="mt-10 space-y-2">
+              {channels.map(({ icon: Icon, label, value, href, external }) => (
+                <li key={label}>
+                  <a
+                    href={href}
+                    {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+                    className="group flex items-center gap-4 rounded-xl border bg-card p-4 outline-none transition-colors hover:bg-muted/60 focus-visible:ring-3 focus-visible:ring-ring/50"
+                  >
+                    <span className="flex size-10 shrink-0 items-center justify-center rounded-lg border bg-background">
+                      <Icon aria-hidden="true" className="size-4" />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-xs text-muted-foreground">{label}</span>
+                      <span className="block truncate text-sm font-medium">{value}</span>
+                    </span>
+                    <ArrowUpRight
+                      aria-hidden="true"
+                      className="size-4 text-muted-foreground transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5"
+                    />
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <section
+            aria-labelledby="form-title"
+            className="self-start rounded-3xl border bg-card p-6 shadow-xl shadow-foreground/5 sm:p-8"
           >
-            <Phone className="size-4" /> +241 76 20 56 29{" "}
-            <ArrowUpRight className="size-3.5" />
-          </a>
+            <div className="mb-8 flex items-start justify-between gap-4">
+              <div>
+                <h2 id="form-title" className="text-2xl tracking-tight">
+                  Préparer mon message
+                </h2>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Vous le relirez avant de l’envoyer vous-même dans WhatsApp.
+                </p>
+              </div>
+              <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                <WhatsAppIcon aria-hidden="true" className="size-5" />
+              </span>
+            </div>
+
+            <form noValidate aria-busy={submitting} onSubmit={form.handleSubmit(onSubmit)}>
+              <FieldGroup className="gap-6">
+                <Controller
+                  name="need"
+                  control={form.control}
+                  render={({ field, fieldState }) => (
+                    <FieldSet data-invalid={fieldState.invalid}>
+                      <FieldLegend variant="label">Je souhaite…</FieldLegend>
+                      <RadioGroup
+                        name={field.name}
+                        value={field.value}
+                        onValueChange={field.onChange}
+                        className="flex flex-wrap gap-2"
+                      >
+                        {needs.map((need) => {
+                          const checked = field.value === need.value;
+                          return (
+                            <FieldLabel
+                              key={need.value}
+                              htmlFor={`need-${need.value}`}
+                              className={cn(
+                                "w-auto! cursor-pointer rounded-full border px-4 py-2 text-sm font-normal transition-colors has-focus-visible:ring-3 has-focus-visible:ring-ring/50",
+                                checked
+                                  ? "border-primary bg-primary text-primary-foreground"
+                                  : "hover:bg-muted",
+                              )}
+                            >
+                              <RadioGroupItem
+                                id={`need-${need.value}`}
+                                value={need.value}
+                                className="sr-only"
+                              />
+                              {need.label}
+                            </FieldLabel>
+                          );
+                        })}
+                      </RadioGroup>
+                    </FieldSet>
+                  )}
+                />
+
+                <div className="grid gap-6 sm:grid-cols-2">
+                  <Controller
+                    name="name"
+                    control={form.control}
+                    render={({ field, fieldState }) => (
+                      <Field data-invalid={fieldState.invalid}>
+                        <FieldLabel htmlFor="contact-name">Votre nom</FieldLabel>
+                        <InputGroup>
+                          <InputGroupInput
+                            {...field}
+                            id="contact-name"
+                            autoComplete="name"
+                            placeholder="Marie Dupont"
+                            maxLength={100}
+                            aria-invalid={fieldState.invalid}
+                          />
+                          <InputGroupAddon align="inline-start">
+                            <UserRound />
+                          </InputGroupAddon>
+                        </InputGroup>
+                        {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                      </Field>
+                    )}
+                  />
+                  <Controller
+                    name="business"
+                    control={form.control}
+                    render={({ field, fieldState }) => (
+                      <Field data-invalid={fieldState.invalid}>
+                        <FieldLabel htmlFor="contact-business">Votre entreprise</FieldLabel>
+                        <InputGroup>
+                          <InputGroupInput
+                            {...field}
+                            id="contact-business"
+                            autoComplete="organization"
+                            placeholder="Nom de votre activité"
+                            maxLength={150}
+                            aria-invalid={fieldState.invalid}
+                          />
+                          <InputGroupAddon align="inline-start">
+                            <Building2 />
+                          </InputGroupAddon>
+                        </InputGroup>
+                        {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                      </Field>
+                    )}
+                  />
+                </div>
+
+                <Controller
+                  name="message"
+                  control={form.control}
+                  render={({ field, fieldState }) => (
+                    <Field data-invalid={fieldState.invalid}>
+                      <FieldLabel htmlFor="contact-message">Votre besoin</FieldLabel>
+                      <Textarea
+                        {...field}
+                        id="contact-message"
+                        rows={4}
+                        maxLength={1500}
+                        aria-invalid={fieldState.invalid}
+                        aria-describedby="contact-message-help"
+                        placeholder="Votre activité, les questions de vos clients, ce que vous aimeriez simplifier…"
+                        className="min-h-28 resize-y"
+                      />
+                      <FieldDescription id="contact-message-help">
+                        {field.value.length} / 1 500 caractères
+                      </FieldDescription>
+                      {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                    </Field>
+                  )}
+                />
+
+                <Button type="submit" size="lg" className="w-full" disabled={submitting}>
+                  {submitting ? <Loader2 className="animate-spin" aria-hidden="true" /> : null}
+                  Ouvrir mon message dans WhatsApp
+                  <ArrowRight data-icon="inline-end" />
+                </Button>
+                <p className="flex items-start gap-2 text-xs text-muted-foreground">
+                  <ShieldCheck aria-hidden="true" className="mt-0.5 size-3.5 shrink-0" />
+                  <span>
+                    Ce formulaire n’enregistre rien : il prépare seulement votre
+                    message.{" "}
+                    <Link href="/donneesEtConfidentialite" className="underline underline-offset-4">
+                      Confidentialité
+                    </Link>
+                  </span>
+                </p>
+              </FieldGroup>
+            </form>
+          </section>
         </div>
-        <div>
-          <p className="mb-2 text-xs uppercase tracking-widest text-muted-foreground">
-            Déjà client ?
-          </p>
-          <Link
-            href="/projects"
-            className="inline-flex min-h-10 items-center gap-2 text-sm font-medium"
-          >
-            Accéder à mon espace <ArrowUpRight className="size-4" />
-          </Link>
+      </section>
+
+      <section aria-labelledby="ensuite" className="border-y bg-muted/30 px-4 py-16 sm:px-6">
+        <div className="mx-auto w-full max-w-6xl">
+          <h2 id="ensuite" className="mb-8 text-2xl tracking-tight">
+            Et ensuite ?
+          </h2>
+          <ol className="grid gap-4 md:grid-cols-3">
+            {nextSteps.map((step, index) => (
+              <li key={step.title} className="rounded-2xl border bg-background p-6">
+                <span className="font-mono text-xs text-muted-foreground">0{index + 1}</span>
+                <p className="mt-6 font-heading text-lg font-semibold">{step.title}</p>
+                <p className="mt-1 text-sm text-muted-foreground">{step.text}</p>
+              </li>
+            ))}
+          </ol>
         </div>
-        <div>
-          <p className="mb-2 text-xs uppercase tracking-widest text-muted-foreground">
-            Avant de commencer
-          </p>
-          <Link
-            href="/#faq"
-            className="inline-flex min-h-10 items-center gap-2 text-sm font-medium"
-          >
-            Les questions fréquentes <ArrowUpRight className="size-4" />
-          </Link>
+      </section>
+
+      <section aria-label="Raccourcis" className="px-4 py-16 sm:px-6">
+        <div className="mx-auto grid w-full max-w-6xl gap-4 sm:grid-cols-2">
+          {[
+            { label: "Déjà client ?", title: "Accéder à mon espace", href: "/projects" },
+            { label: "Avant de commencer", title: "Lire les questions fréquentes", href: "/#faq" },
+          ].map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              className="group flex items-center justify-between rounded-2xl border p-6 outline-none transition-colors hover:bg-muted/60 focus-visible:ring-3 focus-visible:ring-ring/50"
+            >
+              <span>
+                <span className="block text-xs text-muted-foreground">{item.label}</span>
+                <span className="mt-1 block font-heading text-lg font-semibold">{item.title}</span>
+              </span>
+              <ArrowUpRight
+                aria-hidden="true"
+                className="size-5 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5"
+              />
+            </Link>
+          ))}
         </div>
       </section>
     </main>

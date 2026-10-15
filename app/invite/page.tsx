@@ -72,7 +72,12 @@ export default async function InvitePage({
 
   // 3. Afficher le formulaire de création de compte
   return (
-    <InviteShell>
+    <InviteShell
+      invitation={{
+        projectName: invitation.project.name,
+        inviterName: invitation.inviter.name || invitation.inviter.email,
+      }}
+    >
       <InviteForm
         email={invitation.email}
         token={token}
@@ -87,21 +92,21 @@ function ErrorState({ message }: { message: string }) {
   return (
     <InviteShell>
       <div className="space-y-6">
-        <div className="flex size-12 items-center justify-center rounded-xl border border-border bg-muted">
+        <div className="flex size-12 items-center justify-center rounded-2xl border bg-muted/50">
           <Link2Off aria-hidden className="size-6 text-muted-foreground" />
         </div>
         <div className="space-y-3">
           <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
             Invitation indisponible
           </p>
-          <h1 className="text-2xl font-bold tracking-tight">
+          <h1 className="text-3xl md:text-4xl">
             Retrouvons votre équipe.
           </h1>
           <p className="break-words text-sm leading-relaxed text-muted-foreground">
             {message}
           </p>
         </div>
-        <p className="border-l-2 border-primary pl-4 text-sm leading-relaxed">
+        <p className="rounded-xl border border-dashed p-4 text-sm leading-relaxed">
           Demandez à la personne qui vous invite de vous envoyer un nouveau
           lien, puis ouvrez-le depuis son message.
         </p>

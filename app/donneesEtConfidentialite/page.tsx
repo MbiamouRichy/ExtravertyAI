@@ -1,187 +1,234 @@
-import React from 'react';
-import { ShieldCheck, Lock, Database, Mail, Cog, Share2, Scale } from 'lucide-react';
 import type { Metadata } from "next";
-import { Header } from '@/components/website/header';
-import Footer from '@/components/website/footer';
-import { WhatsAppIcon } from '@/components/social-icon';
-import { cn } from '@/lib/utils';
+import type { ReactNode } from "react";
+import { Ban, Cog, Database, Lock, Mail, Scale, Share2, ShieldCheck, Trash2 } from "lucide-react";
+
+import { Header } from "@/components/website/header";
+import Footer from "@/components/website/footer";
+import { WhatsAppIcon } from "@/components/social-icon";
+import { Button } from "@/components/ui/button";
 
 export const metadata: Metadata = {
-    title: "ExtravertyAI - Politique de Confidentialité",
+  title: "Données et confidentialité | ExtravertyAI",
+  description:
+    "Comment ExtravertyAI collecte, utilise et protège vos données et celles de vos clients.",
+  alternates: { canonical: "/donneesEtConfidentialite" },
 };
 export const dynamic = "force-static";
+
+const LAST_UPDATED = "12 juin 2026";
+
+const highlights = [
+  { icon: Ban, title: "Jamais revendues", text: "Ni vos données, ni celles de vos clients." },
+  { icon: Lock, title: "Chiffrées en transit", text: "TLS/SSL et accès strictement contrôlés." },
+  { icon: Trash2, title: "Supprimables", text: "Accès, export ou suppression à tout moment." },
+];
+
+const sections: {
+  id: string;
+  icon: typeof Database;
+  title: string;
+  body: ReactNode;
+}[] = [
+  {
+    id: "collecte",
+    icon: Database,
+    title: "Données collectées",
+    body: (
+      <>
+        <p>
+          Dans le cadre de l’utilisation de nos services d’automatisation, nous
+          collectons différents types d’informations :
+        </p>
+        <ul>
+          <li>
+            <strong>Informations de compte :</strong> nom, adresse e-mail,
+            informations de facturation de votre entreprise.
+          </li>
+          <li>
+            <strong>Données d’intégration :</strong> numéros WhatsApp
+            professionnels pour la configuration des webhooks nécessaires au
+            fonctionnement de nos agents.
+          </li>
+          <li>
+            <strong>Données de traitement :</strong> les flux de messages
+            traités par nos systèmes d’intelligence artificielle pour le compte
+            de votre support client.
+          </li>
+        </ul>
+      </>
+    ),
+  },
+  {
+    id: "utilisation",
+    icon: Cog,
+    title: "Utilisation des données",
+    body: (
+      <>
+        <p>Nous utilisons vos données exclusivement pour :</p>
+        <ul>
+          <li>Fournir, opérer et maintenir nos services d’agents IA.</li>
+          <li>Améliorer la logique de nos systèmes et la précision des réponses automatisées.</li>
+          <li>Assurer le support technique et répondre à vos demandes.</li>
+          <li>Traiter les transactions via nos prestataires de paiement sécurisés.</li>
+        </ul>
+      </>
+    ),
+  },
+  {
+    id: "partage",
+    icon: Share2,
+    title: "Partage et tiers",
+    body: (
+      <p>
+        ExtravertyAI ne vend <strong>jamais</strong> vos données personnelles ni
+        celles de vos clients. Nous partageons certaines informations uniquement
+        avec des fournisseurs d’infrastructure cloud de confiance (hébergement,
+        bases de données, modèles de langage) strictement nécessaires à
+        l’exécution de notre service, dans le cadre d’accords de confidentialité
+        rigoureux.
+      </p>
+    ),
+  },
+  {
+    id: "securite",
+    icon: Lock,
+    title: "Sécurité",
+    body: (
+      <p>
+        Nous mettons en œuvre des mesures de sécurité de niveau entreprise pour
+        protéger vos informations. Les données en transit sont chiffrées via
+        TLS/SSL, et les données au repos sont stockées dans des bases de données
+        sécurisées avec des accès strictement contrôlés et authentifiés.
+      </p>
+    ),
+  },
+  {
+    id: "droits",
+    icon: Scale,
+    title: "Vos droits",
+    body: (
+      <p>
+        Vous conservez le contrôle total sur vos données. Vous avez le droit de
+        demander l’accès, la rectification, la portabilité ou la suppression
+        complète de vos données de nos serveurs à tout moment. La suppression
+        d’un compte entraîne la purge de toutes les données associées de notre
+        base de données principale.
+      </p>
+    ),
+  },
+];
+
 export default function PrivacyPolicy() {
-    const lastUpdated = "12 Juin 2026";
+  return (
+    <>
+      <Header />
+      <main id="contenu">
+        <section className="relative isolate border-b px-4 pb-14 pt-14 sm:px-6 md:pt-20">
+          <div
+            aria-hidden="true"
+            className="absolute inset-0 -z-10 bg-[radial-gradient(var(--border)_1px,transparent_1px)] mask-[radial-gradient(ellipse_70%_70%_at_20%_0%,black,transparent)] bg-size-[22px_22px]"
+          />
+          <div className="mx-auto w-full max-w-6xl">
+            <p className="mb-4 inline-flex items-center gap-2 font-mono text-xs uppercase tracking-[0.2em] text-muted-foreground">
+              <ShieldCheck aria-hidden="true" className="size-4" />
+              Légal
+            </p>
+            <h1 className="max-w-3xl text-[2.6rem] text-balance sm:text-5xl md:text-6xl">
+              Données et confidentialité
+            </h1>
+            <p className="mt-5 max-w-2xl text-pretty text-muted-foreground md:text-lg">
+              Nous prenons la protection de vos données et de celles de vos
+              clients très au sérieux. Voici, en toute transparence, comment
+              nous les gérons.
+            </p>
+            <p className="mt-6 text-xs text-muted-foreground">
+              Dernière mise à jour : <time dateTime="2026-06-12">{LAST_UPDATED}</time>
+            </p>
 
-    const sections = [
-        { id: "collecte", title: "1. Données collectées" },
-        { id: "utilisation", title: "2. Utilisation des données" },
-        { id: "partage", title: "3. Partage et Tiers" },
-        { id: "securite", title: "4. Sécurité" },
-        { id: "droits", title: "5. Vos droits" },
-        { id: "contact", title: "6. Contact" },
-    ];
+            <ul aria-label="En bref" className="mt-10 grid gap-3 sm:grid-cols-3">
+              {highlights.map(({ icon: Icon, title, text }) => (
+                <li key={title} className="flex gap-3 rounded-xl border bg-background p-4">
+                  <Icon aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+                  <span>
+                    <span className="block text-sm font-medium">{title}</span>
+                    <span className="block text-xs text-muted-foreground">{text}</span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </section>
 
-    return (
-        <>
-            <Header />
+        <div className="mx-auto grid w-full max-w-6xl gap-12 px-4 py-14 sm:px-6 md:grid-cols-[14rem_1fr] md:py-20 lg:gap-20">
+          <nav aria-label="Sommaire" className="md:sticky md:top-24 md:self-start">
+            <p className="mb-3 font-mono text-[11px] uppercase tracking-wider text-muted-foreground">
+              Sommaire
+            </p>
+            <ol className="flex gap-1 overflow-x-auto border-b pb-3 md:flex-col md:border-b-0 md:border-l md:pb-0 [scrollbar-width:none]">
+              {[...sections, { id: "contact", title: "Nous contacter" }].map((section, index) => (
+                <li key={section.id} className="shrink-0">
+                  <a
+                    href={`#${section.id}`}
+                    className="flex gap-2 rounded-md px-3 py-1.5 text-sm text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 md:-ml-px md:rounded-none md:border-l md:border-transparent md:hover:border-foreground"
+                  >
+                    <span className="font-mono text-xs tabular-nums opacity-60">
+                      {String(index + 1).padStart(2, "0")}
+                    </span>
+                    {section.title}
+                  </a>
+                </li>
+              ))}
+            </ol>
+          </nav>
 
-            <div className="min-h-screen overflow-x-hidden w-full bg-background text-foreground font-sans selection:bg-primary selection:text-primary-foreground">
-
-                {/* Header Section */}
-                <section className="bg-muted/40 border-b border-border py-16 sm:py-24">
-                    <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-                        <div className="flex items-center gap-3 text-muted-foreground mb-4">
-                            <ShieldCheck className="w-6 h-6 text-foreground" />
-                            <span className="text-sm font-semibold tracking-wider uppercase">Légal</span>
-                        </div>
-                        <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight text-foreground mb-4">
-                            Politique de Confidentialité
-                        </h1>
-                        <p className="text-lg text-muted-foreground max-w-2xl">
-                            Chez ExtravertyAI, nous prenons la protection de vos données et celles de vos clients très au sérieux. Découvrez comment nous gérons vos informations en toute transparence.
-                        </p>
-                        <div className="mt-6 text-sm text-muted-foreground font-medium">
-                            Dernière mise à jour : {lastUpdated}
-                        </div>
-                    </div>
-                </section>
-
-                {/* Main Content */}
-                <div className={cn('relative max-w-7xl md:mx-auto w-full h-full grow',
-                    // X BORDER
-                    "before:absolute before:-inset-y-14 before:-left-px before:w-px before:bg-border",
-                    "after:absolute after:-inset-y-14 after:-right-px after:w-px after:bg-border",
-                )}>
-                    <div className="max-w-5xl md:mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-20 flex flex-col md:flex-row gap-12 lg:gap-24">
-                        {/* Sidebar Navigation (Sticky) */}
-                        <aside className="md:w-1/4 sticky top-24 hidden md:block self-start">
-                            <div className="w-full">
-                                <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-4">
-                                    Sommaire
-                                </h3>
-                                <nav className="flex flex-col gap-3">
-                                    {sections.map((section) => (
-                                        <a
-                                            key={section.id}
-                                            href={`#${section.id}`}
-                                            className="text-sm text-muted-foreground hover:text-foreground hover:translate-x-1 transition-all duration-200 font-medium"
-                                        >
-                                            {section.title}
-                                        </a>
-                                    ))}
-                                </nav>
-                            </div>
-                        </aside>
-
-                        {/* Policy Content */}
-                        <div className="md:w-3/4 max-w-none">
-
-                            <section id="collecte" className="mb-12 scroll-mt-24">
-                                <div className="flex items-center gap-3 mb-6">
-                                    <div className="p-2 bg-secondary rounded-lg">
-                                        <Database className="w-5 h-5 text-secondary-foreground" />
-                                    </div>
-                                    <h2 className="text-2xl font-bold m-0 text-foreground">1. Données collectées</h2>
-                                </div>
-                                <p className="text-muted-foreground leading-relaxed">
-                                    Dans le cadre de l&apos;utilisation de nos services d&apos;automatisation, nous collectons différents types d&apos;informations :
-                                </p>
-                                <ul className="list-disc pl-6 text-muted-foreground space-y-2 mt-4 marker:text-muted-foreground/50">
-                                    <li><strong className="text-foreground">Informations de compte :</strong> Nom, adresse email, informations de facturation de votre entreprise.</li>
-                                    <li><strong className="text-foreground">Données d&apos;intégration :</strong> Numéros WhatsApp professionnels pour la configurations de webhook nécessaires au fonctionnement de nos agents.</li>
-                                    <li><strong className="text-foreground">Données de traitement :</strong> Les flux de messages traités par nos systèmes d&apos;intelligence artificielle pour le compte de votre support client.</li>
-                                </ul>
-                            </section>
-
-                            <hr className="border-border my-10" />
-
-                            <section id="utilisation" className="mb-12 scroll-mt-24">
-                                <div className="flex items-center gap-3 mb-6">
-                                    <div className="p-2 bg-secondary rounded-lg">
-                                        <Cog className="w-5 h-5 text-secondary-foreground" />
-                                    </div>
-                                    <h2 className="text-2xl font-bold m-0 text-foreground">2. Utilisation des données</h2>
-                                </div>
-                                <p className="text-muted-foreground leading-relaxed mb-4">
-                                    Nous utilisons vos données exclusivement pour :
-                                </p>
-                                <ul className="list-disc pl-6 text-muted-foreground space-y-2 marker:text-muted-foreground/50">
-                                    <li>Fournir, opérer et maintenir nos services d&apos;agents IA.</li>
-                                    <li>Améliorer la logique de nos systèmes et la précision des réponses automatisées.</li>
-                                    <li>Assurer le support technique et répondre à vos demandes.</li>
-                                    <li>Traiter les transactions via nos prestataires de paiement sécurisés.</li>
-                                </ul>
-                            </section>
-
-                            <hr className="border-border my-10" />
-
-                            <section id="partage" className="mb-12 scroll-mt-24">
-                                <div className="flex items-center gap-3 mb-6">
-                                    <div className="p-2 bg-secondary rounded-lg">
-                                        <Share2 className="w-5 h-5 text-secondary-foreground" />
-                                    </div>
-                                    <h2 className="text-2xl font-bold m-0 text-foreground">3. Partage et Tiers</h2>
-                                </div>
-                                <p className="text-muted-foreground leading-relaxed">
-                                    ExtravertyAI ne vend <strong className="text-foreground">jamais </strong> vos données personnelles ni celles de vos clients. Nous partageons certaines informations uniquement avec des fournisseurs d&apos;infrastructure cloud de confiance (hébergement, bases de données, modèles de langage) strictement nécessaires à l&apos;exécution de notre service, dans le cadre d&apos;accords de confidentialité rigoureux.
-                                </p>
-                            </section>
-
-                            <hr className="border-border my-10" />
-
-                            <section id="securite" className="mb-12 scroll-mt-24">
-                                <div className="flex items-center gap-3 mb-6">
-                                    <div className="p-2 bg-secondary rounded-lg">
-                                        <Lock className="w-5 h-5 text-secondary-foreground" />
-                                    </div>
-                                    <h2 className="text-2xl font-bold m-0 text-foreground">4. Sécurité</h2>
-                                </div>
-                                <p className="text-muted-foreground leading-relaxed">
-                                    Nous mettons en œuvre des mesures de sécurité de niveau entreprise pour protéger vos informations. Les données en transit sont chiffrées via TLS/SSL, et les données au repos sont stockées dans des bases de données sécurisées avec des accès strictement contrôlés et authentifiés.
-                                </p>
-                            </section>
-
-                            <hr className="border-border my-10" />
-
-                            <section id="droits" className="mb-12 scroll-mt-24">
-                                <div className="flex items-center gap-3 mb-6">
-                                    <div className="p-2 bg-secondary rounded-lg">
-                                        <Scale className="w-5 h-5 text-secondary-foreground" />
-                                    </div>
-                                    <h2 className="text-2xl font-bold m-0 text-foreground">5. Vos droits</h2>
-                                </div>
-                                <p className="text-muted-foreground leading-relaxed">
-                                    Vous conservez le contrôle total sur vos données. Vous avez le droit de demander l&apos;accès, la rectification, la portabilité ou la suppression complète de vos données de nos serveurs à tout moment. La suppression d&apos;un compte entraîne la purge de toutes les données associées de notre base de données principale.
-                                </p>
-                            </section>
-
-                            <hr className="border-border my-10" />
-
-                            <section id="contact" className="mb-12 scroll-mt-24 bg-card text-card-foreground p-8 rounded-2xl border border-border shadow-sm">
-                                <div className="flex items-center gap-3 mb-4">
-                                    <Mail className="w-6 h-6 text-foreground" />
-                                    <h2 className="text-xl font-bold m-0 text-foreground">6. Nous contacter</h2>
-                                </div>
-                                <p className="text-muted-foreground leading-relaxed mb-6">
-                                    Pour toute question concernant cette politique de confidentialité ou pour exercer vos droits, notre équipe est à votre disposition.
-                                </p>
-                                <a
-                                    target="_blank"
-                                    href="https://wa.me/24176205629?text=Bonjour,%20j'ai%20une%20question%20concernant%20la%20politique%20de%20confidentialité%20d'ExtravertyAI."
-                                    className="inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-primary-foreground bg-primary hover:bg-primary/90 transition-colors shadow-sm"
-                                >
-                                    <WhatsAppIcon className="mr-2 size-6 hidden md:block" data-icon="inline-start" />  Discuter avec notre équipe
-                                </a>
-                            </section>
-
-                        </div>
-                    </div>
+          <div className="min-w-0 space-y-14">
+            {sections.map(({ id, icon: Icon, title, body }, index) => (
+              <section key={id} id={id} aria-labelledby={`${id}-title`} className="scroll-mt-24">
+                <div className="mb-4 flex items-center gap-3">
+                  <span className="flex size-9 items-center justify-center rounded-lg border bg-muted/50">
+                    <Icon aria-hidden="true" className="size-4" />
+                  </span>
+                  <h2 id={`${id}-title`} className="text-2xl tracking-tight">
+                    <span className="mr-2 font-mono text-sm font-normal text-muted-foreground">
+                      {String(index + 1).padStart(2, "0")}
+                    </span>
+                    {title}
+                  </h2>
                 </div>
-                <Footer />
+                <div className="max-w-prose space-y-4 text-muted-foreground [&_li]:pl-1 [&_strong]:font-medium [&_strong]:text-foreground [&_ul]:list-disc [&_ul]:space-y-2 [&_ul]:pl-5 [&_ul]:marker:text-muted-foreground/50">
+                  {body}
+                </div>
+              </section>
+            ))}
 
-            </div>
-        </>
-
-    );
+            <section
+              id="contact"
+              aria-labelledby="contact-title"
+              className="scroll-mt-24 rounded-2xl bg-primary p-8 text-primary-foreground sm:p-10"
+            >
+              <Mail aria-hidden="true" className="mb-4 size-6" />
+              <h2 id="contact-title" className="text-2xl tracking-tight">
+                Une question sur vos données ?
+              </h2>
+              <p className="mt-3 max-w-md text-sm opacity-75">
+                Pour toute question sur cette politique ou pour exercer vos
+                droits, notre équipe vous répond directement.
+              </p>
+              <Button asChild size="lg" variant="secondary" className="mt-6">
+                <a
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  href="https://wa.me/24176205629?text=Bonjour%2C%20j%27ai%20une%20question%20concernant%20la%20politique%20de%20confidentialit%C3%A9%20d%27ExtravertyAI."
+                >
+                  <WhatsAppIcon data-icon="inline-start" />
+                  Discuter avec notre équipe
+                </a>
+              </Button>
+            </section>
+          </div>
+        </div>
+      </main>
+      <Footer />
+    </>
+  );
 }

@@ -1,9 +1,7 @@
 "use client"
-import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
 	Field,
-	FieldDescription,
 	FieldError,
 	FieldGroup,
 	FieldLabel,
@@ -15,8 +13,7 @@ import {
 	InputGroupInput,
 } from "@/components/ui/input-group";
 import { AuthDivider } from "@/components/dashboard/auth-divider";
-import { DecorIcon } from "@/components/ui/decor-icon";
-import { AtSignIcon, Eye, EyeOff, KeySquareIcon, Loader } from "lucide-react";
+import { ArrowLeft, AtSignIcon, Eye, EyeOff, KeySquareIcon, Loader } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useHaptics } from "@/lib/webHaptics";
 import Link from "next/link";
@@ -29,6 +26,7 @@ import { Controller, useForm } from "react-hook-form"
 import { Checkbox } from "../ui/checkbox";
 import { SignInSocialButton } from "./signInSocialButton";
 import { LogoIcon } from "../logo";
+import { AuthShowcase } from "./auth-showcase";
 import { signUpHref } from "@/lib/auth-redirects";
 
 const formSchema = z.object({
@@ -75,7 +73,7 @@ export function AuthPage({ callbackUrl }: { callbackUrl: string }) {
 						form.reset()
 					},
 					onError: () => {
-						// Correction: Unification du message d'erreur (Anti-User Enumeration)
+						// Message unifié : ne révèle pas si le compte existe.
 						playHaptic("error");
 						toast.error("Échec de l'authentification", {
 							description: (
@@ -89,166 +87,165 @@ export function AuthPage({ callbackUrl }: { callbackUrl: string }) {
 				}
 			);
 		} catch {
-			// Correction : Ajout du catch pour éviter de bloquer l'UI en cas de panne réseau
+			// Une panne réseau ne doit pas bloquer l'interface.
 			playHaptic("error");
 			toast.error("Erreur inattendue", {
 				description: "Veuillez vérifier votre connexion internet et réessayer.",
 				position: "top-center",
 			});
 		} finally {
-			// Correction : Déplacement du setLoading(false) dans le block finally
 			setLoading(false);
 		}
 	}
 	return (
-		<div className="relative flex h-screen w-full items-center justify-center overflow-hidden md:px-6">
-			<div
-				className={cn(
-					"relative flex w-full max-w-sm flex-col justify-between p-4 md:p-6 animate-in fade-in slide-in-from-bottom-2 duration-300",
-					"dark:bg-[radial-gradient(50%_80%_at_20%_0%,--theme(--color-foreground/.1),transparent)]"
-				)}
-			>
-				<div className="hidden md:block absolute -inset-y-6 -left-px w-px bg-border" />
-				<div className="hidden md:block absolute -inset-y-6 -right-px w-px bg-border" />
-				<div className="hidden md:block absolute -inset-x-6 -top-px h-px bg-border" />
-				<div className="hidden md:block absolute -inset-x-6 -bottom-px h-px bg-border" />
-				<DecorIcon className="hidden md:block" position="top-left" />
-				<DecorIcon className="hidden md:block" position="bottom-right" />
-
-				<div className="w-full max-w-sm space-y-8">
-					<Button asChild variant={"ghost"}>
-						<Link href="/" title="Accueil">
-							<LogoIcon LogoClassName="w-6" className="w-10" />
+		<main className="grid min-h-dvh lg:grid-cols-2">
+			<div className="flex flex-col px-4 py-6 sm:px-10">
+				<div className="flex items-center justify-between">
+					<Link
+						href="/"
+						className="rounded-md outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+					>
+						<LogoIcon LogoClassName="w-6" className="gap-1.5" />
+						<span className="sr-only">Retour à l’accueil</span>
+					</Link>
+					<Button asChild variant="ghost" size="sm">
+						<Link href="/">
+							<ArrowLeft data-icon="inline-start" />
+							Accueil
 						</Link>
 					</Button>
-					<div className="flex flex-col space-y-1">
-						<h1 className="font-bold text-2xl tracking-wide">Rejoignez-nous!</h1>
-						<p className="text-base text-muted-foreground">
-							Connectez-vous à votre compte ExtravertyAI.
-						</p>
+				</div>
+
+				<div className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center py-12 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-500">
+					<h1 className="text-3xl md:text-4xl">Bon retour</h1>
+					<p className="mt-2 text-sm text-muted-foreground">
+						Connectez-vous pour retrouver vos conversations.
+					</p>
+
+					<div className="mt-8">
+						<SignInSocialButton callbackUrl={callbackUrl} text="Continuer avec" form="flex" />
 					</div>
-					<div className="space-y-4">
-						<form onSubmit={form.handleSubmit(onSubmit)}>
-							<FieldGroup className="gap-4">
-								<Controller
-									name="email"
-									control={form.control}
-									render={({ field, fieldState }) => (
-										<Field data-invalid={fieldState.invalid}>
-											<FieldLabel htmlFor={field.name}>Email</FieldLabel>
-											<InputGroup>
-												<InputGroupInput
-													type="email"
-													{...field}
-													id={field.name}
-													aria-invalid={fieldState.invalid}
-													placeholder="votre.email@example.com"
-												/>
-												<InputGroupAddon align="inline-start">
-													<AtSignIcon />
-												</InputGroupAddon>
-											</InputGroup>
-											{fieldState.invalid && (
-												<FieldError errors={[fieldState.error]} />
-											)}
-										</Field>
-									)}
-								/>
-								<Controller
-									name="password"
-									control={form.control}
-									render={({ field, fieldState }) => (
-										<Field data-invalid={fieldState.invalid}>
-											<div className="flex flex-row w-full items-center justify-between">
-												<FieldLabel htmlFor={field.name}>Mot de passe</FieldLabel>
-												<Link
-													href="/forget-password"
-													className="text-sm text-muted-foreground underline focus-visible:underline"
-												>
-													Mot de passe oublié?
-												</Link>
-											</div>
-											<InputGroup>
-												<InputGroupInput
-													{...field}
-													id={field.name}
-													aria-invalid={fieldState.invalid}
-													placeholder="Entrer le mot de passe."
-													autoComplete="off"
-													type={showPassword ? "text" : "password"}
-												/>
-												<InputGroupAddon align="inline-start">
-													<KeySquareIcon />
-												</InputGroupAddon>
-												<InputGroupAddon align="inline-end">
-													<InputGroupButton
-														variant="ghost"
-														size="icon-sm"
-														onClick={() => setShowPassword(!showPassword)}
-														type="button"
-													>
-														{showPassword ? (
-															<Eye />
-														) : (
-															<EyeOff />
-														)}</InputGroupButton>
-												</InputGroupAddon>
-											</InputGroup>
-											{fieldState.invalid && (
-												<FieldError errors={[fieldState.error]} />
-											)}
-										</Field>
-									)}
-								/>
 
-								<Field aria-disabled={loading} orientation="horizontal">
-									<Checkbox
-										id="terms-checkbox-desc"
-										name="terms-checkbox-desc"
-										checked={checked}
-										onCheckedChange={(value) => setChecked(value === true)}
-									/>
-									<FieldLabel htmlFor="terms-checkbox-desc">
-										Se souvenir de moi
-									</FieldLabel>
-								</Field>
+					<div className="my-6">
+						<AuthDivider>ou avec votre e-mail</AuthDivider>
+					</div>
 
-								<FieldGroup>
-									<Field>
-										<Button disabled={loading} type="submit" id="signIn-Form">
-											{loading ? <Loader className="animate-spin" /> : null}
-											Se connecter
-										</Button>
-
-										{/* Se connecter avec Google */}
-
-										<FieldDescription className="px-6 text-center">
-											Vous n{`'`}avez pas de compte?{" "}
-											<Link
-												className="underline underline-offset-4 hover:text-primary"
-												title="s'inscrire" href={signUpHref(callbackUrl)}>
-												Inscrivez-vous
-											</Link>
-										</FieldDescription>
+					<form noValidate aria-busy={loading} onSubmit={form.handleSubmit(onSubmit)}>
+						<FieldGroup className="gap-5">
+							<Controller
+								name="email"
+								control={form.control}
+								render={({ field, fieldState }) => (
+									<Field data-invalid={fieldState.invalid}>
+										<FieldLabel htmlFor={field.name}>Email</FieldLabel>
+										<InputGroup>
+											<InputGroupInput
+												type="email"
+												inputMode="email"
+												autoComplete="email"
+												{...field}
+												id={field.name}
+												aria-invalid={fieldState.invalid}
+												disabled={loading}
+												placeholder="vous@entreprise.com"
+											/>
+											<InputGroupAddon align="inline-start">
+												<AtSignIcon />
+											</InputGroupAddon>
+										</InputGroup>
+										{fieldState.invalid && (
+											<FieldError errors={[fieldState.error]} />
+										)}
 									</Field>
-								</FieldGroup>
-							</FieldGroup>
-						</form>
-						<AuthDivider>Ou</AuthDivider>
-						<SignInSocialButton callbackUrl={callbackUrl} />
-					</div>
-					<p className="text-muted-foreground text-sm">
-						En continuant, vous acceptez notre{" "}
+								)}
+							/>
+							<Controller
+								name="password"
+								control={form.control}
+								render={({ field, fieldState }) => (
+									<Field data-invalid={fieldState.invalid}>
+										<div className="flex w-full items-center justify-between">
+											<FieldLabel htmlFor={field.name}>Mot de passe</FieldLabel>
+											<Link
+												href="/forget-password"
+												className="text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline focus-visible:underline focus-visible:outline-none"
+											>
+												Mot de passe oublié ?
+											</Link>
+										</div>
+										<InputGroup>
+											<InputGroupInput
+												{...field}
+												id={field.name}
+												aria-invalid={fieldState.invalid}
+												disabled={loading}
+												placeholder="••••••••"
+												autoComplete="current-password"
+												type={showPassword ? "text" : "password"}
+											/>
+											<InputGroupAddon align="inline-start">
+												<KeySquareIcon />
+											</InputGroupAddon>
+											<InputGroupAddon align="inline-end">
+												<InputGroupButton
+													variant="ghost"
+													size="icon-xs"
+													aria-label={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
+													aria-pressed={showPassword}
+													onClick={() => setShowPassword(!showPassword)}
+													type="button"
+												>
+													{showPassword ? <EyeOff /> : <Eye />}
+												</InputGroupButton>
+											</InputGroupAddon>
+										</InputGroup>
+										{fieldState.invalid && (
+											<FieldError errors={[fieldState.error]} />
+										)}
+									</Field>
+								)}
+							/>
+
+							<Field orientation="horizontal">
+								<Checkbox
+									id="remember-me"
+									checked={checked}
+									disabled={loading}
+									onCheckedChange={(value) => setChecked(value === true)}
+								/>
+								<FieldLabel htmlFor="remember-me" className="font-normal">
+									Rester connecté sur cet appareil
+								</FieldLabel>
+							</Field>
+
+							<Button disabled={loading} type="submit" size="lg" className="w-full">
+								{loading && <Loader className="animate-spin" aria-hidden="true" />}
+								{loading ? "Connexion…" : "Se connecter"}
+							</Button>
+						</FieldGroup>
+					</form>
+
+					<p className="mt-8 text-center text-sm text-muted-foreground">
+						Pas encore de compte ?{" "}
 						<Link
-							className="underline underline-offset-4 hover:text-primary"
-							href="/donneesEtConfidentialite"
+							className="font-medium text-foreground underline underline-offset-4"
+							href={signUpHref(callbackUrl)}
 						>
-							politique de confidentialité
+							Démarrer l’essai gratuit
 						</Link>
-						.
 					</p>
 				</div>
+
+				<p className="text-center text-xs text-muted-foreground">
+					En continuant, vous acceptez notre{" "}
+					<Link href="/donneesEtConfidentialite" className="underline underline-offset-4">
+						politique de confidentialité
+					</Link>
+					.
+				</p>
 			</div>
-		</div >
+
+			<AuthShowcase />
+		</main>
 	);
 }

@@ -3,7 +3,17 @@ import { LocalDate } from "@/components/local-date";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { CalendarClock, Mail, ArrowUpRight, ShieldCheck } from "lucide-react";
+import {
+  ArrowDownRight,
+  ArrowUpRight,
+  CalendarClock,
+  Check,
+  ChevronRight,
+  Lightbulb,
+  Mail,
+  Minus,
+  ShieldCheck,
+} from "lucide-react";
 import { getSession } from "@/lib/auth-server";
 import prisma from "@/lib/prisma";
 import { getBillingAccess } from "@/lib/billing-access";
@@ -16,7 +26,15 @@ import {
   WEEK_MS,
   type ReportMetrics,
 } from "@/lib/weekly-report";
+import { cn } from "@/lib/utils";
+import { getInitials } from "@/components/getInitials";
 import { Button } from "@/components/ui/button";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { ReportSettingsForm } from "@/components/dashboard/project/report-settings";
 
 export const metadata: Metadata = {
@@ -44,6 +62,27 @@ const states = {
   CANCELLED: "Annulé",
   REVIEW_REQUIRED: "À vérifier par le support",
 };
+const roleLabel: Record<string, string> = {
+  OWNER: "Propriétaire",
+  ADMIN: "Administrateur",
+};
+
+function Trend({ current, previous }: { current: number; previous: number }) {
+  const label = reportDelta(current, previous);
+  const Icon =
+    previous === 0 || current === previous
+      ? Minus
+      : current > previous
+        ? ArrowUpRight
+        : ArrowDownRight;
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs tabular-nums">
+      <Icon aria-hidden="true" className="size-3" />
+      {label}
+    </span>
+  );
+}
+
 export default async function ReportsPage({
   params,
   searchParams,
@@ -69,24 +108,68 @@ export default async function ReportsPage({
   const project = member.project;
   const access = await getBillingAccess(prisma, projectId);
   const eligible = project.plan === "business" && access.allowed;
+
   if (project.plan !== "business")
     return (
-      <main className="mx-auto max-w-3xl space-y-6 p-6 sm:p-10">
-        <CalendarClock className="size-10 text-primary" />
-        <p className="text-sm text-muted-foreground">BUSINESS</p>
-        <h1 className="text-3xl font-semibold tracking-tight">
-          Votre semaine, en un rapport.
-        </h1>
-        <p className="text-muted-foreground">
-          Recevez chaque semaine vos indicateurs, leur évolution et des pistes
-          d’amélioration. Les rapports programmés sont inclus dans le plan
-          Business et destinés aux Owner et Admin.
-        </p>
-        <Button asChild>
-          <Link href={`${base}/billing`}>Découvrir le plan Business</Link>
-        </Button>
+      <main className="mx-auto grid w-full max-w-6xl items-center gap-12 p-4 sm:p-8 lg:grid-cols-2 lg:p-12">
+        <div>
+          <p className="inline-flex items-center gap-2 rounded-full border px-3 py-1 font-mono text-xs uppercase tracking-wider text-muted-foreground">
+            <CalendarClock aria-hidden="true" className="size-3.5" />
+            Offre Business
+          </p>
+          <h1 className="mt-5 text-4xl md:text-5xl">Votre semaine, en un rapport.</h1>
+          <p className="mt-4 max-w-md text-muted-foreground">
+            Chaque semaine, vos indicateurs, leur évolution et des pistes
+            d’amélioration arrivent dans la boîte mail des propriétaires et
+            administrateurs.
+          </p>
+          <ul className="mt-6 space-y-2 text-sm">
+            {[
+              "7 indicateurs comparés à la semaine précédente",
+              "Pistes d’amélioration concrètes",
+              "Données agrégées : aucun message client dans l’e-mail",
+            ].map((item) => (
+              <li key={item} className="flex items-center gap-2">
+                <Check aria-hidden="true" className="size-4 shrink-0" />
+                {item}
+              </li>
+            ))}
+          </ul>
+          <Button asChild size="lg" className="mt-8">
+            <Link href={`${base}/billing`}>Découvrir l’offre Business</Link>
+          </Button>
+        </div>
+        <figure
+          aria-label="Aperçu d’exemple d’un rapport hebdomadaire"
+          className="relative rounded-3xl border bg-card p-6 shadow-xl shadow-foreground/5"
+        >
+          <figcaption className="mb-5 flex items-center justify-between text-xs text-muted-foreground">
+            <span className="font-mono uppercase tracking-wider">Aperçu d’exemple</span>
+            <span>Lundi · 08:00</span>
+          </figcaption>
+          <p className="font-heading text-lg font-semibold">Bilan de la semaine</p>
+          <div aria-hidden="true" className="mt-4 grid grid-cols-2 gap-3">
+            {[
+              ["Messages reçus", "1 284", "+12 %"],
+              ["Réponses IA", "962", "+8 %"],
+              ["Contacts actifs", "214", "+5 %"],
+              ["Échecs d’envoi", "3", "−40 %"],
+            ].map(([label, value, delta]) => (
+              <div key={label} className="rounded-xl border p-3">
+                <p className="text-[11px] text-muted-foreground">{label}</p>
+                <p className="mt-1 font-heading text-xl font-bold tabular-nums">{value}</p>
+                <p className="text-[11px] text-muted-foreground">{delta}</p>
+              </div>
+            ))}
+          </div>
+          <div aria-hidden="true" className="mt-4 rounded-xl bg-muted/50 p-3 text-xs text-muted-foreground">
+            <Lightbulb className="mb-1 size-3.5 text-foreground" />
+            Relisez les conversations transmises par l’IA pour enrichir ses consignes.
+          </div>
+        </figure>
       </main>
     );
+
   const requested = (await searchParams).report;
   const [reports, recipients] = await Promise.all([
     prisma.weeklyReport.findMany({
@@ -128,198 +211,239 @@ export default async function ReportsPage({
   );
   const catchingUp =
     !thisWeekGenerated && now >= window.due && project.createdAt < window.end;
+  const verifiedRecipients = recipients.filter((r) => r.user.emailVerified).length;
+  const metricKeys = Object.keys(reportMetricLabels) as (keyof ReportMetrics)[];
+
+  const status = [
+    {
+      icon: CalendarClock,
+      title: !eligible
+        ? "Abonnement à régulariser"
+        : !project.reportsEnabled
+          ? "Envois suspendus"
+          : catchingUp
+            ? "Rapport à préparer"
+            : "Prochain envoi",
+      text: !eligible ? (
+        access.message
+      ) : !project.reportsEnabled ? (
+        "Réactivez les rapports dans la programmation."
+      ) : catchingUp ? (
+        "La dernière semaine complète sera traitée au prochain passage du service."
+      ) : (
+        <LocalDate value={nextScheduled} />
+      ),
+    },
+    {
+      icon: Mail,
+      title: `${verifiedRecipients} destinataire${verifiedRecipients > 1 ? "s" : ""} éligible${verifiedRecipients > 1 ? "s" : ""}`,
+      text: "Propriétaires et administrateurs aux adresses vérifiées, envois individuels.",
+    },
+    {
+      icon: ShieldCheck,
+      title: "Données agrégées uniquement",
+      text: "Aucun message client, numéro ou pièce jointe dans les e-mails.",
+    },
+  ];
+
   return (
-    <main className="mx-auto max-w-7xl space-y-8 p-4 sm:p-6 xl:p-8">
-      <header className="flex flex-wrap items-start justify-between gap-4">
-        <div className="space-y-2">
-          <p className="text-sm font-medium text-primary">
+    <main className="mx-auto w-full max-w-7xl space-y-8 p-4 sm:p-6 xl:p-8">
+      <header className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <p className="font-mono text-xs uppercase tracking-wider text-muted-foreground">
             Business · {project.name}
           </p>
-          <h1 className="text-3xl font-semibold tracking-tight">
-            Rapports programmés
-          </h1>
-          <p className="max-w-2xl text-muted-foreground">
-            Prenez du recul sur votre activité. Chaque semaine, les chiffres
-            utiles et les prochaines actions arrivent dans votre boîte mail.
+          <h1 className="mt-2 text-3xl md:text-4xl">Rapports programmés</h1>
+          <p className="mt-2 max-w-2xl text-muted-foreground">
+            Chaque semaine, les chiffres utiles et les prochaines actions
+            arrivent dans votre boîte mail.
           </p>
         </div>
         <Button asChild variant="outline">
           <Link href={`${base}/analytics`}>
-            Explorer les statistiques <ArrowUpRight className="size-4" />
+            Explorer les statistiques <ArrowUpRight data-icon="inline-end" />
           </Link>
         </Button>
       </header>
+
       <section
-        className="grid gap-6 rounded-xl border bg-muted/30 p-6 sm:grid-cols-3"
-        aria-label="Programmation"
+        aria-label="État des envois"
+        className="grid divide-y rounded-2xl border bg-card sm:grid-cols-3 sm:divide-x sm:divide-y-0"
       >
-        <div>
-          <CalendarClock className="mb-3 size-5 text-primary" />
-          <p className="font-medium">
-            {!eligible
-              ? "Abonnement à régulariser"
-              : !project.reportsEnabled
-                ? "Envois suspendus"
-                : catchingUp
-                  ? "Rapport à préparer"
-                  : "Prochain envoi prévu"}
-          </p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {!eligible ? (
-              access.message
-            ) : !project.reportsEnabled ? (
-              "Réactivez les rapports dans les réglages."
-            ) : catchingUp ? (
-              "La dernière semaine complète sera traitée au prochain passage du service."
-            ) : (
-              <LocalDate value={nextScheduled} />
-            )}
-          </p>
-        </div>
-        <div>
-          <Mail className="mb-3 size-5 text-primary" />
-          <p className="font-medium">
-            {recipients.filter((r) => r.user.emailVerified).length}{" "}
-            destinataire(s) éligible(s)
-          </p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Owner et Admin · adresses vérifiées · envois individuels
-          </p>
-        </div>
-        <div>
-          <ShieldCheck className="mb-3 size-5 text-primary" />
-          <p className="font-medium">Données agrégées uniquement</p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Aucun message client, numéro de téléphone ou pièce jointe dans les
-            e-mails.
-          </p>
-        </div>
-      </section>
-      <div className="grid items-start gap-8 lg:grid-cols-3">
-        <div className="space-y-8 lg:col-span-2">
-          <section aria-labelledby="report-preview">
-            <div className="mb-5">
-              <h2 id="report-preview" className="text-xl font-semibold">
-                {selected
-                  ? "Bilan de la semaine"
-                  : "Votre premier rapport arrive bientôt"}
-              </h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                {selected
-                  ? `${reportRange(selected.weekStart, selected.weekEnd, timeZone)} · comparaison avec les 7 jours précédents`
-                  : "Les rapports couvrent une semaine complète. Vous retrouverez ici les données dès le premier calcul."}
-              </p>
+        {status.map(({ icon: Icon, title, text }) => (
+          <div key={title} className="flex gap-3 p-5">
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-lg border bg-background">
+              <Icon aria-hidden="true" className="size-4" />
+            </span>
+            <div className="min-w-0">
+              <p className="text-sm font-medium">{title}</p>
+              <p className="mt-0.5 text-sm text-muted-foreground">{text}</p>
             </div>
-            {snapshot && (
+          </div>
+        ))}
+      </section>
+
+      <div className="grid items-start gap-8 lg:grid-cols-3">
+        <div className="space-y-10 lg:col-span-2">
+          <section aria-labelledby="report-preview">
+            <div className="mb-5 flex flex-wrap items-end justify-between gap-2">
+              <div>
+                <h2 id="report-preview" className="text-2xl tracking-tight">
+                  {selected ? "Bilan de la semaine" : "Votre premier rapport arrive bientôt"}
+                </h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {selected
+                    ? `${reportRange(selected.weekStart, selected.weekEnd, timeZone)} · comparé aux 7 jours précédents`
+                    : "Les rapports couvrent une semaine complète. Les données apparaîtront ici dès le premier calcul."}
+                </p>
+              </div>
+            </div>
+
+            {snapshot ? (
               <>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  {(
-                    Object.keys(reportMetricLabels) as (keyof ReportMetrics)[]
-                  ).map((key) => (
-                    <div key={key} className="rounded-xl border p-5">
-                      <h3 className="text-sm text-muted-foreground">
+                <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                  {metricKeys.map((key, index) => (
+                    <li
+                      key={key}
+                      className={cn(
+                        "rounded-2xl border bg-card p-5",
+                        index === 0 && "bg-primary text-primary-foreground sm:col-span-2 xl:col-span-1",
+                      )}
+                    >
+                      <h3
+                        className={cn(
+                          "font-sans text-sm font-normal tracking-normal",
+                          index === 0 ? "opacity-75" : "text-muted-foreground",
+                        )}
+                      >
                         {reportMetricLabels[key]}
                       </h3>
-                      <p className="mt-2 text-3xl font-semibold tabular-nums">
+                      <p className="mt-2 font-heading text-4xl font-bold tracking-tight tabular-nums">
                         {snapshot.current[key].toLocaleString("fr-FR")}
                       </p>
-                      <p className="mt-2 text-sm text-muted-foreground">
-                        {reportDelta(
-                          snapshot.current[key],
-                          snapshot.previous[key],
-                        )}{" "}
-                        · précédent : {snapshot.previous[key]}
-                      </p>
-                    </div>
+                      <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+                        <Trend current={snapshot.current[key]} previous={snapshot.previous[key]} />
+                        <span className={index === 0 ? "opacity-75" : "text-muted-foreground"}>
+                          avant : {snapshot.previous[key].toLocaleString("fr-FR")}
+                        </span>
+                      </div>
+                    </li>
                   ))}
-                </div>
+                </ul>
                 {snapshot.partial && (
-                  <p className="mt-4 text-sm text-muted-foreground">
+                  <p className="mt-4 rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
                     Projet récent : une partie des périodes comparées précède sa
                     création. Interprétez les variations avec prudence.
                   </p>
                 )}
                 {snapshot.tips.length > 0 && (
-                  <div className="mt-6 rounded-xl bg-muted/40 p-5">
-                    <h3 className="font-semibold">Pistes d’amélioration</h3>
-                    <ul className="mt-3 list-disc space-y-3 pl-5 text-sm text-muted-foreground">
-                      {snapshot.tips.map((tip) => (
-                        <li key={tip}>{tip}</li>
+                  <div className="mt-6 rounded-2xl border bg-muted/40 p-6">
+                    <h3 className="flex items-center gap-2 text-lg">
+                      <Lightbulb aria-hidden="true" className="size-4" />
+                      Pistes d’amélioration
+                    </h3>
+                    <ol className="mt-4 space-y-3">
+                      {snapshot.tips.map((tip, index) => (
+                        <li key={tip} className="flex gap-3 text-sm">
+                          <span className="flex size-6 shrink-0 items-center justify-center rounded-full border bg-background font-mono text-xs">
+                            {index + 1}
+                          </span>
+                          <span className="text-muted-foreground">{tip}</span>
+                        </li>
                       ))}
-                    </ul>
+                    </ol>
                   </div>
                 )}
               </>
+            ) : (
+              <div className="grid gap-3 sm:grid-cols-3" aria-hidden="true">
+                {metricKeys.slice(0, 3).map((key) => (
+                  <div key={key} className="rounded-2xl border border-dashed p-5">
+                    <p className="text-sm text-muted-foreground">{reportMetricLabels[key]}</p>
+                    <p className="mt-2 font-heading text-4xl font-bold text-muted-foreground/40">—</p>
+                  </div>
+                ))}
+              </div>
             )}
           </section>
+
           <section aria-labelledby="history">
-            <h2 id="history" className="mb-4 text-xl font-semibold">
-              Historique des 12 dernières semaines générées
+            <h2 id="history" className="mb-4 text-2xl tracking-tight">
+              Historique
             </h2>
             {reports.length ? (
-              <ul className="divide-y rounded-xl border">
-                {reports.map((report) => (
-                  <li
-                    key={report.id}
-                    className="flex flex-wrap items-center justify-between gap-3 p-4"
-                  >
-                    <Link
-                      href={`${base}/reports?report=${report.id}`}
-                      className="rounded text-sm font-medium underline-offset-4 hover:underline focus-visible:outline-ring"
-                    >
-                      {reportRange(report.weekStart, report.weekEnd, timeZone)}
-                    </Link>
-                    <span className="text-xs text-muted-foreground">
-                      {report.skipped
-                        ? "Sans activité · e-mail ignoré"
-                        : !report.emails.length
-                          ? "Aucun destinataire vérifié"
-                          : Object.entries(states)
-                              .map(([state, label]) => {
-                                const count = report.emails.filter(
-                                  (email) => email.state === state,
-                                ).length;
-                                return count
-                                  ? `${count} ${label.toLowerCase()}`
-                                  : null;
-                              })
-                              .filter(Boolean)
-                              .join(" · ")}
-                    </span>
-                  </li>
-                ))}
-              </ul>
+              <ol className="relative space-y-1 before:absolute before:inset-y-3 before:left-[15px] before:w-px before:bg-border">
+                {reports.map((report) => {
+                  const current = report.id === selected?.id;
+                  return (
+                    <li key={report.id}>
+                      <Link
+                        href={`${base}/reports?report=${report.id}`}
+                        aria-current={current ? "page" : undefined}
+                        className={cn(
+                          "relative flex items-center gap-4 rounded-xl p-2 pr-3 outline-none transition-colors hover:bg-muted/60 focus-visible:ring-3 focus-visible:ring-ring/50",
+                          current && "bg-muted",
+                        )}
+                      >
+                        <span
+                          aria-hidden="true"
+                          className={cn(
+                            "relative z-10 flex size-4 shrink-0 translate-x-2 rounded-full border-2 bg-background",
+                            current ? "border-foreground bg-foreground" : "border-border",
+                          )}
+                        />
+                        <span className="ml-2 min-w-0 flex-1">
+                          <span className="block text-sm font-medium">
+                            {reportRange(report.weekStart, report.weekEnd, timeZone)}
+                          </span>
+                          <span className="block truncate text-xs text-muted-foreground">
+                            {report.skipped
+                              ? "Sans activité · e-mail ignoré"
+                              : !report.emails.length
+                                ? "Aucun destinataire vérifié"
+                                : Object.entries(states)
+                                    .map(([state, label]) => {
+                                      const count = report.emails.filter(
+                                        (email) => email.state === state,
+                                      ).length;
+                                      return count ? `${count} ${label.toLowerCase()}` : null;
+                                    })
+                                    .filter(Boolean)
+                                    .join(" · ")}
+                          </span>
+                        </span>
+                        <ChevronRight aria-hidden="true" className="size-4 text-muted-foreground" />
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ol>
             ) : (
-              <p className="rounded-xl border border-dashed p-6 text-sm text-muted-foreground">
+              <p className="rounded-2xl border border-dashed p-6 text-sm text-muted-foreground">
                 Aucun rapport généré pour le moment. Les semaines sans activité
                 sont aussi couvertes, sauf si vous choisissez de les ignorer par
                 e-mail.
               </p>
             )}
             <p className="mt-3 text-xs text-muted-foreground">
-              « Accepté » confirme la prise en charge par le service e-mail, pas
-              la réception ou l’ouverture. Les rapports sont figés au moment du
-              calcul.
+              Les 12 dernières semaines générées. « Accepté » confirme la prise
+              en charge par le service e-mail, pas la réception ni l’ouverture.
+              Les rapports sont figés au moment du calcul.
             </p>
           </section>
+
           <section aria-labelledby="definitions">
-            <h2 id="definitions" className="mb-4 text-xl font-semibold">
+            <h2 id="definitions" className="mb-2 text-2xl tracking-tight">
               Comprendre vos indicateurs
             </h2>
-            <dl className="space-y-4">
-              {(Object.keys(explanations) as (keyof ReportMetrics)[]).map(
-                (key) => (
-                  <div key={key}>
-                    <dt className="text-sm font-medium">
-                      {reportMetricLabels[key]}
-                    </dt>
-                    <dd className="mt-1 text-sm text-muted-foreground">
-                      {explanations[key]}
-                    </dd>
-                  </div>
-                ),
-              )}
-            </dl>
+            <Accordion type="multiple" className="w-full">
+              {(Object.keys(explanations) as (keyof ReportMetrics)[]).map((key) => (
+                <AccordionItem key={key} value={key}>
+                  <AccordionTrigger className="text-left">{reportMetricLabels[key]}</AccordionTrigger>
+                  <AccordionContent className="text-muted-foreground">{explanations[key]}</AccordionContent>
+                </AccordionItem>
+              ))}
+            </Accordion>
             <p className="mt-5 text-sm text-muted-foreground">
               Les pourcentages comparent deux semaines consécutives. Sans valeur
               de référence, aucun pourcentage n’est calculé. Une hausse du
@@ -328,9 +452,12 @@ export default async function ReportsPage({
             </p>
           </section>
         </div>
-        <aside className="space-y-6">
-          <section className="rounded-xl border p-5">
-            <h2 className="mb-5 text-lg font-semibold">Programmation</h2>
+
+        <aside className="space-y-6 lg:sticky lg:top-6">
+          <section aria-labelledby="programmation" className="rounded-2xl border bg-card p-5">
+            <h2 id="programmation" className="mb-5 text-lg">
+              Programmation
+            </h2>
             {eligible ? (
               <ReportSettingsForm
                 referenceDate={now.toISOString()}
@@ -355,40 +482,61 @@ export default async function ReportsPage({
               </>
             )}
           </section>
-          <section className="rounded-xl border p-5">
-            <h2 className="text-lg font-semibold">Destinataires</h2>
-            <ul className="mt-4 space-y-4">
+
+          <section aria-labelledby="destinataires" className="rounded-2xl border bg-card p-5">
+            <h2 id="destinataires" className="text-lg">
+              Destinataires
+            </h2>
+            <ul className="mt-4 space-y-3">
               {recipients.map((recipient) => (
-                <li key={recipient.id} className="min-w-0 text-sm">
-                  <p className="font-medium">
-                    {recipient.user.name} · {recipient.role}
-                  </p>
-                  <p className="break-all text-muted-foreground">
-                    {recipient.user.email}
-                  </p>
-                  {!recipient.user.emailVerified && (
-                    <p className="mt-1 text-destructive">
-                      Adresse à vérifier pour recevoir les rapports
-                    </p>
-                  )}
+                <li key={recipient.id} className="flex min-w-0 items-start gap-3 text-sm">
+                  <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted font-heading text-xs font-semibold">
+                    {getInitials(recipient.user.name || recipient.user.email)}
+                  </span>
+                  <span className="min-w-0">
+                    <span className="flex flex-wrap items-center gap-1.5">
+                      <span className="font-medium">{recipient.user.name}</span>
+                      <span className="rounded-full border px-1.5 text-[10px] text-muted-foreground">
+                        {roleLabel[recipient.role] ?? recipient.role}
+                      </span>
+                    </span>
+                    <span className="block break-all text-xs text-muted-foreground">
+                      {recipient.user.email}
+                    </span>
+                    {!recipient.user.emailVerified && (
+                      <span className="mt-1 block text-xs text-destructive">
+                        Adresse à vérifier pour recevoir les rapports
+                      </span>
+                    )}
+                  </span>
                 </li>
               ))}
             </ul>
-            <Button asChild variant="outline" className="mt-5">
+            <Button asChild variant="outline" size="sm" className="mt-5">
               <Link href={`${base}/team`}>Gérer l’équipe</Link>
             </Button>
             <p className="mt-3 text-xs text-muted-foreground">
-              La liste suit automatiquement les rôles du projet. Les changements
-              de rôle sont vérifiés avant chaque envoi.
+              La liste suit les rôles du projet ; ils sont vérifiés avant chaque
+              envoi.
             </p>
           </section>
-          <section className="rounded-xl bg-muted/40 p-5">
-            <h2 className="font-semibold">Un rituel de 10 minutes</h2>
-            <ol className="mt-3 list-decimal space-y-3 pl-5 text-sm text-muted-foreground">
-              <li>Repérez les échecs et les variations inhabituelles.</li>
-              <li>Relisez quelques conversations avec votre équipe.</li>
-              <li>Choisissez une seule amélioration de consigne à tester.</li>
-              <li>Comparez plusieurs semaines avant de conclure.</li>
+
+          <section aria-labelledby="rituel" className="rounded-2xl bg-muted/40 p-5">
+            <h2 id="rituel" className="text-lg">
+              Un rituel de 10 minutes
+            </h2>
+            <ol className="mt-3 space-y-2.5 text-sm text-muted-foreground">
+              {[
+                "Repérez les échecs et les variations inhabituelles.",
+                "Relisez quelques conversations avec votre équipe.",
+                "Choisissez une seule amélioration de consigne à tester.",
+                "Comparez plusieurs semaines avant de conclure.",
+              ].map((step, index) => (
+                <li key={step} className="flex gap-2.5">
+                  <span className="font-mono text-xs text-foreground">0{index + 1}</span>
+                  {step}
+                </li>
+              ))}
             </ol>
           </section>
         </aside>
