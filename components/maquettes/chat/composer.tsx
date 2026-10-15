@@ -6,6 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import {
   ArrowUp,
+  CornerDownLeft,
   Loader2,
   Lock,
   Mic,
@@ -87,27 +88,39 @@ export function Composer({
   return (
     <div className="chat-floating-composer relative border-t bg-background px-3 pb-3 pt-2 sm:px-4">
       {suggestions.length > 0 && !isNote && !text && (
-        <div className="mb-2 flex items-center gap-1.5 overflow-x-auto pb-0.5 [scrollbar-width:none]">
-          <span className="flex shrink-0 items-center gap-1 text-[11px] text-muted-foreground">
+        <section aria-labelledby={`${fieldId}-suggestions`} className="mb-2">
+          <p
+            id={`${fieldId}-suggestions`}
+            className="mb-1.5 flex items-center gap-1 text-[11px] text-muted-foreground"
+          >
             <Sparkles aria-hidden="true" className="size-3" />
-            Suggestions
-          </span>
-          {suggestions.map((suggestion) => (
-            <Button
-              key={suggestion}
-              type="button"
-              variant="outline"
-              size="xs"
-              className="max-w-72 shrink-0 justify-start truncate rounded-full font-normal"
-              onClick={() => {
-                form.setValue("text", suggestion, { shouldDirty: true });
-                document.getElementById(fieldId)?.focus();
-              }}
-            >
-              <span className="truncate">{suggestion}</span>
-            </Button>
-          ))}
-        </div>
+            Suggestions IA · cliquez pour insérer, puis relisez avant d’envoyer
+          </p>
+          <ul className="grid max-h-36 gap-1.5 overflow-y-auto sm:grid-cols-2">
+            {suggestions.map((suggestion) => (
+              <li key={suggestion} className="min-w-0">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="group h-full w-full items-start justify-between gap-2 whitespace-normal rounded-xl px-3 py-2 text-left font-normal"
+                  onClick={() => {
+                    form.setValue("text", suggestion, { shouldDirty: true });
+                    document.getElementById(fieldId)?.focus();
+                  }}
+                >
+                  <span dir="auto" className="text-xs leading-relaxed wrap-anywhere">
+                    {suggestion}
+                  </span>
+                  <CornerDownLeft
+                    aria-hidden="true"
+                    className="mt-0.5 size-3.5 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100"
+                  />
+                  <span className="sr-only">Insérer cette suggestion</span>
+                </Button>
+              </li>
+            ))}
+          </ul>
+        </section>
       )}
 
       <form onSubmit={form.handleSubmit(submit)} noValidate>

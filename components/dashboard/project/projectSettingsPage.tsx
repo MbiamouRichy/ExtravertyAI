@@ -30,10 +30,10 @@ import {
 import { DeleteProjectDialog } from "./delete-project-dialog";
 
 const tabs = [
-  { id: "agent", label: "Agent IA", icon: Bot },
-  { id: "general", label: "Projet & utilisation", icon: Settings2 },
-  { id: "whatsapp", label: "WhatsApp", icon: Smartphone },
-  { id: "data", label: "Données & accès", icon: ShieldCheck },
+  { id: "agent", label: "Agent IA", hint: "Ton, objectifs, qualification", icon: Bot },
+  { id: "general", label: "Projet & utilisation", hint: "Nom, quota, abonnement", icon: Settings2 },
+  { id: "whatsapp", label: "WhatsApp", hint: "Connexion et présence", icon: Smartphone },
+  { id: "data", label: "Données & accès", hint: "Exports, pause, suppression", icon: ShieldCheck },
 ] as const;
 export default function ProjectSettingsPage({
   project: p,
@@ -123,23 +123,29 @@ export default function ProjectSettingsPage({
     }
   }
   return (
-    <main className="mx-auto w-full max-w-7xl space-y-8 px-4 py-7 sm:px-8 lg:py-10">
+    <main className="mx-auto w-full max-w-7xl space-y-8 p-4 sm:p-6 xl:p-8">
       <header className="flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
-        <div>
-          <p className="mb-2 text-xs font-medium uppercase tracking-widest text-muted-foreground">
-            Espace de configuration
+        <div className="min-w-0">
+          <p className="font-mono text-xs uppercase tracking-wider text-muted-foreground">
+            Paramètres
           </p>
-          <h1 className="text-3xl! font-semibold tracking-tight">
-            Les réglages de {p.name}
-          </h1>
-          <p className="mt-3 text-sm text-muted-foreground">
-            Votre agent, votre équipe, votre façon de travailler.
-          </p>
+          <h1 className="mt-1 truncate text-3xl md:text-4xl">{p.name}</h1>
+          <ul className="mt-3 flex flex-wrap gap-2 text-xs">
+            <li className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1">
+              <Smartphone aria-hidden="true" className="size-3.5" />
+              {p.instanceStatus === "connected" ? "WhatsApp connecté" : "WhatsApp à connecter"}
+            </li>
+            <li className="rounded-full border px-2.5 py-1 capitalize">Offre {p.plan}</li>
+            <li className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1">
+              {paused ? <Pause aria-hidden="true" className="size-3.5" /> : <Bot aria-hidden="true" className="size-3.5" />}
+              {paused ? "Automatisation en pause" : "Automatisation active"}
+            </li>
+          </ul>
         </div>
-        <Button asChild variant="outline" size="lg">
+        <Button asChild variant="outline">
           <Link href={`/projects/${p.id}/chat`}>
-            <MessageSquare className="size-4" /> Ouvrir le chat{" "}
-            <ArrowUpRight className="size-4" />
+            <MessageSquare data-icon="inline-start" />
+            Ouvrir la messagerie
           </Link>
         </Button>
       </header>
@@ -164,10 +170,10 @@ export default function ProjectSettingsPage({
           suppression dans « Données & accès » pour confirmer le nettoyage.
         </div>
       )}
-      <div className="grid gap-7 lg:grid-cols-[210px_minmax(0,1fr)]">
+      <div className="grid gap-7 lg:grid-cols-[240px_minmax(0,1fr)]">
         <nav
           aria-label="Sections des paramètres"
-          className="flex gap-2 overflow-x-auto lg:flex-col lg:overflow-visible"
+          className="-mx-4 flex gap-1 overflow-x-auto px-4 [scrollbar-width:none] lg:sticky lg:top-20 lg:mx-0 lg:flex-col lg:self-start lg:overflow-visible lg:px-0"
         >
           {tabs.map((item) => (
             <Button
@@ -180,11 +186,17 @@ export default function ProjectSettingsPage({
               }}
               aria-current={tab === item.id ? "page" : undefined}
               variant={tab === item.id ? "secondary" : "ghost"}
-              size="lg"
-              className="justify-start"
+              className="h-auto shrink-0 justify-start gap-3 px-3 py-2 text-left"
             >
-              <item.icon className="size-4" />
-              {item.label}
+              <span className="flex size-8 shrink-0 items-center justify-center rounded-lg border bg-background">
+                <item.icon aria-hidden="true" className="size-4" />
+              </span>
+              <span className="flex flex-col">
+                <span className="text-sm font-medium">{item.label}</span>
+                <span className="hidden text-xs font-normal text-muted-foreground lg:block">
+                  {item.hint}
+                </span>
+              </span>
             </Button>
           ))}
         </nav>
@@ -225,7 +237,7 @@ export default function ProjectSettingsPage({
               onVersionChange={setSettingsVersion}
               onSavingChange={setNameSaving}
             />
-            <section className="rounded-2xl border bg-card p-5 sm:p-7">
+            <section className="rounded-2xl border bg-card p-5 sm:p-6">
               <div className="mb-6 flex flex-wrap justify-between gap-3">
                 <div>
                   <h2 className="text-lg font-semibold">Votre utilisation</h2>
@@ -271,15 +283,25 @@ export default function ProjectSettingsPage({
                   {p.allMessagesCount.toLocaleString("fr-FR")}
                 </strong>
               </div>
-              <progress
+              <div
+                role="progressbar"
                 aria-label="Quota de messages consommé"
-                max={Math.max(p.allMessagesCount, 1)}
-                value={Math.min(
-                  p.messageCount,
-                  Math.max(p.allMessagesCount, 1),
-                )}
-                className="h-2 w-full overflow-hidden rounded-full accent-primary"
-              />
+                aria-valuemin={0}
+                aria-valuemax={Math.max(p.allMessagesCount, 1)}
+                aria-valuenow={Math.min(p.messageCount, Math.max(p.allMessagesCount, 1))}
+                className="h-2.5 overflow-hidden rounded-full bg-muted"
+              >
+                <div
+                  className={
+                    p.messageCount / Math.max(p.allMessagesCount, 1) >= 0.9
+                      ? "h-full rounded-full bg-destructive"
+                      : "h-full rounded-full bg-foreground"
+                  }
+                  style={{
+                    width: `${Math.min(100, (p.messageCount / Math.max(p.allMessagesCount, 1)) * 100)}%`,
+                  }}
+                />
+              </div>
               <div className="mt-7 grid grid-cols-3 gap-4 border-t pt-6">
                 {[
                   ["7 jours", p.stats.week],
@@ -288,7 +310,7 @@ export default function ProjectSettingsPage({
                 ].map(([label, count]) => (
                   <div key={label}>
                     <p className="text-xs text-muted-foreground">{label}</p>
-                    <p className="mt-2 text-2xl font-semibold">
+                    <p className="mt-1 font-heading text-2xl font-bold tabular-nums">
                       {Number(count).toLocaleString("fr-FR")}
                     </p>
                     <p className="mt-1 text-[11px] text-muted-foreground">
@@ -300,7 +322,7 @@ export default function ProjectSettingsPage({
             </section>
           </div>
           {tab === "whatsapp" && (
-            <section className="space-y-6 rounded-2xl border bg-card p-5 sm:p-7">
+            <section className="space-y-6 rounded-2xl border bg-card p-5 sm:p-6">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>
                   <h2 className="text-lg font-semibold">
@@ -334,7 +356,7 @@ export default function ProjectSettingsPage({
           )}
           {tab === "data" && (
             <>
-              <section className="rounded-2xl border bg-card p-5 sm:p-7">
+              <section className="rounded-2xl border bg-card p-5 sm:p-6">
                 <h2 className="text-lg font-semibold">
                   Vos données restent accessibles
                 </h2>
@@ -378,7 +400,7 @@ export default function ProjectSettingsPage({
                   </Button>
                 </div>
               </section>
-              <section className="rounded-2xl border bg-card p-5 sm:p-7">
+              <section className="rounded-2xl border bg-card p-5 sm:p-6">
                 <h2 className="text-lg font-semibold">
                   Dernières modifications
                 </h2>
@@ -416,6 +438,11 @@ export default function ProjectSettingsPage({
                   </p>
                 )}
               </section>
+              {(canPause || owner) && (
+                <h2 className="pt-2 font-mono text-xs font-normal uppercase tracking-wider text-muted-foreground">
+                  Zone sensible
+                </h2>
+              )}
               {canPause && (
                 <section
                   aria-labelledby="project-pause-title"

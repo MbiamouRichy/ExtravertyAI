@@ -1,89 +1,47 @@
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  Item,
-  ItemActions,
-  ItemContent,
-  ItemDescription,
-  ItemGroup,
-  ItemMedia,
-  ItemTitle,
-} from "@/components/ui/item";
-import {
-  SettingsIcon,
-  DownloadIcon,
-  ChevronRightIcon,
-  UsersIcon,
-  MessageCircleIcon,
-} from "lucide-react";
 import Link from "next/link";
+import {
+  BarChart3,
+  ChevronRight,
+  Download,
+  MessagesSquare,
+  Settings,
+  Users,
+} from "lucide-react";
 
 export function QuickActions({ projectId }: { projectId: string }) {
+  const base = `/projects/${encodeURIComponent(projectId)}`;
   const actions = [
-    {
-      title: "Gérer l'équipe",
-      description: "Gérer les membres de l'équipe.",
-      href: `/projects/${projectId}/team`,
-      icon: <UsersIcon aria-hidden="true" />,
-    },
-    {
-      title: "Voir les Conversations",
-      description: "Aller aux conversations du projet.",
-      href: `/projects/${projectId}/chat`,
-      icon: <MessageCircleIcon aria-hidden="true" />,
-    },
-    {
-      title: "Paramètres du projet",
-      description: "Gérer les paramètres du projet.",
-      href: `/projects/${projectId}/settings`,
-      icon: <SettingsIcon aria-hidden="true" />,
-    },
-    {
-      title: "Exporter les données",
-      description: "Exporter les données du projet.",
-      href: `/projects/${projectId}/contacts`,
-      icon: <DownloadIcon aria-hidden="true" />,
-    },
-  ] as const;
+    { title: "Messagerie", description: "Répondre à vos clients", href: `${base}/chat`, icon: MessagesSquare },
+    { title: "Statistiques", description: "Analyser l’activité", href: `${base}/analytics`, icon: BarChart3 },
+    { title: "Équipe", description: "Inviter et gérer les rôles", href: `${base}/team`, icon: Users },
+    { title: "Contacts", description: "Consulter et exporter", href: `${base}/contacts`, icon: Download },
+    { title: "Paramètres", description: "Agent IA et WhatsApp", href: `${base}/settings`, icon: Settings },
+  ];
 
   return (
-    <Card className="w-full min-w-0">
-      <CardHeader className="border-b">
-        <CardTitle>Actions rapides</CardTitle>
-        <CardDescription>Accédez aux outils de votre projet.</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <ItemGroup className="grid grid-cols-1 gap-2 sm:grid-cols-2 2xl:grid-cols-4">
-          {actions.map((a) => (
-            <Item asChild key={a.title} size="sm">
-              <Link
-                href={a.href}
-                title={a.title}
-                className="flex items-center gap-2 p-3 hover:bg-accent/50 focus:bg-accent/50"
-              >
-                <ItemMedia variant="icon">{a.icon}</ItemMedia>
-                <ItemContent>
-                  <ItemTitle>{a.title}</ItemTitle>
-                  <ItemDescription className="line-clamp-1">
-                    {a.description}
-                  </ItemDescription>
-                </ItemContent>
-                <ItemActions>
-                  <ChevronRightIcon
-                    aria-hidden="true"
-                    className="size-4 shrink-0 text-muted-foreground"
-                  />
-                </ItemActions>
-              </Link>
-            </Item>
-          ))}
-        </ItemGroup>
-      </CardContent>
-    </Card>
+    <nav aria-label="Actions rapides">
+      <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-5">
+        {actions.map(({ title, description, href, icon: Icon }) => (
+          <li key={title}>
+            <Link
+              href={href}
+              className="group flex h-full items-center gap-3 rounded-xl border bg-card p-3 outline-none transition-colors hover:bg-muted/60 focus-visible:ring-3 focus-visible:ring-ring/50"
+            >
+              <span className="flex size-9 shrink-0 items-center justify-center rounded-lg border bg-background">
+                <Icon aria-hidden="true" className="size-4" />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-medium">{title}</span>
+                <span className="block truncate text-xs text-muted-foreground">{description}</span>
+              </span>
+              <ChevronRight
+                aria-hidden="true"
+                className="hidden size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 sm:block"
+              />
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </nav>
   );
 }

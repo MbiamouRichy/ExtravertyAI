@@ -3,15 +3,7 @@ import { redirect } from "next/navigation";
 import { UAParser } from "ua-parser-js";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import { Shield, Key, Smartphone, Mail, UserCog } from "lucide-react";
 import SignOutButton from "@/components/dashboard/user/signOutButton";
 import { ModifierProfile } from "@/components/dashboard/user/modifierProfile";
@@ -22,7 +14,7 @@ import ChangeEmailForm from "@/components/dashboard/user/modiferEmail";
 import type { Metadata } from "next";
 import { getInitials } from "@/components/getInitials";
 import { RecentSessions } from "@/components/dashboard/user/recent-sessions";
-import UserSettingsPage from "@/components/dashboard/user/settingsPage";
+import UserSettingsPage, { SettingsSection } from "@/components/dashboard/user/settingsPage";
 import { getAccountDeletionPlan } from "@/lib/account-deletion";
 
 export const dynamic = "force-dynamic";
@@ -86,125 +78,99 @@ export default async function ProfilePage() {
   });
 
   return (
-    <div className="max-w-5xl mx-auto p-4 md:p-12 space-y-8 animate-in fade-in duration-500">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">
-          Profil Utilisateur
-        </h1>
-        <p className="text-muted-foreground mt-2">
-          Gérez vos informations personnelles et la sécurité de votre compte.
+    <main className="mx-auto w-full max-w-5xl space-y-10 p-4 sm:p-6 xl:p-8">
+      <header>
+        <p className="font-mono text-xs uppercase tracking-wider text-muted-foreground">Compte</p>
+        <h1 className="mt-1 text-3xl md:text-4xl">Votre profil</h1>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Vos informations personnelles, la sécurité de votre compte et vos préférences.
         </p>
-      </div>
+      </header>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-        {/* Colonne Gauche : Identité */}
-        <div className="space-y-6 md:sticky md:top-20 md:self-start lg:col-span-1">
-          <Card className="border-border shadow-sm">
-            <CardContent className="pt-6 flex flex-col items-center text-center">
-              <div className="relative mb-4">
-                <div className="absolute -inset-1 rounded-full bg-linear-to-tr from-primary/20 to-primary/0 blur-md" />
-                <Avatar className="h-24 w-24 border-2 border-background relative shadow-sm">
-                  <AvatarImage src={user.image || ""} alt={user.name} />
-                  <AvatarFallback className="text-2xl bg-primary/10 text-primary">
-                    {getInitials(user.name)}
-                  </AvatarFallback>
-                </Avatar>
-              </div>
-
-              <h2 className="text-xl font-semibold">{user.name}</h2>
-              <p className="text-sm text-muted-foreground mb-4">{user.email}</p>
-
-              <div className="w-full flex flex-col justify-between gap-2 items-center">
-                <ModifierProfile user={user}>
-                  <Button variant="outline" className="w-full cursor-pointer">
-                    <UserCog className="mr-2 h-4 w-4" />
-                    Modifier le profil
-                  </Button>
-                </ModifierProfile>
-                <SignOutButton className="w-full cursor-pointer" />
-              </div>
-            </CardContent>
-          </Card>
+      <section
+        aria-label="Identité"
+        className="relative isolate flex flex-col gap-5 overflow-hidden rounded-3xl border bg-card p-6 sm:flex-row sm:items-center sm:justify-between sm:p-8"
+      >
+        <div
+          aria-hidden="true"
+          className="absolute inset-0 -z-10 bg-[radial-gradient(var(--border)_1px,transparent_1px)] mask-[radial-gradient(ellipse_at_top_left,black,transparent_60%)] bg-size-[18px_18px]"
+        />
+        <div className="flex min-w-0 items-center gap-4">
+          <Avatar className="size-16 sm:size-20">
+            <AvatarImage src={user.image || ""} alt="" />
+            <AvatarFallback className="font-heading text-xl font-semibold">
+              {getInitials(user.name)}
+            </AvatarFallback>
+          </Avatar>
+          <div className="min-w-0">
+            <h2 className="truncate font-heading text-2xl font-bold tracking-tight">{user.name}</h2>
+            <p className="truncate text-sm text-muted-foreground">{user.email}</p>
+            <Badge variant={user.emailVerified ? "secondary" : "destructive"} className="mt-2">
+              {user.emailVerified ? "E-mail vérifié" : "E-mail non vérifié"}
+            </Badge>
+          </div>
         </div>
-
-        {/* Colonne Droite : Sécurité & Sessions dynamiques */}
-        <div className="space-y-6 lg:col-span-2">
-          <Card className="border-border shadow-sm">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <Shield className="h-5 w-5 text-primary" />
-                Sécurité du compte
-              </CardTitle>
-              <CardDescription>
-                Gérez vos méthodes de connexion et mots de passe.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="flex flex-col lg:flex-row justify-between gap-2">
-                <div className="space-y-1 flex flex-col gap-2">
-                  <div className="flex flex-col md:flex-row justify-between md:items-center gap-2">
-                    <p className="font-medium flex items-center gap-2">
-                      <Mail className="h-4 w-4 text-muted-foreground" />
-                      Adresse Email
-                    </p>
-                    <Badge
-                      className="text-sm"
-                      variant={user.emailVerified ? "default" : "destructive"}
-                    >
-                      {user.emailVerified ? "Vérifiée" : "Non vérifiée"}
-                    </Badge>
-                  </div>
-                  <p className="text-sm text-muted-foreground">{user.email}</p>
-                </div>
-                <ChangeEmailForm>
-                  <Button variant="outline" size="sm">
-                    Modifier l&apos;email
-                  </Button>
-                </ChangeEmailForm>
-              </div>
-
-              <Separator />
-
-              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-2">
-                <div className="space-y-1">
-                  <p className="font-medium flex items-center gap-2">
-                    <Key className="h-4 w-4 text-muted-foreground" />
-                    Mot de passe
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    Dernière modification : {passwordLastUpdated}
-                  </p>
-                </div>
-                <ChangePasswordDialog>
-                  <Button variant="outline" size="sm">
-                    Modifier le mot de passe
-                  </Button>
-                </ChangePasswordDialog>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-border shadow-sm">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <Smartphone className="h-5 w-5 text-primary" />
-                Connexions récentes
-              </CardTitle>
-              <CardDescription>
-                Les appareils récemment connectés à votre compte.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <RecentSessions sessions={sessions} />
-            </CardContent>
-          </Card>
-          <UserSettingsPage
-            sessionCreatedAt={sessionData.session.createdAt.toISOString()}
-            email={user.email}
-            deletionPlan={deletionPlan}
-          />
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <ModifierProfile user={user}>
+            <Button variant="outline">
+              <UserCog data-icon="inline-start" />
+              Modifier le profil
+            </Button>
+          </ModifierProfile>
+          <SignOutButton />
         </div>
-      </div>
-    </div>
+      </section>
+
+      <SettingsSection
+        icon={Shield}
+        title="Connexion et sécurité"
+        description="Les moyens d’accéder à votre compte."
+      >
+        <ul className="divide-y rounded-2xl border bg-card">
+          <li className="flex flex-col justify-between gap-3 p-5 sm:flex-row sm:items-center">
+            <div className="min-w-0">
+              <p className="flex items-center gap-2 text-sm font-medium">
+                <Mail aria-hidden="true" className="size-4 text-muted-foreground" />
+                Adresse e-mail
+              </p>
+              <p className="mt-1 truncate text-sm text-muted-foreground">{user.email}</p>
+            </div>
+            <ChangeEmailForm>
+              <Button variant="outline" size="sm">Modifier l&apos;e-mail</Button>
+            </ChangeEmailForm>
+          </li>
+          <li className="flex flex-col justify-between gap-3 p-5 sm:flex-row sm:items-center">
+            <div>
+              <p className="flex items-center gap-2 text-sm font-medium">
+                <Key aria-hidden="true" className="size-4 text-muted-foreground" />
+                Mot de passe
+              </p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Dernière modification : {passwordLastUpdated}
+              </p>
+            </div>
+            <ChangePasswordDialog>
+              <Button variant="outline" size="sm">Modifier le mot de passe</Button>
+            </ChangePasswordDialog>
+          </li>
+        </ul>
+      </SettingsSection>
+
+      <SettingsSection
+        icon={Smartphone}
+        title="Appareils connectés"
+        description="Les sessions actives sur votre compte. Révoquez celles que vous ne reconnaissez pas."
+      >
+        <div className="rounded-2xl border bg-card p-5">
+          <RecentSessions sessions={sessions} />
+        </div>
+      </SettingsSection>
+
+      <UserSettingsPage
+        sessionCreatedAt={sessionData.session.createdAt.toISOString()}
+        email={user.email}
+        deletionPlan={deletionPlan}
+      />
+    </main>
   );
 }

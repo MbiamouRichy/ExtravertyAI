@@ -6,6 +6,7 @@ import Pusher from "pusher-js";
 
 import type {
   ChatClient,
+  ChatFilter,
   ChatMessage,
   ChatPage,
   ChatMessagesPage,
@@ -58,7 +59,8 @@ export function useDebouncedValue<T>(value: T, delay = 250): T {
 export function useChatContacts(
   projectId: string,
   query: string,
-  filter: "all" | "ai" | "manual",
+  filter: ChatFilter,
+  tag: string | null = null,
 ) {
   const search = useDebouncedValue(query);
 
@@ -71,6 +73,7 @@ export function useChatContacts(
         q: search,
         filter,
       });
+      if (tag) params.set("tag", tag);
 
       if (index > 0 && previousPage?.nextCursor) {
         params.set("cursor", previousPage.nextCursor);
@@ -103,6 +106,7 @@ export function useChatContacts(
     ...swr,
     items,
     unreadConversations: swr.data?.[0]?.unreadConversations ?? 0,
+    projectTags: swr.data?.[0]?.projectTags ?? [],
     searchPending: search !== query,
     hasMore: !!swr.data?.at(-1)?.nextCursor,
     loadMore: () => swr.setSize((size) => size + 1),

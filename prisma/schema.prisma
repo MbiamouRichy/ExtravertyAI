@@ -206,6 +206,8 @@ model Project {
   // --- 👥 RELATIONS CRM ---
   members              ProjectMembership[]
   contacts             Contact[]      // Les prospects WhatsApp du projet
+  tags                 Tag[]
+  internalNotes        InternalNote[]
   messages             Message[]      // Tous les messages liés à ce projet
   invitations          Invitation[]   // Les invitations au projet
   // Dates
@@ -251,6 +253,13 @@ model Contact {
   readStates  ConversationReadState[]
   messages    Message[]
   aiJobs      AiJob[]
+  tags        ContactTag[]
+  notes       InternalNote[]
+
+  // Conversation traitée par l'équipe ; effacée dès qu'un message client arrive.
+  resolvedAt   DateTime?
+  resolvedById String?
+  resolvedBy   User?     @relation("ContactResolvedBy", fields: [resolvedById], references: [id], onDelete: SetNull)
 
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
@@ -272,6 +281,7 @@ lastMessageAt DateTime?
   @@unique([projectId, remoteJid])
   @@index([projectId])
   @@index([projectId, updatedAt, id])
+  @@index([projectId, resolvedAt])
   @@map("contact")
 }
 
@@ -369,6 +379,8 @@ model User {
 
   memberships   ProjectMembership[]
   messagesSent  Message[] // Historique des messages envoyés manuellement par cet utilisateur
+  resolvedContacts Contact[] @relation("ContactResolvedBy")
+  internalNotes InternalNote[]
   lastActiveAt  DateTime  @default(now())
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -667,4 +679,48 @@ model ReportEmail {
   @@unique([reportId, recipientId])
   @@index([state, availableAt])
   @@map("report_email")
+}
+
+// Étiquettes manuelles propres à chaque projet ; nameKey garantit l'unicité sans casse.
+model Tag {
+  id        String       @id @default(cuid())
+  projectId String
+  project   Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name      String
+  nameKey   String
+  contacts  ContactTag[]
+  createdAt DateTime     @default(now())
+
+  @@unique([projectId, nameKey])
+  @@index([projectId, name])
+  @@map("tag")
+}
+
+model ContactTag {
+  contactId String
+  contact   Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  tagId     String
+  tag       Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@id([contactId, tagId])
+  @@index([tagId])
+  @@map("contact_tag")
+}
+
+// Notes d'équipe : table distincte de Message pour qu'aucun envoi WhatsApp,
+// quota, statistique ou contexte IA ne puisse les lire par erreur.
+model InternalNote {
+  id        String   @id @default(cuid())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  contactId String
+  contact   Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  authorId  String?
+  author    User?    @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  content   String   @db.Text
+  createdAt DateTime @default(now())
+
+  @@index([projectId, contactId, createdAt, id])
+  @@map("internal_note")
 }

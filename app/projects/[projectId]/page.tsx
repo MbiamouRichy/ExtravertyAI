@@ -63,5 +63,14 @@ export default async function ProjectDashboardPage({ params }: PageProps) {
   if (project.userRole !== "OWNER" && project.userRole !== "ADMIN") {
     return redirect(`/projects/${projectId}/chat`);
   }
-  return <Dashboard projectId={projectId} />;
+  return (
+    <Dashboard
+      projectId={projectId}
+      project={{
+        name: project.name,
+        instanceStatus: project.instanceStatus,
+        automationPaused: project.automationPaused,
+      }}
+    />
+  );
 }

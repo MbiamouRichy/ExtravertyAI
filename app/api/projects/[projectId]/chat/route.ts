@@ -10,10 +10,12 @@ import {
   unreadConversationCount,
 } from "@/lib/conversation-reads";
 import { getSession } from "@/lib/auth-server";
+import { projectTags } from "@/lib/conversation-workflow";
 import {
   normalizeChatStatus,
   type ChatClient,
   type ChatPage,
+  type ChatMessage,
   type ChatMessagesPage,
 } from "@/lib/chat";
 
@@ -34,8 +36,11 @@ const QuerySchema = z.object({
   contactId: z.string().cuid().optional(),
   cursor: z.string().max(1000).optional(),
   q: z.string().trim().max(100).default(""),
-  filter: z.enum(["all", "ai", "manual"]).default("all"),
+  filter: z.enum(["all", "ai", "manual", "resolved"]).default("all"),
+  tag: z.string().cuid().optional(),
 });
+
+const NOTES_PER_PAGE = 100;
 
 function encodeCursor(date: Date, id: string): string {
   return Buffer.from(
@@ -86,6 +91,7 @@ export async function GET(
     cursor: searchParams.get("cursor") ?? undefined,
     q: searchParams.get("q") ?? "",
     filter: searchParams.get("filter") ?? "all",
+    tag: searchParams.get("tag") || undefined,
   });
 
   if (!parsed.success) {
@@ -116,12 +122,20 @@ export async function GET(
     }
 
     if (parsed.data.view === "contacts") {
-      const { q, filter } = parsed.data;
+      const { q, filter, tag } = parsed.data;
 
       const rows = await prisma.contact.findMany({
         where: {
           projectId,
-          ...(filter !== "all" ? { aiActive: filter === "ai" } : {}),
+          // « IA » et « Équipe » ne montrent que les conversations ouvertes.
+          ...(filter === "resolved"
+            ? { resolvedAt: { not: null } }
+            : filter !== "all"
+              ? { aiActive: filter === "ai", resolvedAt: null }
+              : {}),
+          ...(tag
+            ? { tags: { some: { tagId: tag, tag: { projectId } } } }
+            : {}),
           AND: [
             ...(q
               ? [
@@ -161,6 +175,12 @@ export async function GET(
           name: true,
           pushName: true,
           aiActive: true,
+          resolvedAt: true,
+          tags: {
+            where: { tag: { projectId } },
+            orderBy: [{ tag: { name: "asc" } }],
+            select: { tag: { select: { id: true, name: true } } },
+          },
           instinctClassification: true,
           instinctSourceId: true,
           instinctConfigVersion: true,
@@ -186,33 +206,43 @@ export async function GET(
       const page = rows.slice(0, PAGE_SIZE);
       const last = page.at(-1);
       const contactIds = page.map((contact) => contact.id);
-      const [unreadCounts, authors, unreadConversations] = await Promise.all([
-        conversationUnreadCounts(
-          prisma,
-          projectId,
-          session.user.id,
-          contactIds,
-        ),
-        prisma.message.findMany({
-          where: {
+      const [unreadCounts, authors, unreadConversations, tags] =
+        await Promise.all([
+          conversationUnreadCounts(
+            prisma,
             projectId,
-            contactId: { in: contactIds },
-            senderType: "AGENT",
-            agentId: { not: null },
-            status: { in: ["SENT", "DELIVERED", "READ"] },
-          },
-          distinct: ["contactId", "agentId"],
-          select: {
-            contactId: true,
-            agent: { select: { id: true, name: true, image: true } },
-          },
-          orderBy: [{ agentId: "asc" }],
-        }),
-        unreadConversationCount(prisma, projectId, session.user.id, q, filter),
-      ]);
+            session.user.id,
+            contactIds,
+          ),
+          prisma.message.findMany({
+            where: {
+              projectId,
+              contactId: { in: contactIds },
+              senderType: "AGENT",
+              agentId: { not: null },
+              status: { in: ["SENT", "DELIVERED", "READ"] },
+            },
+            distinct: ["contactId", "agentId"],
+            select: {
+              contactId: true,
+              agent: { select: { id: true, name: true, image: true } },
+            },
+            orderBy: [{ agentId: "asc" }],
+          }),
+          unreadConversationCount(
+            prisma,
+            projectId,
+            session.user.id,
+            q,
+            filter,
+            tag,
+          ),
+          cursor ? undefined : projectTags(prisma, projectId),
+        ]);
 
       const result: ChatPage<ChatClient> = {
         unreadConversations,
+        projectTags: tags,
         items: page.map((contact) => {
           const latest = contact.messages[0];
           const prospectClassification = currentProspectClassification(
@@ -224,6 +254,8 @@ export async function GET(
             id: contact.id,
             name: chatContactName(contact),
             aiActive: contact.aiActive,
+            resolvedAt: contact.resolvedAt?.toISOString() ?? null,
+            tags: contact.tags.map((link) => link.tag),
             prospectClassification,
             interestingProspect: prospectClassification === "interesting",
             unreadCount: unreadCounts.get(contact.id) ?? 0,
@@ -367,6 +399,28 @@ export async function GET(
 
     const page = rows.slice(0, PAGE_SIZE);
     const last = page.at(-1);
+    const hasMore = rows.length > PAGE_SIZE && !!last;
+
+    // Les notes internes vivent dans leur propre table : on les intercale dans
+    // la fenêtre temporelle couverte par cette page de messages.
+    const notes = await prisma.internalNote.findMany({
+      where: {
+        projectId,
+        contactId,
+        createdAt: {
+          ...(cursor ? { lte: new Date(cursor.date) } : {}),
+          ...(hasMore && last ? { gte: last.createdAt } : {}),
+        },
+      },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      take: NOTES_PER_PAGE,
+      select: {
+        id: true,
+        content: true,
+        createdAt: true,
+        author: { select: { id: true, name: true, image: true } },
+      },
+    });
 
     const result: ChatMessagesPage = {
       agents,
@@ -384,27 +438,37 @@ export async function GET(
                   : "queued",
           }
         : null,
-      items: page.map((message) => ({
-        id: message.id,
-        agent: message.senderType === "AGENT" ? message.agent : null,
-        senderType:
-          message.senderType === "CLIENT"
-            ? "client"
-            : message.senderType === "BOT"
-              ? "bot"
-              : message.senderType === "AGENT"
-                ? "agent"
-                : "system",
-        ...chatMediaFields(message, projectId),
-        timestamp: message.createdAt.toISOString(),
-        status: normalizeChatStatus(message.status),
-        outboundState: message.outboundJob?.state ?? null,
-        clientRequestId: message.outboundJob?.requestId ?? null,
-      })),
-      nextCursor:
-        rows.length > PAGE_SIZE && last
-          ? encodeCursor(last.createdAt, last.id)
-          : null,
+      items: [
+        ...page.map((message): ChatMessage => ({
+          id: message.id,
+          agent: message.senderType === "AGENT" ? message.agent : null,
+          senderType:
+            message.senderType === "CLIENT"
+              ? "client"
+              : message.senderType === "BOT"
+                ? "bot"
+                : message.senderType === "AGENT"
+                  ? "agent"
+                  : "system",
+          ...chatMediaFields(message, projectId),
+          timestamp: message.createdAt.toISOString(),
+          status: normalizeChatStatus(message.status),
+          outboundState: message.outboundJob?.state ?? null,
+          clientRequestId: message.outboundJob?.requestId ?? null,
+        })),
+        ...notes.map((note): ChatMessage => ({
+          id: note.id,
+          senderType: "note",
+          agent: note.author,
+          content: note.content,
+          type: "TEXT",
+          timestamp: note.createdAt.toISOString(),
+          status: "sent",
+          outboundState: null,
+          clientRequestId: null,
+        })),
+      ],
+      nextCursor: hasMore ? encodeCursor(last.createdAt, last.id) : null,
     };
 
     return json(result);

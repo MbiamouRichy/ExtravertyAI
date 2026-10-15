@@ -3,7 +3,11 @@
 import { getUserTimeZone } from "@/lib/server-time-zone";
 import prisma from "@/lib/prisma";
 import { getAnalyticsAccess } from "@/lib/analytics-access";
-import { isAnalyticsPeriod } from "@/lib/analytics";
+import {
+  HEATMAP_SLOTS,
+  isAnalyticsPeriod,
+  weekdaySlotFor,
+} from "@/lib/analytics";
 import {
   PERIOD_DAYS,
   bucketKeyFor,
@@ -74,6 +78,7 @@ export async function getAnalyticsOverview(
     sourceGroups,
     contactGroups,
     lastActivityGroups,
+    project,
   ] = await Promise.all([
     prisma.message.findMany({
       where: { projectId, createdAt: currentRange },
@@ -143,13 +148,47 @@ export async function getAnalyticsOverview(
       where: { projectId, createdAt: currentRange },
       _max: { createdAt: true },
     }),
+    prisma.project.findUnique({
+      where: { id: projectId },
+      select: { agentQualifyLeads: true, agentConfigVersion: true },
+    }),
   ]);
+
+  // Instinct IA : contacts actifs de la période, classés avec la configuration actuelle.
+  const instinct = project?.agentQualifyLeads
+    ? await Promise.all(
+        (["follow_up", "interesting"] as const).map((classification) =>
+          prisma.contact.count({
+            where: {
+              projectId,
+              instinctClassification: classification,
+              instinctConfigVersion: project.agentConfigVersion,
+              messages: { some: { createdAt: currentRange } },
+            },
+          }),
+        ),
+      ).then(([followUp, interesting]) => ({
+        active: activeContactsCount,
+        followUp,
+        interesting,
+      }))
+    : null;
 
   // ------------------------------ KPIs ------------------------------
   const receivedCount = messages.filter(
     (m) => m.senderType === "CLIENT",
   ).length;
   const botCount = messages.filter((m) => m.senderType === "BOT").length;
+  const agentCount = messages.filter((m) => m.senderType === "AGENT").length;
+
+  const heatmap = Array.from({ length: 7 }, () =>
+    Array<number>(HEATMAP_SLOTS).fill(0),
+  );
+  for (const message of messages) {
+    if (message.senderType !== "CLIENT") continue;
+    const { weekday, slot } = weekdaySlotFor(message.createdAt, timeZone);
+    heatmap[weekday][slot] += 1;
+  }
   const sentCount = messages.filter(
     (message) => message.senderType === "BOT" || message.senderType === "AGENT",
   ).length;
@@ -369,6 +408,9 @@ export async function getAnalyticsOverview(
     statuses,
     sources,
     topContacts,
+    responders: { ai: botCount, team: agentCount },
+    instinct,
+    heatmap,
   };
 }
 

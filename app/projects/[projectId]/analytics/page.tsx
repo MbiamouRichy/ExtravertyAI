@@ -14,6 +14,9 @@ import { MessageStatusCard } from "@/components/dashboard/message-status-card";
 import { TopContactsCard } from "@/components/dashboard/top-contacts-card";
 import { AnalyticsMessageRecuChart } from "@/components/dashboard/analytics-message-recu";
 import { AnalyticsDiscussionsChart } from "@/components/dashboard/AnalyticsNewDiscussionsChart";
+import { RespondersCard } from "@/components/dashboard/responders-card";
+import { InstinctFunnelCard } from "@/components/dashboard/instinct-funnel-card";
+import { ActivityHeatmapCard } from "@/components/dashboard/activity-heatmap-card";
 
 type PageProps = {
   params: Promise<{ projectId: string }>;
@@ -151,6 +154,38 @@ export default async function AnalyticsPage({
               rangeLabel={overview.rangeLabel}
             />
           </div>
+        </section>
+
+        <section aria-labelledby="analytics-ai-title" className="space-y-4">
+          <div>
+            <h2
+              id="analytics-ai-title"
+              className="text-base font-semibold tracking-tight"
+            >
+              IA & prospects
+            </h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Qui répond, qui est intéressé, et à quel moment vos clients écrivent.
+            </p>
+          </div>
+
+          <div className="grid min-w-0 gap-4 lg:grid-cols-2">
+            <RespondersCard
+              responders={overview.responders}
+              rangeLabel={overview.rangeLabel}
+            />
+            <InstinctFunnelCard
+              instinct={overview.instinct}
+              rangeLabel={overview.rangeLabel}
+              settingsHref={`${projectPath}/settings`}
+            />
+          </div>
+
+          <ActivityHeatmapCard
+            heatmap={overview.heatmap}
+            rangeLabel={overview.rangeLabel}
+            timeZone={overview.timeZone}
+          />
         </section>
 
         <section

@@ -1,34 +1,36 @@
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import {
-  Plus,
-  Smartphone,
-  FolderOpen,
-  Settings,
-  CreditCardIcon,
-} from "lucide-react";
 import Link from "next/link";
-import { ProjectsTable } from "./dataTable";
-import { ProjectsTableColumns } from "./columnTable";
-import { WhatsAppConnectionStatus } from "./whatsapp-connection-status";
-import { Card } from "@/components/ui/card";
+import {
+  ArrowUpRight,
+  CreditCard,
+  Ellipsis,
+  FolderOpen,
+  MessagesSquare,
+  Plus,
+  Settings,
+  Smartphone,
+} from "lucide-react";
+
+import { cn } from "@/lib/utils";
 import { billingAccessLabel, type billingAccess } from "@/lib/billing-access";
-
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { WhatsAppConnectionStatus } from "./whatsapp-connection-status";
 import { LocalBillingDate } from "./local-billing-date";
-import { BillingPlanButton } from "./billing-plan-button";
+import { BillingPlanMenuItem } from "./billing-plan-button";
 
-const statusConfig: Record<
-  string,
-  {
-    label: string;
-    variant: "default" | "secondary" | "outline" | "destructive";
-  }
-> = {
-  active: { label: "Actif", variant: "default" },
-  trialing: { label: "En essai", variant: "secondary" },
-  paused: { label: "En pause", variant: "outline" },
-  inactive: { label: "Inactif", variant: "destructive" },
+const statusLabel: Record<string, string> = {
+  active: "Actif",
+  trialing: "En essai",
+  paused: "En pause",
+  inactive: "Inactif",
 };
+
 export interface CustomProjectProps {
   projects: {
     id: string;
@@ -46,176 +48,217 @@ export interface CustomProjectProps {
   }[];
 }
 
-export default function HomeProjectsPage({ projects }: CustomProjectProps) {
+const number = new Intl.NumberFormat("fr-FR");
+
+function Quota({ used, limit }: { used: number; limit: number }) {
+  const ratio = limit > 0 ? Math.min(1, used / limit) : 0;
   return (
-    <div className="mx-auto flex w-full min-w-0 max-w-7xl flex-1 flex-col gap-6 p-4 sm:p-6 lg:p-8">
-      {/* En-tête de page (Responsive) */}
-      <div className="flex min-w-0 flex-col justify-between gap-4 sm:flex-row sm:items-start">
-        <div className="space-y-1.5">
-          <h1 className="text-2xl md:text-3xl font-semibold tracking-tight text-foreground">
-            Vos projets
-          </h1>
-          <p className="text-sm text-muted-foreground max-w-2xl">
-            Gérez vos projets et consultez le dernier état connu de leur
-            connexion WhatsApp.
+    <div>
+      <div className="mb-1.5 flex items-baseline justify-between text-xs">
+        <span className="text-muted-foreground">Messages utilisés</span>
+        <span className="font-mono tabular-nums">
+          {number.format(used)}
+          <span className="text-muted-foreground"> / {limit > 0 ? number.format(limit) : "—"}</span>
+        </span>
+      </div>
+      <div
+        role="progressbar"
+        aria-label="Quota de messages"
+        aria-valuemin={0}
+        aria-valuemax={limit || 1}
+        aria-valuenow={Math.min(used, limit || used)}
+        className="h-1.5 overflow-hidden rounded-full bg-muted"
+      >
+        <div
+          className={cn("h-full rounded-full", ratio >= 0.9 ? "bg-destructive" : "bg-foreground")}
+          style={{ width: `${ratio * 100}%` }}
+        />
+      </div>
+      {ratio >= 0.9 && (
+        <p className="mt-1.5 text-xs text-destructive">Quota presque atteint</p>
+      )}
+    </div>
+  );
+}
+
+export default function HomeProjectsPage({ projects }: CustomProjectProps) {
+  const connected = projects.filter((project) => project.instanceStatus === "connected").length;
+  const usedMessages = projects.reduce((sum, project) => sum + (project.messageCount || 0), 0);
+
+  return (
+    <div className="mx-auto flex w-full min-w-0 max-w-7xl flex-1 flex-col gap-8 p-4 sm:p-6 lg:p-8">
+      <header className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+        <div>
+          <p className="font-mono text-xs uppercase tracking-wider text-muted-foreground">Espace de travail</p>
+          <h1 className="mt-1 text-3xl md:text-4xl">Vos projets</h1>
+          <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
+            Chaque projet correspond à un numéro WhatsApp et à son assistant IA.
           </p>
         </div>
-        <Button asChild className="w-full sm:w-auto shrink-0 shadow-sm">
-          <Link href="/projects/new" title="Créer un projet">
-            <Plus className="mr-2 h-4 w-4" />
+        <Button asChild className="w-full sm:w-auto">
+          <Link href="/projects/new">
+            <Plus data-icon="inline-start" />
             Nouveau projet
           </Link>
         </Button>
-      </div>
+      </header>
 
       {projects.length === 0 ? (
-        /* Empty State */
-        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border bg-card p-8 md:p-14 text-center shadow-sm animate-in fade-in-50 duration-500">
-          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-secondary mb-5">
-            <FolderOpen className="h-6 w-6 text-muted-foreground" />
-          </div>
-          <h2 className="text-lg font-semibold text-foreground mb-2">
-            Aucun projet actif
+        <section
+          aria-labelledby="empty-title"
+          className="relative isolate flex flex-col items-center overflow-hidden rounded-3xl border border-dashed px-6 py-16 text-center"
+        >
+          <div
+            aria-hidden="true"
+            className="absolute inset-0 -z-10 bg-[radial-gradient(var(--border)_1px,transparent_1px)] mask-[radial-gradient(ellipse_at_center,black,transparent_70%)] bg-size-[18px_18px]"
+          />
+          <span className="flex size-14 items-center justify-center rounded-2xl border bg-background shadow-sm">
+            <FolderOpen aria-hidden="true" className="size-6" />
+          </span>
+          <h2 id="empty-title" className="mt-5 text-2xl tracking-tight">
+            Créez votre premier projet
           </h2>
-          <p className="text-sm text-muted-foreground max-w-sm mb-6">
-            Créez votre premier projet pour générer une instance API et
-            commencer à automatiser vos communications.
+          <p className="mt-2 max-w-sm text-sm text-muted-foreground">
+            Connectez un numéro WhatsApp, instruisez votre assistant et laissez-le
+            répondre à vos clients. Comptez environ 5 minutes.
           </p>
-          <Button asChild variant="default" className="w-full sm:w-auto">
-            <Link href="/projects/new" title="Créer un projet">
-              <Plus className="sm:mr-2 h-4 w-4" />
-              Créer mon premier projet
+          <Button asChild size="lg" className="mt-6">
+            <Link href="/projects/new">
+              <Plus data-icon="inline-start" />
+              Créer un projet
             </Link>
           </Button>
-        </div>
+        </section>
       ) : (
-        <div className="min-w-0 w-full">
-          {/* VUE MOBILE : Affichage en Cartes */}
-          <div className="grid min-w-0 grid-cols-1 gap-4 md:grid-cols-2 xl:hidden">
+        <>
+          <dl className="grid grid-cols-3 divide-x rounded-2xl border bg-card">
+            {[
+              { label: "Projets", value: number.format(projects.length) },
+              { label: "WhatsApp connectés", value: `${connected} / ${projects.length}` },
+              { label: "Messages ce cycle", value: number.format(usedMessages) },
+            ].map((item) => (
+              <div key={item.label} className="px-4 py-4 sm:px-6">
+                <dt className="text-xs text-muted-foreground">{item.label}</dt>
+                <dd className="mt-1 font-heading text-xl font-bold tabular-nums sm:text-2xl">{item.value}</dd>
+              </div>
+            ))}
+          </dl>
+
+          <ul className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {projects.map((project) => {
-              const statusInfo = project.billingAccess
+              const status = project.billingAccess
                 ? {
                     label: billingAccessLabel(project.billingAccess),
-                    variant: project.billingAccess.allowed
-                      ? ("secondary" as const)
-                      : ("destructive" as const),
+                    ok: project.billingAccess.allowed,
                   }
-                : statusConfig[project.status] || {
-                    label: "Inconnu",
-                    variant: "outline",
-                  };
+                : { label: statusLabel[project.status] ?? "Inconnu", ok: project.status !== "inactive" };
+              const renewal = project.stripeCurrentPeriodEnd || project.expiredAt;
+
               return (
-                <Card
+                <li
                   key={project.id}
-                  className="flex flex-col p-4 border bg-card shadow-sm space-y-4"
+                  className="group relative flex flex-col rounded-2xl border bg-card transition-shadow focus-within:ring-3 focus-within:ring-ring/50 hover:shadow-lg hover:shadow-foreground/5"
                 >
-                  <div className="flex flex-wrap items-start justify-between gap-2">
-                    <Link
-                      href={`/projects/${project.id}`}
-                      title={project.name}
-                      className="min-w-0 break-words font-semibold text-base text-foreground"
+                  <div className="flex items-start justify-between gap-3 p-5 pb-4">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary font-heading text-sm font-bold text-primary-foreground">
+                        {project.name.trim().slice(0, 1).toUpperCase() || "P"}
+                      </span>
+                      <div className="min-w-0">
+                        <h2 className="truncate font-heading text-base font-semibold tracking-tight">
+                          <Link
+                            href={`/projects/${project.id}`}
+                            className="outline-none after:absolute after:inset-0 after:rounded-2xl"
+                          >
+                            {project.name}
+                          </Link>
+                        </h2>
+                        <p className="flex items-center gap-1.5 font-mono text-xs text-muted-foreground">
+                          <Smartphone aria-hidden="true" className="size-3" />
+                          {project.numero || "Numéro à connecter"}
+                        </p>
+                      </div>
+                    </div>
+                    <span
+                      className={cn(
+                        "shrink-0 rounded-full border px-2 py-0.5 text-[11px]",
+                        status.ok ? "text-muted-foreground" : "border-destructive/40 text-destructive",
+                      )}
                     >
-                      {project.name}
-                    </Link>
-                    <Badge
-                      variant={statusInfo.variant}
-                      className="font-normal shrink-0"
-                    >
-                      {statusInfo.label}
-                    </Badge>
+                      {status.label}
+                    </span>
                   </div>
 
-                  <div className="grid grid-cols-1 gap-3 text-sm">
-                    <div className="flex gap-3 text-muted-foreground items-center">
-                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-secondary">
-                        <Smartphone className="h-4 w-4 text-foreground" />
-                      </div>
-                      <span className="font-mono tracking-tight text-foreground">
-                        {project.numero}
-                      </span>
-                    </div>
-
-                    <div className="flex flex-wrap items-center justify-between gap-2 bg-muted/50 p-2 rounded-lg">
-                      <div className="flex items-center gap-2">
-                        <CreditCardIcon className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-xs font-mono text-muted-foreground truncate max-w-30">
-                          {project.plan}
-                        </span>
-                      </div>
-                      <WhatsAppConnectionStatus
-                        status={project.instanceStatus}
-                      />
-                    </div>
-
-                    <p className="font-mono text-xs text-muted-foreground mt-1">
-                      Expire le :{" "}
-                      <span className="text-foreground font-medium">
-                        {project.stripeCurrentPeriodEnd || project.expiredAt ? (
-                          <LocalBillingDate
-                            value={
-                              project.stripeCurrentPeriodEnd ||
-                              project.expiredAt
-                            }
-                          />
-                        ) : (
-                          "Non défini"
-                        )}
-                      </span>
-                    </p>
-                    <div className="grid grid-cols-2 gap-2 mt-2 pt-3 border-t border-border/50">
-                      <Button
-                        asChild
-                        variant="outline"
-                        className="w-full"
-                        size="sm"
-                      >
-                        <Link
-                          href={`/projects/${project.id}`}
-                          title={`Ouvrir ${project.name}`}
-                        >
-                          Ouvrir
-                        </Link>
-                      </Button>
-                      <Button
-                        asChild
-                        className="w-full"
-                        variant="outline"
-                        size="sm"
-                      >
-                        <Link
-                          href={`/projects/${project.id}/settings`}
-                          title={`Gerer ${project.name}`}
-                        >
-                          <Settings className="h-4 w-4 mr-2" />
-                          Paramètres
-                        </Link>
-                      </Button>
-                    </div>
-                    {project.canManageBilling && (
-                      <div className="grid gap-2">
-                        <BillingPlanButton
-                          projectId={project.id}
-                          intent="renew"
-                          size="sm"
-                        />
-                        <BillingPlanButton
-                          projectId={project.id}
-                          intent="upgrade"
-                          size="sm"
-                        />
-                      </div>
-                    )}
+                  <div className="space-y-4 px-5 pb-5">
+                    <WhatsAppConnectionStatus status={project.instanceStatus} />
+                    <Quota used={project.messageCount || 0} limit={project.allMessagesCount || 0} />
                   </div>
-                </Card>
+
+                  <div className="mt-auto flex items-center justify-between gap-2 border-t px-5 py-3 text-xs text-muted-foreground">
+                    <span className="flex min-w-0 items-center gap-1.5">
+                      <CreditCard aria-hidden="true" className="size-3.5 shrink-0" />
+                      <span className="truncate capitalize">{project.plan}</span>
+                      {renewal && (
+                        <>
+                          <span aria-hidden="true">·</span>
+                          <span className="truncate">
+                            jusqu’au <LocalBillingDate value={renewal} />
+                          </span>
+                        </>
+                      )}
+                    </span>
+                    <div className="relative z-10 flex shrink-0 items-center gap-1">
+                      <Button asChild variant="ghost" size="icon-sm">
+                        <Link href={`/projects/${project.id}/chat`} aria-label={`Messagerie de ${project.name}`}>
+                          <MessagesSquare />
+                        </Link>
+                      </Button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon-sm" aria-label={`Plus d’actions pour ${project.name}`}>
+                            <Ellipsis />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-52">
+                          <DropdownMenuItem asChild>
+                            <Link href={`/projects/${project.id}`}>
+                              <ArrowUpRight />
+                              Ouvrir le tableau de bord
+                            </Link>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem asChild>
+                            <Link href={`/projects/${project.id}/settings`}>
+                              <Settings />
+                              Paramètres
+                            </Link>
+                          </DropdownMenuItem>
+                          {project.canManageBilling && (
+                            <>
+                              <DropdownMenuSeparator />
+                              <BillingPlanMenuItem projectId={project.id} intent="renew" />
+                              <BillingPlanMenuItem projectId={project.id} intent="upgrade" />
+                            </>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  </div>
+                </li>
               );
             })}
-          </div>
-
-          {/* VUE DESKTOP : DataTable ShadcnUI */}
-          <div className="hidden w-full min-w-0 xl:block">
-            <ProjectsTable columns={ProjectsTableColumns} data={projects} />
-          </div>
-        </div>
+            <li>
+              <Link
+                href="/projects/new"
+                className="flex h-full min-h-56 flex-col items-center justify-center gap-3 rounded-2xl border border-dashed p-6 text-center text-sm text-muted-foreground outline-none transition-colors hover:bg-muted/50 hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50"
+              >
+                <span className="flex size-10 items-center justify-center rounded-xl border bg-background">
+                  <Plus aria-hidden="true" className="size-5" />
+                </span>
+                Nouveau projet
+              </Link>
+            </li>
+          </ul>
+        </>
       )}
     </div>
   );

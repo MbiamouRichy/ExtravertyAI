@@ -16,10 +16,17 @@ export type ChatClient = {
   prospectClassification?: ProspectClassification | null;
   unreadCount?: number;
   agents?: ChatAgent[];
+  resolvedAt?: string | null;
+  tags?: ChatTag[];
 };
+
+export type ChatTag = { id: string; name: string };
+
+export type ChatFilter = "all" | "ai" | "manual" | "resolved";
 
 export type ChatPage<T> = {
   unreadConversations?: number;
+  projectTags?: Array<ChatTag & { count: number }>;
   items: T[];
   nextCursor: string | null;
 };
@@ -43,7 +50,8 @@ export type ChatAgent = {
 
 export type ChatMessage = {
   id: string;
-  senderType: "client" | "bot" | "agent" | "system";
+  // "note" : note interne de l'équipe, jamais envoyée au contact.
+  senderType: "client" | "bot" | "agent" | "system" | "note";
   agent?: ChatAgent | null;
   content: string;
   type?: string;

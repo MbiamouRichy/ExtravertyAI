@@ -265,7 +265,7 @@ export function AuthPage({ callbackUrl }: { callbackUrl?: string }) {
 					</form>
 					<AuthDivider>Ou</AuthDivider>
 					<div className="space-y-2">
-						<SignInSocialButton form="flex" variant="default" text="Continuer avec" callbackUrl={signInHref} />
+						<SignInSocialButton form="flex" variant="outline" text="Continuer avec" callbackUrl={signInHref} />
 					</div>
 
 					<p className="mt-8 mx-auto text-center text-muted-foreground text-sm">

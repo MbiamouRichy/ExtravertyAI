@@ -157,6 +157,9 @@ export async function ingestMessage(
     update: {
       ...(msg.pushName ? { pushName: msg.pushName } : {}),
       lastMessageAt: new Date(),
+      // Un nouveau message client rouvre une conversation résolue.
+      resolvedAt: null,
+      resolvedById: null,
     },
     create: {
       projectId,

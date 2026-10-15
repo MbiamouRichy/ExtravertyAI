@@ -18,8 +18,10 @@ import {
   Check,
   CheckCheck,
   CircleAlert,
+  CircleCheck,
   Clock3,
   Loader2,
+  Lock,
   MessageCircle,
   Pause,
   Search,
@@ -75,9 +77,22 @@ import {
 import { sendWhatsAppMessage } from "@/app/actions/sendWhatsAppMessage";
 import { setContactAiState } from "@/app/actions/setContactAiState";
 import {
+  addInternalNoteAction,
+  setConversationResolvedAction,
+} from "@/app/actions/conversation-workflow";
+import {
+  ComposerModeToggle,
+  ContactTagsPopover,
+  InternalNoteComposer,
+  ResolveConversationButton,
+  TagFilter,
+  type ComposerMode,
+} from "./chat-workflow";
+import {
   normalizeChatStatus,
   type ChatClient,
   type ChatAgent,
+  type ChatFilter,
   type ChatMessage,
   type ChatMessageStatus,
 } from "@/lib/chat";
@@ -107,7 +122,7 @@ type WorkspaceProps = {
   canManageAi: boolean;
 };
 
-type Filter = "all" | "ai" | "manual";
+type Filter = ChatFilter;
 
 type LocalMessage = Omit<ChatMessage, "status"> & {
   localId: string;
@@ -342,6 +357,7 @@ function ChatBubble({
   const { timeFormatter, dateFormatter, timeZone } = useChatDates();
   const incoming = message.senderType === "client";
   const isAi = message.senderType === "bot";
+  const isNote = message.senderType === "note";
   const visualStatus: DisplayMessage["status"] =
     message.status === "read" || message.status === "delivered"
       ? message.status
@@ -362,7 +378,9 @@ function ChatBubble({
         ? "Assistant IA"
         : message.senderType === "system"
           ? "Système"
-          : message.agent?.name?.trim() || "Agent";
+          : isNote
+            ? `Note interne · ${message.agent?.name?.trim() || "Équipe"}`
+            : message.agent?.name?.trim() || "Agent";
 
   const date = new Date(message.timestamp);
 
@@ -377,7 +395,7 @@ function ChatBubble({
           isAi ? "w-4/5 max-w-prose py-2" : "w-fit max-w-[92%] sm:max-w-[78%]",
         )}
       >
-        {message.senderType === "agent" && (
+        {(message.senderType === "agent" || isNote) && (
           <MessageAvatar>
             <AgentAvatar agent={message.agent} />
           </MessageAvatar>
@@ -392,6 +410,7 @@ function ChatBubble({
             {message.senderType === "bot" && (
               <Bot aria-hidden="true" className="size-3.5" />
             )}
+            {isNote && <Lock aria-hidden="true" className="size-3" />}
             {author}
           </MessageHeader>
 
@@ -407,6 +426,12 @@ function ChatBubble({
             />
           ) : isAi ? (
             <AiResponseText content={message.content} animate={animate} />
+          ) : isNote ? (
+            <div className="max-w-full rounded-2xl rounded-br-md border border-dashed border-foreground/30 bg-muted/60 px-4 py-2.5 text-sm">
+              <p dir="auto" className="whitespace-pre-wrap wrap-anywhere">
+                {message.content}
+              </p>
+            </div>
           ) : (
             <Bubble
               align={incoming ? "start" : "end"}
@@ -476,7 +501,11 @@ function ChatBubble({
               {timeFormatter.format(date)}
             </time>
 
-            {!incoming && <DeliveryStatus status={visualStatus} />}
+            {isNote ? (
+              <span>Visible uniquement par l’équipe</span>
+            ) : (
+              !incoming && <DeliveryStatus status={visualStatus} />
+            )}
           </MessageFooter>
 
           {uncertain && (
@@ -526,8 +555,9 @@ export default function WhatsappWorkspace({
 
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
+  const [tagFilter, setTagFilter] = useState<string | null>(null);
 
-  const contactsQuery = useChatContacts(project.id, search, filter);
+  const contactsQuery = useChatContacts(project.id, search, filter, tagFilter);
   const historyQuery = useChatMessages(project.id, activeId);
   const animatedAiIds = useLiveAiResponses(
     activeId,
@@ -538,7 +568,9 @@ export default function WhatsappWorkspace({
   const readMarker = useConversationRead({
     projectId: project.id,
     contactId: activeId,
-    messageId: historyQuery.items.at(-1)?.id,
+    // Les notes internes ne sont pas des messages : on lit jusqu'au dernier message.
+    messageId: historyQuery.items.findLast((item) => item.senderType !== "note")
+      ?.id,
     enabled: !summaryOpen && !historyQuery.error,
     onRead: () => {
       void contactsQuery.mutate();
@@ -569,6 +601,13 @@ export default function WhatsappWorkspace({
 
   const [aiOverrides, setAiOverrides] = useState<Record<string, boolean>>({});
   const [aiBusyId, setAiBusyId] = useState<string | null>(null);
+  const [resolvedOverrides, setResolvedOverrides] = useState<
+    Record<string, string | null>
+  >({});
+  const [resolveBusyId, setResolveBusyId] = useState<string | null>(null);
+  const resolveLock = useRef(false);
+  const [composerMode, setComposerMode] = useState<ComposerMode>("reply");
+  const [noteDrafts, setNoteDrafts] = useState<Record<string, string>>({});
   const [showWelcome, setShowWelcome] = useState(isSuccess);
 
   const sendLocks = useRef(new Set<string>());
@@ -589,6 +628,22 @@ export default function WhatsappWorkspace({
         if (
           Object.prototype.hasOwnProperty.call(next, client.id) &&
           next[client.id] === client.aiActive
+        ) {
+          delete next[client.id];
+          changed = true;
+        }
+      }
+
+      return changed ? next : previous;
+    });
+    setResolvedOverrides((previous) => {
+      const next = { ...previous };
+      let changed = false;
+
+      for (const client of clients) {
+        if (
+          Object.prototype.hasOwnProperty.call(next, client.id) &&
+          !!next[client.id] === !!client.resolvedAt
         ) {
           delete next[client.id];
           changed = true;
@@ -655,7 +710,10 @@ export default function WhatsappWorkspace({
 
     return clients
       .map((client) => {
-        const local = localMessages[client.id] ?? [];
+        // Une note interne ne remplace jamais l'aperçu du dernier message.
+        const local = (localMessages[client.id] ?? []).filter(
+          (message) => message.senderType !== "note",
+        );
         const latest = local[local.length - 1];
 
         const useLocal =
@@ -666,6 +724,12 @@ export default function WhatsappWorkspace({
         return {
           ...client,
           aiActive: aiOverrides[client.id] ?? client.aiActive,
+          resolvedAt: Object.prototype.hasOwnProperty.call(
+            resolvedOverrides,
+            client.id,
+          )
+            ? resolvedOverrides[client.id]
+            : (client.resolvedAt ?? null),
           lastMessage: useLocal
             ? latest.content ||
               (latest.type === "IMAGE"
@@ -684,20 +748,31 @@ export default function WhatsappWorkspace({
       .filter((client) => {
         const matchesFilter =
           filter === "all" ||
-          (filter === "ai" && client.aiActive) ||
-          (filter === "manual" && !client.aiActive);
+          (filter === "resolved" && !!client.resolvedAt) ||
+          (filter === "ai" && !client.resolvedAt && client.aiActive) ||
+          (filter === "manual" && !client.resolvedAt && !client.aiActive);
+        const matchesTag =
+          !tagFilter || !!client.tags?.some((tag) => tag.id === tagFilter);
 
         const matchesSearch =
           !textQuery || normalizeSearch(client.name).includes(textQuery);
 
-        return matchesFilter && matchesSearch;
+        return matchesFilter && matchesTag && matchesSearch;
       })
       .sort(
         (a, b) =>
           new Date(b.lastActivityAt).getTime() -
             new Date(a.lastActivityAt).getTime() || a.id.localeCompare(b.id),
       );
-  }, [clients, search, filter, aiOverrides, localMessages]);
+  }, [
+    clients,
+    search,
+    filter,
+    tagFilter,
+    aiOverrides,
+    resolvedOverrides,
+    localMessages,
+  ]);
 
   const activeClient =
     clients.find((client) => client.id === activeId) ??
@@ -705,6 +780,12 @@ export default function WhatsappWorkspace({
   const aiActive = activeClient
     ? (aiOverrides[activeClient.id] ?? activeClient.aiActive)
     : false;
+  const activeResolved = activeClient
+    ? Object.prototype.hasOwnProperty.call(resolvedOverrides, activeClient.id)
+      ? !!resolvedOverrides[activeClient.id]
+      : !!activeClient.resolvedAt
+    : false;
+  const noteDraft = activeId ? (noteDrafts[activeId] ?? "") : "";
 
   const draft = activeId ? (drafts[activeId] ?? "") : "";
   const isSending = !!activeId && sendingIds.includes(activeId);
@@ -804,6 +885,7 @@ export default function WhatsappWorkspace({
 
   function selectClient(id: string) {
     setSummaryOpen(false);
+    setComposerMode("reply");
     const client = clients.find((item) => item.id === id);
 
     if (!client) return;
@@ -1016,6 +1098,96 @@ export default function WhatsappWorkspace({
     }
   }
 
+  async function toggleResolved() {
+    if (!activeClient || resolveLock.current) return;
+
+    const contactId = activeClient.id;
+    const resolved = !activeResolved;
+    // Dernier message réellement chargé : refus côté serveur si le client a réécrit depuis.
+    const seenMessageId = historyQuery.items.findLast(
+      (item) => item.senderType !== "note",
+    )?.id;
+
+    resolveLock.current = true;
+    setResolveBusyId(contactId);
+
+    try {
+      const result = await setConversationResolvedAction({
+        projectId: project.id,
+        contactId,
+        resolved,
+        ...(resolved && seenMessageId ? { seenMessageId } : {}),
+      });
+
+      if (!result.success) {
+        toast.error(result.error);
+        refresh();
+        return;
+      }
+
+      setResolvedOverrides((previous) => ({
+        ...previous,
+        [contactId]: result.resolvedAt,
+      }));
+      setAnnouncement(
+        resolved
+          ? "Conversation marquée comme résolue."
+          : "Conversation rouverte.",
+      );
+      toast.success(
+        resolved ? "Conversation résolue" : "Conversation rouverte",
+        {
+          description: resolved
+            ? "Elle reviendra automatiquement si le client réécrit."
+            : undefined,
+        },
+      );
+      refresh();
+    } catch {
+      toast.error("Modification non confirmée. Actualisez pour vérifier.");
+    } finally {
+      resolveLock.current = false;
+      setResolveBusyId(null);
+    }
+  }
+
+  async function handleAddNote(content: string) {
+    if (!activeClient) return false;
+
+    const contactId = activeClient.id;
+
+    try {
+      const result = await addInternalNoteAction({
+        projectId: project.id,
+        contactId,
+        content,
+      });
+
+      if (!result.success) {
+        toast.error(result.error);
+        return false;
+      }
+
+      const note: LocalMessage = {
+        ...result.note,
+        localId: `note-${result.note.id}`,
+        senderType: "note",
+        type: "TEXT",
+        status: "sent",
+      };
+      setLocalMessages((previous) => ({
+        ...previous,
+        [contactId]: [...(previous[contactId] ?? []), note],
+      }));
+      setAnnouncement("Note interne ajoutée.");
+      void historyQuery.mutate();
+      return true;
+    } catch {
+      toast.error("Note non confirmée. Actualisez avant de la réécrire.");
+      return false;
+    }
+  }
+
   function restoreDraft(content: string) {
     if (!activeId) return;
 
@@ -1110,13 +1282,26 @@ export default function WhatsappWorkspace({
             <div
               role="group"
               aria-label="Filtrer les conversations"
-              className="flex gap-1"
+              className="flex flex-wrap gap-1"
             >
               {(
                 [
                   ["all", "Toutes", "Toutes les conversations"],
-                  ["ai", "Assistant IA", "L’assistant répond seul à ces contacts"],
-                  ["manual", "Équipe", "Un membre de l’équipe a repris la main"],
+                  [
+                    "ai",
+                    "Assistant IA",
+                    "L’assistant répond seul à ces contacts",
+                  ],
+                  [
+                    "manual",
+                    "Équipe",
+                    "Un membre de l’équipe a repris la main",
+                  ],
+                  [
+                    "resolved",
+                    "Résolues",
+                    "Traitées. Elles reviennent si le client réécrit",
+                  ],
                 ] as const
               ).map(([value, label, hint]) => (
                 <Tooltip key={value}>
@@ -1141,6 +1326,11 @@ export default function WhatsappWorkspace({
                 </Tooltip>
               ))}
             </div>
+            <TagFilter
+              tags={contactsQuery.projectTags}
+              value={tagFilter}
+              onChange={setTagFilter}
+            />
           </header>
 
           <nav
@@ -1157,22 +1347,23 @@ export default function WhatsappWorkspace({
                   className="mx-auto mb-3 size-6 text-muted-foreground"
                 />
                 <p className="text-sm font-medium">
-                  {search || filter !== "all"
+                  {search || filter !== "all" || tagFilter
                     ? "Aucune correspondance"
                     : "Aucune conversation"}
                 </p>
                 <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-                  {search || filter !== "all"
+                  {search || filter !== "all" || tagFilter
                     ? "Essayez un autre nom, un numéro ou un autre filtre."
                     : "Vos contacts apparaîtront après les premiers échanges."}
                 </p>
-                {(search || filter !== "all") && (
+                {(search || filter !== "all" || tagFilter) && (
                   <Button
                     variant="link"
                     className="mt-3"
                     onClick={() => {
                       setSearch("");
                       setFilter("all");
+                      setTagFilter(null);
                     }}
                   >
                     Voir toutes les conversations
@@ -1202,7 +1393,9 @@ export default function WhatsappWorkspace({
                         className={cn(
                           "relative flex h-auto w-full items-start justify-start gap-3 whitespace-normal rounded-lg px-2.5 py-2.5 text-left font-normal",
                           "transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none",
-                          selected ? "bg-muted hover:bg-muted" : "hover:bg-muted/60",
+                          selected
+                            ? "bg-muted hover:bg-muted"
+                            : "hover:bg-muted/60",
                         )}
                       >
                         {selected && (
@@ -1288,11 +1481,39 @@ export default function WhatsappWorkspace({
                           </span>
 
                           {(client.prospectClassification === "interesting" ||
-                            client.prospectClassification === "follow_up") && (
-                            <span className="mt-1.5 flex">
-                              <InstinctBadge
-                                classification={client.prospectClassification}
-                              />
+                            client.prospectClassification === "follow_up" ||
+                            client.resolvedAt ||
+                            client.tags?.[0]) && (
+                            <span className="mt-1.5 flex min-w-0 items-center gap-1.5 text-[11px] text-muted-foreground">
+                              {(client.prospectClassification ===
+                                "interesting" ||
+                                client.prospectClassification ===
+                                  "follow_up") && (
+                                <InstinctBadge
+                                  classification={client.prospectClassification}
+                                />
+                              )}
+                              {client.resolvedAt && (
+                                <span className="inline-flex shrink-0 items-center gap-1">
+                                  <CircleCheck
+                                    aria-hidden="true"
+                                    className="size-3"
+                                  />
+                                  Résolue
+                                </span>
+                              )}
+                              {client.tags?.[0] && (
+                                <span className="min-w-0 truncate rounded-md border px-1.5 py-px">
+                                  <span className="sr-only">Étiquette : </span>
+                                  {client.tags[0].name}
+                                  {client.tags.length > 1 && (
+                                    <span className="text-muted-foreground">
+                                      {" "}
+                                      +{client.tags.length - 1}
+                                    </span>
+                                  )}
+                                </span>
+                              )}
                             </span>
                           )}
                         </span>
@@ -1378,6 +1599,19 @@ export default function WhatsappWorkspace({
                 </div>
 
                 <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-2">
+                  <ContactTagsPopover
+                    key={`tags-${activeClient.id}`}
+                    projectId={project.id}
+                    contactId={activeClient.id}
+                    contactName={activeClient.name}
+                    tags={activeClient.tags ?? []}
+                    onChanged={() => void contactsQuery.mutate()}
+                  />
+                  <ResolveConversationButton
+                    resolved={activeResolved}
+                    busy={resolveBusyId === activeClient.id}
+                    onToggle={() => void toggleResolved()}
+                  />
                   <ConversationSummaryButton
                     onOpenChange={setSummaryOpen}
                     key={activeClient.id}
@@ -1557,7 +1791,11 @@ export default function WhatsappWorkspace({
 
               <footer className="chat-floating-composer relative z-10 shrink-0 bg-background px-3 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-5 sm:pt-4">
                 <div className="mx-auto max-w-4xl">
-                  {aiActive && (
+                  <ComposerModeToggle
+                    mode={composerMode}
+                    onChange={setComposerMode}
+                  />
+                  {aiActive && composerMode === "reply" && (
                     <div className="mb-3 flex items-start gap-2 rounded-xl border border-dashed px-3 py-2">
                       <Bot
                         aria-hidden="true"
@@ -1572,25 +1810,46 @@ export default function WhatsappWorkspace({
                     </div>
                   )}
 
-                  <ChatComposer
-                    key={activeClient.id}
-                    projectId={project.id}
-                    contactId={activeClient.id}
-                    assistanceEnabled={!aiActive || project.automationPaused}
-                    contextVersion={activeMessages.at(-1)?.id ?? ""}
-                    hasClientMessage={historyQuery.hasClientMessage}
-                    draft={draft}
-                    contactName={activeClient.name}
-                    isSending={isSending}
-                    textareaRef={textareaRef}
-                    onDraftChange={(value) => {
-                      setDrafts((previous) => ({
-                        ...previous,
-                        [activeClient.id]: value,
-                      }));
-                    }}
-                    onSend={handleSend}
-                  />
+                  {composerMode === "note" && (
+                    <InternalNoteComposer
+                      key={`note-${activeClient.id}`}
+                      contactName={activeClient.name}
+                      draft={noteDraft}
+                      onDraftChange={(value) => {
+                        setNoteDrafts((previous) => ({
+                          ...previous,
+                          [activeClient.id]: value,
+                        }));
+                      }}
+                      onSubmit={handleAddNote}
+                    />
+                  )}
+                  {/* Gardé monté en mode note : pièce jointe et brouillon restent intacts. */}
+                  <div hidden={composerMode === "note"}>
+                    <ChatComposer
+                      key={activeClient.id}
+                      projectId={project.id}
+                      contactId={activeClient.id}
+                      assistanceEnabled={!aiActive || project.automationPaused}
+                      contextVersion={
+                        activeMessages.findLast(
+                          (message) => message.senderType !== "note",
+                        )?.id ?? ""
+                      }
+                      hasClientMessage={historyQuery.hasClientMessage}
+                      draft={draft}
+                      contactName={activeClient.name}
+                      isSending={isSending}
+                      textareaRef={textareaRef}
+                      onDraftChange={(value) => {
+                        setDrafts((previous) => ({
+                          ...previous,
+                          [activeClient.id]: value,
+                        }));
+                      }}
+                      onSend={handleSend}
+                    />
+                  </div>
                 </div>
               </footer>
             </>

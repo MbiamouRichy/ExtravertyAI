@@ -127,7 +127,40 @@ export type AnalyticsOverview = {
   statuses: StatusDatum[];
   sources: SourceDatum[];
   topContacts: TopContactRow[];
+  /** Réponses sortantes de la période, par auteur. */
+  responders: { ai: number; team: number };
+  /** null quand la qualification des prospects est désactivée. */
+  instinct: { active: number; followUp: number; interesting: number } | null;
+  /** Messages reçus : 7 jours (lundi → dimanche) × 12 créneaux de 2 h. */
+  heatmap: number[][];
 };
+
+export const HEATMAP_WEEKDAYS = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
+export const HEATMAP_SLOT_HOURS = 2;
+export const HEATMAP_SLOTS = 24 / HEATMAP_SLOT_HOURS;
+
+const WEEKDAY_INDEX: Record<string, number> = {
+  Mon: 0, Tue: 1, Wed: 2, Thu: 3, Fri: 4, Sat: 5, Sun: 6,
+};
+const heatmapFormatters = new Map<string, Intl.DateTimeFormat>();
+
+/** Jour (0 = lundi) et créneau de 2 h d’un instant, dans le fuseau donné. */
+export function weekdaySlotFor(instant: Date, timeZone = "UTC") {
+  let formatter = heatmapFormatters.get(timeZone);
+  if (!formatter) {
+    formatter = new Intl.DateTimeFormat("en-US", {
+      timeZone,
+      weekday: "short",
+      hour: "numeric",
+      hourCycle: "h23",
+    });
+    heatmapFormatters.set(timeZone, formatter);
+  }
+  const parts = formatter.formatToParts(instant);
+  const weekday = WEEKDAY_INDEX[parts.find((part) => part.type === "weekday")?.value ?? "Mon"] ?? 0;
+  const hour = Number(parts.find((part) => part.type === "hour")?.value ?? 0) % 24;
+  return { weekday, slot: Math.floor(hour / HEATMAP_SLOT_HOURS) };
+}
 
 // ------------------------------------------------------------------
 // Métadonnées des statuts (classes Tailwind statiques = purge-safe)

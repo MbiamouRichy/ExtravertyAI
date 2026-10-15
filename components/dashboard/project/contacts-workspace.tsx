@@ -1,4 +1,5 @@
 "use client";
+import { cn } from "@/lib/utils";
 import { useState, useTransition, useRef, useEffect } from "react";
 
 import { useRouter } from "next/navigation";
@@ -18,7 +19,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card } from "@/components/ui/card";
 import {
   Select,
   SelectTrigger,
@@ -197,7 +197,9 @@ export function ContactsWorkspace(p: Props) {
           : "Activer l’assistant"
       }
       aria-label={`${contact.displayName} : ${contact.aiActive ? "passer à un conseiller" : "activer l’IA"}`}
-      className={`inline-flex min-h-9 items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium disabled:opacity-50 ${contact.aiActive ? "bg-muted text-foreground dark:bg-muted/40 dark:text-foreground" : "bg-muted text-foreground dark:bg-muted/40 dark:text-foreground"}`}
+      variant={contact.aiActive ? "secondary" : "outline"}
+      size="sm"
+      className="rounded-full text-xs"
     >
       {busy === contact.id ? (
         <Loader2 className="size-3.5 animate-spin" />
@@ -210,15 +212,15 @@ export function ContactsWorkspace(p: Props) {
     </Button>
   );
   return (
-    <main className="mx-auto w-full max-w-7xl space-y-7 px-4 py-7 sm:px-8 lg:py-10">
-      <header className="flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
+    <main className="mx-auto w-full max-w-7xl space-y-6 p-4 sm:p-6 xl:p-8">
+      <header className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
         <div>
-          <p className="mb-2 text-xs font-medium uppercase tracking-widest text-muted-foreground">
-            La relation client · {p.projectName}
+          <p className="font-mono text-xs uppercase tracking-wider text-muted-foreground">
+            Contacts · {p.projectName}
           </p>
-          <h1 className="text-3xl! font-semibold">Chaque contact compte.</h1>
-          <p className="mt-3 text-sm text-muted-foreground">
-            Retrouvez vos prospects et choisissez comment les accompagner.
+          <h1 className="mt-1 text-3xl md:text-4xl">Chaque contact compte</h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Retrouvez vos prospects et choisissez qui les accompagne : l’IA ou l’équipe.
           </p>
         </div>
         <Button
@@ -227,103 +229,72 @@ export function ContactsWorkspace(p: Props) {
           variant="outline"
         >
           {busy === "export" ? (
-            <Loader2 className="size-4 animate-spin" />
+            <Loader2 className="animate-spin" aria-hidden="true" />
           ) : (
-            <Download className="size-4" />
-          )}{" "}
-          Exporter les contacts
+            <Download aria-hidden="true" />
+          )}
+          Exporter en CSV
         </Button>
       </header>
       <section
         aria-label="Répartition des contacts"
-        className="grid grid-cols-1 gap-3 sm:grid-cols-3"
+        className="grid grid-cols-3 divide-x rounded-2xl border bg-card"
       >
         {[
-          {
-            title: "Tous vos contacts",
-            count: p.total,
-            icon: Users,
-            hint: "Une vue complète de vos relations",
-            color: "text-foreground dark:text-foreground",
-          },
-          {
-            title: "Assistant activé",
-            count: p.aiCount,
-            icon: Bot,
-            hint: "Prêts pour une prise en charge IA",
-            color: "text-foreground dark:text-foreground",
-          },
-          {
-            title: "Suivis par l’équipe",
-            count: p.total - p.aiCount,
-            icon: UserRound,
-            hint: "L’humain garde la main",
-            color: "text-foreground dark:text-foreground",
-          },
+          { title: "Contacts", count: p.total, icon: Users },
+          { title: "Gérés par l’IA", count: p.aiCount, icon: Bot },
+          { title: "Suivis par l’équipe", count: p.total - p.aiCount, icon: UserRound },
         ].map((card) => (
-          <Card key={card.title} className="gap-0 p-5">
-            <div className="mb-4 flex items-center justify-between">
-              <p className="text-sm text-muted-foreground">{card.title}</p>
-              <card.icon className={`size-5 ${card.color}`} />
+          <div key={card.title} className="flex items-center gap-3 px-4 py-4 sm:px-6">
+            <span className="hidden size-9 shrink-0 items-center justify-center rounded-lg border bg-background sm:flex">
+              <card.icon aria-hidden="true" className="size-4" />
+            </span>
+            <div>
+              <p className="text-xs text-muted-foreground">{card.title}</p>
+              <p className="font-heading text-xl font-bold tabular-nums sm:text-2xl">
+                {card.count.toLocaleString("fr-FR")}
+              </p>
             </div>
-            <p className="text-3xl font-semibold tracking-tight">
-              {card.count.toLocaleString("fr-FR")}
-            </p>
-            <p className="mt-2 text-xs text-muted-foreground">{card.hint}</p>
-          </Card>
+          </div>
         ))}
       </section>
       <section
         aria-label="Liste des contacts"
         className="overflow-hidden rounded-2xl border bg-card"
       >
-        <div className="space-y-4 border-b p-4 sm:p-5">
-          <div className="flex flex-col justify-between gap-3 sm:flex-row">
-            <Select
-              value={p.sort}
-              onValueChange={(sort) => navigate({ sort, page: 1 })}
-            >
-              <SelectTrigger
-                aria-label="Trier les contacts"
-                className="w-full sm:w-56"
+        <div className="flex flex-col gap-3 border-b p-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+          <div role="group" aria-label="Filtrer les contacts" className="flex flex-wrap items-center gap-1">
+            {[
+              { value: "all", label: "Tous" },
+              { value: "ai", label: "Assistant IA" },
+              { value: "human", label: "Équipe" },
+            ].map((item) => (
+              <Button
+                key={item.value}
+                size="sm"
+                variant={p.filter === item.value ? "secondary" : "ghost"}
+                onClick={() => navigate({ filter: item.value, page: 1 })}
+                aria-pressed={p.filter === item.value}
+                className={cn("rounded-full px-3", p.filter !== item.value && "text-muted-foreground")}
               >
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="activity">Dernière activité</SelectItem>
-                <SelectItem value="newest">Ajoutés récemment</SelectItem>
-                <SelectItem value="name">Nom personnalisé</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex flex-wrap gap-2">
-              {[
-                { value: "all", label: "Tous" },
-                { value: "ai", label: "Assistant IA" },
-                { value: "human", label: "Équipe humaine" },
-              ].map((item) => (
-                <Button
-                  key={item.value}
-                  onClick={() => navigate({ filter: item.value, page: 1 })}
-                  aria-pressed={p.filter === item.value}
-                  className={`min-h-10 rounded-full px-4 text-xs font-medium ${p.filter === item.value ? "bg-primary text-primary-foreground" : "bg-muted/60 text-muted-foreground hover:bg-muted"}`}
-                >
-                  {item.label}
-                </Button>
-              ))}
-            </div>
-            <span
-              role="status"
-              className="inline-flex items-center gap-2 text-xs text-muted-foreground"
-            >
-              {navigationPending && (
-                <Loader2 className="size-3.5 animate-spin" />
-              )}
-              {p.filtered.toLocaleString("fr-FR")} résultat
-              {p.filtered !== 1 && "s"}
+                {item.label}
+              </Button>
+            ))}
+            <span role="status" className="ml-2 inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+              {navigationPending && <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />}
+              {p.filtered.toLocaleString("fr-FR")} résultat{p.filtered !== 1 && "s"}
             </span>
           </div>
+          <Select value={p.sort} onValueChange={(sort) => navigate({ sort, page: 1 })}>
+            <SelectTrigger aria-label="Trier les contacts" className="w-full sm:w-52">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="activity">Dernière activité</SelectItem>
+              <SelectItem value="newest">Ajoutés récemment</SelectItem>
+              <SelectItem value="name">Nom personnalisé</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
         <div className="p-4 sm:p-5" aria-busy={navigationPending}>
           <ContactsTable

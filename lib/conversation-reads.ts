@@ -51,6 +51,7 @@ export async function unreadConversationCount(
   userId: string,
   query: string,
   filter: string,
+  tagId?: string,
 ) {
   const rows = await prisma.$queryRaw<Array<{ count: number }>>`
     SELECT COUNT(DISTINCT m."contactId")::int AS count
@@ -60,7 +61,12 @@ export async function unreadConversationCount(
     LEFT JOIN conversation_read_state r ON r."membershipId" = pm.id AND r."contactId" = m."contactId"
     WHERE m."projectId" = ${projectId} AND m."senderType" = 'CLIENT' AND m."fromMe" = false
       AND (r."lastReadAt" IS NULL OR (m."createdAt", m.id) > (r."lastReadAt", r."lastReadId"))
-      AND (${filter} = 'all' OR c."aiActive" = ${filter === "ai"})
+      AND (${filter} = 'all'
+        OR (${filter} = 'resolved' AND c."resolvedAt" IS NOT NULL)
+        OR (${filter} IN ('ai', 'manual') AND c."resolvedAt" IS NULL AND c."aiActive" = ${filter === "ai"}))
+      AND (${tagId ?? null}::text IS NULL OR EXISTS (
+        SELECT 1 FROM contact_tag ct JOIN tag t ON t.id = ct."tagId"
+        WHERE ct."contactId" = c.id AND t."projectId" = c."projectId" AND t.id = ${tagId ?? null}))
       AND (${query} = '' OR strpos(lower(coalesce(c.name, '')), lower(${query})) > 0
         OR strpos(lower(coalesce(c."pushName", '')), lower(${query})) > 0)
   `;

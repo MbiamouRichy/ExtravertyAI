@@ -6,6 +6,7 @@ import {
   ArrowDownToLine,
   ArrowUpRight,
   CalendarDays,
+  CircleAlert,
   CreditCard,
   FileText,
   Receipt,
@@ -23,13 +24,6 @@ import {
 import { BillingActions } from "@/components/dashboard/project/billing-actions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  CardContent,
-} from "@/components/ui/card";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
@@ -145,18 +139,36 @@ export default async function BillingPage({
     subscription?.cancel_at_period_end || !!subscription?.cancel_at;
   const status = subscription?.status || p.status;
   const nextCursor = invoices.at(-1)?.id;
+  const renewal = !subscription
+    ? "À vérifier"
+    : ["canceled", "incomplete_expired"].includes(status)
+      ? "Abonnement terminé"
+      : cancelling
+        ? "Résiliation programmée"
+        : ["active", "trialing"].includes(status)
+          ? "Renouvellement automatique"
+          : "À régulariser";
+  const price =
+    item?.price.unit_amount != null && subscription?.items.data.length === 1
+      ? formatStripeAmount(item.price.unit_amount * (item.quantity ?? 1), item.price.currency)
+      : null;
+  const interval = item?.price.recurring
+    ? `${item.price.recurring.interval_count > 1 ? `${item.price.recurring.interval_count} ` : ""}${
+        { day: "jour(s)", week: "semaine(s)", month: "mois", year: "an(s)" }[item.price.recurring.interval]
+      }`
+    : null;
+  const usedRatio = quota ? Math.min(1, quota.used / Math.max(1, quota.limit)) : 0;
+
   return (
-    <main className="mx-auto w-full min-w-0 max-w-7xl space-y-8 px-4 py-7 [overflow-wrap:anywhere] sm:px-8 lg:py-10">
+    <main className="mx-auto w-full min-w-0 max-w-6xl space-y-8 p-4 [overflow-wrap:anywhere] sm:p-6 xl:p-8">
       <header className="flex flex-col justify-between gap-5 lg:flex-row lg:items-end">
         <div className="min-w-0">
-          <p className="mb-2 text-xs font-medium uppercase tracking-widest text-muted-foreground">
-            Administration · {p.name}
+          <p className="font-mono text-xs uppercase tracking-wider text-muted-foreground">
+            Facturation · {p.name}
           </p>
-          <h1 className="text-2xl! font-semibold tracking-tight sm:text-3xl!">
-            Votre facturation, en clair.
-          </h1>
-          <p className="mt-3 text-sm text-muted-foreground">
-            Suivez votre abonnement, votre consommation et vos factures.
+          <h1 className="mt-1 text-3xl md:text-4xl">Abonnement et factures</h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Votre offre, votre consommation et l’historique de vos paiements.
           </p>
         </div>
         <BillingActions
@@ -165,379 +177,315 @@ export default async function BillingPage({
           configured={!!p.stripeCustomerId}
         />
       </header>
-      {membership.role === "OWNER" && (
-        <p className="text-sm text-muted-foreground">
-          Le renouvellement ouvre le paiement dû ou la gestion du renouvellement
-          sur Stripe. Un abonnement actif se renouvelle automatiquement ; les
-          changements d’offre sont confirmés sur Stripe avant application.
-        </p>
-      )}
+
       {unavailable && (
-        <div role="alert" className="rounded-xl border bg-muted/50 p-4 text-sm">
-          La connexion à Stripe est temporairement indisponible. Les
-          informations locales restent visibles ; les montants et factures
-          seront disponibles après actualisation.
+        <div role="alert" className="flex gap-3 rounded-xl border border-dashed p-4 text-sm">
+          <CircleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+          La connexion à Stripe est temporairement indisponible. Les informations
+          locales restent visibles ; montants et factures reviendront après
+          actualisation.
         </div>
       )}
       {!configured && (
-        <div
-          role="status"
-          className="rounded-xl border bg-muted/50 p-4 text-sm"
-        >
-          Votre facturation n’est pas encore synchronisée. Si vous venez de
-          créer ce projet, terminez le paiement puis actualisez cette page.
+        <div role="status" className="flex gap-3 rounded-xl border border-dashed p-4 text-sm">
+          <CircleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+          Votre facturation n’est pas encore synchronisée. Si vous venez de créer
+          ce projet, terminez le paiement puis actualisez cette page.
         </div>
       )}
-      <div className="grid min-w-0 grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
-        <Card className="overflow-hidden">
-          <CardHeader className="border-b bg-muted/30">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <CardTitle className="flex min-w-0 flex-wrap items-center gap-3 text-xl">
-                <span className="shrink-0 rounded-xl border bg-background p-2.5">
-                  <Receipt className="size-5" />
-                </span>
-                Offre <span className="capitalize">{p.plan}</span>
-              </CardTitle>
-              <Badge variant="secondary">{billingStatusLabel(status)}</Badge>
-            </div>
-            <CardDescription>
-              {subscription
-                ? "Informations actualisées depuis votre abonnement."
-                : "Dernier état enregistré pour ce projet."}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6 pt-6">
+
+      <section
+        aria-label="Votre offre"
+        className="grid overflow-hidden rounded-3xl border lg:grid-cols-[1.1fr_1fr]"
+      >
+        <div className="relative isolate bg-primary p-6 text-primary-foreground sm:p-8">
+          <div
+            aria-hidden="true"
+            className="absolute inset-0 -z-10 bg-[radial-gradient(var(--primary-foreground)_1px,transparent_1px)] opacity-10 mask-[radial-gradient(ellipse_at_top_right,black,transparent_70%)] bg-size-[18px_18px]"
+          />
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="flex items-center gap-2 font-mono text-xs uppercase tracking-wider opacity-70">
+              <Receipt aria-hidden="true" className="size-4" />
+              Offre actuelle
+            </p>
+            <span className="rounded-full bg-primary-foreground/15 px-2.5 py-0.5 text-xs">
+              {billingStatusLabel(status)}
+            </span>
+          </div>
+          <p className="mt-6 font-heading text-4xl font-bold capitalize tracking-tight">{p.plan}</p>
+          <p className="mt-2 text-2xl tabular-nums">
+            {price ?? "Tarif à confirmer"}
+            {price && interval && <span className="text-sm opacity-70"> / {interval}</span>}
+          </p>
+          <dl className="mt-8 grid gap-4 border-t border-primary-foreground/15 pt-5 sm:grid-cols-2">
             <div>
-              <p className="text-xs font-medium text-muted-foreground">
-                Tarif récurrent de l’abonnement
-              </p>
-              <p className="mt-2 text-3xl font-semibold tracking-tight">
-                {item?.price.unit_amount != null &&
-                subscription?.items.data.length === 1
-                  ? formatStripeAmount(
-                      item.price.unit_amount * (item.quantity ?? 1),
-                      item.price.currency,
-                    )
-                  : "À confirmer"}
-                {item?.price.recurring && (
-                  <span className="ml-2 text-sm font-normal text-muted-foreground">
-                    /{" "}
-                    {item.price.recurring.interval_count > 1
-                      ? `${item.price.recurring.interval_count} `
-                      : ""}
-                    {
-                      {
-                        day: "jour(s)",
-                        week: "semaine(s)",
-                        month: "mois",
-                        year: "an(s)",
-                      }[item.price.recurring.interval]
-                    }
-                  </span>
+              <dt className="flex items-center gap-1.5 text-xs opacity-70">
+                <CalendarDays aria-hidden="true" className="size-3.5" />
+                {status === "trialing"
+                  ? "Fin de l’essai"
+                  : cancelling
+                    ? "Fin prévue"
+                    : "Fin de période"}
+              </dt>
+              <dd className="mt-1 text-sm font-medium">
+                {subscription?.cancel_at || endsAt ? (
+                  <LocalBillingDate value={subscription?.cancel_at || endsAt} />
+                ) : (
+                  "Non disponible"
                 )}
-              </p>
-              <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-                Les taxes, remises, proratas et crédits éventuels sont détaillés
-                sur vos factures.
-              </p>
+              </dd>
             </div>
-            <div className="grid gap-4 border-t pt-5 sm:grid-cols-2">
-              <div>
-                <p className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <CalendarDays className="size-3.5" />
-                  {status === "trialing"
-                    ? "Fin de l’essai"
-                    : cancelling
-                      ? "Fin prévue de l’abonnement"
-                      : "Fin de période"}
-                </p>
-                <p className="mt-2 text-sm font-medium">
-                  {subscription?.cancel_at || endsAt ? (
-                    <LocalBillingDate
-                      value={subscription?.cancel_at || endsAt}
-                    />
-                  ) : (
-                    "Non disponible"
-                  )}
-                </p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Renouvellement</p>
-                <p className="mt-2 text-sm font-medium">
-                  {!subscription
-                    ? "À vérifier"
-                    : ["canceled", "incomplete_expired"].includes(status)
-                      ? "Abonnement terminé"
-                      : cancelling
-                        ? "Résiliation programmée"
-                        : ["active", "trialing"].includes(status)
-                          ? "Automatique"
-                          : "À régulariser"}
-                </p>
-              </div>
+            <div>
+              <dt className="text-xs opacity-70">Renouvellement</dt>
+              <dd className="mt-1 text-sm font-medium">{renewal}</dd>
             </div>
-            {membership.role !== "OWNER" && (
-              <p className="rounded-lg bg-muted p-3 text-xs leading-relaxed text-muted-foreground">
-                Le propriétaire du projet peut modifier l’offre, le moyen de
-                paiement et les coordonnées de facturation.
-              </p>
-            )}
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Votre consommation</CardTitle>
-            <CardDescription>
-              Messages sortants réservés sur la période courante.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-5">
-            {quota ? (
-              <>
-                <div className="flex flex-wrap items-end gap-2">
-                  <span className="text-4xl font-semibold tracking-tight">
-                    {quota.used.toLocaleString("fr-FR")}
-                  </span>
-                  <span className="pb-1 text-sm text-muted-foreground">
-                    / {quota.limit.toLocaleString("fr-FR")} messages
-                  </span>
-                </div>
-                <progress
-                  aria-label="Consommation du quota"
-                  value={Math.min(quota.used, Math.max(1, quota.limit))}
-                  max={Math.max(1, quota.limit)}
-                  className="h-2 w-full overflow-hidden rounded-full accent-primary"
-                />
-                <p className="text-sm">
-                  {Math.max(0, quota.limit - quota.used).toLocaleString(
-                    "fr-FR",
-                  )}{" "}
-                  messages disponibles
-                </p>
-                <p className="border-t pt-4 text-xs leading-relaxed text-muted-foreground">
-                  Du <LocalBillingDate value={quota.startsAt} dateOnly /> au{" "}
-                  <LocalBillingDate value={quota.endsAt} dateOnly />. Les
-                  réponses de l’IA et de votre équipe utilisent le même quota.
-                </p>
-                {quota.endsAt <= new Date() && (
-                  <p className="text-sm text-destructive">
-                    Cette période est expirée. Le prochain quota attend la
-                    confirmation de facturation.
-                  </p>
-                )}
-              </>
-            ) : (
-              <p className="py-6 text-sm text-muted-foreground">
-                Aucune période de quota confirmée pour le moment.
-              </p>
-            )}
-            <Button variant="outline" asChild>
-              <Link href={`/projects/${projectId}/settings`}>
-                Voir les paramètres <ArrowUpRight className="size-4" />
-              </Link>
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-      <div className="grid min-w-0 grid-cols-1 gap-5 sm:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <CreditCard className="size-4" /> Moyen de paiement
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm font-medium">
-              {card
-                ? `${card.brand.toUpperCase()} ···· ${card.last4}`
-                : "Consulter le portail de facturation"}
-            </p>
-            <p className="mt-2 text-xs text-muted-foreground">
-              {card
-                ? `Expiration ${String(card.exp_month).padStart(2, "0")}/${card.exp_year}`
-                : "Les moyens de paiement sont gérés par Stripe."}
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <ShieldCheck className="size-4" /> Coordonnées de facturation
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="break-words text-sm font-medium">
-              {customer?.name || p.name}
-            </p>
-            <p className="mt-2 break-all text-sm text-muted-foreground">
-              {customer?.email || "À renseigner dans le portail de facturation"}
-            </p>
-            {customer?.address && (
-              <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-                {[
-                  customer.address.line1,
-                  customer.address.line2,
-                  customer.address.postal_code,
-                  customer.address.city,
-                  customer.address.country,
-                ]
-                  .filter(Boolean)
-                  .join(", ")}
-              </p>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Historique des factures</CardTitle>
-          <CardDescription>
-            Les factures de cet abonnement, de la plus récente à la plus
-            ancienne.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {invoices.length ? (
+          </dl>
+          <p className="mt-5 text-xs opacity-60">
+            {subscription
+              ? "Actualisé depuis Stripe. Taxes, remises et proratas figurent sur vos factures."
+              : "Dernier état enregistré pour ce projet."}
+          </p>
+        </div>
+
+        <div className="flex flex-col bg-card p-6 sm:p-8">
+          <p className="font-mono text-xs uppercase tracking-wider text-muted-foreground">
+            Consommation
+          </p>
+          {quota ? (
             <>
+              <p className="mt-6 flex flex-wrap items-baseline gap-2">
+                <span className="font-heading text-4xl font-bold tabular-nums tracking-tight">
+                  {quota.used.toLocaleString("fr-FR")}
+                </span>
+                <span className="text-sm text-muted-foreground">
+                  / {quota.limit.toLocaleString("fr-FR")} messages
+                </span>
+              </p>
               <div
-                role="region"
-                aria-label="Historique des factures"
-                tabIndex={0}
-                className="overflow-x-auto rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                role="progressbar"
+                aria-label="Consommation du quota"
+                aria-valuemin={0}
+                aria-valuemax={Math.max(1, quota.limit)}
+                aria-valuenow={Math.min(quota.used, Math.max(1, quota.limit))}
+                className="mt-4 h-2.5 overflow-hidden rounded-full bg-muted"
               >
-                <table className="w-full text-left text-sm">
-                  <thead className="border-y bg-muted/40 text-xs text-muted-foreground">
-                    <tr>
-                      {["Facture", "Date", "Total", "Statut", "Documents"].map(
-                        (label) => (
-                          <th key={label} className="px-4 py-3 font-medium">
-                            {label}
-                          </th>
-                        ),
-                      )}
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y">
-                    {invoices.map((invoice) => {
-                      const pdf = stripeDocumentUrl(invoice.invoice_pdf);
-                      const hosted = stripeDocumentUrl(
-                        invoice.hosted_invoice_url,
-                      );
-                      return (
-                        <tr key={invoice.id}>
-                          <td className="whitespace-nowrap px-4 py-4 font-medium">
-                            {invoice.number || "En préparation"}
-                          </td>
-                          <td className="whitespace-nowrap px-4 py-4 text-muted-foreground">
-                            <LocalBillingDate
-                              value={invoice.created}
-                              dateOnly
-                            />
-                          </td>
-                          <td className="whitespace-nowrap px-4 py-4">
-                            {formatStripeAmount(
-                              invoice.total,
-                              invoice.currency,
-                            )}
-                          </td>
-                          <td className="px-4 py-4">
-                            <Badge variant="outline">
-                              {billingStatusLabel(invoice.status || "draft")}
-                            </Badge>
-                          </td>
-                          <td className="px-4 py-3">
-                            <div className="flex gap-2">
-                              {pdf && (
-                                <Button variant="ghost" size="sm" asChild>
-                                  <a
-                                    href={pdf}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    aria-label={`Télécharger la facture ${invoice.number || ""} en PDF`}
-                                  >
-                                    <ArrowDownToLine className="size-4" /> PDF
-                                  </a>
-                                </Button>
-                              )}
-                              {hosted && (
-                                <Button variant="ghost" size="sm" asChild>
-                                  <a
-                                    href={hosted}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                  >
-                                    Consulter{" "}
-                                    <ArrowUpRight className="size-3.5" />
-                                  </a>
-                                </Button>
-                              )}
-                              {!pdf && !hosted && (
-                                <span className="text-xs text-muted-foreground">
-                                  En préparation
-                                </span>
-                              )}
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+                <div
+                  className={usedRatio >= 0.9 ? "h-full rounded-full bg-destructive" : "h-full rounded-full bg-foreground"}
+                  style={{ width: `${usedRatio * 100}%` }}
+                />
               </div>
-              <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
-                <p className="text-xs text-muted-foreground">
-                  {invoices.length} facture(s) affichée(s)
+              <p className="mt-3 text-sm">
+                <span className="font-medium tabular-nums">
+                  {Math.max(0, quota.limit - quota.used).toLocaleString("fr-FR")}
+                </span>{" "}
+                messages disponibles
+              </p>
+              <p className="mt-auto border-t pt-4 text-xs leading-relaxed text-muted-foreground">
+                Du <LocalBillingDate value={quota.startsAt} dateOnly /> au{" "}
+                <LocalBillingDate value={quota.endsAt} dateOnly />. L’IA et votre
+                équipe partagent le même quota.
+              </p>
+              {quota.endsAt <= new Date() && (
+                <p className="mt-2 text-sm text-destructive">
+                  Cette période est expirée. Le prochain quota attend la
+                  confirmation de facturation.
                 </p>
-                <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap">
-                  {cursor && (
-                    <Button variant="outline" asChild>
-                      <Link href={`/projects/${projectId}/billing`}>
-                        Les plus récentes
-                      </Link>
-                    </Button>
-                  )}
-                  {hasMore && nextCursor && (
-                    <Button variant="outline" asChild>
-                      <Link
-                        href={`/projects/${projectId}/billing?after=${encodeURIComponent(nextCursor)}`}
-                      >
-                        Factures précédentes
-                      </Link>
-                    </Button>
-                  )}
-                </div>
-              </div>
+              )}
             </>
           ) : (
-            <div className="flex flex-col items-center py-12 text-center">
-              <FileText className="mb-4 size-8 text-muted-foreground" />
-              <p className="font-medium">
-                {unavailable
-                  ? "Factures momentanément indisponibles"
-                  : cursor
-                    ? "Fin de l’historique"
-                    : "Vos factures apparaîtront ici"}
-              </p>
-              <p className="mt-2 max-w-sm text-sm text-muted-foreground">
-                {unavailable
-                  ? "Actualisez la page pour rétablir la connexion."
-                  : "Chaque facture émise pour cet abonnement sera accessible depuis cet espace."}
-              </p>
-              {cursor && (
-                <Button
-                  className="mt-4 h-auto min-h-9 whitespace-normal text-center"
-                  variant="outline"
-                  asChild
-                >
-                  <Link href={`/projects/${projectId}/billing`}>
-                    Revenir aux dernières factures
-                  </Link>
-                </Button>
-              )}
-            </div>
+            <p className="mt-6 text-sm text-muted-foreground">
+              Aucune période de quota confirmée pour le moment.
+            </p>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </section>
+
+      <div className="grid min-w-0 gap-4 sm:grid-cols-2">
+        <section aria-labelledby="payment-title" className="rounded-2xl border bg-card p-5">
+          <h2 id="payment-title" className="flex items-center gap-2 font-heading text-base font-semibold tracking-tight">
+            <CreditCard aria-hidden="true" className="size-4" />
+            Moyen de paiement
+          </h2>
+          {card ? (
+            <div className="mt-4 flex items-center gap-4">
+              <span className="flex h-10 w-14 items-center justify-center rounded-md border bg-muted font-mono text-[10px] font-bold uppercase">
+                {card.brand}
+              </span>
+              <div>
+                <p className="font-mono text-sm tabular-nums">•••• {card.last4}</p>
+                <p className="text-xs text-muted-foreground">
+                  Expire {String(card.exp_month).padStart(2, "0")}/{card.exp_year}
+                </p>
+              </div>
+            </div>
+          ) : (
+            <p className="mt-4 text-sm text-muted-foreground">
+              Les moyens de paiement sont gérés depuis le portail Stripe.
+            </p>
+          )}
+        </section>
+        <section aria-labelledby="details-title" className="rounded-2xl border bg-card p-5">
+          <h2 id="details-title" className="flex items-center gap-2 font-heading text-base font-semibold tracking-tight">
+            <ShieldCheck aria-hidden="true" className="size-4" />
+            Coordonnées de facturation
+          </h2>
+          <p className="mt-4 break-words text-sm font-medium">{customer?.name || p.name}</p>
+          <p className="mt-1 break-all text-sm text-muted-foreground">
+            {customer?.email || "À renseigner dans le portail de facturation"}
+          </p>
+          {customer?.address && (
+            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+              {[
+                customer.address.line1,
+                customer.address.line2,
+                customer.address.postal_code,
+                customer.address.city,
+                customer.address.country,
+              ]
+                .filter(Boolean)
+                .join(", ")}
+            </p>
+          )}
+        </section>
+      </div>
+
+      {membership.role !== "OWNER" ? (
+        <p className="rounded-xl bg-muted/60 p-4 text-xs leading-relaxed text-muted-foreground">
+          Seul le propriétaire du projet peut modifier l’offre, le moyen de
+          paiement et les coordonnées de facturation.
+        </p>
+      ) : (
+        <p className="text-xs leading-relaxed text-muted-foreground">
+          Le renouvellement ouvre le paiement dû ou sa gestion sur Stripe. Un
+          abonnement actif se renouvelle automatiquement ; les changements
+          d’offre sont confirmés sur Stripe avant application.
+        </p>
+      )}
+
+      <section aria-labelledby="invoices-title" className="overflow-hidden rounded-2xl border bg-card">
+        <div className="border-b p-5">
+          <h2 id="invoices-title" className="font-heading text-base font-semibold tracking-tight">
+            Factures
+          </h2>
+          <p className="mt-0.5 text-xs text-muted-foreground">De la plus récente à la plus ancienne.</p>
+        </div>
+        {invoices.length ? (
+          <>
+            <div
+              role="region"
+              aria-label="Historique des factures"
+              tabIndex={0}
+              className="overflow-x-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <table className="w-full min-w-[36rem] text-left text-sm">
+                <thead className="bg-muted/40 text-xs text-muted-foreground">
+                  <tr>
+                    {["Facture", "Date", "Montant", "Statut", ""].map((label, index) => (
+                      <th key={index} scope="col" className="px-5 py-2.5 font-normal">
+                        {label || <span className="sr-only">Documents</span>}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {invoices.map((invoice) => {
+                    const pdf = stripeDocumentUrl(invoice.invoice_pdf);
+                    const hosted = stripeDocumentUrl(invoice.hosted_invoice_url);
+                    return (
+                      <tr key={invoice.id} className="transition-colors hover:bg-muted/30">
+                        <td className="whitespace-nowrap px-5 py-3.5 font-mono text-xs font-medium">
+                          {invoice.number || "En préparation"}
+                        </td>
+                        <td className="whitespace-nowrap px-5 py-3.5 text-muted-foreground">
+                          <LocalBillingDate value={invoice.created} dateOnly />
+                        </td>
+                        <td className="whitespace-nowrap px-5 py-3.5 tabular-nums">
+                          {formatStripeAmount(invoice.total, invoice.currency)}
+                        </td>
+                        <td className="px-5 py-3.5">
+                          <Badge variant={invoice.status === "paid" ? "secondary" : "outline"}>
+                            {billingStatusLabel(invoice.status || "draft")}
+                          </Badge>
+                        </td>
+                        <td className="px-5 py-2.5">
+                          <div className="flex justify-end gap-1">
+                            {pdf && (
+                              <Button variant="ghost" size="sm" asChild>
+                                <a
+                                  href={pdf}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  aria-label={`Télécharger la facture ${invoice.number || ""} en PDF`}
+                                >
+                                  <ArrowDownToLine data-icon="inline-start" />
+                                  PDF
+                                </a>
+                              </Button>
+                            )}
+                            {hosted && (
+                              <Button variant="ghost" size="sm" asChild>
+                                <a href={hosted} target="_blank" rel="noopener noreferrer">
+                                  Consulter
+                                  <ArrowUpRight data-icon="inline-end" />
+                                </a>
+                              </Button>
+                            )}
+                            {!pdf && !hosted && (
+                              <span className="text-xs text-muted-foreground">En préparation</span>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t p-4 sm:px-5">
+              <p className="text-xs text-muted-foreground">
+                {invoices.length} facture{invoices.length > 1 ? "s" : ""} affichée{invoices.length > 1 ? "s" : ""}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {cursor && (
+                  <Button variant="outline" size="sm" asChild>
+                    <Link href={`/projects/${projectId}/billing`}>Les plus récentes</Link>
+                  </Button>
+                )}
+                {hasMore && nextCursor && (
+                  <Button variant="outline" size="sm" asChild>
+                    <Link href={`/projects/${projectId}/billing?after=${encodeURIComponent(nextCursor)}`}>
+                      Factures précédentes
+                    </Link>
+                  </Button>
+                )}
+              </div>
+            </div>
+          </>
+        ) : (
+          <div className="flex flex-col items-center px-6 py-14 text-center">
+            <span className="flex size-12 items-center justify-center rounded-2xl border bg-muted/50">
+              <FileText aria-hidden="true" className="size-5 text-muted-foreground" />
+            </span>
+            <p className="mt-4 font-medium">
+              {unavailable
+                ? "Factures momentanément indisponibles"
+                : cursor
+                  ? "Fin de l’historique"
+                  : "Vos factures apparaîtront ici"}
+            </p>
+            <p className="mt-1 max-w-sm text-sm text-muted-foreground">
+              {unavailable
+                ? "Actualisez la page pour rétablir la connexion."
+                : "Chaque facture émise pour cet abonnement sera accessible depuis cet espace."}
+            </p>
+            {cursor && (
+              <Button className="mt-4" variant="outline" size="sm" asChild>
+                <Link href={`/projects/${projectId}/billing`}>Revenir aux dernières factures</Link>
+              </Button>
+            )}
+          </div>
+        )}
+      </section>
     </main>
   );
 }

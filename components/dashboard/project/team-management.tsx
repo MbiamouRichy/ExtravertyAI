@@ -17,24 +17,20 @@ import {
   Mail,
   Trash2,
   ShieldAlert,
-  InfoIcon,
   Loader2,
   AlertTriangle,
   Crown,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from "@/components/ui/input-group";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -63,17 +59,12 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
   Field,
   FieldError,
   FieldGroup,
   FieldLabel,
+  FieldLegend,
+  FieldSet,
 } from "@/components/ui/field";
 
 import { toast } from "sonner";
@@ -163,26 +154,21 @@ export default function TeamManagement({
   );
 
   const getRoleBadge = (role: Role) => {
-    switch (role) {
-      case "OWNER":
-        return (
-          <Badge className="bg-primary/10 text-foreground dark:text-foreground hover:bg-primary/20 border-border/20 font-medium">
-            <ShieldAlert className="w-3 h-3 mr-1" /> Propriétaire
-          </Badge>
-        );
-      case "ADMIN":
-        return (
-          <Badge className="bg-primary/10 text-foreground dark:text-foreground hover:bg-primary/20 border-border/20 font-medium">
-            <ShieldCheck className="w-3 h-3 mr-1" /> Admin
-          </Badge>
-        );
-      case "USER":
-        return (
-          <Badge variant="outline" className="text-muted-foreground">
-            <UserIcon className="w-3 h-3 mr-1" /> Agent
-          </Badge>
-        );
-    }
+    const meta = {
+      OWNER: { label: "Propriétaire", icon: ShieldAlert, strong: true },
+      ADMIN: { label: "Admin", icon: ShieldCheck, strong: false },
+      USER: { label: "Agent", icon: UserIcon, strong: false },
+    }[role];
+    const Icon = meta.icon;
+    return (
+      <Badge
+        variant={meta.strong ? "default" : "outline"}
+        className={meta.strong ? "font-medium" : "text-muted-foreground"}
+      >
+        <Icon data-icon="inline-start" />
+        {meta.label}
+      </Badge>
+    );
   };
 
   // --- 2. ACTION : INVITER UN MEMBRE ---
@@ -252,26 +238,45 @@ export default function TeamManagement({
     return priorityA - priorityB;
   });
 
+  const roleCards = [
+    {
+      role: "OWNER" as const,
+      label: "Propriétaire",
+      icon: Crown,
+      text: "Accès complet, facturation et suppression du projet.",
+    },
+    {
+      role: "ADMIN" as const,
+      label: "Administrateurs",
+      icon: ShieldCheck,
+      text: "Réglages, équipe, exports et facturation Stripe.",
+    },
+    {
+      role: "USER" as const,
+      label: "Agents",
+      icon: UserIcon,
+      text: "Répondent aux conversations de la messagerie.",
+    },
+  ];
+
   return (
-    <div className="w-full min-w-0 max-w-5xl mx-auto px-4 py-6 sm:px-6 space-y-8">
-      {/* HEADER SECTION */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+    <div className="mx-auto w-full min-w-0 max-w-5xl space-y-8 p-4 sm:p-6 xl:p-8">
+      <header className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-end">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Équipe & Accès</h1>
-          <p className="text-muted-foreground mt-1 text-sm">
-            Gérez les membres de votre projet, leurs rôles et leurs permissions
-            d&apos;accès au CRM WhatsApp.
+          <p className="font-mono text-xs uppercase tracking-wider text-muted-foreground">
+            Équipe
+          </p>
+          <h1 className="mt-1 text-3xl md:text-4xl">Équipe et accès</h1>
+          <p className="mt-2 max-w-xl text-sm text-muted-foreground">
+            Invitez vos collaborateurs et choisissez ce que chacun peut voir et
+            modifier.
           </p>
         </div>
 
-        {/* MODAL D'INVITATION */}
         <Dialog open={isInviteOpen} onOpenChange={handleInviteModalChange}>
           <DialogTrigger asChild>
-            <Button
-              variant="outline"
-              className="w-full sm:w-auto sm:shrink-0 gap-2 shadow-sm font-medium"
-            >
-              <Plus className="w-4 h-4" />
+            <Button className="w-full sm:w-auto">
+              <Plus data-icon="inline-start" />
               Inviter un membre
             </Button>
           </DialogTrigger>
@@ -279,84 +284,84 @@ export default function TeamManagement({
             <DialogHeader>
               <DialogTitle>Inviter un collaborateur</DialogTitle>
               <DialogDescription>
-                Un email d&apos;invitation sera envoyé avec les accès au projet.
+                Un e-mail d&apos;invitation lui permettra de rejoindre le projet.
               </DialogDescription>
             </DialogHeader>
 
             <form
               id="invite-member-form"
+              noValidate
               onSubmit={form.handleSubmit(onSubmitInvite)}
-              className="space-y-4 pt-2"
+              className="pt-2"
             >
               <FieldGroup>
-                {/* CHAMP EMAIL */}
                 <Controller
                   name="email"
                   control={form.control}
                   render={({ field, fieldState }) => (
                     <Field data-invalid={fieldState.invalid}>
-                      <FieldLabel htmlFor="invite-email">
-                        Adresse email
-                      </FieldLabel>
-                      <div className="relative">
-                        <Mail className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                        <Input
+                      <FieldLabel htmlFor="invite-email">Adresse e-mail</FieldLabel>
+                      <InputGroup>
+                        <InputGroupInput
                           {...field}
                           id="invite-email"
                           type="email"
+                          inputMode="email"
                           placeholder="agent@entreprise.com"
-                          className="pl-9"
                           aria-invalid={fieldState.invalid}
                           disabled={isInviting}
                           autoComplete="off"
                         />
-                      </div>
-                      {fieldState.invalid && (
-                        <FieldError errors={[fieldState.error]} />
-                      )}
+                        <InputGroupAddon align="inline-start">
+                          <Mail />
+                        </InputGroupAddon>
+                      </InputGroup>
+                      {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
                     </Field>
                   )}
                 />
 
-                {/* CHAMP RÔLE */}
                 <Controller
                   name="role"
                   control={form.control}
                   render={({ field, fieldState }) => (
-                    <Field data-invalid={fieldState.invalid}>
-                      <FieldLabel htmlFor="invite-role">
-                        Rôle (Permissions)
-                      </FieldLabel>
-                      <Select
+                    <FieldSet data-invalid={fieldState.invalid}>
+                      <FieldLegend variant="label">Rôle</FieldLegend>
+                      <RadioGroup
+                        name={field.name}
+                        value={field.value}
                         onValueChange={field.onChange}
-                        defaultValue={field.value}
                         disabled={isInviting}
+                        className="gap-2"
                       >
-                        <SelectTrigger
-                          className="min-w-full"
-                          id="invite-role"
-                          aria-invalid={fieldState.invalid}
-                        >
-                          <SelectValue placeholder="Sélectionnez un rôle" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="ADMIN">
-                            Administrateur (Gestion complète)
-                          </SelectItem>
-                          <SelectItem value="USER">
-                            Agent / Utilisateur (Réponse aux messages)
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
-                      {fieldState.invalid && (
-                        <FieldError errors={[fieldState.error]} />
-                      )}
-                    </Field>
+                        {(
+                          [
+                            { value: "USER", title: "Agent", text: "Répond aux conversations." },
+                            { value: "ADMIN", title: "Administrateur", text: "Gère réglages, équipe et facturation." },
+                          ] as const
+                        ).map((option) => (
+                          <FieldLabel
+                            key={option.value}
+                            htmlFor={`invite-role-${option.value}`}
+                            className="cursor-pointer rounded-xl border p-3 font-normal has-data-[state=checked]:border-primary has-data-[state=checked]:bg-muted/50"
+                          >
+                            <Field orientation="horizontal">
+                              <RadioGroupItem id={`invite-role-${option.value}`} value={option.value} />
+                              <span className="flex flex-col">
+                                <span className="text-sm font-medium">{option.title}</span>
+                                <span className="text-xs text-muted-foreground">{option.text}</span>
+                              </span>
+                            </Field>
+                          </FieldLabel>
+                        ))}
+                      </RadioGroup>
+                      {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                    </FieldSet>
                   )}
                 />
               </FieldGroup>
 
-              <DialogFooter className="pt-4">
+              <DialogFooter className="pt-6">
                 <Button
                   variant="outline"
                   type="button"
@@ -365,174 +370,148 @@ export default function TeamManagement({
                 >
                   Annuler
                 </Button>
-                <Button
-                  type="submit"
-                  form="invite-member-form"
-                  disabled={isInviting}
-                >
-                  {isInviting && (
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  )}
+                <Button type="submit" form="invite-member-form" disabled={isInviting}>
+                  {isInviting && <Loader2 className="animate-spin" aria-hidden="true" />}
                   Envoyer l&apos;invitation
                 </Button>
               </DialogFooter>
             </form>
           </DialogContent>
         </Dialog>
-      </div>
+      </header>
 
-      {/* ALERT SÉCURITÉ */}
-      <Alert className="border-border bg-muted/30">
-        <InfoIcon className="h-4 w-4 text-primary" />
-        <AlertTitle className="font-semibold">
-          Politique de sécurité extravertyAI
-        </AlertTitle>
-        <AlertDescription className="text-muted-foreground leading-relaxed mt-1">
-          Les membres avec le rôle <strong>ADMIN</strong> ou{" "}
-          <strong>OWNER</strong> peuvent modifier les paramètres du projet,
-          récupérer les données et accéder aux informations de facturation
-          Stripe. Assignez ces rôles avec précaution.
-        </AlertDescription>
-      </Alert>
+      <section aria-label="Rôles" className="grid gap-3 sm:grid-cols-3">
+        {roleCards.map(({ role, label, icon: Icon, text }) => (
+          <div key={role} className="rounded-2xl border bg-card p-4">
+            <div className="flex items-center justify-between">
+              <span className="flex size-8 items-center justify-center rounded-lg border bg-background">
+                <Icon aria-hidden="true" className="size-4" />
+              </span>
+              <span className="font-heading text-2xl font-bold tabular-nums">
+                {members.filter((member) => member.role === role).length}
+              </span>
+            </div>
+            <p className="mt-3 text-sm font-medium">{label}</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">{text}</p>
+          </div>
+        ))}
+      </section>
 
-      {/* SEARCH BAR */}
-      <div className="relative w-full max-w-sm">
-        <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Rechercher par nom ou email..."
-          className="pl-9 bg-background shadow-sm"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-        />
-      </div>
+      <section aria-labelledby="members-title" className="overflow-hidden rounded-2xl border bg-card">
+        <div className="flex flex-col gap-3 border-b p-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+          <div>
+            <h2 id="members-title" className="font-heading text-base font-semibold tracking-tight">
+              Membres
+            </h2>
+            <p className="text-xs text-muted-foreground">
+              {members.length} personne{members.length > 1 ? "s" : ""} ont accès à ce projet
+            </p>
+          </div>
+          <InputGroup className="sm:max-w-64">
+            <InputGroupInput
+              type="search"
+              placeholder="Rechercher un membre…"
+              aria-label="Rechercher un membre par nom ou e-mail"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              autoComplete="off"
+              maxLength={100}
+            />
+            <InputGroupAddon align="inline-start">
+              <Search />
+            </InputGroupAddon>
+          </InputGroup>
+        </div>
 
-      {/* TEAM LIST CARD */}
-      <Card className="shadow-sm border-border">
-        <CardHeader className="border-b bg-muted/20 pb-4">
-          <CardTitle className="text-lg">Membres actifs</CardTitle>
-          <CardDescription>
-            {members.length} membre(s) ont accès à ce projet.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="p-0">
-          <div className="divide-y divide-border">
-            {/* LISTE DES MEMBRES */}
-            {sortedMembers.map((member) => {
-              const canManageMember =
-                currentUserRole === "OWNER" ||
-                (currentUserRole === "ADMIN" && member.role === "USER");
+        <ul className="divide-y">
+          {sortedMembers.map((member) => {
+            const canManageMember =
+              currentUserRole === "OWNER" ||
+              (currentUserRole === "ADMIN" && member.role === "USER");
+            const isMe = member.userId === currentUserId;
 
-              return (
-                <div
-                  key={member.id}
-                  className="flex items-center justify-between p-4 sm:px-6 hover:bg-muted/10 transition-colors"
-                >
-                  {/* INFO UTILISATEUR */}
-                  <div className="flex items-center gap-4">
-                    <Avatar className="h-10 w-10 border border-border">
-                      <AvatarImage
-                        src={member.image || undefined}
-                        alt={member.name}
+            return (
+              <li
+                key={member.id}
+                className="flex items-center justify-between gap-3 px-4 py-3.5 transition-colors hover:bg-muted/30 sm:px-5"
+              >
+                <div className="flex min-w-0 items-center gap-3">
+                  <Avatar className="size-10">
+                    <AvatarImage src={member.image || undefined} alt="" />
+                    <AvatarFallback className="font-heading text-xs font-semibold">
+                      {getInitials(member.name)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="min-w-0">
+                    <p className="flex items-center gap-2 truncate text-sm font-medium">
+                      {member.name || "Utilisateur"}
+                      {isMe && (
+                        <span className="rounded-full bg-muted px-1.5 text-[10px] font-normal text-muted-foreground">
+                          Vous
+                        </span>
+                      )}
+                    </p>
+                    <p className="truncate text-xs text-muted-foreground">{member.email}</p>
+                    <div className="mt-0.5 text-[11px] text-muted-foreground">
+                      <MemberPresence
+                        status={
+                          presence.error
+                            ? undefined
+                            : presence.data?.find((p) => p.userId === member.userId)?.status
+                        }
                       />
-                      <AvatarFallback className="bg-primary/10 text-primary font-semibold text-xs">
-                        {getInitials(member.name)}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex flex-col gap-0.5">
-                      <span className="font-medium text-sm text-foreground">
-                        {member.name || "Utilisateur"}
-                      </span>
-                      <span className="text-xs text-muted-foreground">
-                        {member.email}
-                      </span>
-
-                      {/* NOUVEAU : Statut de présence */}
-                      <div className="flex items-center gap-2 text-[10px] text-muted-foreground mt-0.5">
-                        <MemberPresence
-                          status={
-                            presence.error
-                              ? undefined
-                              : presence.data?.find(
-                                  (p) => p.userId === member.userId,
-                                )?.status
-                          }
-                        />
-                      </div>
-                      <div className="md:hidden">
-                        {getRoleBadge(member.role)}
-                      </div>
                     </div>
-                  </div>
-
-                  {/* RÔLE ET ACTIONS */}
-                  <div className="flex items-center gap-4">
-                    <div className="hidden md:block">
-                      {getRoleBadge(member.role)}
-                    </div>
-                    {member.userId !== currentUserId && canManageMember && (
-                      <>
-                        {member.role !== "OWNER" && (
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                              >
-                                <MoreHorizontal className="h-4 w-4" />
-                                <span className="sr-only">Ouvrir le menu</span>
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent
-                              align="end"
-                              className="w-fit max-w-xs"
-                            >
-                              <DropdownMenuLabel>
-                                Actions sur {member.name}
-                              </DropdownMenuLabel>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem
-                                onSelect={() => setMemberToEditRole(member)}
-                              >
-                                Changer le rôle
-                              </DropdownMenuItem>
-                              {currentUserRole === "OWNER" && (
-                                <DropdownMenuItem
-                                  onSelect={() => setMemberToTransfer(member)}
-                                >
-                                  <Crown className="w-4 h-4 mr-2" />
-                                  Transférer la propriété
-                                </DropdownMenuItem>
-                              )}
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem
-                                className="text-destructive focus:bg-destructive/10 focus:text-destructive cursor-pointer"
-                                onClick={() => setMemberToDelete(member)}
-                              >
-                                <Trash2 className="w-4 h-4 mr-2" />
-                                Retirer de l&apos;équipe
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        )}
-                      </>
-                    )}
                   </div>
                 </div>
-              );
-            })}
 
-            {/* AUCUN RÉSULTAT */}
-            {filteredMembers.length === 0 && (
-              <div className="p-8 text-center text-muted-foreground text-sm">
-                {searchQuery
-                  ? `Aucun membre trouvé pour "${searchQuery}".`
-                  : "Aucun membre présent dans ce projet."}
-              </div>
-            )}
+                <div className="flex shrink-0 items-center gap-2">
+                  {getRoleBadge(member.role)}
+                  {!isMe && canManageMember && member.role !== "OWNER" ? (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon-sm" aria-label={`Actions pour ${member.name}`}>
+                          <MoreHorizontal />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-56">
+                        <DropdownMenuLabel className="truncate">{member.name}</DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onSelect={() => setMemberToEditRole(member)}>
+                          <ShieldCheck />
+                          Changer le rôle
+                        </DropdownMenuItem>
+                        {currentUserRole === "OWNER" && (
+                          <DropdownMenuItem onSelect={() => setMemberToTransfer(member)}>
+                            <Crown />
+                            Transférer la propriété
+                          </DropdownMenuItem>
+                        )}
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem variant="destructive" onSelect={() => setMemberToDelete(member)}>
+                          <Trash2 />
+                          Retirer de l&apos;équipe
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  ) : (
+                    <span aria-hidden="true" className="size-8" />
+                  )}
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+
+        {filteredMembers.length === 0 && (
+          <div className="flex flex-col items-center gap-2 p-10 text-center">
+            <Search aria-hidden="true" className="size-5 text-muted-foreground" />
+            <p className="text-sm font-medium">Aucun membre trouvé</p>
+            <p className="text-xs text-muted-foreground">
+              {searchQuery ? `Aucun résultat pour « ${searchQuery} ».` : "Invitez un premier collaborateur."}
+            </p>
           </div>
-        </CardContent>
-      </Card>
+        )}
+      </section>
 
       {/* CONFIRMATION DIALOG DE SUPPRESSION */}
       <AlertDialog

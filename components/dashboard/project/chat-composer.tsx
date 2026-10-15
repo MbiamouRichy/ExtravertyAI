@@ -15,6 +15,7 @@ import {
   Paperclip,
   Mic,
   ChevronDown,
+  CornerDownLeft,
   Loader2,
   Sparkles,
   WandSparkles,
@@ -353,13 +354,13 @@ export function ChatComposer({
             {expanded &&
               proposal &&
               (proposal.mode === "suggest" || proposal.draft === draft) && (
-                <div className="max-h-60 space-y-2 overflow-y-auto rounded-lg border bg-muted p-3">
+                <div className="max-h-72 space-y-2 overflow-y-auto rounded-xl border bg-muted/50 p-3">
                   <div className="flex items-center justify-between gap-2">
                     <p className="text-xs text-muted-foreground">
                       {proposal.mode === "rewrite"
                         ? "Reformulation professionnelle"
                         : "Réponses suggérées"}{" "}
-                      · À relire avant envoi
+                      · Cliquez pour l’utiliser, puis relisez avant envoi
                     </p>
                     <Button
                       type="button"
@@ -371,34 +372,37 @@ export function ChatComposer({
                       <X aria-hidden="true" className="size-4" />
                     </Button>
                   </div>
-                  {proposal.replies.map((reply, index) => (
-                    <div key={index} className="space-y-2 border-t pt-2">
-                      <p
-                        dir="auto"
-                        className="whitespace-pre-wrap wrap-anywhere text-sm"
-                      >
-                        {reply}
-                      </p>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        disabled={isSending}
-                        onClick={() => {
-                          form.setValue("content", reply, {
-                            shouldValidate: true,
-                          });
-                          onDraftChange(reply);
-                          setProposal(null);
-                          textareaRef.current?.focus();
-                        }}
-                      >
-                        {draft.trim()
-                          ? "Remplacer le brouillon"
-                          : "Insérer dans le brouillon"}
-                      </Button>
-                    </div>
-                  ))}
+                  <ul className="grid gap-2">
+                    {proposal.replies.map((reply, index) => (
+                      <li key={index}>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          disabled={isSending}
+                          className="group h-auto w-full items-start justify-between gap-3 whitespace-normal rounded-xl bg-background px-3 py-2.5 text-left font-normal"
+                          onClick={() => {
+                            form.setValue("content", reply, {
+                              shouldValidate: true,
+                            });
+                            onDraftChange(reply);
+                            setProposal(null);
+                            textareaRef.current?.focus();
+                          }}
+                        >
+                          <span
+                            dir="auto"
+                            className="whitespace-pre-wrap text-sm leading-relaxed wrap-anywhere"
+                          >
+                            {reply}
+                          </span>
+                          <span className="mt-0.5 inline-flex shrink-0 items-center gap-1 text-xs text-muted-foreground transition-colors group-hover:text-foreground">
+                            <CornerDownLeft aria-hidden="true" className="size-3.5" />
+                            {draft.trim() ? "Remplacer" : "Insérer"}
+                          </span>
+                        </Button>
+                      </li>
+                    ))}
+                  </ul>
                 </div>
               )}
           </div>
