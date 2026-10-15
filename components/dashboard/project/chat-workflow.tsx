@@ -24,11 +24,6 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import {
   Field,
   FieldDescription,
   FieldError,
@@ -78,7 +73,7 @@ export function ResolveConversationButton({
         <Button
           type="button"
           size="sm"
-          variant={resolved ? "outline" : "secondary"}
+          variant={resolved ? "outline" : "default"}
           disabled={busy}
           aria-busy={busy}
           aria-label={
@@ -200,8 +195,8 @@ function TagForm({
   );
 }
 
-// Fiche « étiquettes » du contact actif : ajout et retrait validés côté serveur.
-export function ContactTagsPopover({
+// Étiquettes du contact actif (fiche contact) : ajout et retrait validés côté serveur.
+export function ContactTagsEditor({
   projectId,
   contactId,
   contactName,
@@ -278,91 +273,74 @@ export function ContactTagsPopover({
   }
 
   return (
-    <Popover onOpenChange={(open) => !open && setAdding(false)}>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <PopoverTrigger asChild>
+    <section aria-labelledby={`tags-${contactId}`}>
+      <h2
+        id={`tags-${contactId}`}
+        className="font-mono text-[11px] font-normal uppercase tracking-wider text-muted-foreground"
+      >
+        Étiquettes
+      </h2>
+      <p className="mb-2 mt-1 text-xs text-muted-foreground">
+        Classez vos contacts pour les retrouver et les filtrer. Visible
+        uniquement par votre équipe.
+      </p>
+      <ul
+        aria-label={`Étiquettes de ${contactName}`}
+        className="flex flex-wrap gap-1.5"
+      >
+        {display.map((tag) => (
+          <li
+            key={tag.id}
+            className="inline-flex items-center gap-0.5 rounded-md border bg-background py-0.5 pl-2 pr-0.5 text-xs"
+          >
+            {tag.name}
             <Button
               type="button"
-              size="sm"
               variant="ghost"
-              aria-label={`Étiquettes de ${contactName}${display.length ? ` (${display.length})` : ""}`}
+              size="icon-xs"
+              className="size-5"
+              disabled={pending !== null}
+              aria-label={`Retirer l’étiquette ${tag.name}`}
+              onClick={() => void remove(tag)}
             >
-              <Tag aria-hidden="true" />
-              {display.length > 0 && (
-                <span className="tabular-nums text-xs">{display.length}</span>
+              {pending === tag.id ? (
+                <Loader2
+                  aria-hidden="true"
+                  className="animate-spin motion-reduce:animate-none"
+                />
+              ) : (
+                <X aria-hidden="true" />
               )}
             </Button>
-          </PopoverTrigger>
-        </TooltipTrigger>
-        <TooltipContent>Étiquettes du contact</TooltipContent>
-      </Tooltip>
-      <PopoverContent align="end" className="w-72 space-y-3">
-        <div>
-          <h3 className="text-sm font-semibold">Étiquettes</h3>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            Classez vos contacts pour les retrouver et les filtrer. Visible
-            uniquement par votre équipe.
-          </p>
-        </div>
-        {display.length === 0 ? (
-          <p className="text-xs text-muted-foreground">
-            Aucune étiquette pour {contactName}.
-          </p>
-        ) : (
-          <ul
-            aria-label="Étiquettes du contact"
-            className="flex flex-wrap gap-1.5"
-          >
-            {display.map((tag) => (
-              <li
-                key={tag.id}
-                className="inline-flex items-center gap-0.5 rounded-md border bg-background py-0.5 pl-2 pr-0.5 text-xs"
-              >
-                {tag.name}
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-xs"
-                  className="size-5"
-                  disabled={pending !== null}
-                  aria-label={`Retirer l’étiquette ${tag.name}`}
-                  onClick={() => void remove(tag)}
-                >
-                  {pending === tag.id ? (
-                    <Loader2
-                      aria-hidden="true"
-                      className="animate-spin motion-reduce:animate-none"
-                    />
-                  ) : (
-                    <X aria-hidden="true" />
-                  )}
-                </Button>
-              </li>
-            ))}
-          </ul>
+          </li>
+        ))}
+        {!adding && (
+          <li>
+            <Button
+              type="button"
+              variant="ghost"
+              size="xs"
+              className="text-muted-foreground"
+              disabled={pending !== null}
+              onClick={() => setAdding(true)}
+            >
+              <Plus aria-hidden="true" />
+              Ajouter
+            </Button>
+          </li>
         )}
-        {adding ? (
+      </ul>
+      {adding && (
+        <div className="mt-2">
           <TagForm
             existing={display}
             pending={pending === "add"}
             onAdd={add}
             onCancel={() => setAdding(false)}
           />
-        ) : (
-          <Button
-            type="button"
-            variant="outline"
-            size="xs"
-            disabled={pending !== null}
-            onClick={() => setAdding(true)}
-          >
-            <Plus aria-hidden="true" />
-            Ajouter une étiquette
-          </Button>
-        )}
-      </PopoverContent>
-    </Popover>
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -409,9 +387,12 @@ export function TagFilter({
 export function ComposerModeToggle({
   mode,
   onChange,
+  hint,
 }: {
   mode: ComposerMode;
   onChange: (mode: ComposerMode) => void;
+  /** Short contextual hint shown on the right (e.g. AI takeover). */
+  hint?: string;
 }) {
   return (
     <div
@@ -439,6 +420,11 @@ export function ComposerModeToggle({
         <Lock aria-hidden="true" />
         Note interne
       </Button>
+      {hint && (
+        <span className="ml-auto hidden truncate text-[11px] text-muted-foreground sm:inline">
+          {hint}
+        </span>
+      )}
     </div>
   );
 }

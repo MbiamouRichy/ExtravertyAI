@@ -47,11 +47,14 @@ export function Composer({
   aiActive,
   suggestions,
   onSend,
+  onReply,
 }: {
   conversationId: string;
   aiActive: boolean;
   suggestions: string[];
   onSend: (text: string, mode: ComposerMode) => void;
+  /** Clicking « Répondre » means taking over from the assistant. */
+  onReply: () => void;
 }) {
   const [mode, setMode] = useState<ComposerMode>("reply");
   const [improving, setImproving] = useState(false);
@@ -144,7 +147,11 @@ export function Composer({
                       size="xs"
                       variant={!isNote ? "secondary" : "ghost"}
                       aria-pressed={!isNote}
-                      onClick={() => setMode("reply")}
+                      onClick={() => {
+                        setMode("reply");
+                        onReply();
+                        document.getElementById(fieldId)?.focus();
+                      }}
                     >
                       Répondre
                     </InputGroupButton>
@@ -160,7 +167,7 @@ export function Composer({
                   </div>
                   {aiActive && !isNote && (
                     <span className="ml-auto hidden text-[11px] font-normal sm:inline">
-                      Envoyer un message met l’IA en pause
+                      Cliquer sur « Répondre » met l’IA en pause
                     </span>
                   )}
                 </InputGroupAddon>

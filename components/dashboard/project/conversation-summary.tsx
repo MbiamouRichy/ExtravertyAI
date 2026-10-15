@@ -1,38 +1,36 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Dialog as DialogPrimitive } from "radix-ui";
-import { FileText, X } from "lucide-react";
+import { RefreshCw, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { summarizeConversation } from "@/app/actions/summarizeConversation";
-import { AiResponseText, AiThinking } from "./ai-response";
+import { AiResponseText } from "./ai-response";
 
 type Result = Extract<
   Awaited<ReturnType<typeof summarizeConversation>>,
   { success: true }
 >;
 
-export function ConversationSummaryButton({
+/**
+ * Inline AI summary for the contact panel. Generated on demand only:
+ * the summary is a paid AI call and is never triggered automatically.
+ */
+export function ConversationSummaryCard({
   projectId,
   contactId,
-  contactName,
   enabled,
-  container,
-  onOpenChange,
 }: {
   projectId: string;
   contactId: string;
-  contactName: string;
   enabled: boolean;
-  container: HTMLElement | null;
-  onOpenChange?: (open: boolean) => void;
 }) {
-  const [open, setOpen] = useState(false);
   const [pending, setPending] = useState(false);
   const [result, setResult] = useState<Result | null>(null);
   const [error, setError] = useState("");
   const [animateResult, setAnimateResult] = useState(false);
   const lock = useRef(false);
+
   async function generate() {
     if (lock.current || !enabled) return;
     lock.current = true;
@@ -54,113 +52,91 @@ export function ConversationSummaryButton({
       setPending(false);
     }
   }
+
   return (
-    <DialogPrimitive.Root
-      open={open}
-      onOpenChange={(value) => {
-        setOpen(value);
-        onOpenChange?.(value);
-        if (!value) setAnimateResult(false);
-      }}
+    <section
+      aria-labelledby={`summary-${contactId}`}
+      className="rounded-xl border bg-muted/40 p-4"
     >
-      <DialogPrimitive.Trigger asChild>
-        <Button
-          variant="outline"
-          size="icon"
-          disabled={!enabled}
-          className="shrink-0"
-          title={
-            enabled
-              ? "Résumé IA de la conversation"
-              : "Disponible après un message du client"
-          }
-          aria-label="Résumé IA de la conversation"
-          onClick={() => {
-            if (!result) void generate();
-          }}
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <h2
+          id={`summary-${contactId}`}
+          className="flex items-center gap-1.5 font-heading text-sm font-semibold tracking-normal"
         >
-          <FileText aria-hidden="true" className="size-4" />
-        </Button>
-      </DialogPrimitive.Trigger>
-      <DialogPrimitive.Portal container={container}>
-        <DialogPrimitive.Content className="absolute inset-0 z-30 flex min-h-0 flex-col bg-background text-foreground outline-none data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:slide-in-from-bottom-2 duration-200 motion-reduce:animate-none">
-          <header className="chat-floating-header relative z-10 flex shrink-0 items-start justify-between gap-3 bg-background p-4 sm:p-6">
-            <div className="min-w-0">
-              <DialogPrimitive.Title className="text-lg font-semibold">
-                Résumé IA
-              </DialogPrimitive.Title>
-              <DialogPrimitive.Description className="mt-1 text-sm text-muted-foreground">
-                Conversation avec {contactName}. Analyse à vérifier, visible
-                uniquement dans votre espace.
-              </DialogPrimitive.Description>
-            </div>
-            <DialogPrimitive.Close asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                aria-label="Revenir à la conversation"
-              >
-                <X aria-hidden="true" className="size-4" />
-              </Button>
-            </DialogPrimitive.Close>
-          </header>
-          <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
-            {pending && (
-              <AiThinking generation={{ id: contactId, state: "thinking" }} />
-            )}
-            {error && (
-              <p role="alert" className="mb-4 text-sm text-destructive">
-                {error}
-              </p>
-            )}
-            {result && !pending && (
-              <div
-                key={result.generatedAt}
-                className="space-y-6 animate-in fade-in-0 slide-in-from-bottom-2 duration-300 motion-reduce:animate-none"
-              >
-                {result.partial && (
-                  <p className="rounded-lg bg-muted p-3 text-sm text-muted-foreground">
-                    Ce résumé porte sur les échanges récents (200 messages
-                    maximum). Il inclut les transcriptions audio et les analyses
-                    d’images disponibles. Certains textes peuvent être abrégés ;
-                    les médias non analysés ne sont pas pris en compte.
-                  </p>
-                )}
-                <p role="status" className="sr-only">
-                  Le résumé de la conversation est prêt.
-                </p>
-                <AiResponseText
-                  key={result.generatedAt}
-                  animate={animateResult}
-                  content={[
-                    `L’essentiel\n${result.summary.summary}`,
-                    `Analyse\n${result.summary.assessment}`,
-                    ...(result.summary.nextSteps.length
-                      ? [
-                          `Prochaines actions\n${result.summary.nextSteps.map((step) => `• ${step}`).join("\n")}`,
-                        ]
-                      : []),
-                  ].join("\n\n")}
-                />
-                <p className="text-xs text-muted-foreground">
-                  Résumé ponctuel : actualisez-le après de nouveaux échanges.
-                </p>
-              </div>
-            )}
+          <Sparkles aria-hidden="true" className="size-3.5" />
+          Résumé IA
+        </h2>
+        {result && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-xs"
+            disabled={pending || !enabled}
+            onClick={() => void generate()}
+            aria-label="Actualiser le résumé"
+          >
+            <RefreshCw
+              aria-hidden="true"
+              className={pending ? "animate-spin motion-reduce:animate-none" : undefined}
+            />
+          </Button>
+        )}
+      </div>
+
+      <div aria-live="polite" aria-busy={pending}>
+        {pending ? (
+          <div className="space-y-2 py-1">
+            <Skeleton className="h-3 w-full" />
+            <Skeleton className="h-3 w-5/6" />
+            <Skeleton className="h-3 w-2/3" />
+            <span className="sr-only">Génération du résumé…</span>
           </div>
-          <footer className="chat-floating-composer relative z-10 flex shrink-0 justify-end gap-2 bg-background p-4">
-            <DialogPrimitive.Close asChild>
-              <Button variant="ghost">Retour au chat</Button>
-            </DialogPrimitive.Close>
+        ) : result ? (
+          <div className="space-y-3 text-xs [&_p]:text-xs">
+            <AiResponseText
+              key={result.generatedAt}
+              animate={animateResult}
+              content={[
+                `L’essentiel\n${result.summary.summary}`,
+                `Analyse\n${result.summary.assessment}`,
+                ...(result.summary.nextSteps.length
+                  ? [
+                      `Prochaines actions\n${result.summary.nextSteps.map((step) => `• ${step}`).join("\n")}`,
+                    ]
+                  : []),
+              ].join("\n\n")}
+            />
+            <p className="text-muted-foreground">
+              {result.partial
+                ? "Basé sur les 200 derniers messages. À vérifier avant d’agir."
+                : "Analyse ponctuelle, à vérifier avant d’agir."}
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <p className="text-xs leading-relaxed text-muted-foreground">
+              {enabled
+                ? "Comprenez la conversation en quelques lignes avant de répondre."
+                : "Disponible après un premier message du client."}
+            </p>
             <Button
-              disabled={pending || !enabled}
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={!enabled}
               onClick={() => void generate()}
             >
-              {result ? "Actualiser" : "Réessayer"}
+              <Sparkles data-icon="inline-start" />
+              Générer le résumé
             </Button>
-          </footer>
-        </DialogPrimitive.Content>
-      </DialogPrimitive.Portal>
-    </DialogPrimitive.Root>
+          </div>
+        )}
+        {error && (
+          <p role="alert" className="mt-2 text-xs text-destructive">
+            {error}
+          </p>
+        )}
+      </div>
+    </section>
   );
 }

@@ -19,10 +19,13 @@ import {
   CheckCheck,
   CircleAlert,
   CircleCheck,
+  Ellipsis,
   Clock3,
   Loader2,
   Lock,
   MessageCircle,
+  PanelRightClose,
+  PanelRightOpen,
   Pause,
   Search,
   Sparkles,
@@ -47,6 +50,19 @@ import {
   InputGroupInput,
 } from "@/components/ui/input-group";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import {
   ConversationListLoading,
   ConversationMessagesLoading,
@@ -82,7 +98,6 @@ import {
 } from "@/app/actions/conversation-workflow";
 import {
   ComposerModeToggle,
-  ContactTagsPopover,
   InternalNoteComposer,
   ResolveConversationButton,
   TagFilter,
@@ -99,7 +114,7 @@ import {
 import { cn } from "@/lib/utils";
 import { AiResponseText, AiThinking, useLiveAiResponses } from "./ai-response";
 import { ChatComposer } from "./chat-composer";
-import { ConversationSummaryButton } from "./conversation-summary";
+import { ChatContactPanel } from "./chat-contact-panel";
 import { useConversationRead } from "@/hooks/use-conversation-read";
 import { createChatDateFormatters } from "@/lib/chat-dates";
 import { SendChatMessageSchema } from "@/lib/message-schema";
@@ -549,9 +564,9 @@ export default function WhatsappWorkspace({
     initialClient || null,
   );
   const [mobileChat, setMobileChat] = useState(!!initialClient);
-  const [summaryOpen, setSummaryOpen] = useState(false);
-  const [conversationElement, setConversationElement] =
-    useState<HTMLElement | null>(null);
+  // Fiche contact : colonne à droite sur grand écran, panneau latéral sinon.
+  const [panelOpen, setPanelOpen] = useState(true);
+  const [sheetOpen, setSheetOpen] = useState(false);
 
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
@@ -571,7 +586,7 @@ export default function WhatsappWorkspace({
     // Les notes internes ne sont pas des messages : on lit jusqu'au dernier message.
     messageId: historyQuery.items.findLast((item) => item.senderType !== "note")
       ?.id,
-    enabled: !summaryOpen && !historyQuery.error,
+    enabled: !historyQuery.error,
     onRead: () => {
       void contactsQuery.mutate();
     },
@@ -884,7 +899,6 @@ export default function WhatsappWorkspace({
   }, [visibleClients, activeId]);
 
   function selectClient(id: string) {
-    setSummaryOpen(false);
     setComposerMode("reply");
     const client = clients.find((item) => item.id === id);
 
@@ -897,6 +911,20 @@ export default function WhatsappWorkspace({
     if (window.matchMedia("(min-width: 768px)").matches) {
       requestAnimationFrame(() => textareaRef.current?.focus());
     }
+  }
+
+  function openContact() {
+    if (window.matchMedia("(min-width: 80rem)").matches) setPanelOpen(true);
+    else setSheetOpen(true);
+  }
+
+  // « Répondre » signifie reprendre la main : l’IA se met en pause pour ce contact.
+  function changeComposerMode(mode: ComposerMode) {
+    setComposerMode(mode);
+    if (mode === "reply" && aiActive && canManageAi && aiBusyId === null) {
+      void toggleAi();
+    }
+    if (mode === "reply") requestAnimationFrame(() => textareaRef.current?.focus());
   }
 
   function goBack() {
@@ -1551,7 +1579,6 @@ export default function WhatsappWorkspace({
 
         {/* Conversation active */}
         <section
-          ref={setConversationElement}
           aria-label="Conversation active"
           className={cn(
             "relative min-h-0 min-w-0 flex-1 flex-col overflow-hidden",
@@ -1573,14 +1600,20 @@ export default function WhatsappWorkspace({
                     <ArrowLeft aria-hidden="true" />
                   </Button>
 
+                  <button
+                    type="button"
+                    onClick={openContact}
+                    aria-label={`Voir la fiche de ${activeClient.name}`}
+                    className="flex min-w-0 flex-1 items-center gap-2 rounded-lg p-1 text-left outline-none hover:bg-muted/60 focus-visible:ring-3 focus-visible:ring-ring/50 sm:gap-3"
+                  >
                   <Avatar className="hidden size-9 shrink-0 sm:flex">
                     <AvatarFallback className="font-heading text-xs font-semibold">
                       {getInitials(activeClient.name)}
                     </AvatarFallback>
                   </Avatar>
 
-                  <div className="min-w-0 flex-1">
-                    <div className="flex min-w-0 items-center gap-2">
+                  <span className="block min-w-0 flex-1">
+                    <span className="flex min-w-0 items-center gap-2">
                       <h2 className="truncate text-sm font-semibold sm:text-base">
                         {activeClient.name}
                       </h2>
@@ -1589,38 +1622,17 @@ export default function WhatsappWorkspace({
                         agents={conversationAgents}
                         loading={historyQuery.isLoading}
                       />
-                    </div>
-                    <div className="mt-0.5 hidden sm:flex">
+                    </span>
+                    <span className="mt-0.5 hidden sm:flex">
                       <InstinctBadge
                         classification={activeClient.prospectClassification}
                       />
-                    </div>
-                  </div>
+                    </span>
+                  </span>
+                  </button>
                 </div>
 
                 <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-2">
-                  <ContactTagsPopover
-                    key={`tags-${activeClient.id}`}
-                    projectId={project.id}
-                    contactId={activeClient.id}
-                    contactName={activeClient.name}
-                    tags={activeClient.tags ?? []}
-                    onChanged={() => void contactsQuery.mutate()}
-                  />
-                  <ResolveConversationButton
-                    resolved={activeResolved}
-                    busy={resolveBusyId === activeClient.id}
-                    onToggle={() => void toggleResolved()}
-                  />
-                  <ConversationSummaryButton
-                    onOpenChange={setSummaryOpen}
-                    key={activeClient.id}
-                    projectId={project.id}
-                    contactId={activeClient.id}
-                    contactName={activeClient.name}
-                    enabled={historyQuery.hasClientMessage}
-                    container={conversationElement}
-                  />
                   {canManageAi ? (
                     <div className="flex shrink-0 items-center gap-2 rounded-lg border px-2.5 py-1.5">
                       {aiBusyId === activeClient.id ? (
@@ -1660,6 +1672,55 @@ export default function WhatsappWorkspace({
                       {aiActive ? "IA active" : "IA en pause"}
                     </span>
                   )}
+                  <ResolveConversationButton
+                    resolved={activeResolved}
+                    busy={resolveBusyId === activeClient.id}
+                    onToggle={() => void toggleResolved()}
+                  />
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        aria-label="Plus d’actions"
+                      >
+                        <Ellipsis aria-hidden="true" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-52">
+                      <DropdownMenuItem onSelect={openContact}>
+                        Fiche contact
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onSelect={() => changeComposerMode("note")}>
+                        Ajouter une note interne
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="hidden xl:inline-flex"
+                        aria-pressed={panelOpen}
+                        aria-label={
+                          panelOpen
+                            ? "Masquer la fiche contact"
+                            : "Afficher la fiche contact"
+                        }
+                        onClick={() => setPanelOpen((value) => !value)}
+                      >
+                        {panelOpen ? (
+                          <PanelRightClose aria-hidden="true" />
+                        ) : (
+                          <PanelRightOpen aria-hidden="true" />
+                        )}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Fiche contact</TooltipContent>
+                  </Tooltip>
                 </div>
               </header>
 
@@ -1793,7 +1854,12 @@ export default function WhatsappWorkspace({
                 <div className="mx-auto max-w-4xl">
                   <ComposerModeToggle
                     mode={composerMode}
-                    onChange={setComposerMode}
+                    onChange={changeComposerMode}
+                    hint={
+                      aiActive && canManageAi && composerMode === "reply"
+                        ? "Cliquer sur « Répondre » met l’IA en pause"
+                        : undefined
+                    }
                   />
                   {aiActive && composerMode === "reply" && (
                     <div className="mb-3 flex items-start gap-2 rounded-xl border border-dashed px-3 py-2">
@@ -1805,7 +1871,7 @@ export default function WhatsappWorkspace({
                         L’IA est activée et peut également répondre à ce
                         contact.
                         {canManageAi &&
-                          " Désactivez « Assistant IA » pour reprendre la main."}
+                          " Cliquez sur « Répondre » pour reprendre la main : l’IA se met en pause pour ce contact."}
                       </p>
                     </div>
                   )}
@@ -1874,7 +1940,57 @@ export default function WhatsappWorkspace({
             </div>
           )}
         </section>
+
+        {activeClient && panelOpen && (
+          <aside
+            aria-label="Fiche contact"
+            className="hidden w-80 shrink-0 overflow-y-auto border-l bg-background xl:block"
+          >
+            <ChatContactPanel
+              projectId={project.id}
+              client={activeClient}
+              aiActive={aiActive}
+              resolved={activeResolved}
+              automationPaused={project.automationPaused}
+              agents={conversationAgents}
+              hasClientMessage={historyQuery.hasClientMessage}
+              lastActivityLabel={dateFormatter.format(
+                new Date(activeClient.lastActivityAt),
+              )}
+              onTagsChanged={() => void contactsQuery.mutate()}
+            />
+          </aside>
+        )}
       </div>
+
+      {activeClient && (
+        <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
+          <SheetContent
+            side="right"
+            className="w-full overflow-y-auto sm:max-w-sm xl:hidden"
+          >
+            <SheetHeader className="sr-only">
+              <SheetTitle>Fiche de {activeClient.name}</SheetTitle>
+              <SheetDescription>
+                Statut, Instinct IA, résumé et étiquettes du contact
+              </SheetDescription>
+            </SheetHeader>
+            <ChatContactPanel
+              projectId={project.id}
+              client={activeClient}
+              aiActive={aiActive}
+              resolved={activeResolved}
+              automationPaused={project.automationPaused}
+              agents={conversationAgents}
+              hasClientMessage={historyQuery.hasClientMessage}
+              lastActivityLabel={dateFormatter.format(
+                new Date(activeClient.lastActivityAt),
+              )}
+              onTagsChanged={() => void contactsQuery.mutate()}
+            />
+          </SheetContent>
+        </Sheet>
+      )}
 
       <p
         role="status"

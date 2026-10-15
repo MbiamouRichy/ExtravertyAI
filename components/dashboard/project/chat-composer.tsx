@@ -14,7 +14,6 @@ import {
   ArrowUp,
   Paperclip,
   Mic,
-  ChevronDown,
   CornerDownLeft,
   Loader2,
   Sparkles,
@@ -211,7 +210,6 @@ export function ChatComposer({
     if (fileRef.current) fileRef.current.value = "";
   }, [contactId]);
   const [busy, setBusy] = useState<"suggest" | "rewrite" | null>(null);
-  const [expanded, setExpanded] = useState(false);
   const [proposal, setProposal] = useState<{
     mode: "suggest" | "rewrite";
     replies: string[];
@@ -224,7 +222,6 @@ export function ChatComposer({
     requestLock.current = false;
     setBusy(null);
     setProposal(null);
-    setExpanded(false);
     return () => {
       requestId.current += 1;
     };
@@ -256,7 +253,6 @@ export function ChatComposer({
     const id = ++requestId.current;
     setBusy(mode);
     setProposal(null);
-    if (!automatic) setExpanded(true);
     try {
       const result = await assistWriting({
         projectId,
@@ -312,98 +308,107 @@ export function ChatComposer({
     >
       {assistanceEnabled && !audioMode && (
         <section
-          aria-label="Assistance à la rédaction"
-          className="mb-2 space-y-2"
+          aria-labelledby={`chat-ai-proposals-title-${contactId}`}
+          className="mb-2"
         >
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="w-full min-w-0 justify-start"
-            aria-expanded={expanded}
-            aria-controls="chat-ai-proposals"
-            disabled={!!busy || isSending || !hasClientMessage}
-            onClick={() =>
-              proposal?.mode === "suggest"
-                ? setExpanded(!expanded)
-                : void requestAssistance("suggest")
-            }
-          >
-            {busy === "suggest" ? (
-              <Loader2
-                aria-hidden="true"
-                className="size-4 animate-spin motion-reduce:animate-none"
-              />
+          <div className="mb-1.5 flex items-center justify-between gap-2">
+            <p
+              id={`chat-ai-proposals-title-${contactId}`}
+              className="flex min-w-0 items-center gap-1.5 text-[11px] text-muted-foreground"
+            >
+              {busy ? (
+                <Loader2
+                  aria-hidden="true"
+                  className="size-3 shrink-0 animate-spin motion-reduce:animate-none"
+                />
+              ) : (
+                <Sparkles aria-hidden="true" className="size-3 shrink-0" />
+              )}
+              <span className="truncate">
+                {busy === "suggest"
+                  ? "Suggestions IA en cours…"
+                  : busy === "rewrite"
+                    ? "Reformulation en cours…"
+                    : proposal?.mode === "rewrite"
+                      ? "Reformulation · cliquez pour l’utiliser, puis relisez"
+                      : proposal
+                        ? "Suggestions IA · cliquez pour insérer, puis relisez avant d’envoyer"
+                        : hasClientMessage
+                          ? "Suggestions IA"
+                          : "Les suggestions apparaîtront après un message du client"}
+              </span>
+            </p>
+            {proposal ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-xs"
+                aria-label="Masquer les propositions"
+                onClick={() => setProposal(null)}
+              >
+                <X aria-hidden="true" />
+              </Button>
             ) : (
-              <Sparkles aria-hidden="true" className="size-4" />
+              hasClientMessage &&
+              !busy && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="xs"
+                  disabled={isSending}
+                  onClick={() => void requestAssistance("suggest")}
+                >
+                  Proposer des réponses
+                </Button>
+              )
             )}
-            {busy === "suggest" ? "Suggestions en cours…" : "Suggestions IA"}
-            <ChevronDown
-              aria-hidden="true"
-              className={`size-4 shrink-0 transition-transform ${expanded ? "rotate-180" : ""}`}
-            />
-            <span className="min-w-0 truncate text-xs font-normal text-muted-foreground">
-              {proposal?.mode === "suggest"
-                ? proposal.replies[0]
-                : busy === "suggest"
-                  ? "Analyse de la discussion…"
-                  : "Afficher des réponses adaptées…"}
-            </span>
-          </Button>
-          <div id="chat-ai-proposals" aria-live="polite" aria-busy={!!busy}>
-            {expanded &&
+          </div>
+          <div aria-live="polite" aria-busy={!!busy}>
+            {busy === "suggest" && (
+              <div aria-hidden="true" className="grid gap-1.5 sm:grid-cols-2">
+                <div className="h-14 animate-pulse rounded-xl border bg-muted/50 motion-reduce:animate-none" />
+                <div className="h-14 animate-pulse rounded-xl border bg-muted/50 motion-reduce:animate-none" />
+              </div>
+            )}
+            {!busy &&
               proposal &&
               (proposal.mode === "suggest" || proposal.draft === draft) && (
-                <div className="max-h-72 space-y-2 overflow-y-auto rounded-xl border bg-muted/50 p-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="text-xs text-muted-foreground">
-                      {proposal.mode === "rewrite"
-                        ? "Reformulation professionnelle"
-                        : "Réponses suggérées"}{" "}
-                      · Cliquez pour l’utiliser, puis relisez avant envoi
-                    </p>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon-sm"
-                      aria-label="Fermer les propositions"
-                      onClick={() => setExpanded(false)}
-                    >
-                      <X aria-hidden="true" className="size-4" />
-                    </Button>
-                  </div>
-                  <ul className="grid gap-2">
-                    {proposal.replies.map((reply, index) => (
-                      <li key={index}>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          disabled={isSending}
-                          className="group h-auto w-full items-start justify-between gap-3 whitespace-normal rounded-xl bg-background px-3 py-2.5 text-left font-normal"
-                          onClick={() => {
-                            form.setValue("content", reply, {
-                              shouldValidate: true,
-                            });
-                            onDraftChange(reply);
-                            setProposal(null);
-                            textareaRef.current?.focus();
-                          }}
+                <ul className="grid max-h-44 gap-1.5 overflow-y-auto sm:grid-cols-2">
+                  {proposal.replies.map((reply, index) => (
+                    <li key={index} className="min-w-0">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        disabled={isSending}
+                        className="group h-full w-full items-start justify-between gap-2 whitespace-normal rounded-xl px-3 py-2 text-left font-normal"
+                        onClick={() => {
+                          form.setValue("content", reply, {
+                            shouldValidate: true,
+                          });
+                          onDraftChange(reply);
+                          setProposal(null);
+                          textareaRef.current?.focus();
+                        }}
+                      >
+                        <span
+                          dir="auto"
+                          className="whitespace-pre-wrap text-xs leading-relaxed wrap-anywhere"
                         >
-                          <span
-                            dir="auto"
-                            className="whitespace-pre-wrap text-sm leading-relaxed wrap-anywhere"
-                          >
-                            {reply}
-                          </span>
-                          <span className="mt-0.5 inline-flex shrink-0 items-center gap-1 text-xs text-muted-foreground transition-colors group-hover:text-foreground">
-                            <CornerDownLeft aria-hidden="true" className="size-3.5" />
-                            {draft.trim() ? "Remplacer" : "Insérer"}
-                          </span>
-                        </Button>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
+                          {reply}
+                        </span>
+                        <CornerDownLeft
+                          aria-hidden="true"
+                          className="mt-0.5 size-3.5 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100"
+                        />
+                        <span className="sr-only">
+                          {draft.trim()
+                            ? "Remplacer le brouillon par cette proposition"
+                            : "Insérer cette proposition"}
+                        </span>
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
               )}
           </div>
         </section>

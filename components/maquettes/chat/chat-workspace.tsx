@@ -555,6 +555,9 @@ export function ChatWorkspace({
               aiActive={active.aiActive}
               suggestions={active.suggestions}
               onSend={send}
+              onReply={() => {
+                if (active.aiActive) setAi(active, false);
+              }}
             />
           </>
         )}
