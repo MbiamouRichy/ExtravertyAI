@@ -1,130 +1,119 @@
 import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
 
-const skeletonClassName = "motion-reduce:animate-none";
+// Mirrors CreateProjectForm's layout so nothing shifts when the form appears.
+function Bone({ className }: { className?: string }) {
+  return <Skeleton className={cn("motion-reduce:animate-none", className)} />;
+}
 
 export default function LoadingNewProject() {
   return (
     <div
       role="status"
       aria-busy="true"
-      aria-label="Chargement de la création de projet"
-      className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 sm:py-10 lg:px-8"
+      className="mx-auto w-full max-w-5xl px-4 pb-36 pt-6 sm:px-6 sm:pt-8 lg:px-8 lg:pb-16 lg:pt-10"
     >
       <span className="sr-only">
         Chargement du formulaire de création de projet…
       </span>
 
-      <div aria-hidden="true">
-        <div className="mb-7 flex h-11 items-center">
-          <Skeleton className={`h-4 w-28 ${skeletonClassName}`} />
+      <div aria-hidden>
+        <div className="flex h-11 items-center">
+          <Bone className="h-4 w-24" />
+        </div>
+        <div className="mt-4 mb-8 space-y-3 sm:mb-10">
+          <Bone className="h-8 w-52" />
+          <Bone className="h-4 w-full max-w-md" />
+          <div className="flex gap-3 pt-3">
+            {[0, 1, 2].map((step) => (
+              <Bone key={step} className="h-5 w-20 rounded-full" />
+            ))}
+          </div>
         </div>
 
-        <div className="mb-8 max-w-2xl space-y-4 sm:mb-10">
-          <Skeleton
-            className={`h-8 w-64 max-w-full rounded-full ${skeletonClassName}`}
-          />
-          <Skeleton className={`h-10 w-full max-w-xl ${skeletonClassName}`} />
-          <div className="space-y-2">
-            <Skeleton className={`h-5 w-full ${skeletonClassName}`} />
-            <Skeleton className={`h-5 w-4/5 ${skeletonClassName}`} />
+        <div className="grid items-start gap-10 lg:grid-cols-[minmax(0,1fr)_320px] lg:gap-12">
+          <div className="min-w-0 space-y-10">
+            <div>
+              <StepHeadingBone />
+              <div className="space-y-6">
+                <FieldBone />
+                <div className="grid gap-6 sm:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] sm:gap-4">
+                  <FieldBone />
+                  <FieldBone />
+                </div>
+              </div>
+            </div>
+            <div>
+              <StepHeadingBone />
+              <div className="grid gap-3 md:grid-cols-3">
+                {[0, 1, 2].map((plan) => (
+                  <div key={plan} className="space-y-3 rounded-xl border p-4">
+                    <Bone className="h-4 w-20" />
+                    <Bone className="h-7 w-24" />
+                    <Bone className="h-3 w-32" />
+                    <Bone className="h-3 w-full" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-xl border">
+            <div className="space-y-2 p-5">
+              <Bone className="h-3 w-24" />
+              <Bone className="h-5 w-40" />
+            </div>
+            <div className="space-y-3 border-t p-5">
+              {[0, 1, 2].map((row) => (
+                <div key={row} className="flex justify-between gap-4">
+                  <Bone className="h-4 w-24" />
+                  <Bone className="h-4 w-20" />
+                </div>
+              ))}
+            </div>
+            <div className="space-y-2 border-t p-5">
+              <Bone className="h-7 w-full" />
+              <Bone className="h-3 w-4/5" />
+            </div>
+            <div className="hidden space-y-3 border-t p-5 lg:block">
+              <Bone className="h-10 w-full" />
+              <Bone className="mx-auto h-3 w-48" />
+            </div>
           </div>
         </div>
+      </div>
 
-        <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-8">
-          <div className="min-w-0 space-y-6">
-            <div className="rounded-2xl border border-border bg-card shadow-sm">
-              <SectionHeader />
-
-              <div className="space-y-6 p-5 sm:p-6">
-                <Skeleton
-                  className={`h-3 w-44 max-w-full ${skeletonClassName}`}
-                />
-
-                {[0, 1].map((field) => (
-                  <div key={field} className="space-y-2">
-                    <Skeleton className={`h-4 w-36 ${skeletonClassName}`} />
-                    <Skeleton
-                      className={`h-12 w-full rounded-xl ${skeletonClassName}`}
-                    />
-                    <Skeleton className={`h-3 w-4/5 ${skeletonClassName}`} />
-                  </div>
-                ))}
-
-                <Skeleton
-                  className={`h-20 w-full rounded-xl ${skeletonClassName}`}
-                />
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-border bg-card shadow-sm">
-              <SectionHeader />
-
-              <div className="p-5 sm:p-6">
-                <div className="grid gap-3 sm:grid-cols-3">
-                  {[0, 1, 2].map((plan) => (
-                    <Skeleton
-                      key={plan}
-                      className={`h-56 w-full rounded-xl ${skeletonClassName}`}
-                    />
-                  ))}
-                </div>
-
-                <Skeleton className={`mt-4 h-8 w-full ${skeletonClassName}`} />
-              </div>
-            </div>
-
-            <Skeleton className={`h-14 w-full ${skeletonClassName}`} />
+      <div
+        aria-hidden
+        className="fixed inset-x-0 bottom-0 z-40 border-t bg-background px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] lg:hidden"
+      >
+        <div className="mx-auto flex max-w-5xl items-center gap-4">
+          <div className="flex-1 space-y-2">
+            <Bone className="h-4 w-36" />
+            <Bone className="h-3 w-24" />
           </div>
-
-          <div className="min-w-0 lg:sticky lg:top-8">
-            <div className="overflow-hidden rounded-2xl border border-primary/20 bg-card shadow-sm">
-              <div className="space-y-4 border-b border-border bg-primary/5 p-5 sm:p-6">
-                <div className="flex justify-between gap-4">
-                  <Skeleton className={`h-5 w-24 ${skeletonClassName}`} />
-                  <Skeleton
-                    className={`h-6 w-28 rounded-full ${skeletonClassName}`}
-                  />
-                </div>
-                <Skeleton className={`h-4 w-3/4 ${skeletonClassName}`} />
-              </div>
-
-              <div className="space-y-5 p-5 sm:p-6">
-                {[0, 1, 2].map((row) => (
-                  <div key={row} className="flex justify-between gap-4">
-                    <Skeleton className={`h-4 w-28 ${skeletonClassName}`} />
-                    <Skeleton className={`h-4 w-24 ${skeletonClassName}`} />
-                  </div>
-                ))}
-
-                <div className="space-y-4 border-t border-border pt-5">
-                  <Skeleton className={`h-9 w-full ${skeletonClassName}`} />
-                  <Skeleton className={`h-14 w-full ${skeletonClassName}`} />
-                </div>
-
-                <Skeleton
-                  className={`h-12 w-full rounded-xl ${skeletonClassName}`}
-                />
-                <Skeleton
-                  className={`mx-auto h-3 w-44 max-w-full ${skeletonClassName}`}
-                />
-              </div>
-            </div>
-          </div>
+          <Bone className="h-10 w-32" />
         </div>
       </div>
     </div>
   );
 }
 
-function SectionHeader() {
+function StepHeadingBone() {
   return (
-    <div className="flex items-start gap-3 border-b border-border p-5 sm:p-6">
-      <Skeleton className={`size-9 shrink-0 rounded-xl ${skeletonClassName}`} />
+    <div className="mb-5 space-y-2">
+      <Bone className="h-3 w-20" />
+      <Bone className="h-5 w-36" />
+      <Bone className="h-4 w-full max-w-sm" />
+    </div>
+  );
+}
 
-      <div className="min-w-0 flex-1 space-y-2">
-        <Skeleton className={`h-5 w-3/5 ${skeletonClassName}`} />
-        <Skeleton className={`h-4 w-4/5 ${skeletonClassName}`} />
-      </div>
+function FieldBone() {
+  return (
+    <div className="space-y-3">
+      <Bone className="h-4 w-28" />
+      <Bone className="h-11 w-full" />
     </div>
   );
 }

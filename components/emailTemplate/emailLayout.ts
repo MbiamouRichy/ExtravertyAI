@@ -12,7 +12,6 @@ import {
 
 export const EMAIL_SITE_URL = "https://extravertyai.com";
 export const EMAIL_LOGO_URL = `${EMAIL_SITE_URL}/logo-email.png`;
-export const EMAIL_SUPPORT = "support@extravertyai.com";
 
 export type EmailTone = "neutral" | "success" | "warning" | "danger" | "info";
 
@@ -139,7 +138,7 @@ ${options.content}
 </td></tr>
 <tr><td align="center" style="padding:24px 16px 0">
 ${options.reason ? `<p class="muted" style="margin:0 0 10px;font-size:12px;line-height:1.6;color:#737373">${options.reason}</p>` : ""}
-<p class="muted" style="margin:0;font-size:12px;line-height:1.6;color:#737373"><a class="link" href="${EMAIL_SITE_URL}" target="_blank" style="color:#737373;text-decoration:underline">extravertyai.com</a> &nbsp;·&nbsp; <a class="link" href="mailto:${EMAIL_SUPPORT}" style="color:#737373;text-decoration:underline">Support</a><br>&copy; ${year} ExtravertyAI · Une équipe à votre écoute, à distance.</p>
+<p class="muted" style="margin:0;font-size:12px;line-height:1.6;color:#737373"><a class="link" href="${EMAIL_SITE_URL}" target="_blank" style="color:#737373;text-decoration:underline">extravertyai.com</a><br>&copy; ${year} ExtravertyAI · Une équipe à votre écoute, à distance.</p>
 </td></tr>
 </table>
 </td></tr></table>

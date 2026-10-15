@@ -1,4 +1,4 @@
-import { emailUi as ui, escapeHtml, EMAIL_SUPPORT, renderEmail, safeEmailUrl } from "./emailLayout";
+import { emailUi as ui, escapeHtml, renderEmail, safeEmailUrl } from "./emailLayout";
 import { emailRoleLabel } from "./invitationEmail";
 
 export function ProjectMemberConfirmationEmail({
@@ -37,7 +37,7 @@ export function ProjectMemberConfirmationEmail({
       ]),
       ui.button(href, "Ouvrir le projet"),
       ui.fallback(href),
-      ui.note(`Une erreur&nbsp;? Contactez <a class="link" href="mailto:${EMAIL_SUPPORT}" style="color:#737373;text-decoration:underline">notre support</a> ou demandez à ${inviter} de retirer votre accès.`),
+      ui.note(`Une erreur&nbsp;? Demandez à ${inviter} de retirer votre accès depuis les réglages du projet.`),
     ].join(""),
   });
 }
