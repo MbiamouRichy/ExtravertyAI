@@ -133,18 +133,21 @@ export default function HomeProjectsPage({ projects }: CustomProjectProps) {
         <>
           <dl className="grid grid-cols-3 divide-x rounded-2xl border bg-card">
             {[
-              { label: "Projets", value: number.format(projects.length) },
-              { label: "WhatsApp connectés", value: `${connected} / ${projects.length}` },
-              { label: "Messages ce cycle", value: number.format(usedMessages) },
+              { label: "Projets", long: "Projets", value: number.format(projects.length) },
+              { label: "Connectés", long: "WhatsApp connectés", value: `${connected}/${projects.length}` },
+              { label: "Messages", long: "Messages ce cycle", value: number.format(usedMessages) },
             ].map((item) => (
-              <div key={item.label} className="px-4 py-4 sm:px-6">
-                <dt className="text-xs text-muted-foreground">{item.label}</dt>
-                <dd className="mt-1 font-heading text-xl font-bold tabular-nums sm:text-2xl">{item.value}</dd>
+              <div key={item.long} className="min-w-0 px-3 py-4 sm:px-6">
+                <dt className="truncate whitespace-nowrap text-xs text-muted-foreground">
+                  <span className="sm:hidden">{item.label}</span>
+                  <span className="hidden sm:inline">{item.long}</span>
+                </dt>
+                <dd className="mt-1 truncate font-heading text-xl font-bold tabular-nums sm:text-2xl">{item.value}</dd>
               </div>
             ))}
           </dl>
 
-          <ul className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          <ul className="grid min-w-0 grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
             {projects.map((project) => {
               const status = project.billingAccess
                 ? {
@@ -157,9 +160,9 @@ export default function HomeProjectsPage({ projects }: CustomProjectProps) {
               return (
                 <li
                   key={project.id}
-                  className="group relative flex flex-col rounded-2xl border bg-card transition-shadow focus-within:ring-3 focus-within:ring-ring/50 hover:shadow-lg hover:shadow-foreground/5"
+                  className="group relative flex min-w-0 flex-col rounded-2xl border bg-card transition-shadow focus-within:ring-3 focus-within:ring-ring/50 hover:shadow-lg hover:shadow-foreground/5"
                 >
-                  <div className="flex items-start justify-between gap-3 p-5 pb-4">
+                  <div className="flex min-w-0 items-start justify-between gap-3 p-4 pb-4 sm:p-5">
                     <div className="flex min-w-0 items-center gap-3">
                       <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary font-heading text-sm font-bold text-primary-foreground">
                         {project.name.trim().slice(0, 1).toUpperCase() || "P"}
@@ -189,23 +192,23 @@ export default function HomeProjectsPage({ projects }: CustomProjectProps) {
                     </span>
                   </div>
 
-                  <div className="space-y-4 px-5 pb-5">
+                  <div className="min-w-0 space-y-4 px-4 pb-5 sm:px-5">
                     <WhatsAppConnectionStatus status={project.instanceStatus} />
                     <Quota used={project.messageCount || 0} limit={project.allMessagesCount || 0} />
                   </div>
 
-                  <div className="mt-auto flex items-center justify-between gap-2 border-t px-5 py-3 text-xs text-muted-foreground">
-                    <span className="flex min-w-0 items-center gap-1.5">
-                      <CreditCard aria-hidden="true" className="size-3.5 shrink-0" />
-                      <span className="truncate capitalize">{project.plan}</span>
-                      {renewal && (
-                        <>
-                          <span aria-hidden="true">·</span>
+                  <div className="mt-auto flex min-w-0 items-center justify-between gap-2 border-t px-4 py-3 text-xs text-muted-foreground sm:px-5">
+                    <span className="flex min-w-0 flex-1 items-start gap-1.5 sm:items-center">
+                      <CreditCard aria-hidden="true" className="mt-0.5 size-3.5 shrink-0 sm:mt-0" />
+                      <span className="flex min-w-0 flex-col sm:flex-row sm:items-center sm:gap-1.5">
+                        <span className="truncate font-medium capitalize text-foreground">{project.plan}</span>
+                        {renewal && (
                           <span className="truncate">
-                            jusqu’au <LocalBillingDate value={renewal} />
+                            <span aria-hidden="true" className="hidden sm:inline">· </span>
+                            jusqu’au <LocalBillingDate value={renewal} dateOnly />
                           </span>
-                        </>
-                      )}
+                        )}
+                      </span>
                     </span>
                     <div className="relative z-10 flex shrink-0 items-center gap-1">
                       <Button asChild variant="ghost" size="icon-sm">

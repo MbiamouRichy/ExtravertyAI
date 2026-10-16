@@ -78,3 +78,41 @@ export function formatPlanPrice(cents: number) {
 export function formatMessageLimit(limit: number) {
   return new Intl.NumberFormat("fr-FR").format(limit);
 }
+
+const SHARED_CAPABILITIES = [
+  "Assistant IA WhatsApp 24 h/24, 7 j/7",
+  "Messagerie partagée avec votre équipe",
+  "Suggestions de réponses IA",
+  "Reformulation IA de vos messages",
+  "Notes internes et étiquettes",
+  "Reprise en main d’une conversation en un clic",
+] as const;
+
+/** Liste complète affichée sous « Afficher plus », cohérente avec `features`. */
+export const PLAN_CAPABILITIES: Record<PlanId, readonly string[]> = {
+  starter: [
+    ...SHARED_CAPABILITIES,
+    "Réponses textuelles",
+    "Statistiques sur 30 jours",
+    "Support standard",
+  ],
+  pro: [
+    ...SHARED_CAPABILITIES,
+    "Compréhension des notes vocales",
+    "Instinct IA : repère les prospects intéressants",
+    "Résumé IA des conversations",
+    "Export CSV des contacts",
+    "Statistiques sur 90 jours",
+    "Support prioritaire",
+  ],
+  business: [
+    ...SHARED_CAPABILITIES,
+    "Compréhension des notes vocales et des images",
+    "Instinct IA : repère les prospects intéressants",
+    "Résumé IA des conversations",
+    "Rapports hebdomadaires programmés",
+    "Exports CSV",
+    "Statistiques sur 12 mois",
+    "Accompagnement à la configuration",
+  ],
+};

@@ -82,7 +82,7 @@ export function AudioRecording({
   return (
     <section
       aria-label="Enregistrement du message vocal"
-      className="min-w-0 space-y-3 rounded-2xl border border-input bg-muted/30 p-3 shadow-sm"
+      className="min-w-0 space-y-2 px-3 py-2.5"
     >
       <div className="flex items-center justify-between gap-2 text-xs">
         <span

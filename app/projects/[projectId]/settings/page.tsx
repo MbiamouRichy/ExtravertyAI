@@ -41,7 +41,7 @@ export default async function SettingsPage({
     prisma.settingsAudit.findMany({
       where: { projectId },
       orderBy: { createdAt: "desc" },
-      take: 8,
+      take: 50,
       select: { id: true, action: true, createdAt: true },
     }),
     prisma.quotaPeriod.findFirst({ where: { projectId, isCurrent: true } }),
@@ -74,6 +74,7 @@ export default async function SettingsPage({
       alwaysOnline: p.whatsappAlwaysOnline,
       readMessages: p.whatsappReadMessages,
       typing: p.whatsappTyping,
+      rejectCalls: p.whatsappRejectCalls,
       pending: p.whatsappSettingsPending,
       error: p.whatsappSettingsError,
     },

@@ -102,12 +102,12 @@ export function ChatEmojiPicker({
           type="button"
           variant="ghost"
           size="icon"
-          className="size-11 shrink-0 rounded-full"
+          className="size-9 shrink-0 text-muted-foreground hover:text-foreground sm:size-8"
           disabled={disabled}
           aria-label="Ajouter un émoji"
           title="Ajouter un émoji"
         >
-          <Smile aria-hidden="true" className="size-5" />
+          <Smile aria-hidden="true" />
         </Button>
       </Popover.Trigger>
       <Popover.Portal>

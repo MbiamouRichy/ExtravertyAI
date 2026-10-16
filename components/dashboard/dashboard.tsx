@@ -61,23 +61,27 @@ export async function Dashboard({
             )}
           </div>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Button asChild variant="outline">
+        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+          <Button asChild variant="outline" className="min-w-0">
             <Link href={`${base}/analytics`}>
               <BarChart3 data-icon="inline-start" />
-              Statistiques détaillées
+              <span className="truncate">
+                <span className="sm:hidden">Statistiques</span>
+                <span className="hidden sm:inline">Statistiques détaillées</span>
+              </span>
             </Link>
           </Button>
-          <Button asChild>
+          <Button asChild className="min-w-0">
             <Link href={`${base}/chat`}>
               <MessagesSquare data-icon="inline-start" />
-              Ouvrir la messagerie
+              <span className="truncate">
+                <span className="sm:hidden">Messagerie</span>
+                <span className="hidden sm:inline">Ouvrir la messagerie</span>
+              </span>
             </Link>
           </Button>
         </div>
       </header>
-
-      <QuickActions projectId={projectId} />
 
       <section aria-labelledby="overview-title">
         <SectionTitle id="overview-title" title="Vue d’ensemble" description="Les indicateurs clés de votre projet." />
@@ -116,6 +120,11 @@ export async function Dashboard({
           <DashboardContacts projectId={projectId} />
           <TeamOnDuty initialTeammates={teamData} projectId={projectId} />
         </div>
+      </section>
+
+      <section aria-labelledby="actions-title">
+        <SectionTitle id="actions-title" title="Actions rapides" description="Accédez directement aux outils de votre projet." />
+        <QuickActions projectId={projectId} />
       </section>
     </div>
   );

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { summarizeConversation } from "@/app/actions/summarizeConversation";
 import { AiResponseText } from "./ai-response";
+import { ScrollFadeArea } from "./scroll-fade-area";
 
 type Result = Extract<
   Awaited<ReturnType<typeof summarizeConversation>>,
@@ -77,7 +78,9 @@ export function ConversationSummaryCard({
           >
             <RefreshCw
               aria-hidden="true"
-              className={pending ? "animate-spin motion-reduce:animate-none" : undefined}
+              className={
+                pending ? "animate-spin motion-reduce:animate-none" : undefined
+              }
             />
           </Button>
         )}
@@ -85,33 +88,35 @@ export function ConversationSummaryCard({
 
       <div aria-live="polite" aria-busy={pending}>
         {pending ? (
-          <div className="space-y-2 py-1">
+          <div className="h-56 space-y-2 py-1">
             <Skeleton className="h-3 w-full" />
             <Skeleton className="h-3 w-5/6" />
             <Skeleton className="h-3 w-2/3" />
             <span className="sr-only">Génération du résumé…</span>
           </div>
         ) : result ? (
-          <div className="space-y-3 text-xs [&_p]:text-xs">
-            <AiResponseText
-              key={result.generatedAt}
-              animate={animateResult}
-              content={[
-                `L’essentiel\n${result.summary.summary}`,
-                `Analyse\n${result.summary.assessment}`,
-                ...(result.summary.nextSteps.length
-                  ? [
-                      `Prochaines actions\n${result.summary.nextSteps.map((step) => `• ${step}`).join("\n")}`,
-                    ]
-                  : []),
-              ].join("\n\n")}
-            />
-            <p className="text-muted-foreground">
-              {result.partial
-                ? "Basé sur les 200 derniers messages. À vérifier avant d’agir."
-                : "Analyse ponctuelle, à vérifier avant d’agir."}
-            </p>
-          </div>
+          <ScrollFadeArea label="Résumé IA de la conversation" className="h-56">
+            <div className="space-y-3 pb-2 text-xs [&_p]:text-xs">
+              <AiResponseText
+                key={result.generatedAt}
+                animate={animateResult}
+                content={[
+                  `L’essentiel\n${result.summary.summary}`,
+                  `Analyse\n${result.summary.assessment}`,
+                  ...(result.summary.nextSteps.length
+                    ? [
+                        `Prochaines actions\n${result.summary.nextSteps.map((step) => `• ${step}`).join("\n")}`,
+                      ]
+                    : []),
+                ].join("\n\n")}
+              />
+              <p className="text-muted-foreground">
+                {result.partial
+                  ? "Basé sur les 200 derniers messages. À vérifier avant d’agir."
+                  : "Analyse ponctuelle, à vérifier avant d’agir."}
+              </p>
+            </div>
+          </ScrollFadeArea>
         ) : (
           <div className="space-y-3">
             <p className="text-xs leading-relaxed text-muted-foreground">

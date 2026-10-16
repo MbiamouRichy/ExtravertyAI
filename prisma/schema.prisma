@@ -189,6 +189,7 @@ model Project {
   whatsappAlwaysOnline Boolean @default(false)
   whatsappReadMessages Boolean @default(false)
   whatsappTyping Boolean @default(true)
+  whatsappRejectCalls Boolean @default(false)
   whatsappSettingsPending Boolean @default(false)
   whatsappSettingsError String?
   whatsappSyncAfter DateTime @default(now())
@@ -208,6 +209,7 @@ model Project {
   contacts             Contact[]      // Les prospects WhatsApp du projet
   tags                 Tag[]
   internalNotes        InternalNote[]
+  contactEvents        ContactEvent[]
   messages             Message[]      // Tous les messages liés à ce projet
   invitations          Invitation[]   // Les invitations au projet
   // Dates
@@ -255,6 +257,7 @@ model Contact {
   aiJobs      AiJob[]
   tags        ContactTag[]
   notes       InternalNote[]
+  events      ContactEvent[]
 
   // Conversation traitée par l'équipe ; effacée dès qu'un message client arrive.
   resolvedAt   DateTime?
@@ -381,6 +384,7 @@ model User {
   messagesSent  Message[] // Historique des messages envoyés manuellement par cet utilisateur
   resolvedContacts Contact[] @relation("ContactResolvedBy")
   internalNotes InternalNote[]
+  contactEvents ContactEvent[]
   lastActiveAt  DateTime  @default(now())
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -723,4 +727,27 @@ model InternalNote {
 
   @@index([projectId, contactId, createdAt, id])
   @@map("internal_note")
+}
+
+// Journal des changements d’état de l’assistant IA, affiché dans la conversation.
+enum ContactEventType {
+  AI_ENABLED
+  AI_PAUSED
+  AI_PAUSED_BY_REPLY
+  AI_PAUSED_FROM_PHONE
+}
+
+model ContactEvent {
+  id        String           @id @default(cuid())
+  projectId String
+  project   Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  contactId String
+  contact   Contact          @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  actorId   String?
+  actor     User?            @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  type      ContactEventType
+  createdAt DateTime         @default(now())
+
+  @@index([projectId, contactId, createdAt, id])
+  @@map("contact_event")
 }

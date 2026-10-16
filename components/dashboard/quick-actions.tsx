@@ -19,8 +19,8 @@ export function QuickActions({ projectId }: { projectId: string }) {
   ];
 
   return (
-    <nav aria-label="Actions rapides">
-      <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-5">
+    <nav aria-labelledby="actions-title">
+      <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         {actions.map(({ title, description, href, icon: Icon }) => (
           <li key={title}>
             <Link
@@ -36,7 +36,7 @@ export function QuickActions({ projectId }: { projectId: string }) {
               </span>
               <ChevronRight
                 aria-hidden="true"
-                className="hidden size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 sm:block"
+                className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5"
               />
             </Link>
           </li>

@@ -1,10 +1,39 @@
 "use client";
 
-import { Bot, CalendarClock, CircleCheck, Clock3, Sparkles, UsersRound } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
+import {
+  Bot,
+  CalendarClock,
+  CalendarDays,
+  Check,
+  CircleCheck,
+  Clock3,
+  Copy,
+  Info,
+  Link2,
+  Loader2,
+  MessagesSquare,
+  Sparkles,
+  UsersRound,
+} from "lucide-react";
 
 import { getInitials } from "@/components/getInitials";
-import { Avatar, AvatarFallback, AvatarGroup, AvatarImage } from "@/components/ui/avatar";
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarGroup,
+  AvatarImage,
+} from "@/components/ui/avatar";
 import type { ChatAgent, ChatClient } from "@/lib/chat";
+import type { ChatContactDetails } from "@/lib/contact-details";
+import { revealContactPhone } from "@/app/actions/contact-phone";
+import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { ConversationSummaryCard } from "./conversation-summary";
 import { ContactTagsEditor } from "./chat-workflow";
@@ -52,6 +81,9 @@ export function ChatContactPanel({
   agents,
   hasClientMessage,
   lastActivityLabel,
+  details,
+  canCopyPhone,
+  formatDate,
   onTagsChanged,
 }: {
   projectId: string;
@@ -62,8 +94,37 @@ export function ChatContactPanel({
   agents: ChatAgent[];
   hasClientMessage: boolean;
   lastActivityLabel: string;
+  details?: ChatContactDetails;
+  /** Propriétaire ou administrateur : seul autorisé à copier le numéro. */
+  canCopyPhone: boolean;
+  formatDate: (iso: string) => string;
   onTagsChanged: () => void;
 }) {
+  const [copyState, setCopyState] = useState<"idle" | "busy" | "done">("idle");
+
+  async function copyPhone() {
+    if (copyState === "busy") return;
+    setCopyState("busy");
+    try {
+      const result = await revealContactPhone({
+        projectId,
+        contactId: client.id,
+      });
+      if (!result.success) {
+        toast.error(result.error);
+        setCopyState("idle");
+        return;
+      }
+      await navigator.clipboard.writeText(result.phone);
+      setCopyState("done");
+      toast.success("Numéro copié");
+      setTimeout(() => setCopyState("idle"), 2000);
+    } catch {
+      toast.error("La copie est indisponible.");
+      setCopyState("idle");
+    }
+  }
+
   const status = statusOf({ resolved, aiActive, automationPaused });
   const StatusIcon = status.icon;
   const instinct = client.prospectClassification;
@@ -76,10 +137,48 @@ export function ChatContactPanel({
             {getInitials(client.name)}
           </AvatarFallback>
         </Avatar>
-        <p className="mt-3 break-words font-heading text-lg font-semibold">{client.name}</p>
+        <p className="mt-3 break-words font-heading text-lg font-semibold">
+          {client.name}
+        </p>
+        {details?.maskedPhone && (
+          <div className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
+            <span className="font-mono tabular-nums" aria-label="Numéro masqué">
+              {details.maskedPhone}
+            </span>
+            {canCopyPhone && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-xs"
+                    disabled={copyState === "busy"}
+                    onClick={() => void copyPhone()}
+                    aria-label="Copier le numéro complet"
+                  >
+                    {copyState === "busy" ? (
+                      <Loader2
+                        aria-hidden="true"
+                        className="animate-spin motion-reduce:animate-none"
+                      />
+                    ) : copyState === "done" ? (
+                      <Check aria-hidden="true" />
+                    ) : (
+                      <Copy aria-hidden="true" />
+                    )}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Copier le numéro complet</TooltipContent>
+              </Tooltip>
+            )}
+          </div>
+        )}
       </div>
 
-      <section aria-labelledby={`status-${client.id}`} className="space-y-3 rounded-xl border p-4">
+      <section
+        aria-labelledby={`status-${client.id}`}
+        className="space-y-3 rounded-xl border p-4"
+      >
         <div>
           <h2
             id={`status-${client.id}`}
@@ -92,8 +191,25 @@ export function ChatContactPanel({
         </div>
 
         <div className="border-t pt-3">
-          <p className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">
+          <p className="flex items-center gap-1 font-mono text-[11px] uppercase tracking-wider text-muted-foreground">
             Instinct IA
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-xs"
+                  className="size-5"
+                  aria-label="Comment fonctionne Instinct IA"
+                >
+                  <Info aria-hidden="true" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent className="max-w-60 normal-case tracking-normal">
+                Recalculé après chaque nouveau message, selon les objectifs de
+                votre agent.
+              </TooltipContent>
+            </Tooltip>
           </p>
           {instinct === "interesting" || instinct === "follow_up" ? (
             <span
@@ -113,12 +229,11 @@ export function ChatContactPanel({
             </span>
           ) : (
             <p className="mt-1.5 text-xs text-muted-foreground">
-              {instinct === "none" ? "Aucun intérêt commercial détecté" : "Analyse en attente"}
+              {instinct === "none"
+                ? "Aucun intérêt commercial détecté"
+                : "Analyse en attente"}
             </p>
           )}
-          <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
-            Recalculé après chaque nouveau message, selon les objectifs de votre agent.
-          </p>
         </div>
 
         <div className="flex items-center justify-between gap-3 border-t pt-3 text-xs">
@@ -127,7 +242,11 @@ export function ChatContactPanel({
             <span className="flex min-w-0 items-center gap-2">
               <AvatarGroup className="shrink-0 *:data-[slot=avatar]:size-5">
                 {agents.slice(0, 3).map((agent) => (
-                  <Avatar key={agent.id} size="sm" title={agent.name ?? "Agent"}>
+                  <Avatar
+                    key={agent.id}
+                    size="sm"
+                    title={agent.name ?? "Agent"}
+                  >
                     <AvatarImage src={agent.image || undefined} alt="" />
                     <AvatarFallback className="text-[9px] font-semibold">
                       {getInitials(agent.name?.trim() || "Agent")}
@@ -136,11 +255,15 @@ export function ChatContactPanel({
                 ))}
               </AvatarGroup>
               <span className="truncate">
-                {agents.map((agent) => agent.name?.trim().split(" ")[0] || "Agent").join(", ")}
+                {agents
+                  .map((agent) => agent.name?.trim().split(" ")[0] || "Agent")
+                  .join(", ")}
               </span>
             </span>
           ) : (
-            <span className="text-muted-foreground">{aiActive ? "Assistant IA" : "Personne pour l’instant"}</span>
+            <span className="text-muted-foreground">
+              {aiActive ? "Assistant IA" : "Personne pour l’instant"}
+            </span>
           )}
         </div>
       </section>
@@ -169,20 +292,53 @@ export function ChatContactPanel({
           Détails
         </h2>
         <dl className="divide-y rounded-xl border">
-          <div className="flex items-center justify-between gap-3 px-3 py-2.5 text-xs">
-            <dt className="flex items-center gap-2 text-muted-foreground">
-              <CalendarClock aria-hidden="true" className="size-3.5" />
-              Dernière activité
-            </dt>
-            <dd className="truncate text-right">{lastActivityLabel}</dd>
-          </div>
-          <div className="flex items-center justify-between gap-3 px-3 py-2.5 text-xs">
-            <dt className="flex items-center gap-2 text-muted-foreground">
-              <Bot aria-hidden="true" className="size-3.5" />
-              Assistant IA
-            </dt>
-            <dd>{aiActive ? "Activé" : "En pause"}</dd>
-          </div>
+          {[
+            ...(details
+              ? [
+                  {
+                    icon: CalendarDays,
+                    label: "Premier contact",
+                    value: formatDate(details.firstContactAt),
+                  },
+                  {
+                    icon: MessagesSquare,
+                    label: "Messages",
+                    value: details.clientMessages.toLocaleString("fr-FR"),
+                    hint: "Messages envoyés par ce contact",
+                  },
+                  {
+                    icon: Link2,
+                    label: "Source",
+                    value: details.source,
+                    hint: "Appareil de son dernier message",
+                  },
+                ]
+              : []),
+            {
+              icon: CalendarClock,
+              label: "Dernière activité",
+              value: lastActivityLabel,
+            },
+            {
+              icon: Bot,
+              label: "Assistant IA",
+              value: aiActive ? "Activé" : "En pause",
+            },
+          ].map(({ icon: Icon, label, value, hint }) => (
+            <div
+              key={label}
+              className="flex items-center justify-between gap-3 px-3 py-2.5 text-xs"
+            >
+              <dt
+                className="flex shrink-0 items-center gap-2 text-muted-foreground"
+                title={hint}
+              >
+                <Icon aria-hidden="true" className="size-3.5" />
+                {label}
+              </dt>
+              <dd className="min-w-0 truncate text-right">{value}</dd>
+            </div>
+          ))}
         </dl>
       </section>
     </div>

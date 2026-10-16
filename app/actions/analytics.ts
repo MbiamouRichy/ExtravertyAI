@@ -2,6 +2,7 @@
 
 import { getUserTimeZone } from "@/lib/server-time-zone";
 import prisma from "@/lib/prisma";
+import { currentProspectClassification } from "@/lib/instinct-classification";
 import { getAnalyticsAccess } from "@/lib/analytics-access";
 import {
   HEATMAP_SLOTS,
@@ -342,6 +343,18 @@ export async function getAnalyticsOverview(
           pushName: true,
           phone: true,
           aiActive: true,
+          instinctClassification: true,
+          instinctSourceId: true,
+          instinctConfigVersion: true,
+          project: {
+            select: { agentQualifyLeads: true, agentConfigVersion: true },
+          },
+          messages: {
+            where: { projectId },
+            orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+            take: 1,
+            select: { id: true },
+          },
         },
       }),
     ]);
@@ -377,6 +390,9 @@ export async function getAnalyticsOverview(
         name: displayName && !nameMatchesPhone ? displayName : "Contact",
         phone: maskAnalyticsPhone(rawPhone),
         aiActive: row?.aiActive ?? true,
+        instinct: row
+          ? currentProspectClassification(row, row.messages[0]?.id)
+          : null,
         received: counts.received,
         sent: counts.sent,
         lastActivityLabel: lastActivity

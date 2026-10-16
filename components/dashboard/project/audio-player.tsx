@@ -1,6 +1,6 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
-import { ChevronDown, Loader2, Pause, Play } from "lucide-react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { ChevronDown, Loader2, Pause, Play, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { resolveAudioWaveform } from "@/lib/audio-duration";
@@ -14,14 +14,25 @@ const time = (seconds: number) =>
   Math.floor(seconds / 60) +
   ":" +
   String(Math.floor(seconds % 60)).padStart(2, "0");
+export type AudioTranscript =
+  | { state: "ready"; text: string }
+  | { state: "pending" }
+  | { state: "failed" };
+
 export function AudioPlayer({
   src,
   onError,
   className,
+  transcript,
+  footer,
 }: {
   src: string;
   className?: string;
   onError?: () => void;
+  /** Transcription IA affichée dans la bulle, sous le lecteur. */
+  transcript?: AudioTranscript | null;
+  /** Heure et statut d’envoi, affichés en bas de la bulle. */
+  footer?: ReactNode;
 }) {
   const ref = useRef<HTMLAudioElement>(null);
   const [peaks, setPeaks] = useState<number[]>([]);
@@ -70,7 +81,7 @@ export function AudioPlayer({
   return (
     <div
       className={cn(
-        "w-80 max-w-full rounded-full border border-border/60 bg-muted/40 px-3 py-2",
+        "w-80 max-w-full space-y-2.5 rounded-2xl rounded-bl-md border bg-background p-2.5 shadow-xs",
         className,
       )}
     >
@@ -108,12 +119,12 @@ export function AudioPlayer({
           onError?.();
         }}
       />
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2.5">
         <Button
           type="button"
           size="icon"
-          variant="ghost"
-          className="shrink-0 rounded-full"
+          variant="default"
+          className="size-9 shrink-0 rounded-full"
           aria-label={
             playing ? "Mettre l’audio en pause" : "Écouter le message audio"
           }
@@ -138,12 +149,12 @@ export function AudioPlayer({
           {loading ? (
             <Loader2
               aria-hidden="true"
-              className="size-5 animate-spin motion-reduce:animate-none"
+              className="size-4 animate-spin motion-reduce:animate-none"
             />
           ) : playing ? (
-            <Pause aria-hidden="true" className="size-5" />
+            <Pause aria-hidden="true" className="size-4 fill-current" />
           ) : (
-            <Play aria-hidden="true" className="size-5" />
+            <Play aria-hidden="true" className="ml-0.5 size-4 fill-current" />
           )}
         </Button>
 
@@ -152,7 +163,7 @@ export function AudioPlayer({
             aria-hidden="true"
             viewBox="0 0 144 32"
             preserveAspectRatio="none"
-            className="pointer-events-none h-9 w-full"
+            className="pointer-events-none h-8 w-full"
           >
             {(peaks.length ? peaks : Array(48).fill(0.08)).map(
               (peak, index) => {
@@ -162,13 +173,13 @@ export function AudioPlayer({
                     key={index}
                     x={index * 3}
                     y={(32 - height) / 2}
-                    width="1.5"
+                    width="2"
                     height={height}
-                    rx="0.75"
+                    rx="1"
                     className={
                       duration && index / 48 < position / duration
-                        ? "fill-primary"
-                        : "fill-muted-foreground/40"
+                        ? "fill-foreground"
+                        : "fill-muted-foreground/35"
                     }
                   />
                 );
@@ -193,7 +204,7 @@ export function AudioPlayer({
           />
         </div>
         <span
-          className="shrink-0 text-xs tabular-nums text-muted-foreground"
+          className="shrink-0 font-mono text-[11px] tabular-nums text-muted-foreground"
           aria-label="Temps de lecture"
         >
           {position > 0 ? time(position) + " / " : ""}
@@ -205,7 +216,7 @@ export function AudioPlayer({
               type="button"
               size="sm"
               variant="ghost"
-              className="shrink-0 gap-1 rounded-full px-2 tabular-nums"
+              className="h-7 shrink-0 gap-0.5 rounded-full border px-2 text-xs tabular-nums"
               aria-label={
                 "Vitesse de lecture : " + rate.toLocaleString("fr-FR") + " fois"
               }
@@ -243,8 +254,61 @@ export function AudioPlayer({
         </Popover>
       </div>
       {failed && (
-        <p role="status" className="mt-2 text-xs text-destructive">
+        <p role="status" className="px-1 text-xs text-destructive">
           Lecture indisponible.
+        </p>
+      )}
+      {transcript && <AiInsight insight={transcript} label="Transcription IA" />}
+      {footer}
+    </div>
+  );
+}
+
+
+/** Bloc repliable « Transcription IA » / « Analyse IA » affiché dans une bulle. */
+export function AiInsight({
+  insight,
+  label,
+  className,
+}: {
+  insight: AudioTranscript;
+  label: string;
+  className?: string;
+}) {
+  const [open, setOpen] = useState(true);
+  return (
+    <div className={cn("rounded-xl bg-muted/70 px-3 py-2 text-sm text-foreground", className)}>
+      {insight.state === "ready" ? (
+        <>
+          <button
+            type="button"
+            onClick={() => setOpen((value) => !value)}
+            aria-expanded={open}
+            className="flex items-center gap-1.5 rounded-sm text-[10px] font-medium uppercase tracking-wider text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <Sparkles aria-hidden="true" className="size-3" />
+            {label}
+            <ChevronDown
+              aria-hidden="true"
+              className={cn("size-3 transition-transform", !open && "-rotate-90")}
+            />
+          </button>
+          {open && (
+            <p dir="auto" className="mt-1 whitespace-pre-wrap leading-relaxed wrap-anywhere">
+              {insight.text}
+            </p>
+          )}
+        </>
+      ) : (
+        <p role="status" className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          {insight.state === "pending" ? (
+            <>
+              <Loader2 aria-hidden="true" className="size-3 animate-spin motion-reduce:animate-none" />
+              Analyse en cours…
+            </>
+          ) : (
+            "Analyse indisponible. Le média reste consultable."
+          )}
         </p>
       )}
     </div>

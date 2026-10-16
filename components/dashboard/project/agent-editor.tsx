@@ -442,8 +442,7 @@ export function AgentEditor({
                           id="agent-system-description"
                           className="flex flex-wrap justify-between gap-2"
                         >
-                          <span>40 à 12 000 caractères</span>
-                          <span className="tabular-nums">
+                          <span className="ml-auto tabular-nums">
                             {config.agentSystemMessage.length.toLocaleString("fr-FR")} / 12 000
                           </span>
                         </FieldDescription>
@@ -470,6 +469,10 @@ export function AgentEditor({
                     render={({ field, fieldState }) => (
                       <FieldSet data-invalid={fieldState.invalid}>
                         <FieldLegend variant="label">Ton de l’agent</FieldLegend>
+                        <FieldDescription id="agent-tone-help" className="-mt-1.5">
+                          Ajoute une consigne de ton aux réponses de l’agent, appliquée
+                          dès l’enregistrement. Votre message système reste la référence.
+                        </FieldDescription>
                         <RadioGroup
                           name={field.name}
                           ref={field.ref}
@@ -479,7 +482,7 @@ export function AgentEditor({
                             update("agentTone", value as AgentConfig["agentTone"])
                           }
                           aria-invalid={fieldState.invalid}
-                          aria-describedby="agent-tone-error"
+                          aria-describedby="agent-tone-help agent-tone-error"
                           className="grid gap-2 sm:grid-cols-3"
                         >
                           {AGENT_TONES.map((tone) => {
@@ -488,26 +491,28 @@ export function AgentEditor({
                               <FieldLabel
                                 key={tone.value}
                                 htmlFor={`agent-tone-${tone.value}`}
-                                className="w-full! cursor-pointer rounded-xl border p-3 font-normal transition-colors hover:bg-muted/40 has-data-[state=checked]:border-primary has-data-[state=checked]:bg-muted/50"
+                                className="w-full! cursor-pointer items-stretch rounded-xl border p-3 font-normal transition-colors hover:bg-muted/40 has-data-[state=checked]:border-primary has-data-[state=checked]:bg-muted/50"
                               >
-                                <span className="flex w-full items-start gap-3">
-                                  <span className="flex size-8 shrink-0 items-center justify-center rounded-lg border bg-background">
-                                    <Icon aria-hidden="true" className="size-4" />
+                                <span className="flex h-full w-full flex-col gap-2.5">
+                                  <span className="flex items-center justify-between gap-2">
+                                    <span className="flex size-8 shrink-0 items-center justify-center rounded-lg border bg-background">
+                                      <Icon aria-hidden="true" className="size-4" />
+                                    </span>
+                                    <RadioGroupItem
+                                      id={`agent-tone-${tone.value}`}
+                                      value={tone.value}
+                                      aria-describedby={`agent-tone-${tone.value}-description`}
+                                    />
                                   </span>
-                                  <span className="min-w-0 flex-1">
+                                  <span className="min-w-0">
                                     <span className="block text-sm font-medium">{tone.label}</span>
                                     <span
                                       id={`agent-tone-${tone.value}-description`}
-                                      className="block text-xs leading-relaxed text-muted-foreground"
+                                      className="mt-0.5 block text-xs leading-relaxed text-muted-foreground"
                                     >
                                       {tone.description}
                                     </span>
                                   </span>
-                                  <RadioGroupItem
-                                    id={`agent-tone-${tone.value}`}
-                                    value={tone.value}
-                                    aria-describedby={`agent-tone-${tone.value}-description`}
-                                  />
                                 </span>
                               </FieldLabel>
                             );

@@ -20,6 +20,7 @@ const schema = z.object({
   alwaysOnline: z.boolean(),
   readMessages: z.boolean(),
   typing: z.boolean(),
+  rejectCalls: z.boolean(),
 });
 type Preferences = z.infer<typeof schema>;
 const options = [
@@ -39,6 +40,12 @@ const options = [
     title: "Afficher l’indicateur de frappe",
     description:
       "Afficher une courte présence de saisie avant les envois de l’application.",
+  },
+  {
+    key: "rejectCalls",
+    title: "Refuser les appels",
+    description:
+      "Rejeter automatiquement les appels WhatsApp entrants. L’assistant IA ne peut pas y répondre.",
   },
 ] as const;
 

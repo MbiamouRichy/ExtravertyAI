@@ -17,18 +17,24 @@ import {
     type SourceDatum,
 } from "@/lib/analytics";
 
-const SOURCE_META = new Map<
-    string,
-    { label: string; color: string }
->([
-    ["android", { label: "Android", color: "var(--chart-1)" }],
-    ["ios", { label: "iOS", color: "var(--chart-2)" }],
-    ["ai", { label: "IA / Bot", color: "var(--chart-3)" }],
-    [
-        "unknown",
-        { label: "Autre / inconnu", color: "var(--chart-4)" },
-    ],
+const SOURCE_LABELS = new Map<string, string>([
+    ["android", "WhatsApp Android"],
+    ["ios", "WhatsApp iPhone"],
+    ["whatsapp", "WhatsApp"],
+    ["web", "WhatsApp Web"],
+    ["desktop", "WhatsApp Desktop"],
+    ["ai", "IA / Bot"],
+    ["unknown", "Autre / inconnu"],
 ]);
+
+// Couleur attribuée par rang : la source principale est toujours la plus contrastée.
+const RANK_COLORS = [
+    "var(--chart-5)",
+    "var(--chart-3)",
+    "var(--chart-2)",
+    "var(--chart-1)",
+    "var(--chart-4)",
+];
 
 interface SourcesChartProps {
     data: SourceDatum[];
@@ -36,29 +42,23 @@ interface SourcesChartProps {
     rangeLabel: string;
 }
 
-export function SourcesChart({
-    data,
-    total,
-    rangeLabel,
-}: SourcesChartProps) {
+export function SourcesChart({ data, total, rangeLabel }: SourcesChartProps) {
     const rows = [...data]
         .sort((a, b) => b.count - a.count)
         .map((datum, index) => {
-            const meta = SOURCE_META.get(datum.source);
-
             return {
                 ...datum,
                 key: `source_${index}`,
-                label: meta?.label ?? datum.source,
-                fill: meta?.color ?? "var(--chart-5)",
+                label:
+                    SOURCE_LABELS.get(datum.source.toLowerCase()) ??
+                    datum.source,
+                fill: RANK_COLORS[index % RANK_COLORS.length],
             };
         });
+    const multiple = rows.filter((row) => row.count > 0).length > 1;
 
     const config: ChartConfig = Object.fromEntries(
-        rows.map((row) => [
-            row.key,
-            { label: row.label, color: row.fill },
-        ]),
+        rows.map((row) => [row.key, { label: row.label, color: row.fill }]),
     );
 
     return (
@@ -75,8 +75,8 @@ export function SourcesChart({
                     className="h-full min-h-72"
                 />
             ) : (
-                <div className="flex h-full flex-col justify-center gap-5">
-                    <div className="relative mx-auto size-56 max-w-full">
+                <div className="flex h-full flex-col justify-center gap-6">
+                    <div className="relative mx-auto size-48 max-w-full">
                         <ChartContainer
                             config={config}
                             className="aspect-square size-full"
@@ -84,33 +84,34 @@ export function SourcesChart({
                             <PieChart accessibilityLayer>
                                 <ChartTooltip
                                     cursor={false}
-                                    content={
-                                        <ChartTooltipContent hideLabel />
-                                    }
+                                    content={<ChartTooltipContent hideLabel />}
                                 />
-
+                                {/* Piste de fond : l’anneau reste lisible même avec une seule source. */}
+                                <Pie
+                                    data={[{ value: 1 }]}
+                                    dataKey="value"
+                                    innerRadius="76%"
+                                    outerRadius="92%"
+                                    fill="var(--muted)"
+                                    stroke="none"
+                                    isAnimationActive={false}
+                                    tooltipType="none"
+                                />
                                 <Pie
                                     data={rows}
                                     dataKey="count"
                                     nameKey="key"
-                                    innerRadius="55%"
-                                    outerRadius="90%"
-                                    paddingAngle={
-                                        rows.filter((row) => row.count > 0)
-                                            .length > 1
-                                            ? 3
-                                            : 0
-                                    }
-                                    cornerRadius={4}
-                                    stroke="var(--card)"
-                                    strokeWidth={3}
+                                    innerRadius="76%"
+                                    outerRadius="92%"
+                                    startAngle={90}
+                                    endAngle={-270}
+                                    paddingAngle={multiple ? 3 : 0}
+                                    cornerRadius={multiple ? 6 : 0}
+                                    stroke="none"
                                     isAnimationActive={false}
                                 >
                                     {rows.map((row) => (
-                                        <Cell
-                                            key={row.key}
-                                            fill={row.fill}
-                                        />
+                                        <Cell key={row.key} fill={row.fill} />
                                     ))}
                                 </Pie>
                             </PieChart>
@@ -120,10 +121,10 @@ export function SourcesChart({
                             aria-hidden="true"
                             className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center"
                         >
-                            <span className="text-3xl font-semibold tracking-tight tabular-nums">
+                            <span className="font-heading text-3xl font-semibold tracking-tight tabular-nums">
                                 {formatNumberFr(total)}
                             </span>
-                            <span className="mt-1 text-xs text-muted-foreground">
+                            <span className="mt-0.5 text-[11px] text-muted-foreground">
                                 messages reçus
                             </span>
                         </div>
@@ -133,47 +134,28 @@ export function SourcesChart({
                         {total.toLocaleString("fr-FR")} messages reçus.
                     </p>
 
-                    <ul className="space-y-3">
+                    <ul className="divide-y rounded-xl border">
                         {rows.map((row) => (
-                            <li key={row.key} className="space-y-1.5">
-                                <div className="flex items-center justify-between gap-3 text-xs">
-                                    <span className="flex min-w-0 items-center gap-2">
-                                        <span
-                                            aria-hidden="true"
-                                            className="size-2 shrink-0 rounded-full"
-                                            style={{
-                                                backgroundColor: row.fill,
-                                            }}
-                                        />
-                                        <span className="wrap-break-word text-muted-foreground">
-                                            {row.label}
-                                        </span>
-                                    </span>
-
-                                    <span className="shrink-0 font-medium tabular-nums">
-                                        {formatPctFr(
-                                            (row.count / total) * 100,
-                                        )}
-                                        <span className="ml-2 font-normal text-muted-foreground">
-                                            {row.count.toLocaleString(
-                                                "fr-FR",
-                                            )}
-                                        </span>
-                                    </span>
-                                </div>
-
-                                <div
-                                    aria-hidden="true"
-                                    className="h-1 overflow-hidden rounded-full bg-muted"
-                                >
-                                    <div
-                                        className="h-full rounded-full"
-                                        style={{
-                                            width: `${(row.count / total) * 100}%`,
-                                            backgroundColor: row.fill,
-                                        }}
+                            <li
+                                key={row.key}
+                                className="flex items-center justify-between gap-3 px-3 py-2.5 text-xs"
+                            >
+                                <span className="flex min-w-0 items-center gap-2">
+                                    <span
+                                        aria-hidden="true"
+                                        className="size-2 shrink-0 rounded-full"
+                                        style={{ backgroundColor: row.fill }}
                                     />
-                                </div>
+                                    <span className="truncate">{row.label}</span>
+                                </span>
+                                <span className="flex shrink-0 items-baseline gap-2 tabular-nums">
+                                    <span className="text-muted-foreground">
+                                        {row.count.toLocaleString("fr-FR")}
+                                    </span>
+                                    <span className="w-14 text-right font-medium">
+                                        {formatPctFr((row.count / total) * 100)}
+                                    </span>
+                                </span>
                             </li>
                         ))}
                     </ul>

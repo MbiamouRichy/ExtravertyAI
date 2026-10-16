@@ -179,6 +179,7 @@ export default async function ChatPage({ params, searchParams }: PageProps) {
         }}
         isSuccess={query.success === "true"}
         canManageAi={true}
+        canCopyPhone={canManageAi}
       />
     </>
   );

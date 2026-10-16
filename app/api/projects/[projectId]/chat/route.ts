@@ -1,5 +1,10 @@
 import { chatContactName } from "@/lib/chat-privacy";
 import { chatMediaFields } from "@/lib/chat-media";
+import {
+  contactEventLabel,
+  contactSourceLabel,
+  maskContactPhone,
+} from "@/lib/contact-details";
 import { currentProspectClassification } from "@/lib/instinct-classification";
 import { NextResponse } from "next/server";
 import { z } from "zod";
@@ -296,10 +301,14 @@ export async function GET(
         id: true,
         aiActive: true,
         aiVersion: true,
+        phone: true,
+        createdAt: true,
+        // Dernier message du client : sert aussi à déterminer l’appareil source.
         messages: {
           where: { senderType: "CLIENT", fromMe: false },
+          orderBy: [{ createdAt: "desc" }, { id: "desc" }],
           take: 1,
-          select: { id: true },
+          select: { id: true, source: true },
         },
         project: {
           select: {
@@ -422,9 +431,40 @@ export async function GET(
       },
     });
 
+    // Journal IA (activation / pause), intercalé dans la même fenêtre.
+    const events = await prisma.contactEvent.findMany({
+      where: {
+        projectId,
+        contactId,
+        createdAt: {
+          ...(cursor ? { lte: new Date(cursor.date) } : {}),
+          ...(hasMore && last ? { gte: last.createdAt } : {}),
+        },
+      },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      take: NOTES_PER_PAGE,
+      select: {
+        id: true,
+        type: true,
+        createdAt: true,
+        actor: { select: { name: true } },
+      },
+    });
+
     const result: ChatMessagesPage = {
       agents,
       hasClientMessage: contact.messages.length > 0,
+      // Détails de la fiche : première page uniquement, numéro toujours masqué.
+      contact: !cursor
+        ? {
+            firstContactAt: contact.createdAt.toISOString(),
+            clientMessages: await prisma.message.count({
+              where: { projectId, contactId, senderType: "CLIENT", fromMe: false },
+            }),
+            source: contactSourceLabel(contact.messages[0]?.source),
+            maskedPhone: maskContactPhone(contact.phone),
+          }
+        : undefined,
       generation: generationJob
         ? {
             id: generationJob.id,
@@ -463,6 +503,17 @@ export async function GET(
           content: note.content,
           type: "TEXT",
           timestamp: note.createdAt.toISOString(),
+          status: "sent",
+          outboundState: null,
+          clientRequestId: null,
+        })),
+        ...events.map((event): ChatMessage => ({
+          id: event.id,
+          senderType: "system",
+          agent: null,
+          content: contactEventLabel(event.type, event.actor?.name),
+          type: "TEXT",
+          timestamp: event.createdAt.toISOString(),
           status: "sent",
           outboundState: null,
           clientRequestId: null,

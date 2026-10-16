@@ -12,8 +12,12 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
+import Link from "next/link";
 import {
   ArrowLeft,
+  BarChart3,
+  BookUser,
+  Hand,
   Bot,
   Check,
   CheckCheck,
@@ -28,8 +32,10 @@ import {
   PanelRightOpen,
   Pause,
   Search,
+  Settings,
   Sparkles,
   UserRound,
+  Users,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -54,6 +60,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -75,12 +82,10 @@ import {
 } from "@/components/ui/avatar";
 import {
   Message,
-  MessageAvatar,
   MessageContent,
   MessageHeader,
   MessageFooter,
 } from "@/components/ui/message";
-import { Bubble, BubbleContent } from "@/components/ui/bubble";
 import {
   MessageScrollerProvider,
   MessageScroller,
@@ -120,6 +125,7 @@ import { createChatDateFormatters } from "@/lib/chat-dates";
 import { SendChatMessageSchema } from "@/lib/message-schema";
 import { type ChatAttachment, messageMediaPath } from "@/lib/chat-media";
 import { ChatMedia } from "./chat-media";
+import type { AudioTranscript } from "./audio-player";
 
 type WorkspaceProps = {
   initialClient?: ChatClient;
@@ -135,6 +141,8 @@ type WorkspaceProps = {
   };
   isSuccess: boolean;
   canManageAi: boolean;
+  /** Propriétaire ou administrateur (vérifié à nouveau côté serveur). */
+  canCopyPhone?: boolean;
 };
 
 type Filter = ChatFilter;
@@ -299,7 +307,14 @@ function InstinctBadge({
   );
 }
 
-function DeliveryStatus({ status }: { status: DisplayMessage["status"] }) {
+function DeliveryStatus({
+  status,
+  compact = false,
+}: {
+  status: DisplayMessage["status"];
+  /** Icône seule (libellé pour lecteurs d’écran), dans une bulle. */
+  compact?: boolean;
+}) {
   const meta = {
     sending: {
       label: "Envoi en cours",
@@ -339,11 +354,13 @@ function DeliveryStatus({ status }: { status: DisplayMessage["status"] }) {
 
   return (
     <span
+      title={compact ? meta.label : undefined}
       className={cn(
         "inline-flex items-center gap-1",
-        status === "read" && "text-sky-700 dark:text-sky-400",
+        !compact && status === "read" && "text-sky-700 dark:text-sky-400",
+        compact && status === "read" && "opacity-100",
         status === "failed" && "text-destructive",
-        status === "uncertain" && "text-foreground dark:text-foreground",
+        !compact && status === "uncertain" && "text-foreground dark:text-foreground",
       )}
     >
       <Icon
@@ -353,7 +370,7 @@ function DeliveryStatus({ status }: { status: DisplayMessage["status"] }) {
           status === "sending" && "animate-spin motion-reduce:animate-none",
         )}
       />
-      <span>{meta.label}</span>
+      <span className={compact ? "sr-only" : undefined}>{meta.label}</span>
     </span>
   );
 }
@@ -363,16 +380,20 @@ function ChatBubble({
   contactName,
   onRestore,
   animate = false,
+  grouped = false,
 }: {
   message: DisplayMessage;
   contactName: string;
   onRestore: (content: string) => void;
   animate?: boolean;
+  /** Message consécutif du même auteur : nom masqué, espacement réduit. */
+  grouped?: boolean;
 }) {
   const { timeFormatter, dateFormatter, timeZone } = useChatDates();
   const incoming = message.senderType === "client";
   const isAi = message.senderType === "bot";
   const isNote = message.senderType === "note";
+  const isAgent = message.senderType === "agent";
   const visualStatus: DisplayMessage["status"] =
     message.status === "read" || message.status === "delivered"
       ? message.status
@@ -398,153 +419,155 @@ function ChatBubble({
             : message.agent?.name?.trim() || "Agent";
 
   const date = new Date(message.timestamp);
+  const isMedia =
+    !!message.mediaUrl &&
+    !!message.type &&
+    ["IMAGE", "AUDIO", "VIDEO", "DOCUMENT"].includes(message.type);
+  const insight = (): AudioTranscript | null =>
+    message.extractionStatus === "COMPLETED" && message.extractedText
+      ? { state: "ready", text: message.extractedText }
+      : ["PENDING", "PROCESSING"].includes(message.extractionStatus ?? "")
+        ? { state: "pending" }
+        : message.extractionStatus === "FAILED"
+          ? { state: "failed" }
+          : null;
+
+  const time = (
+    <time
+      dateTime={date.toISOString()}
+      title={`${dateFormatter.format(date)} · ${timeZone}`}
+    >
+      {timeFormatter.format(date)}
+    </time>
+  );
+
+  // Journal (activation / pause de l’IA) : pastille centrée, comme la maquette.
+  if (message.senderType === "system") {
+    return (
+      <div role="note" className="my-1 flex w-full justify-center">
+        <p className="flex max-w-full items-center gap-1.5 rounded-full border bg-background px-3 py-1 text-center text-[11px] text-muted-foreground">
+          <Sparkles aria-hidden="true" className="size-3 shrink-0" />
+          <span className="min-w-0">{message.content}</span>
+          <span aria-hidden="true">·</span>
+          <span className="tabular-nums">{time}</span>
+        </p>
+      </div>
+    );
+  }
+
+  // Les réponses de l’assistant IA conservent leur présentation dédiée.
+  if (isAi) {
+    return (
+      <article aria-label={`Message de ${author}`} className="flex w-full justify-end">
+        <Message align="end" className="w-4/5 max-w-prose py-2">
+          <MessageContent className="gap-1.5">
+            <MessageHeader className="justify-end gap-1.5 px-1 text-[11px]">
+              <Bot aria-hidden="true" className="size-3.5" />
+              {author}
+            </MessageHeader>
+            <AiResponseText content={message.content} animate={animate} />
+            <MessageFooter className="flex-wrap justify-end gap-x-2 gap-y-1 px-1 text-[10px] font-normal">
+              {time}
+              <DeliveryStatus status={visualStatus} />
+            </MessageFooter>
+          </MessageContent>
+        </Message>
+      </article>
+    );
+  }
+
+  const outgoing = !incoming;
+  const meta = (
+    <span
+      className={cn(
+        "flex items-center justify-end gap-1 text-[10px] tabular-nums",
+        isAgent && !failed ? "text-primary-foreground/70" : "text-muted-foreground",
+      )}
+    >
+      {isNote && (
+        <span className="mr-auto inline-flex items-center gap-1">
+          <Lock aria-hidden="true" className="size-3" />
+          Visible par l’équipe
+        </span>
+      )}
+      {time}
+      {isAgent && <DeliveryStatus status={visualStatus} compact />}
+    </span>
+  );
 
   return (
     <article
       aria-label={`Message de ${author}`}
-      className={cn("flex w-full", incoming ? "justify-start" : "justify-end")}
+      className={cn(
+        "flex w-full items-end gap-2",
+        outgoing ? "justify-end" : "justify-start",
+        grouped ? "-mt-3" : "mt-1",
+      )}
     >
-      <Message
-        align={incoming ? "start" : "end"}
+      <div
         className={cn(
-          isAi ? "w-4/5 max-w-prose py-2" : "w-fit max-w-[92%] sm:max-w-[78%]",
+          "flex min-w-0 max-w-[85%] flex-col gap-1 sm:max-w-[72%]",
+          outgoing ? "items-end" : "items-start",
         )}
       >
-        {(message.senderType === "agent" || isNote) && (
-          <MessageAvatar>
-            <AgentAvatar agent={message.agent} />
-          </MessageAvatar>
-        )}
-        <MessageContent className="gap-1.5">
-          <MessageHeader
-            className={cn(
-              "gap-1.5 px-1 text-[11px]",
-              !incoming && "justify-end",
-            )}
-          >
-            {message.senderType === "bot" && (
-              <Bot aria-hidden="true" className="size-3.5" />
-            )}
+        {!grouped && (
+          <span className="flex items-center gap-1 px-1 text-[11px] text-muted-foreground">
             {isNote && <Lock aria-hidden="true" className="size-3" />}
             {author}
-          </MessageHeader>
+          </span>
+        )}
 
-          {message.mediaUrl &&
-          message.type &&
-          ["IMAGE", "AUDIO", "VIDEO", "DOCUMENT"].includes(
-            message.type || "",
-          ) ? (
-            <ChatMedia
-              type={message.type}
-              url={message.mediaUrl}
-              caption={message.content}
-            />
-          ) : isAi ? (
-            <AiResponseText content={message.content} animate={animate} />
-          ) : isNote ? (
-            <div className="max-w-full rounded-2xl rounded-br-md border border-dashed border-foreground/30 bg-muted/60 px-4 py-2.5 text-sm">
-              <p dir="auto" className="whitespace-pre-wrap wrap-anywhere">
-                {message.content}
-              </p>
-            </div>
-          ) : (
-            <Bubble
-              align={incoming ? "start" : "end"}
-              variant={failed ? "destructive" : incoming ? "muted" : "default"}
-              className="max-w-full"
-            >
-              <BubbleContent className="rounded-2xl px-4 py-2.5">
-                <p dir="auto" className="whitespace-pre-wrap wrap-anywhere">
-                  {message.content}
-                </p>
-              </BubbleContent>
-            </Bubble>
-          )}
-
-          {(message.type === "AUDIO" || message.type === "IMAGE") &&
-            message.extractionStatus === "COMPLETED" &&
-            message.extractedText && (
-              <details className="max-w-prose rounded-lg border border-border bg-muted/30 p-3 text-sm">
-                <summary className="cursor-pointer rounded-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                  {message.type === "IMAGE"
-                    ? "Analyse de l’image"
-                    : "Transcription du vocal"}
-                </summary>
-                <p
-                  dir="auto"
-                  className="mt-2 whitespace-pre-wrap wrap-anywhere text-foreground"
-                >
-                  {message.extractedText}
-                </p>
-                <p className="mt-2 text-xs text-muted-foreground">
-                  {message.type === "IMAGE"
-                    ? "Analyse automatique"
-                    : "Transcription automatique"}{" "}
-                  · à vérifier en cas de doute.
-                </p>
-              </details>
-            )}
-          {(message.type === "AUDIO" || message.type === "IMAGE") &&
-            ["PENDING", "PROCESSING"].includes(
-              message.extractionStatus ?? "",
-            ) && (
-              <p role="status" className="px-1 text-xs text-muted-foreground">
-                {message.type === "IMAGE"
-                  ? "Analyse de l’image en cours…"
-                  : "Transcription du vocal en cours…"}
-              </p>
-            )}
-          {(message.type === "AUDIO" || message.type === "IMAGE") &&
-            message.extractionStatus === "FAILED" && (
-              <p className="px-1 text-xs text-muted-foreground">
-                {message.type === "IMAGE"
-                  ? "Analyse indisponible. L’image reste consultable."
-                  : "Transcription indisponible. Le vocal reste consultable."}
-              </p>
-            )}
-
-          <MessageFooter
+        {isMedia ? (
+          <ChatMedia
+            type={message.type!}
+            url={message.mediaUrl!}
+            caption={message.content}
+            outgoing={isAgent && !failed}
+            transcript={message.type === "AUDIO" ? insight() : null}
+            analysis={message.type === "IMAGE" ? insight() : null}
+            footer={meta}
+          />
+        ) : (
+          <div
             className={cn(
-              "flex-wrap gap-x-2 gap-y-1 px-1 text-[10px] font-normal",
-              !incoming && "justify-end",
+              "max-w-full rounded-2xl px-3.5 py-2 text-sm leading-relaxed shadow-xs",
+              incoming && "rounded-bl-md border bg-background",
+              isAgent && !failed && "rounded-br-md bg-primary text-primary-foreground",
+              isAgent && failed && "rounded-br-md border border-destructive/30 bg-destructive/10 text-destructive",
+              isNote && "rounded-br-md border border-dashed border-foreground/30 bg-muted/60",
             )}
           >
-            <time
-              dateTime={date.toISOString()}
-              title={`${dateFormatter.format(date)} · ${timeZone}`}
-            >
-              {timeFormatter.format(date)}
-            </time>
-
-            {isNote ? (
-              <span>Visible uniquement par l’équipe</span>
-            ) : (
-              !incoming && <DeliveryStatus status={visualStatus} />
-            )}
-          </MessageFooter>
-
-          {uncertain && (
-            <p className="mt-2 max-w-sm text-xs leading-relaxed text-foreground dark:text-foreground">
-              Actualisez avant de renvoyer : le message peut avoir été accepté
-              malgré l’absence de confirmation.
+            <p dir="auto" className="whitespace-pre-wrap wrap-anywhere">
+              {message.content}
             </p>
-          )}
+            <div className="mt-0.5">{meta}</div>
+          </div>
+        )}
 
-          {failed &&
-            !["IMAGE", "AUDIO", "VIDEO", "DOCUMENT"].includes(
-              message.type || "",
-            ) && (
-              <Button
-                type="button"
-                variant="link"
-                onClick={() => onRestore(message.content)}
-                className="h-auto self-start whitespace-normal p-0 text-xs text-destructive"
-              >
-                Remettre en brouillon
-              </Button>
-            )}
-        </MessageContent>
-      </Message>
+        {uncertain && (
+          <p className="max-w-sm px-1 text-xs leading-relaxed">
+            Actualisez avant de renvoyer : le message peut avoir été accepté
+            malgré l’absence de confirmation.
+          </p>
+        )}
+
+        {failed && !isMedia && (
+          <Button
+            type="button"
+            variant="link"
+            onClick={() => onRestore(message.content)}
+            className="h-auto whitespace-normal p-0 px-1 text-xs text-destructive"
+          >
+            Remettre en brouillon
+          </Button>
+        )}
+      </div>
+
+      {(isAgent || isNote) && (
+        <span className={cn("mb-0.5 shrink-0", grouped && "invisible")} aria-hidden={grouped || undefined}>
+          <AgentAvatar agent={message.agent} small />
+        </span>
+      )}
     </article>
   );
 }
@@ -554,6 +577,7 @@ export default function WhatsappWorkspace({
   user,
   isSuccess,
   canManageAi,
+  canCopyPhone = false,
   initialClient,
 }: WorkspaceProps) {
   const { dateFormatter, previewDateFormatter, timeZone } = useChatDates();
@@ -927,6 +951,20 @@ export default function WhatsappWorkspace({
     if (mode === "reply") requestAnimationFrame(() => textareaRef.current?.focus());
   }
 
+  const composerToggle = (
+    <ComposerModeToggle
+      mode={composerMode}
+      onChange={changeComposerMode}
+      hint={
+        aiActive && composerMode === "reply"
+          ? canManageAi
+            ? "Cliquer sur « Répondre » met l’IA en pause"
+            : "L’IA peut aussi répondre à ce contact"
+          : undefined
+      }
+    />
+  );
+
   function goBack() {
     setMobileChat(false);
 
@@ -1252,7 +1290,7 @@ export default function WhatsappWorkspace({
         <aside
           aria-label="Conversations"
           className={cn(
-            "w-full min-h-0 shrink-0 flex-col overflow-hidden border-r bg-background md:w-80 xl:w-96",
+            "w-full min-h-0 shrink-0 flex-col overflow-hidden border-r bg-background md:w-80 lg:w-[22rem]",
             mobileChat ? "hidden md:flex" : "flex",
           )}
         >
@@ -1508,11 +1546,8 @@ export default function WhatsappWorkspace({
                             )}
                           </span>
 
-                          {(client.prospectClassification === "interesting" ||
-                            client.prospectClassification === "follow_up" ||
-                            client.resolvedAt ||
-                            client.tags?.[0]) && (
-                            <span className="mt-1.5 flex min-w-0 items-center gap-1.5 text-[11px] text-muted-foreground">
+                          {/* Ligne de statut toujours réservée : toutes les lignes ont la même hauteur. */}
+                          <span className="mt-1.5 flex h-5 min-w-0 items-center gap-1.5 overflow-hidden text-[11px] text-muted-foreground">
                               {(client.prospectClassification ===
                                 "interesting" ||
                                 client.prospectClassification ===
@@ -1542,8 +1577,7 @@ export default function WhatsappWorkspace({
                                   )}
                                 </span>
                               )}
-                            </span>
-                          )}
+                          </span>
                         </span>
                       </Button>
                     </li>
@@ -1688,13 +1722,44 @@ export default function WhatsappWorkspace({
                         <Ellipsis aria-hidden="true" />
                       </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-52">
-                      <DropdownMenuItem onSelect={openContact}>
+                    <DropdownMenuContent align="end" className="w-56">
+                      {/* Grand écran : bascule la colonne ; sinon ouvre le panneau latéral. */}
+                      <DropdownMenuItem
+                        className="hidden xl:flex"
+                        onSelect={() => setPanelOpen((value) => !value)}
+                      >
+                        {panelOpen ? <PanelRightClose /> : <PanelRightOpen />}
+                        {panelOpen
+                          ? "Masquer la fiche contact"
+                          : "Afficher la fiche contact"}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        className="xl:hidden"
+                        onSelect={() => setSheetOpen(true)}
+                      >
+                        <UserRound />
                         Fiche contact
                       </DropdownMenuItem>
-                      <DropdownMenuItem onSelect={() => changeComposerMode("note")}>
+                      <DropdownMenuItem
+                        onSelect={() => changeComposerMode("note")}
+                      >
+                        <Lock />
                         Ajouter une note interne
                       </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      {[
+                        { href: "analytics", label: "Statistiques", icon: BarChart3 },
+                        { href: "contacts", label: "Contacts", icon: BookUser },
+                        { href: "team", label: "Équipe", icon: Users },
+                        { href: "settings", label: "Paramètres", icon: Settings },
+                      ].map(({ href, label, icon: Icon }) => (
+                        <DropdownMenuItem key={href} asChild>
+                          <Link href={`/projects/${project.id}/${href}`}>
+                            <Icon />
+                            {label}
+                          </Link>
+                        </DropdownMenuItem>
+                      ))}
                     </DropdownMenuContent>
                   </DropdownMenu>
                   <Tooltip>
@@ -1723,6 +1788,33 @@ export default function WhatsappWorkspace({
                   </Tooltip>
                 </div>
               </header>
+
+              {!activeResolved && (!aiActive || project.automationPaused) && (
+                <div
+                  role="status"
+                  className="flex shrink-0 items-center gap-2 bg-foreground px-4 py-2 text-xs text-background"
+                >
+                  <Hand aria-hidden="true" className="size-3.5 shrink-0" />
+                  <span className="min-w-0 flex-1">
+                    {project.automationPaused
+                      ? "Projet en pause : l’assistant IA ne répond à aucun contact."
+                      : "Assistant IA désactivé : votre équipe répond à ce contact."}
+                  </span>
+                  {!project.automationPaused && canManageAi && (
+                    <Button
+                      type="button"
+                      size="xs"
+                      variant="secondary"
+                      className="shrink-0"
+                      disabled={aiBusyId !== null}
+                      onClick={() => void toggleAi()}
+                    >
+                      <Bot data-icon="inline-start" />
+                      Réactiver
+                    </Button>
+                  )}
+                </div>
+              )}
 
               {showWelcome && (
                 <div className="flex items-center justify-between gap-3 border-b bg-primary/5 px-4 py-3 text-xs">
@@ -1817,6 +1909,15 @@ export default function WhatsappWorkspace({
 
                                 <ChatBubble
                                   message={message}
+                                  grouped={
+                                    day === previousDay &&
+                                    !!previousMessage &&
+                                    message.senderType !== "bot" &&
+                                    message.senderType !== "system" &&
+                                    previousMessage.senderType === message.senderType &&
+                                    (previousMessage.agent?.id ?? null) ===
+                                      (message.agent?.id ?? null)
+                                  }
                                   animate={animatedAiIds.has(message.id)}
                                   contactName={activeClient.name}
                                   onRestore={restoreDraft}
@@ -1852,30 +1953,6 @@ export default function WhatsappWorkspace({
 
               <footer className="chat-floating-composer relative z-10 shrink-0 bg-background px-3 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-5 sm:pt-4">
                 <div className="mx-auto max-w-4xl">
-                  <ComposerModeToggle
-                    mode={composerMode}
-                    onChange={changeComposerMode}
-                    hint={
-                      aiActive && canManageAi && composerMode === "reply"
-                        ? "Cliquer sur « Répondre » met l’IA en pause"
-                        : undefined
-                    }
-                  />
-                  {aiActive && composerMode === "reply" && (
-                    <div className="mb-3 flex items-start gap-2 rounded-xl border border-dashed px-3 py-2">
-                      <Bot
-                        aria-hidden="true"
-                        className="mt-0.5 size-4 shrink-0 text-foreground dark:text-foreground"
-                      />
-                      <p className="text-xs leading-relaxed text-muted-foreground">
-                        L’IA est activée et peut également répondre à ce
-                        contact.
-                        {canManageAi &&
-                          " Cliquez sur « Répondre » pour reprendre la main : l’IA se met en pause pour ce contact."}
-                      </p>
-                    </div>
-                  )}
-
                   {composerMode === "note" && (
                     <InternalNoteComposer
                       key={`note-${activeClient.id}`}
@@ -1888,6 +1965,7 @@ export default function WhatsappWorkspace({
                         }));
                       }}
                       onSubmit={handleAddNote}
+                      header={composerToggle}
                     />
                   )}
                   {/* Gardé monté en mode note : pièce jointe et brouillon restent intacts. */}
@@ -1914,6 +1992,7 @@ export default function WhatsappWorkspace({
                         }));
                       }}
                       onSend={handleSend}
+                      header={composerToggle}
                     />
                   </div>
                 </div>
@@ -1957,6 +2036,9 @@ export default function WhatsappWorkspace({
               lastActivityLabel={dateFormatter.format(
                 new Date(activeClient.lastActivityAt),
               )}
+              details={historyQuery.contact}
+              canCopyPhone={canCopyPhone}
+              formatDate={(iso) => dateFormatter.format(new Date(iso))}
               onTagsChanged={() => void contactsQuery.mutate()}
             />
           </aside>
@@ -1986,6 +2068,9 @@ export default function WhatsappWorkspace({
               lastActivityLabel={dateFormatter.format(
                 new Date(activeClient.lastActivityAt),
               )}
+              details={historyQuery.contact}
+              canCopyPhone={canCopyPhone}
+              formatDate={(iso) => dateFormatter.format(new Date(iso))}
               onTagsChanged={() => void contactsQuery.mutate()}
             />
           </SheetContent>

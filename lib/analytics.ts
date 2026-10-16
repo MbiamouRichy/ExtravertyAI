@@ -1,4 +1,5 @@
 import { localDayKey } from "./user-time-zone";
+import type { ProspectClassification } from "./instinct-classification";
 export type AnalyticsPeriod = "7d" | "14d" | "21d" | "30d" | "3m" | "6m" | "1y";
 
 export type BucketMode = "day" | "week" | "month";
@@ -106,6 +107,7 @@ export type TopContactRow = {
   received: number;
   sent: number;
   lastActivityLabel: string;
+  instinct: ProspectClassification | null;
 };
 
 export type AnalyticsKpis = {

@@ -68,6 +68,15 @@ export async function reconcileProviderReceipts(prisma: PrismaClient) {
         });
         return;
       }
+      const before = await tx.contact.findUnique({
+        where: {
+          projectId_remoteJid: {
+            projectId: receipt.projectId,
+            remoteJid: current.remoteJid,
+          },
+        },
+        select: { aiActive: true },
+      });
       const contact = await tx.contact.upsert({
         where: {
           projectId_remoteJid: {
@@ -89,6 +98,15 @@ export async function reconcileProviderReceipts(prisma: PrismaClient) {
           lastMessageAt: current.createdAt,
         },
       });
+      if (before?.aiActive)
+        await tx.contactEvent.create({
+          data: {
+            projectId: receipt.projectId,
+            contactId: contact.id,
+            type: "AI_PAUSED_FROM_PHONE",
+            createdAt: new Date(current.createdAt.getTime() - 1),
+          },
+        });
       await tx.message.create({
         data: {
           projectId: receipt.projectId,

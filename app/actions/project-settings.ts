@@ -114,6 +114,7 @@ export async function saveWhatsAppPreferences(input: unknown) {
         alwaysOnline: z.boolean(),
         readMessages: z.boolean(),
         typing: z.boolean(),
+        rejectCalls: z.boolean(),
       })
       .parse(input);
     const userId = await actor();
@@ -135,6 +136,7 @@ export async function saveWhatsAppPreferences(input: unknown) {
           whatsappAlwaysOnline: parsed.alwaysOnline,
           whatsappReadMessages: parsed.readMessages,
           whatsappTyping: parsed.typing,
+          whatsappRejectCalls: parsed.rejectCalls,
           whatsappSettingsPending: true,
           whatsappSettingsError: null,
           whatsappSyncAfter: new Date(),

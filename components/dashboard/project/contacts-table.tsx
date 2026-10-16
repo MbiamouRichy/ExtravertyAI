@@ -145,6 +145,7 @@ export function ContactsTable(p: Props) {
   const labels: Record<string, string> = {
     phone: "Numéro",
     aiActive: "Prise en charge",
+    instinct: "Instinct IA",
     createdAt: "Date d’ajout",
   };
   return (

@@ -29,12 +29,37 @@ import {
   openProjectBillingPortal,
 } from "@/app/actions/project-settings";
 import { DeleteProjectDialog } from "./delete-project-dialog";
+import { ScrollFadeArea } from "./scroll-fade-area";
 
 const tabs = [
-  { id: "agent", label: "Agent IA", short: "Agent IA", hint: "Ton, objectifs, qualification", icon: Bot },
-  { id: "general", label: "Projet & utilisation", short: "Projet", hint: "Nom, quota, abonnement", icon: Settings2 },
-  { id: "whatsapp", label: "WhatsApp", short: "WhatsApp", hint: "Connexion et présence", icon: Smartphone },
-  { id: "data", label: "Données & accès", short: "Données", hint: "Exports, pause, suppression", icon: ShieldCheck },
+  {
+    id: "agent",
+    label: "Agent IA",
+    short: "Agent IA",
+    hint: "Ton, objectifs, qualification",
+    icon: Bot,
+  },
+  {
+    id: "general",
+    label: "Projet & utilisation",
+    short: "Projet",
+    hint: "Nom, quota, abonnement",
+    icon: Settings2,
+  },
+  {
+    id: "whatsapp",
+    label: "WhatsApp",
+    short: "WhatsApp",
+    hint: "Connexion et présence",
+    icon: Smartphone,
+  },
+  {
+    id: "data",
+    label: "Données & accès",
+    short: "Données",
+    hint: "Exports, pause, suppression",
+    icon: ShieldCheck,
+  },
 ] as const;
 export default function ProjectSettingsPage({
   project: p,
@@ -134,11 +159,19 @@ export default function ProjectSettingsPage({
           <ul className="mt-3 flex flex-wrap gap-2 text-xs">
             <li className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1">
               <Smartphone aria-hidden="true" className="size-3.5" />
-              {p.instanceStatus === "connected" ? "WhatsApp connecté" : "WhatsApp à connecter"}
+              {p.instanceStatus === "connected"
+                ? "WhatsApp connecté"
+                : "WhatsApp à connecter"}
             </li>
-            <li className="rounded-full border px-2.5 py-1 capitalize">Offre {p.plan}</li>
+            <li className="rounded-full border px-2.5 py-1 capitalize">
+              Offre {p.plan}
+            </li>
             <li className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1">
-              {paused ? <Pause aria-hidden="true" className="size-3.5" /> : <Bot aria-hidden="true" className="size-3.5" />}
+              {paused ? (
+                <Pause aria-hidden="true" className="size-3.5" />
+              ) : (
+                <Bot aria-hidden="true" className="size-3.5" />
+              )}
               {paused ? "Automatisation en pause" : "Automatisation active"}
             </li>
           </ul>
@@ -188,19 +221,19 @@ export default function ProjectSettingsPage({
               aria-current={tab === item.id ? "page" : undefined}
               variant={tab === item.id ? "secondary" : "ghost"}
               className={cn(
-                "h-auto min-w-0 justify-start gap-2 px-2 py-2 text-left lg:gap-3 lg:px-3",
+                "h-auto w-full min-w-0 justify-start gap-2 overflow-hidden px-2 py-2 text-left lg:gap-3 lg:px-3",
                 tab !== item.id && "max-lg:border max-lg:border-border",
               )}
             >
               <span className="flex size-7 shrink-0 items-center justify-center rounded-lg border bg-background lg:size-8">
                 <item.icon aria-hidden="true" className="size-4" />
               </span>
-              <span className="flex min-w-0 flex-col">
+              <span className="flex min-w-0 flex-1 flex-col">
                 <span className="truncate text-xs font-medium sm:text-sm">
                   <span className="sm:hidden">{item.short}</span>
                   <span className="hidden sm:inline">{item.label}</span>
                 </span>
-                <span className="hidden text-xs font-normal text-muted-foreground lg:block">
+                <span className="hidden whitespace-normal text-xs leading-snug font-normal text-muted-foreground lg:block">
                   {item.hint}
                 </span>
               </span>
@@ -247,7 +280,9 @@ export default function ProjectSettingsPage({
             <section className="rounded-2xl border bg-card p-4 sm:p-6">
               <div className="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
                 <div>
-                  <h2 className="font-heading text-lg font-semibold tracking-tight">Votre utilisation</h2>
+                  <h2 className="font-heading text-lg font-semibold tracking-tight">
+                    Votre utilisation
+                  </h2>
                   <p className="mt-1 text-sm text-muted-foreground">
                     Offre <span className="capitalize">{p.plan}</span> ·{" "}
                     {p.periodEnd ? (
@@ -295,7 +330,10 @@ export default function ProjectSettingsPage({
                 aria-label="Quota de messages consommé"
                 aria-valuemin={0}
                 aria-valuemax={Math.max(p.allMessagesCount, 1)}
-                aria-valuenow={Math.min(p.messageCount, Math.max(p.allMessagesCount, 1))}
+                aria-valuenow={Math.min(
+                  p.messageCount,
+                  Math.max(p.allMessagesCount, 1),
+                )}
                 className="h-2.5 overflow-hidden rounded-full bg-muted"
               >
                 <div
@@ -416,29 +454,35 @@ export default function ProjectSettingsPage({
                   instructions confidentielles dans le journal.
                 </p>
                 {p.audit.length ? (
-                  <ul className="mt-5 divide-y">
-                    {p.audit.map((item) => (
-                      <li
-                        key={item.id}
-                        className="flex flex-col gap-0.5 py-3 text-sm sm:flex-row sm:items-center sm:justify-between sm:gap-4"
-                      >
-                        <span>
-                          {item.action === "agent.updated"
-                            ? "Configuration de l’agent"
-                            : item.action === "whatsapp.updated"
-                              ? "Réglages WhatsApp"
-                              : item.action === "project.paused"
-                                ? "Projet mis en pause"
-                                : item.action === "project.resumed"
-                                  ? "Projet réactivé"
-                                  : "Paramètres du projet"}
-                        </span>
-                        <time className="text-xs text-muted-foreground">
-                          <LocalDate value={item.createdAt} />
-                        </time>
-                      </li>
-                    ))}
-                  </ul>
+                  <ScrollFadeArea
+                    label="Historique des modifications"
+                    surface="card"
+                    className={cn("mt-5", p.audit.length > 6 && "h-72")}
+                  >
+                    <ul className="divide-y">
+                      {p.audit.map((item) => (
+                        <li
+                          key={item.id}
+                          className="flex flex-col gap-0.5 py-3 text-sm sm:flex-row sm:items-center sm:justify-between sm:gap-4"
+                        >
+                          <span>
+                            {item.action === "agent.updated"
+                              ? "Configuration de l’agent"
+                              : item.action === "whatsapp.updated"
+                                ? "Réglages WhatsApp"
+                                : item.action === "project.paused"
+                                  ? "Projet mis en pause"
+                                  : item.action === "project.resumed"
+                                    ? "Projet réactivé"
+                                    : "Paramètres du projet"}
+                          </span>
+                          <time className="text-xs text-muted-foreground">
+                            <LocalDate value={item.createdAt} />
+                          </time>
+                        </li>
+                      ))}
+                    </ul>
+                  </ScrollFadeArea>
                 ) : (
                   <p className="mt-5 text-sm text-muted-foreground">
                     Aucune modification enregistrée pour le moment.
@@ -523,7 +567,10 @@ export default function ProjectSettingsPage({
                 <section className="flex flex-col justify-between gap-4 rounded-2xl border border-destructive/25 p-4 sm:flex-row sm:items-center sm:p-6">
                   <div>
                     <h2 className="flex items-center gap-2 font-heading text-base font-semibold tracking-tight">
-                      <AlertTriangle aria-hidden="true" className="size-4 text-destructive" />
+                      <AlertTriangle
+                        aria-hidden="true"
+                        className="size-4 text-destructive"
+                      />
                       Supprimer ce projet
                     </h2>
                     <p className="mt-2 max-w-lg text-sm leading-relaxed text-muted-foreground">

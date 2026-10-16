@@ -54,12 +54,14 @@ export async function syncWhatsAppSettings(
             throw new Error("SETTINGS_RESPONSE_INVALID");
           return value;
         };
-        const rejectCall = getBoolean("rejectCall", "reject_call");
+        const providerRejectCall = getBoolean("rejectCall", "reject_call");
         const msgCall = current.msgCall ?? current.msg_call;
-        if (rejectCall && typeof msgCall !== "string")
+        if (providerRejectCall && typeof msgCall !== "string")
           throw new Error("SETTINGS_RESPONSE_INVALID");
+        // Le rejet des appels est piloté par le projet ; le message éventuel
+        // configuré côté fournisseur est conservé.
         const payload = {
-          rejectCall,
+          rejectCall: project.whatsappRejectCalls,
           msgCall: typeof msgCall === "string" ? msgCall : "",
           groupsIgnore: getBoolean("groupsIgnore", "groups_ignore"),
           readStatus: getBoolean("readStatus", "read_status"),

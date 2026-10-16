@@ -9,6 +9,7 @@ import {
   ArrowLeft,
   ArrowRight,
   Check,
+  ChevronDown,
   CircleAlert,
   FolderPen,
   Info,
@@ -48,6 +49,7 @@ import {
 } from "@/lib/project-creation-schema";
 import {
   PRICING_PLANS as PLANS,
+  PLAN_CAPABILITIES,
   formatMessageLimit,
   formatPlanPrice,
   type PlanId,
@@ -75,6 +77,7 @@ export default function CreateProjectForm({
   initialPlan?: PlanId;
 }) {
   const [isBusy, setIsBusy] = useState(false);
+  const [expandedPlans, setExpandedPlans] = useState<string[]>([]);
   // Synchronous guard against a double click before the next render. The
   // server action must remain idempotent on its own.
   const submissionLock = useRef(false);
@@ -392,12 +395,20 @@ export default function CreateProjectForm({
                       disabled={isBusy}
                       aria-labelledby="step-plan"
                       aria-invalid={fieldState.invalid}
-                      className="grid gap-3 md:grid-cols-3"
+                      className="grid items-start gap-3 md:grid-cols-3"
                     >
                       {PLANS.map((plan) => {
                         const checked = field.value === plan.id;
                         return (
-                          <div key={plan.id} className="relative min-w-0">
+                          <div
+                            key={plan.id}
+                            className={cn(
+                              "relative flex min-w-0 flex-col rounded-xl border bg-card transition-colors",
+                              "hover:border-foreground/30",
+                              checked && "border-foreground ring-1 ring-foreground",
+                              "has-[[role=radio]:focus-visible]:outline-2 has-[[role=radio]:focus-visible]:outline-offset-2 has-[[role=radio]:focus-visible]:outline-ring",
+                            )}
+                          >
                             <RadioGroupItem
                               ref={checked ? field.ref : undefined}
                               id={`plan-${plan.id}`}
@@ -407,10 +418,7 @@ export default function CreateProjectForm({
                             <FieldLabel
                               htmlFor={`plan-${plan.id}`}
                               className={cn(
-                                "flex h-full cursor-pointer flex-col items-stretch gap-0 rounded-xl border bg-card p-4 font-normal transition-colors",
-                                "hover:border-foreground/30",
-                                "peer-data-[state=checked]:border-foreground peer-data-[state=checked]:ring-1 peer-data-[state=checked]:ring-foreground",
-                                "peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-ring",
+                                "flex w-full! flex-1 cursor-pointer flex-col items-stretch gap-0 p-4 pb-3 font-normal",
                                 "peer-disabled:cursor-not-allowed peer-disabled:opacity-60",
                               )}
                             >
@@ -456,6 +464,54 @@ export default function CreateProjectForm({
                                 {plan.description}
                               </span>
                             </FieldLabel>
+                            <div className="border-t px-4 pt-1 pb-3">
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="-mx-2 h-8 gap-1.5 px-2 text-xs text-muted-foreground hover:text-foreground"
+                                aria-expanded={expandedPlans.includes(plan.id)}
+                                aria-controls={`plan-${plan.id}-features`}
+                                onClick={() =>
+                                  setExpandedPlans((current) =>
+                                    current.includes(plan.id)
+                                      ? current.filter((id) => id !== plan.id)
+                                      : [...current, plan.id],
+                                  )
+                                }
+                              >
+                                {expandedPlans.includes(plan.id)
+                                  ? "Afficher moins"
+                                  : "Afficher plus"}
+                                <ChevronDown
+                                  data-icon="inline-end"
+                                  className={cn(
+                                    "transition-transform motion-reduce:transition-none",
+                                    expandedPlans.includes(plan.id) && "rotate-180",
+                                  )}
+                                />
+                              </Button>
+                              <ul
+                                id={`plan-${plan.id}-features`}
+                                hidden={!expandedPlans.includes(plan.id)}
+                                aria-label={`Fonctionnalités du forfait ${plan.name}`}
+                                className="mt-1 space-y-2"
+                              >
+                                {PLAN_CAPABILITIES[plan.id].map((feature) => (
+                                  <li
+                                    key={feature}
+                                    className="flex items-start gap-2 text-xs leading-5"
+                                  >
+                                    <Check
+                                      aria-hidden="true"
+                                      className="mt-1 size-3 shrink-0"
+                                      strokeWidth={2.5}
+                                    />
+                                    {feature}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
                           </div>
                         );
                       })}

@@ -5,6 +5,8 @@ import type { ReactNode } from "react";
 import { Phone } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { getInitials } from "@/components/getInitials";
+import type { ProspectClassification } from "@/lib/instinct-classification";
+import { InstinctCell } from "./instinct-badge";
 export type ContactTableType = {
   id: string;
   name: string | null;
@@ -16,6 +18,7 @@ export type ContactTableType = {
   lastMessageAt: string | null;
   messageCount: number;
   preview: string;
+  instinct: ProspectClassification | null;
 };
 export function ContactsTableColumns(options: {
   renderActions: (contact: ContactTableType) => ReactNode;
@@ -65,6 +68,11 @@ export function ContactsTableColumns(options: {
       accessorKey: "aiActive",
       header: "Prise en charge",
       cell: ({ row }) => options.renderStatus(row.original),
+    },
+    {
+      accessorKey: "instinct",
+      header: "Instinct IA",
+      cell: ({ row }) => <InstinctCell classification={row.original.instinct} />,
     },
     {
       accessorKey: "createdAt",

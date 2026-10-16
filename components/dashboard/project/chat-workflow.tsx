@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -398,7 +398,7 @@ export function ComposerModeToggle({
     <div
       role="group"
       aria-label="Type de message"
-      className="mb-2 flex items-center gap-1"
+      className="flex min-w-0 flex-1 items-center gap-1"
     >
       <Button
         type="button"
@@ -421,7 +421,7 @@ export function ComposerModeToggle({
         Note interne
       </Button>
       {hint && (
-        <span className="ml-auto hidden truncate text-[11px] text-muted-foreground sm:inline">
+        <span className="ml-auto hidden min-w-0 truncate pr-1.5 text-[11px] text-muted-foreground sm:inline">
           {hint}
         </span>
       )}
@@ -436,8 +436,11 @@ export function InternalNoteComposer({
   draft,
   onDraftChange,
   onSubmit,
+  header,
 }: {
   contactName: string;
+  /** Barre affichée en haut de la carte (ex. bascule Répondre / Note interne). */
+  header?: ReactNode;
   draft: string;
   onDraftChange: (value: string) => void;
   onSubmit: (content: string) => Promise<boolean>;
@@ -472,13 +475,21 @@ export function InternalNoteComposer({
             </FieldLabel>
             <InputGroup
               className={cn(
-                "rounded-2xl border-dashed border-foreground/40 bg-muted/50",
+                "rounded-xl border-dashed border-foreground/40 bg-muted/50",
               )}
             >
+              {header && (
+                <InputGroupAddon
+                  align="block-start"
+                  className="gap-1 border-b border-dashed border-foreground/20 px-1.5 py-1.5"
+                >
+                  {header}
+                </InputGroupAddon>
+              )}
               <InputGroupTextarea
                 {...field}
                 id="chat-internal-note"
-                rows={2}
+                rows={1}
                 autoFocus
                 maxLength={MAX_NOTE_LENGTH}
                 autoComplete="off"
@@ -486,7 +497,7 @@ export function InternalNoteComposer({
                 aria-invalid={fieldState.invalid}
                 aria-describedby="chat-internal-note-help"
                 placeholder="Visible uniquement par votre équipe…"
-                className="max-h-40 min-h-16 px-3"
+                className="max-h-40 min-h-11 px-3"
                 onChange={(event) => {
                   field.onChange(event);
                   onDraftChange(event.target.value);

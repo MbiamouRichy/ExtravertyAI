@@ -241,16 +241,19 @@ export function ContactsWorkspace(p: Props) {
         className="grid grid-cols-3 divide-x rounded-2xl border bg-card"
       >
         {[
-          { title: "Contacts", count: p.total, icon: Users },
-          { title: "Gérés par l’IA", count: p.aiCount, icon: Bot },
-          { title: "Suivis par l’équipe", count: p.total - p.aiCount, icon: UserRound },
+          { title: "Contacts", short: "Total", count: p.total, icon: Users },
+          { title: "Gérés par l’IA", short: "IA", count: p.aiCount, icon: Bot },
+          { title: "Suivis par l’équipe", short: "Équipe", count: p.total - p.aiCount, icon: UserRound },
         ].map((card) => (
-          <div key={card.title} className="flex items-center gap-3 px-4 py-4 sm:px-6">
+          <div key={card.title} className="flex min-w-0 items-center gap-3 px-3 py-4 sm:px-6">
             <span className="hidden size-9 shrink-0 items-center justify-center rounded-lg border bg-background sm:flex">
               <card.icon aria-hidden="true" className="size-4" />
             </span>
-            <div>
-              <p className="text-xs text-muted-foreground">{card.title}</p>
+            <div className="min-w-0">
+              <p className="truncate text-xs text-muted-foreground">
+                <span className="sm:hidden" aria-hidden="true">{card.short}</span>
+                <span className="max-sm:sr-only">{card.title}</span>
+              </p>
               <p className="font-heading text-xl font-bold tabular-nums sm:text-2xl">
                 {card.count.toLocaleString("fr-FR")}
               </p>

@@ -146,8 +146,10 @@ export async function sendWhatsAppMessage(
         throw new SendRejected("WhatsApp n’est pas connecté.");
       }
 
-      const contactLock = await tx.$queryRaw<Array<{ id: string }>>`
-                SELECT id
+      const contactLock = await tx.$queryRaw<
+        Array<{ id: string; aiActive: boolean }>
+      >`
+                SELECT id, "aiActive"
                 FROM "contact"
                 WHERE id = ${contactId}
                   AND "projectId" = ${projectId}
@@ -194,6 +196,18 @@ export async function sendWhatsAppMessage(
           lastMessageAt: message.createdAt,
         },
       });
+      if (contactLock[0].aiActive) {
+        // Journalisé juste avant le message qui a provoqué la prise en main.
+        await tx.contactEvent.create({
+          data: {
+            projectId,
+            contactId,
+            actorId: agentId,
+            type: "AI_PAUSED_BY_REPLY",
+            createdAt: new Date(message.createdAt.getTime() - 1),
+          },
+        });
+      }
 
       return {
         message,

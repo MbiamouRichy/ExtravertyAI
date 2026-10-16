@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/table";
 
 import { AnalyticsCard } from "./analytics-card";
+import { InstinctCell } from "./project/instinct-badge";
 import { ChartEmptyState } from "./chart-empty-state";
 import { cn } from "@/lib/utils";
 import { formatNumberFr, type TopContactRow } from "@/lib/analytics";
@@ -76,12 +77,15 @@ export function TopContactsCard({
 
           <TableHeader>
             <TableRow className="hover:bg-transparent">
-              <TableHead className="w-1/2 text-xs">Contact</TableHead>
+              <TableHead className="text-xs">Contact</TableHead>
               <TableHead className="w-16 text-right text-xs sm:w-20">
                 Reçus
               </TableHead>
               <TableHead className="w-16 text-right text-xs sm:w-20">
                 Envoyés
+              </TableHead>
+              <TableHead className="hidden w-40 text-xs lg:table-cell">
+                Instinct IA
               </TableHead>
               <TableHead className="hidden w-32 text-right text-xs md:table-cell">
                 Réglage IA
@@ -131,8 +135,11 @@ export function TopContactsCard({
                             </span>
                           </div>
                         </div>
-                        <div className="md:hidden">
-                          <AiBadge active={contact.aiActive} />
+                        <div className="flex flex-wrap items-center gap-2 lg:hidden">
+                          <InstinctCell classification={contact.instinct} />
+                          <span className="md:hidden">
+                            <AiBadge active={contact.aiActive} />
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -145,6 +152,10 @@ export function TopContactsCard({
 
                 <TableCell className="py-4 text-right align-top text-sm tabular-nums">
                   {formatNumberFr(contact.sent)}
+                </TableCell>
+
+                <TableCell className="hidden py-4 align-top lg:table-cell">
+                  <InstinctCell classification={contact.instinct} />
                 </TableCell>
 
                 <TableCell className="hidden py-4 text-right align-top md:table-cell">

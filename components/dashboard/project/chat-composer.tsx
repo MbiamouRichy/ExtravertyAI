@@ -2,9 +2,9 @@
 
 import {
   useEffect,
-  useEffectEvent,
   useRef,
   useState,
+  type ReactNode,
   type RefObject,
 } from "react";
 import { Controller, useForm } from "react-hook-form";
@@ -15,6 +15,8 @@ import {
   Paperclip,
   Mic,
   CornerDownLeft,
+  FileText,
+  Film,
   Loader2,
   Sparkles,
   WandSparkles,
@@ -23,7 +25,9 @@ import {
 import { useAudioRecorder } from "@/hooks/use-audio-recorder";
 import { toast } from "sonner";
 import { assistWriting } from "@/app/actions/assistWriting";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { Kbd } from "@/components/ui/kbd";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Field,
@@ -64,12 +68,15 @@ export function ChatComposer({
   assistanceEnabled,
   contextVersion,
   hasClientMessage,
+  header,
 }: {
   projectId: string;
   contactId: string;
   assistanceEnabled: boolean;
   contextVersion: string;
   hasClientMessage: boolean;
+  /** Barre affichée en haut de la carte (ex. bascule Répondre / Note interne). */
+  header?: ReactNode;
   draft: string;
   contactName: string;
   isSending: boolean;
@@ -227,27 +234,17 @@ export function ChatComposer({
     };
   }, [contactId, assistanceEnabled, contextVersion, isSending, audioMode]);
 
-  const generatePreview = useEffectEvent(() => {
-    void requestAssistance("suggest", true);
-  });
-  useEffect(() => {
-    if (!assistanceEnabled || !hasClientMessage || isSending || audioMode)
-      return;
-    const timer = setTimeout(() => generatePreview(), 800);
-    return () => clearTimeout(timer);
-  }, [
-    contactId,
-    assistanceEnabled,
-    contextVersion,
-    hasClientMessage,
-    isSending,
-    audioMode,
-  ]);
+  function removeAttachment() {
+    uploadController.current?.abort();
+    setUploading(false);
+    setAttachment(undefined);
+    setFile(null);
+    form.clearErrors("attachment");
+    if (fileRef.current) fileRef.current.value = "";
+  }
 
-  async function requestAssistance(
-    mode: "suggest" | "rewrite",
-    automatic = false,
-  ) {
+  // Les suggestions IA ne sont générées qu’à la demande (« Proposer des réponses »).
+  async function requestAssistance(mode: "suggest" | "rewrite") {
     if (requestLock.current || isSending || !assistanceEnabled) return;
     requestLock.current = true;
     const id = ++requestId.current;
@@ -262,12 +259,12 @@ export function ChatComposer({
       });
       if (id !== requestId.current) return;
       if (!result.success) {
-        if (!automatic) toast.error(result.error);
+        toast.error(result.error);
         return;
       }
       setProposal({ mode, replies: result.replies, draft });
     } catch {
-      if (id === requestId.current && !automatic)
+      if (id === requestId.current)
         toast.error("L’assistance IA est indisponible. Réessayez.");
     } finally {
       if (id === requestId.current) {
@@ -413,196 +410,127 @@ export function ChatComposer({
           </div>
         </section>
       )}
-      {(audioRecorder.recording || audioRecorder.preparing) && (
-        <AudioRecording
-          stream={audioRecorder.microphone}
-          preparing={audioRecorder.preparing}
-          seconds={audioRecorder.seconds}
-          onCancel={audioRecorder.cancel}
-          onStop={audioRecorder.stop}
-        />
-      )}
-      {!recordingMode && (
-        <FieldGroup className="gap-2 rounded-2xl border border-input bg-muted/30 px-2 py-1 shadow-sm focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/30">
-          <Controller
-            name="attachment"
-            control={form.control}
-            render={({ field, fieldState }) => (
-              <Field data-invalid={fieldState.invalid} className="gap-2">
-                <FieldLabel htmlFor="chat-attachment" className="sr-only">
-                  Joindre un fichier
-                </FieldLabel>
-                <Input
-                  ref={(element) => {
-                    field.ref(element);
-                    fileRef.current = element;
-                  }}
-                  id="chat-attachment"
-                  type="file"
-                  className="sr-only"
-                  tabIndex={-1}
-                  accept={[
-                    ...Object.keys(MEDIA_TYPES),
-                    ...Object.values(MEDIA_TYPES).map((ext) => "." + ext),
-                  ].join(",")}
-                  disabled={
-                    isSending ||
-                    uploading ||
-                    audioRecorder.recording ||
-                    audioRecorder.preparing
-                  }
-                  aria-invalid={fieldState.invalid}
-                  aria-describedby="chat-attachment-help chat-attachment-error"
-                  onBlur={field.onBlur}
-                  onChange={(event) => void uploadFile(event.target.files?.[0])}
-                />
-                <p
-                  id="chat-attachment-help"
-                  className={
-                    file && !audioMode
-                      ? "px-2 text-xs text-muted-foreground"
-                      : "sr-only"
-                  }
-                >
-                  4 Mo maximum par fichier. Légende : 1 024 caractères. L’audio
-                  est envoyé seul.
-                </p>
-                {file && !audioMode && (
-                  <div className="space-y-2 rounded-lg border bg-muted p-3">
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="min-w-0 truncate text-sm">{file.name}</p>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="ghost"
-                        disabled={isSending}
-                        onClick={() => {
-                          uploadController.current?.abort();
-                          setUploading(false);
-                          setAttachment(undefined);
-                          setFile(null);
-                          form.clearErrors("attachment");
-                          if (fileRef.current) fileRef.current.value = "";
-                        }}
-                      >
-                        Retirer
-                      </Button>
-                    </div>
-                    {uploading && (
-                      <p
-                        role="status"
-                        className="text-sm text-muted-foreground"
-                      >
-                        Import en cours…
-                      </p>
-                    )}
-                    {preview &&
-                      (file.type.startsWith("image/") ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={preview}
-                          alt="Aperçu de l’image à envoyer"
-                          className="max-h-40 max-w-full rounded-lg object-contain"
-                        />
-                      ) : file.type.startsWith("audio/") ? (
-                        <AudioPlayer key={preview} src={preview} />
-                      ) : file.type.startsWith("video/") ? (
-                        <video
-                          src={preview}
-                          controls
-                          playsInline
-                          preload="metadata"
-                          className="max-h-48 max-w-full rounded-lg"
-                          aria-label="Aperçu de la vidéo"
-                        />
-                      ) : (
-                        <p className="text-xs text-muted-foreground">
-                          Document joint ·{" "}
-                          {(file.size / 1024).toLocaleString("fr-FR", {
-                            maximumFractionDigits: 0,
-                          })}{" "}
-                          Ko
-                        </p>
-                      ))}
-                  </div>
-                )}
-                {file && audioMode && (
-                  <div className="flex min-w-0 items-center gap-1 py-2">
-                    <Button
-                      type="button"
-                      size="icon"
-                      variant="ghost"
-                      className="shrink-0 rounded-full"
-                      aria-label="Supprimer le message vocal"
-                      disabled={isSending}
-                      onClick={() => {
-                        uploadController.current?.abort();
-                        setUploading(false);
-                        setAttachment(undefined);
-                        setFile(null);
-                        form.clearErrors("attachment");
-                        if (fileRef.current) fileRef.current.value = "";
-                      }}
-                    >
-                      <X aria-hidden="true" className="size-4" />
-                    </Button>
-                    <div className="min-w-0 flex-1">
-                      {preview && (
-                        <AudioPlayer
-                          key={preview}
-                          src={preview}
-                          className="w-full border-0 bg-transparent px-0 py-0"
-                        />
-                      )}
-                      {uploading && (
-                        <p
-                          role="status"
-                          className="text-xs text-muted-foreground"
-                        >
-                          Préparation de l’audio…
-                        </p>
-                      )}
-                    </div>
-                    <Button
-                      type="submit"
-                      size="icon"
-                      className="shrink-0 rounded-full"
-                      aria-label="Envoyer le message vocal"
-                      disabled={!attachment || uploading || isSending}
-                    >
-                      {isSending ? (
-                        <Loader2
-                          aria-hidden="true"
-                          className="size-4 animate-spin"
-                        />
-                      ) : (
-                        <ArrowUp aria-hidden="true" className="size-4" />
-                      )}
-                    </Button>
-                  </div>
-                )}
-                {fieldState.invalid && (
-                  <FieldError
-                    id="chat-attachment-error"
-                    errors={[fieldState.error]}
-                  />
-                )}
-              </Field>
-            )}
+      <div className="relative min-w-0 overflow-hidden rounded-xl border border-input bg-background shadow-xs transition-[color,box-shadow] focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/50">
+        {header && (
+          <div className="flex min-w-0 items-center gap-1 border-b px-1.5 py-1.5">
+            {header}
+          </div>
+        )}
+        {recordingMode ? (
+          <AudioRecording
+            stream={audioRecorder.microphone}
+            preparing={audioRecorder.preparing}
+            seconds={audioRecorder.seconds}
+            onCancel={audioRecorder.cancel}
+            onStop={audioRecorder.stop}
           />
-          {!audioMode && (
+        ) : (
+          <FieldGroup className="gap-0">
             <Controller
-              name="content"
+              name="attachment"
               control={form.control}
               render={({ field, fieldState }) => (
-                <Field data-invalid={fieldState.invalid} className="gap-2">
-                  <FieldLabel
-                    htmlFor="chat-message"
-                    className="sr-only max-w-full"
-                  >
-                    Message pour {contactName}
+                <Field data-invalid={fieldState.invalid} className="gap-0">
+                  <FieldLabel htmlFor="chat-attachment" className="sr-only">
+                    Joindre un fichier
                   </FieldLabel>
-                  <div className="flex min-w-0 flex-col gap-1">
+                  <Input
+                    ref={(element) => {
+                      field.ref(element);
+                      fileRef.current = element;
+                    }}
+                    id="chat-attachment"
+                    type="file"
+                    className="sr-only"
+                    tabIndex={-1}
+                    accept={[
+                      ...Object.keys(MEDIA_TYPES),
+                      ...Object.values(MEDIA_TYPES).map((ext) => "." + ext),
+                    ].join(",")}
+                    disabled={isSending || uploading || recordingMode}
+                    aria-invalid={fieldState.invalid}
+                    aria-describedby="chat-attachment-help chat-attachment-error"
+                    onBlur={field.onBlur}
+                    onChange={(event) =>
+                      void uploadFile(event.target.files?.[0])
+                    }
+                  />
+                  <p id="chat-attachment-help" className="sr-only">
+                    Images, vidéos, audio et documents, 4 Mo maximum. Légende :
+                    1 024 caractères. L’audio est envoyé seul.
+                  </p>
+                  {file && !audioMode && (
+                    <div className="px-2 pt-2">
+                      <AttachmentChip
+                        file={file}
+                        preview={preview}
+                        uploading={uploading}
+                        disabled={isSending}
+                        onRemove={removeAttachment}
+                      />
+                    </div>
+                  )}
+                  {file && audioMode && (
+                    <div className="flex min-w-0 items-center gap-1.5 p-1.5">
+                      <Button
+                        type="button"
+                        size="icon"
+                        variant="ghost"
+                        className="shrink-0 text-muted-foreground hover:text-foreground"
+                        aria-label="Supprimer le message vocal"
+                        disabled={isSending}
+                        onClick={removeAttachment}
+                      >
+                        <X aria-hidden="true" />
+                      </Button>
+                      <div className="min-w-0 flex-1">
+                        {uploading ? (
+                          <p
+                            role="status"
+                            className="flex items-center gap-2 text-xs text-muted-foreground"
+                          >
+                            <Loader2
+                              aria-hidden="true"
+                              className="size-3.5 animate-spin motion-reduce:animate-none"
+                            />
+                            Préparation de l’audio…
+                          </p>
+                        ) : (
+                          preview && (
+                            <AudioPlayer
+                              key={preview}
+                              src={preview}
+                              className="w-full rounded-none border-0 bg-transparent p-0 shadow-none"
+                            />
+                          )
+                        )}
+                      </div>
+                      <SendButton
+                        label="Envoyer le message vocal"
+                        sending={isSending}
+                        disabled={!attachment || uploading || isSending}
+                      />
+                    </div>
+                  )}
+                  {fieldState.invalid && (
+                    <FieldError
+                      id="chat-attachment-error"
+                      className="px-3 pt-2 text-xs"
+                      errors={[fieldState.error]}
+                    />
+                  )}
+                </Field>
+              )}
+            />
+            {!audioMode && (
+              <Controller
+                name="content"
+                control={form.control}
+                render={({ field, fieldState }) => (
+                  <Field data-invalid={fieldState.invalid} className="gap-0">
+                    <FieldLabel htmlFor="chat-message" className="sr-only">
+                      Message pour {contactName}
+                    </FieldLabel>
                     <div className="relative min-w-0">
                       <Textarea
                         {...field}
@@ -613,11 +541,7 @@ export function ChatComposer({
                         id="chat-message"
                         rows={1}
                         autoComplete="off"
-                        disabled={
-                          isSending ||
-                          audioRecorder.recording ||
-                          audioRecorder.preparing
-                        }
+                        disabled={isSending}
                         aria-invalid={fieldState.invalid}
                         aria-describedby={
                           fieldState.invalid
@@ -630,16 +554,25 @@ export function ChatComposer({
                         }}
                         onKeyDown={(event) => {
                           if (
-                            event.key === "Enter" &&
-                            (event.ctrlKey || event.metaKey) &&
-                            !event.nativeEvent.isComposing
-                          ) {
-                            event.preventDefault();
-                            event.currentTarget.form?.requestSubmit();
-                          }
+                            event.key !== "Enter" ||
+                            event.nativeEvent.isComposing
+                          )
+                            return;
+                          // Entrée envoie au clavier physique ; sur mobile elle
+                          // garde son rôle de retour à la ligne.
+                          const send =
+                            event.ctrlKey ||
+                            event.metaKey ||
+                            (!event.shiftKey &&
+                              !window.matchMedia("(pointer: coarse)").matches);
+                          if (!send) return;
+                          event.preventDefault();
+                          event.currentTarget.form?.requestSubmit();
                         }}
-                        placeholder="Écrire un message…"
-                        className="min-h-10 min-w-0 max-h-40 w-full resize-none rounded-none border-0 bg-transparent px-2 py-2 shadow-none focus-visible:ring-0 dark:bg-transparent"
+                        placeholder={
+                          file ? "Ajouter une légende…" : "Écrire un message…"
+                        }
+                        className="max-h-40 min-h-11 w-full min-w-0 resize-none rounded-none border-0 bg-transparent px-3 py-2.5 shadow-none focus-visible:ring-0 aria-invalid:ring-0 dark:bg-transparent"
                       />
                       <div
                         aria-hidden="true"
@@ -650,169 +583,233 @@ export function ChatComposer({
                         className={`pointer-events-none absolute inset-x-2 bottom-0 h-3 mask-t-from-0% mask-t-to-100% backdrop-blur-xs ${scrollEdges.bottom ? "opacity-100" : "opacity-0"}`}
                       />
                     </div>
-                    <div className="flex min-w-0 flex-wrap items-center justify-between gap-1">
-                      <div className="flex min-w-0 items-center gap-0.5">
+                    <div className="flex min-w-0 items-center gap-0.5 px-1.5 pb-1.5">
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon-sm"
+                            className={toolClass}
+                            aria-label="Joindre un fichier"
+                            aria-controls="chat-attachment"
+                            disabled={isSending || uploading}
+                            onClick={() => fileRef.current?.click()}
+                          >
+                            <Paperclip aria-hidden="true" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          Images, vidéos, audio et documents · 4 Mo maximum
+                        </TooltipContent>
+                      </Tooltip>
+                      <ChatEmojiPicker
+                        draft={field.value}
+                        textareaRef={textareaRef}
+                        disabled={isSending}
+                        onChange={(value) => {
+                          field.onChange(value);
+                          onDraftChange(value);
+                        }}
+                      />
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon-sm"
+                            className={toolClass}
+                            aria-label="Enregistrer un message vocal"
+                            disabled={isSending || uploading || !!file}
+                            onClick={() => void audioRecorder.start()}
+                          >
+                            <Mic aria-hidden="true" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          {file
+                            ? "Retirez la pièce jointe pour enregistrer un audio"
+                            : "Enregistrer un audio · 2 minutes maximum"}
+                        </TooltipContent>
+                      </Tooltip>
+                      {assistanceEnabled && (
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <Button
                               type="button"
                               variant="ghost"
-                              size="icon"
-                              className="size-11 shrink-0 rounded-full"
-                              aria-label="Joindre un fichier"
-                              aria-controls="chat-attachment"
+                              size="sm"
+                              className="ml-0.5 h-9 gap-1.5 px-2 text-muted-foreground hover:text-foreground sm:h-8"
+                              aria-label="Améliorer le message avec l’IA"
                               disabled={
+                                !!busy ||
                                 isSending ||
-                                uploading ||
-                                audioRecorder.recording ||
-                                audioRecorder.preparing
+                                !draft.trim() ||
+                                draft.trim().length > 6000
                               }
-                              onClick={() => fileRef.current?.click()}
+                              onClick={() => void requestAssistance("rewrite")}
                             >
-                              <Paperclip
-                                className="size-5"
-                                aria-hidden="true"
-                              />
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            Images, vidéos, audio et documents · 4 Mo maximum
-                          </TooltipContent>
-                        </Tooltip>
-                        <ChatEmojiPicker
-                          draft={field.value}
-                          textareaRef={textareaRef}
-                          disabled={isSending}
-                          onChange={(value) => {
-                            field.onChange(value);
-                            onDraftChange(value);
-                          }}
-                        />
-                        {assistanceEnabled && (
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                className="size-11 shrink-0"
-                                aria-label="Reformuler avec l’IA"
-                                disabled={
-                                  !!busy ||
-                                  isSending ||
-                                  !draft.trim() ||
-                                  draft.trim().length > 6000
-                                }
-                                onClick={() =>
-                                  void requestAssistance("rewrite")
-                                }
-                              >
-                                {busy === "rewrite" ? (
-                                  <Loader2
-                                    aria-hidden="true"
-                                    className="size-4 animate-spin motion-reduce:animate-none"
-                                  />
-                                ) : (
-                                  <WandSparkles
-                                    aria-hidden="true"
-                                    className="size-4"
-                                  />
-                                )}
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              {draft.trim().length > 6000
-                                ? "Reformulation limitée à 6 000 caractères"
-                                : "Reformuler avec l’IA"}
-                            </TooltipContent>
-                          </Tooltip>
-                        )}
-                      </div>
-                      <div className="ml-auto flex items-center gap-1">
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              className="size-11 shrink-0 rounded-full"
-                              aria-label="Enregistrer un message vocal"
-                              disabled={
-                                isSending ||
-                                uploading ||
-                                !!file ||
-                                audioRecorder.recording ||
-                                audioRecorder.preparing
-                              }
-                              onClick={() => void audioRecorder.start()}
-                            >
-                              {audioRecorder.preparing ? (
-                                <Loader2 className="size-5 animate-spin" />
-                              ) : (
-                                <Mic className="size-5" aria-hidden="true" />
-                              )}
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            Enregistrer un audio · 2 minutes maximum
-                          </TooltipContent>
-                        </Tooltip>
-                        <Tooltip>
-                          <TooltipTrigger asChild className="cursor-pointer">
-                            <Button
-                              type="submit"
-                              size="icon"
-                              disabled={
-                                (!draft.trim() && !attachment) ||
-                                isSending ||
-                                uploading ||
-                                audioRecorder.recording ||
-                                audioRecorder.preparing
-                              }
-                              aria-label={
-                                isSending
-                                  ? "Envoi en cours"
-                                  : "Envoyer le message"
-                              }
-                              title="Envoyer · Ctrl / ⌘ + Entrée"
-                              className="size-8 shrink-0 rounded-full"
-                            >
-                              {isSending ? (
+                              {busy === "rewrite" ? (
                                 <Loader2
                                   aria-hidden="true"
-                                  className="size-4 animate-spin motion-reduce:animate-none"
+                                  className="animate-spin motion-reduce:animate-none"
                                 />
                               ) : (
-                                <ArrowUp
-                                  aria-hidden="true"
-                                  className="size-5"
-                                />
+                                <WandSparkles aria-hidden="true" />
                               )}
+                              <span className="hidden sm:inline">Améliorer</span>
                             </Button>
                           </TooltipTrigger>
                           <TooltipContent>
-                            <p>Envoyer · Ctrl / ⌘ + Entrée</p>
+                            {draft.trim().length > 6000
+                              ? "Reformulation limitée à 6 000 caractères"
+                              : "Reformuler avec l’IA"}
                           </TooltipContent>
                         </Tooltip>
-                      </div>
+                      )}
+                      <span
+                        aria-hidden="true"
+                        className="ml-auto mr-1.5 hidden items-center gap-1 text-[11px] text-muted-foreground lg:flex"
+                      >
+                        <Kbd>Shift</Kbd>+<Kbd>Entrée</Kbd> nouvelle ligne
+                      </span>
+                      <SendButton
+                        className="max-lg:ml-auto"
+                        label={isSending ? "Envoi en cours" : "Envoyer le message"}
+                        sending={isSending}
+                        disabled={
+                          (!draft.trim() && !attachment) ||
+                          isSending ||
+                          uploading
+                        }
+                      />
                     </div>
-                  </div>
-                  <p id="chat-composer-help" className="sr-only max-w-full">
-                    Entrée pour une nouvelle ligne. Ctrl ou Commande et Entrée
-                    pour envoyer.
-                  </p>
-                  {fieldState.invalid && (
-                    <FieldError
-                      id="chat-composer-error"
-                      errors={[fieldState.error]}
-                    />
-                  )}
-                </Field>
-              )}
-            />
-          )}
-        </FieldGroup>
-      )}
+                    <p id="chat-composer-help" className="sr-only">
+                      Entrée pour envoyer, Maj et Entrée pour une nouvelle
+                      ligne. Sur mobile, utilisez le bouton Envoyer.
+                    </p>
+                    {fieldState.invalid && (
+                      <FieldError
+                        id="chat-composer-error"
+                        className="px-3 pb-2 text-xs"
+                        errors={[fieldState.error]}
+                      />
+                    )}
+                  </Field>
+                )}
+              />
+            )}
+          </FieldGroup>
+        )}
+      </div>
     </form>
+  );
+}
+
+const toolClass =
+  "size-9 shrink-0 text-muted-foreground hover:text-foreground sm:size-8";
+
+function SendButton({
+  label,
+  sending,
+  disabled,
+  className,
+}: {
+  label: string;
+  sending: boolean;
+  disabled: boolean;
+  className?: string;
+}) {
+  return (
+    <Button
+      type="submit"
+      size="icon-sm"
+      disabled={disabled}
+      aria-label={label}
+      className={cn("size-9 shrink-0 sm:size-8", className)}
+    >
+      {sending ? (
+        <Loader2
+          aria-hidden="true"
+          className="animate-spin motion-reduce:animate-none"
+        />
+      ) : (
+        <ArrowUp aria-hidden="true" />
+      )}
+    </Button>
+  );
+}
+
+function formatFileSize(bytes: number) {
+  if (bytes < 1024 * 1024)
+    return `${Math.max(1, Math.round(bytes / 1024)).toLocaleString("fr-FR")} Ko`;
+  return `${(bytes / 1024 / 1024).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} Mo`;
+}
+
+/** Pièce jointe en attente d’envoi : vignette compacte, nom, poids, retrait. */
+function AttachmentChip({
+  file,
+  preview,
+  uploading,
+  disabled,
+  onRemove,
+}: {
+  file: File;
+  preview: string | null;
+  uploading: boolean;
+  disabled: boolean;
+  onRemove: () => void;
+}) {
+  const image = file.type.startsWith("image/");
+  const Icon = file.type.startsWith("video/") ? Film : FileText;
+  const kind = image
+    ? "Image"
+    : file.type.startsWith("video/")
+      ? "Vidéo"
+      : "Document";
+
+  return (
+    <div className="flex min-w-0 items-center gap-2.5 rounded-lg border bg-muted/40 p-1.5">
+      <span className="relative flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-background text-muted-foreground">
+        {image && preview ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={preview}
+            alt=""
+            className="size-full object-cover"
+          />
+        ) : (
+          <Icon aria-hidden="true" className="size-4" />
+        )}
+        {uploading && (
+          <span className="absolute inset-0 flex items-center justify-center bg-background/70">
+            <Loader2
+              aria-hidden="true"
+              className="size-4 animate-spin text-foreground motion-reduce:animate-none"
+            />
+          </span>
+        )}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-sm font-medium">{file.name}</span>
+        <span
+          role={uploading ? "status" : undefined}
+          className="block truncate text-xs text-muted-foreground"
+        >
+          {uploading ? "Import en cours…" : `${kind} · ${formatFileSize(file.size)}`}
+        </span>
+      </span>
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon-sm"
+        className="size-9 shrink-0 text-muted-foreground hover:text-foreground sm:size-8"
+        aria-label={`Retirer ${file.name}`}
+        disabled={disabled}
+        onClick={onRemove}
+      >
+        <X aria-hidden="true" />
+      </Button>
+    </div>
   );
 }

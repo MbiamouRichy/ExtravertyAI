@@ -1,67 +1,73 @@
 import { Skeleton } from "@/components/ui/skeleton";
+
+// Miroir de « Vos projets » : en-tête, bandeau de chiffres et grille de cartes.
 export default function ProjectsLoading() {
   return (
     <div
-      role="status"
-      aria-label="Chargement des projets"
-      className="mx-auto flex w-full min-w-0 max-w-7xl flex-1 flex-col gap-6 p-4 sm:p-6 lg:p-8"
+      aria-busy="true"
+      className="mx-auto flex w-full min-w-0 max-w-7xl flex-1 flex-col gap-8 p-4 sm:p-6 lg:p-8 motion-reduce:**:data-[slot=skeleton]:animate-none"
     >
-      <span className="sr-only">Chargement des projets…</span>
-      <div
-        aria-hidden="true"
-        className="flex min-w-0 flex-col justify-between gap-4 sm:flex-row sm:items-start"
-      >
-        <div className="w-full min-w-0 space-y-3">
-          <Skeleton className="h-8 w-40 max-w-full" />
-          <Skeleton className="h-4 w-full max-w-xl" />
-          <Skeleton className="h-4 w-2/3 max-w-sm" />
-        </div>
-        <Skeleton className="h-9 w-full shrink-0 sm:w-40" />
-      </div>
-      <div
-        aria-hidden="true"
-        className="grid min-w-0 grid-cols-1 gap-4 md:grid-cols-2 xl:hidden"
-      >
-        {[1, 2, 3, 4].map((i) => (
-          <div
-            key={i}
-            className="min-w-0 space-y-4 rounded-xl border bg-card p-4"
-          >
-            <div className="flex justify-between gap-4">
-              <Skeleton className="h-6 w-1/2" />
-              <Skeleton className="h-5 w-20" />
-            </div>
-            <Skeleton className="h-8 w-2/3" />
-            <Skeleton className="h-12 w-full" />
-            <Skeleton className="h-4 w-3/4" />
-            <div className="grid grid-cols-2 gap-2 border-t pt-3">
-              <Skeleton className="h-9" />
-              <Skeleton className="h-9" />
-            </div>
-            <Skeleton className="h-9 w-full" />
-            <Skeleton className="h-9 w-full" />
+      <p role="status" className="sr-only">
+        Chargement des projets…
+      </p>
+      <div aria-hidden="true" className="contents">
+        <header className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+          <div className="min-w-0 space-y-2">
+            <Skeleton className="h-3 w-32" />
+            <Skeleton className="h-9 w-52 max-w-full" />
+            <Skeleton className="h-4 w-80 max-w-full" />
           </div>
-        ))}
-      </div>
-      <div aria-hidden="true" className="hidden min-w-0 space-y-4 xl:block">
-        <div className="flex justify-between gap-4">
-          <Skeleton className="h-9 w-full max-w-sm" />
-          <Skeleton className="h-9 w-28 shrink-0" />
-        </div>
-        <div className="overflow-hidden rounded-lg border">
-          <Skeleton className="h-12 w-full rounded-none" />
-          {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="grid grid-cols-8 gap-4 border-t p-4">
-              {[1, 2, 3, 4, 5, 6, 7, 8].map((j) => (
-                <Skeleton key={j} className="h-8 w-full" />
-              ))}
+          <Skeleton className="h-9 w-full rounded-md sm:w-40" />
+        </header>
+
+        <div className="grid grid-cols-3 divide-x rounded-2xl border bg-card">
+          {[0, 1, 2].map((index) => (
+            <div key={index} className="min-w-0 space-y-2 px-3 py-4 sm:px-6">
+              <Skeleton className="h-3 w-16 max-w-full" />
+              <Skeleton className="h-6 w-10" />
             </div>
           ))}
         </div>
-        <div className="flex justify-between gap-4">
-          <Skeleton className="h-5 w-24" />
-          <Skeleton className="h-8 w-48" />
-        </div>
+
+        <ul className="grid min-w-0 grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {[0, 1, 2].map((index) => (
+            <li key={index} className="flex min-w-0 flex-col rounded-2xl border bg-card">
+              <div className="flex items-start justify-between gap-3 p-4 sm:p-5">
+                <div className="flex min-w-0 items-center gap-3">
+                  <Skeleton className="size-10 shrink-0 rounded-xl" />
+                  <div className="min-w-0 space-y-2">
+                    <Skeleton className="h-4 w-28" />
+                    <Skeleton className="h-3 w-24" />
+                  </div>
+                </div>
+                <Skeleton className="h-5 w-14 shrink-0 rounded-full" />
+              </div>
+              <div className="space-y-4 px-4 pb-5 sm:px-5">
+                <div className="flex items-start gap-2">
+                  <Skeleton className="size-4 rounded-full" />
+                  <div className="space-y-1.5">
+                    <Skeleton className="h-3 w-28" />
+                    <Skeleton className="h-3 w-36" />
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <div className="flex justify-between">
+                    <Skeleton className="h-3 w-24" />
+                    <Skeleton className="h-3 w-16" />
+                  </div>
+                  <Skeleton className="h-1.5 w-full rounded-full" />
+                </div>
+              </div>
+              <div className="mt-auto flex items-center justify-between gap-2 border-t px-4 py-3 sm:px-5">
+                <Skeleton className="h-3 w-40 max-w-[60%]" />
+                <div className="flex gap-1">
+                  <Skeleton className="size-8 rounded-md" />
+                  <Skeleton className="size-8 rounded-md" />
+                </div>
+              </div>
+            </li>
+          ))}
+        </ul>
       </div>
     </div>
   );

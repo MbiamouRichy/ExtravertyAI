@@ -20,6 +20,7 @@ export type ProjectSettingsView = {
     alwaysOnline: boolean;
     readMessages: boolean;
     typing: boolean;
+    rejectCalls: boolean;
     pending: boolean;
     error: string | null;
   };

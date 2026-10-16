@@ -19,6 +19,7 @@ test("immediate sync targets the requested project and preserves unrelated provi
     whatsappSyncAfter: new Date(0),
     whatsappAlwaysOnline: true,
     whatsappReadMessages: true,
+    whatsappRejectCalls: false,
   };
   const tx = {
     $queryRaw: async () => [],
@@ -56,7 +57,7 @@ test("immediate sync targets the requested project and preserves unrelated provi
           },
         });
       assert.deepEqual(JSON.parse(String(init.body)), {
-        rejectCall: true,
+        rejectCall: false,
         msgCall: "Veuillez écrire.",
         groupsIgnore: true,
         readStatus: false,

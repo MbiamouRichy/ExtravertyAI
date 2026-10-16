@@ -1,4 +1,5 @@
 import type { ProspectClassification } from "./instinct-classification";
+import type { ChatContactDetails } from "./contact-details";
 
 export type ChatMessageStatus =
   "pending" | "sent" | "delivered" | "read" | "failed" | "unknown";
@@ -38,6 +39,7 @@ export type ChatGeneration = {
 
 export type ChatMessagesPage = ChatPage<ChatMessage> & {
   agents?: ChatAgent[];
+  contact?: ChatContactDetails;
   hasClientMessage: boolean;
   generation: ChatGeneration | null;
 };

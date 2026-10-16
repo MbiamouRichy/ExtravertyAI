@@ -46,6 +46,38 @@
   50% { transform: translateY(210%); }
 }
 
+/* Squelettes « premium » : balayage lumineux et barre de progression indéterminée. */
+@keyframes skeleton-shimmer {
+  from { background-position: 150% 0; }
+  to { background-position: -50% 0; }
+}
+
+@keyframes loading-bar {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(300%); }
+}
+
+.skeleton-shimmer [data-slot="skeleton"] {
+  background-image: linear-gradient(
+    100deg,
+    transparent 30%,
+    color-mix(in oklch, var(--background) 65%, transparent) 50%,
+    transparent 70%
+  );
+  background-size: 200% 100%;
+  background-repeat: no-repeat;
+  animation: skeleton-shimmer 1.6s ease-in-out infinite;
+}
+
+.loading-bar {
+  animation: loading-bar 1.4s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-shimmer [data-slot="skeleton"] { animation: none; background-image: none; }
+  .loading-bar { animation: none; transform: none; width: 100%; opacity: 0.4; }
+}
+
 @keyframes ai-word-appear {
   from { opacity: 0; }
   to { opacity: 1; }

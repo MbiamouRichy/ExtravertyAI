@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { z } from "zod";
 import { getSession } from "@/lib/auth-server";
 import prisma from "@/lib/prisma";
+import { currentProspectClassification } from "@/lib/instinct-classification";
 import { ContactsWorkspace } from "@/components/dashboard/project/contacts-workspace";
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
@@ -30,7 +31,12 @@ export default async function ContactsPage({
     );
   const membership = await prisma.projectMembership.findUnique({
     where: { userId_projectId: { userId: session.user.id, projectId } },
-    select: { role: true, project: { select: { name: true } } },
+    select: {
+      role: true,
+      project: {
+        select: { name: true, agentQualifyLeads: true, agentConfigVersion: true },
+      },
+    },
   });
   if (!membership) notFound();
   if (!["OWNER", "ADMIN"].includes(membership.role))
@@ -73,12 +79,15 @@ export default async function ContactsPage({
       aiVersion: true,
       createdAt: true,
       lastMessageAt: true,
+      instinctClassification: true,
+      instinctSourceId: true,
+      instinctConfigVersion: true,
       _count: { select: { messages: true } },
       messages: {
         where: { projectId },
         orderBy: [{ createdAt: "desc" }, { id: "desc" }],
         take: 1,
-        select: { content: true, type: true },
+        select: { id: true, content: true, type: true },
       },
     },
   });
@@ -104,6 +113,10 @@ export default async function ContactsPage({
         createdAt: c.createdAt.toISOString(),
         lastMessageAt: c.lastMessageAt?.toISOString() || null,
         messageCount: c._count.messages,
+        instinct: currentProspectClassification(
+          { ...c, project: membership.project },
+          c.messages[0]?.id,
+        ),
         preview: c.messages[0]
           ? c.messages[0].type === "TEXT"
             ? c.messages[0].content.slice(0, 100)
