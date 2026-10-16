@@ -36,6 +36,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { ReportSettingsForm } from "@/components/dashboard/project/report-settings";
+import { BillingPlanButton } from "@/components/dashboard/project/billing-plan-button";
 
 export const metadata: Metadata = {
   title: "Rapports programmés | ExtravertyAI",
@@ -66,6 +67,14 @@ const roleLabel: Record<string, string> = {
   OWNER: "Propriétaire",
   ADMIN: "Administrateur",
 };
+
+/** Numéro de semaine ISO 8601 (la semaine du jeudi donne l’année). */
+function isoWeek(date: Date) {
+  const day = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+  day.setUTCDate(day.getUTCDate() + 3 - ((day.getUTCDay() + 6) % 7));
+  const firstThursday = new Date(Date.UTC(day.getUTCFullYear(), 0, 4));
+  return 1 + Math.round(((day.getTime() - firstThursday.getTime()) / 86_400_000 - 3 + ((firstThursday.getUTCDay() + 6) % 7)) / 7);
+}
 
 function Trend({ current, previous }: { current: number; previous: number }) {
   const label = reportDelta(current, previous);
@@ -135,9 +144,25 @@ export default async function ReportsPage({
               </li>
             ))}
           </ul>
-          <Button asChild size="lg" className="mt-8">
-            <Link href={`${base}/billing`}>Découvrir l’offre Business</Link>
-          </Button>
+          <div className="mt-8 flex flex-wrap items-center gap-3">
+            {member.role === "OWNER" ? (
+              <BillingPlanButton
+                projectId={projectId}
+                intent="upgrade"
+                size="lg"
+                label="Passer à l’offre Business"
+              />
+            ) : (
+              <Button asChild size="lg">
+                <Link href={`${base}/billing`}>Voir l’offre Business</Link>
+              </Button>
+            )}
+            {member.role !== "OWNER" && (
+              <p className="text-xs text-muted-foreground">
+                Seul le propriétaire du projet peut changer d’offre.
+              </p>
+            )}
+          </div>
         </div>
         <figure
           aria-label="Aperçu d’exemple d’un rapport hebdomadaire"
@@ -372,47 +397,68 @@ export default async function ReportsPage({
               Historique
             </h2>
             {reports.length ? (
-              <ol className="relative space-y-1 before:absolute before:inset-y-3 before:left-[15px] before:w-px before:bg-border">
+              <ol className="divide-y overflow-hidden rounded-2xl border bg-card">
                 {reports.map((report) => {
                   const current = report.id === selected?.id;
+                  const deliveries = Object.entries(states)
+                    .map(([state, label]) => ({
+                      state,
+                      label: label.toLowerCase(),
+                      count: report.emails.filter((email) => email.state === state).length,
+                    }))
+                    .filter((item) => item.count > 0);
                   return (
                     <li key={report.id}>
                       <Link
                         href={`${base}/reports?report=${report.id}`}
                         aria-current={current ? "page" : undefined}
                         className={cn(
-                          "relative flex items-center gap-4 rounded-xl p-2 pr-3 outline-none transition-colors hover:bg-muted/60 focus-visible:ring-3 focus-visible:ring-ring/50",
-                          current && "bg-muted",
+                          "relative flex items-center gap-4 px-4 py-3.5 outline-none transition-colors hover:bg-muted/50 focus-visible:bg-muted/50 focus-visible:ring-3 focus-visible:ring-inset focus-visible:ring-ring/50",
+                          current && "bg-muted/60",
                         )}
                       >
+                        {current && (
+                          <span aria-hidden="true" className="absolute inset-y-2 left-0 w-0.5 rounded-full bg-foreground" />
+                        )}
                         <span
                           aria-hidden="true"
                           className={cn(
-                            "relative z-10 flex size-4 shrink-0 translate-x-2 rounded-full border-2 bg-background",
-                            current ? "border-foreground bg-foreground" : "border-border",
+                            "flex size-11 shrink-0 flex-col items-center justify-center rounded-xl border leading-none",
+                            current ? "border-primary bg-primary text-primary-foreground" : "bg-background",
                           )}
-                        />
-                        <span className="ml-2 min-w-0 flex-1">
+                        >
+                          <span className="text-[9px] uppercase tracking-wider opacity-70">Sem.</span>
+                          <span className="mt-0.5 font-heading text-base font-bold tabular-nums">
+                            {isoWeek(new Date((report.weekStart.getTime() + report.weekEnd.getTime()) / 2))}
+                          </span>
+                        </span>
+                        <span className="min-w-0 flex-1">
                           <span className="block text-sm font-medium">
                             {reportRange(report.weekStart, report.weekEnd, timeZone)}
                           </span>
-                          <span className="block truncate text-xs text-muted-foreground">
-                            {report.skipped
-                              ? "Sans activité · e-mail ignoré"
-                              : !report.emails.length
-                                ? "Aucun destinataire vérifié"
-                                : Object.entries(states)
-                                    .map(([state, label]) => {
-                                      const count = report.emails.filter(
-                                        (email) => email.state === state,
-                                      ).length;
-                                      return count ? `${count} ${label.toLowerCase()}` : null;
-                                    })
-                                    .filter(Boolean)
-                                    .join(" · ")}
+                          <span className="mt-1 flex flex-wrap gap-1.5 text-[11px] text-muted-foreground">
+                            {report.skipped ? (
+                              <span className="rounded-full border border-dashed px-2 py-px">
+                                Sans activité · e-mail ignoré
+                              </span>
+                            ) : !deliveries.length ? (
+                              <span className="rounded-full border px-2 py-px">Aucun destinataire vérifié</span>
+                            ) : (
+                              deliveries.map((item) => (
+                                <span key={item.state} className="rounded-full border bg-background px-2 py-px tabular-nums">
+                                  {item.count} {item.label}
+                                </span>
+                              ))
+                            )}
                           </span>
                         </span>
-                        <ChevronRight aria-hidden="true" className="size-4 text-muted-foreground" />
+                        {current ? (
+                          <span className="hidden shrink-0 rounded-full bg-foreground px-2 py-0.5 text-[11px] text-background sm:inline">
+                            Affiché
+                          </span>
+                        ) : (
+                          <ChevronRight aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
+                        )}
                       </Link>
                     </li>
                   );

@@ -6,7 +6,6 @@ import {
   ArrowDownToLine,
   CalendarDays,
   Loader2,
-  RefreshCw,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -72,14 +71,6 @@ export function AnalyticsHeader({
       router.push(`${pathname}?${params.toString()}`, {
         scroll: false,
       });
-    });
-  }
-
-  function refresh() {
-    setExportMessage("");
-
-    startTransition(() => {
-      router.refresh();
     });
   }
 
@@ -160,24 +151,6 @@ export function AnalyticsHeader({
         </div>
 
         <div className="flex shrink-0 items-center gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            size="icon"
-            className="size-10 rounded-xl bg-background"
-            onClick={refresh}
-            disabled={isPending}
-            aria-label="Actualiser les statistiques"
-          >
-            <RefreshCw
-              aria-hidden="true"
-              className={cn(
-                "size-4",
-                isPending && "animate-spin motion-reduce:animate-none",
-              )}
-            />
-          </Button>
-
           <Button
             type="button"
             variant="outline"

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowUpRight, BarChart3, CreditCard, Home, LogIn, MessagesSquare } from "lucide-react";
+import { ArrowUpRight, BarChart3, CalendarClock, CreditCard, Home, LogIn, MessagesSquare } from "lucide-react";
 
 import { LogoIcon } from "@/components/logo";
 import { ModeToggle } from "@/components/theming";
@@ -32,6 +32,12 @@ const pages: {
     icon: BarChart3,
     title: "Analytique",
     text: "KPI avec tendances, volume, autonomie de l’IA, entonnoir Instinct IA, heures d’affluence.",
+  },
+  {
+    href: "/maquettes/projects/demo/reports",
+    icon: CalendarClock,
+    title: "Rapports (aperçu de test)",
+    text: "La page Rapports actuelle en offre Business, avec des rapports fictifs pour la tester.",
   },
   {
     href: "/maquettes/tarifs",

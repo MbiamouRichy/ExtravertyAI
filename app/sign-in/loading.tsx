@@ -1,85 +1,52 @@
-import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
-import { DecorIcon } from "@/components/ui/decor-icon";
-// Assurez-vous d'adapter le chemin de votre DecorIcon selon votre architecture
+import {
+  AuthDividerSkeleton,
+  AuthFieldSkeleton,
+  AuthShowcaseSkeleton,
+  AuthSocialSkeleton,
+  AuthTopBarSkeleton,
+} from "@/components/auth/auth-loading";
 
-export default function Loading() {
-    return (
-        <div className="relative flex h-screen w-full items-center justify-center overflow-hidden px-6 md:px-8">
-            <div
-                className={cn(
-                    "relative flex w-full max-w-sm flex-col justify-between p-6 md:p-8 animate-in fade-in slide-in-from-bottom-2 duration-300",
-                    "dark:bg-[radial-gradient(50%_80%_at_20%_0%,--theme(--color-foreground/.1),transparent)]"
-                )}
-            >
-                {/* Éléments décoratifs et bordures conservés à l'identique pour éviter un saut visuel */}
-                <div className="hidden md:block absolute -inset-y-6 -left-px w-px bg-border" />
-                <div className="hidden md:block absolute -inset-y-6 -right-px w-px bg-border" />
-                <div className="hidden md:block absolute -inset-x-6 -top-px h-px bg-border" />
-                <div className="hidden md:block absolute -inset-x-6 -bottom-px h-px bg-border" />
-                <DecorIcon className="hidden md:block" position="top-left" />
-                <DecorIcon className="hidden md:block" position="bottom-right" />
+// Miroir de l’écran de connexion : formulaire à gauche, panneau produit à droite.
+export default function SignInLoading() {
+  return (
+    <main
+      aria-busy="true"
+      className="grid min-h-dvh lg:grid-cols-2 motion-reduce:**:data-[slot=skeleton]:animate-none"
+    >
+      <p role="status" className="sr-only">
+        Chargement de la connexion…
+      </p>
+      <div aria-hidden="true" className="flex flex-col px-4 py-6 sm:px-10">
+        <AuthTopBarSkeleton />
 
-                <div className="w-full max-w-sm animate-in fade-in zoom-in-95 duration-500 space-y-8">
-                    <Skeleton className="h-8 w-10 rounded-md" /> {/*logo*/}
-                    {/* Header Skeleton */}
-                    <div className="flex flex-col space-y-2">
-                        <Skeleton className="h-8 w-3/4 rounded-md" /> {/* H1 */}
-                        <Skeleton className="h-4 w-full rounded-md" /> {/* P line 1 */}
-                        <Skeleton className="h-4 w-5/6 rounded-md" /> {/* P line 2 */}
-                    </div>
+        <div className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center py-12">
+          <Skeleton className="h-9 w-44" />
+          <Skeleton className="mt-3 h-4 w-72 max-w-full" />
 
-                    {/* Form Skeleton */}
-                    <div className="space-y-4">
-                        <div className="flex flex-col gap-4">
-                            {/* Skeleton Champ Email */}
-                            <div className="space-y-2">
-                                <Skeleton className="h-4 w-12 rounded-md" /> {/* Label */}
-                                <Skeleton className="h-10 w-full rounded-md" /> {/* Input */}
-                            </div>
+          <div className="mt-8">
+            <AuthSocialSkeleton />
+          </div>
+          <div className="my-6">
+            <AuthDividerSkeleton />
+          </div>
 
-                            {/* Skeleton Champ Mot de passe */}
-                            <div className="space-y-2">
-                                <div className="flex w-full items-center justify-between">
-                                    <Skeleton className="h-4 w-24 rounded-md" /> {/* Label */}
-                                    <Skeleton className="h-4 w-32 rounded-md" /> {/* Lien mot de passe oublié */}
-                                </div>
-                                <Skeleton className="h-10 w-full rounded-md" /> {/* Input */}
-                            </div>
-
-                            {/* Skeleton Checkbox "Se souvenir de moi" */}
-                            <div className="flex items-center space-x-2 pt-2">
-                                <Skeleton className="h-4 w-4 rounded-sm" />
-                                <Skeleton className="h-4 w-32 rounded-md" />
-                            </div>
-
-                            {/* Skeleton Bouton Submit */}
-                            <Skeleton className="mt-2 h-10 w-full rounded-md" />
-
-                            {/* Skeleton Lien "Pas de compte ?" */}
-                            <div className="flex justify-center pt-2">
-                                <Skeleton className="h-4 w-48 rounded-md" />
-                            </div>
-                        </div>
-
-                        {/* Skeleton Séparateur "Ou" */}
-                        <div className="flex items-center gap-4 py-2">
-                            <Skeleton className="h-px w-full" />
-                            <Skeleton className="h-4 w-8 rounded-md" />
-                            <Skeleton className="h-px w-full" />
-                        </div>
-
-                        {/* Skeleton Bouton Social (Google) */}
-                        <Skeleton className="h-10 w-full rounded-md" />
-                    </div>
-
-                    {/* Skeleton Footer (Politique de confidentialité) */}
-                    <div className="flex flex-col space-y-2 pt-2">
-                        <Skeleton className="h-3 w-full rounded-md" />
-                        <Skeleton className="h-3 w-4/5 rounded-md" />
-                    </div>
-                </div>
+          <div className="space-y-5">
+            <AuthFieldSkeleton labelWidth="w-12" />
+            <AuthFieldSkeleton labelWidth="w-24" withAside />
+            <div className="flex items-center gap-2">
+              <Skeleton className="size-4 rounded-sm" />
+              <Skeleton className="h-3.5 w-52" />
             </div>
+            <Skeleton className="h-10 w-full rounded-md" />
+          </div>
+
+          <Skeleton className="mx-auto mt-8 h-4 w-64 max-w-full" />
         </div>
-    );
+
+        <Skeleton className="mx-auto h-3 w-80 max-w-full" />
+      </div>
+      <AuthShowcaseSkeleton />
+    </main>
+  );
 }

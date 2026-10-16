@@ -70,38 +70,37 @@ export default async function ChatPage({ params, searchParams }: PageProps) {
 
   if (requiresConnection) {
     return (
-      <div className="mx-auto w-full max-w-3xl space-y-6 p-4 sm:p-8">
-        <header className="space-y-2">
-          <p className="text-sm text-muted-foreground">{project.name}</p>
-          <h1 className="text-2xl font-semibold tracking-tight">
-            Connecter WhatsApp
-          </h1>
-          <p className="text-sm leading-relaxed text-muted-foreground">
-            Connectez votre instance pour accéder aux conversations. Ne partagez
-            pas le QR code de connexion.
+      <div className="mx-auto w-full max-w-4xl space-y-6 p-4 sm:p-6 xl:p-8">
+        <header>
+          <p className="font-mono text-xs uppercase tracking-wider text-muted-foreground">
+            Messagerie · {project.name}
+          </p>
+          <h1 className="mt-1 text-3xl md:text-4xl">Connecter WhatsApp</h1>
+          <p className="mt-2 max-w-xl text-sm text-muted-foreground">
+            Associez votre numéro pour que l’assistant et votre équipe puissent
+            répondre à vos clients.
           </p>
         </header>
 
         {canManageAi ? (
-          <div className="overflow-hidden rounded-2xl border bg-card shadow-sm">
-            <QRCodeScanner projectId={project.id} />
-          </div>
+          <QRCodeScanner projectId={project.id} />
         ) : (
-          <div className="rounded-2xl border bg-card p-6">
-            <WifiOff
-              aria-hidden="true"
-              className="mb-3 size-5 text-muted-foreground"
-            />
-            <p className="text-sm font-medium">
+          <section className="rounded-3xl border bg-card p-6 sm:p-8">
+            <span className="flex size-11 items-center justify-center rounded-xl border bg-muted/50">
+              <WifiOff aria-hidden="true" className="size-5" />
+            </span>
+            <h2 className="mt-4 font-heading text-lg font-semibold tracking-tight">
               Une reconnexion est nécessaire
+            </h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Demandez à un propriétaire ou à un administrateur du projet de
+              reconnecter WhatsApp, puis vérifiez à nouveau.
             </p>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Demandez à un administrateur de reconnecter WhatsApp.
-            </p>
-          </div>
+            <div className="mt-5">
+              <ChatRefreshButton />
+            </div>
+          </section>
         )}
-
-        <ChatRefreshButton projectId={canManageAi ? project.id : undefined} />
       </div>
     );
   }

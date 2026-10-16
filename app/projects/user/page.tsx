@@ -14,7 +14,8 @@ import ChangeEmailForm from "@/components/dashboard/user/modiferEmail";
 import type { Metadata } from "next";
 import { getInitials } from "@/components/getInitials";
 import { RecentSessions } from "@/components/dashboard/user/recent-sessions";
-import UserSettingsPage, { SettingsSection } from "@/components/dashboard/user/settingsPage";
+import UserSettingsPage from "@/components/dashboard/user/settingsPage";
+import { SettingsSection } from "@/components/dashboard/user/settings-section";
 import { getAccountDeletionPlan } from "@/lib/account-deletion";
 
 export const dynamic = "force-dynamic";

@@ -10,11 +10,14 @@ export function BillingPlanButton({
   intent,
   disabled = false,
   size = "default",
+  label,
 }: {
   projectId: string;
   intent: "renew" | "upgrade";
   disabled?: boolean;
-  size?: "default" | "sm";
+  size?: "default" | "sm" | "lg";
+  /** Overrides the default label (e.g. a contextual upsell). */
+  label?: string;
 }) {
   const [busy, setBusy] = useState(false);
   async function open() {
@@ -46,7 +49,7 @@ export function BillingPlanButton({
         aria-hidden="true"
         className={busy ? "size-4 animate-spin" : "size-4"}
       />
-      {intent === "renew" ? "Renouveler le plan" : "Changer d’offre"}
+      {label ?? (intent === "renew" ? "Renouveler le plan" : "Changer d’offre")}
     </Button>
   );
 }

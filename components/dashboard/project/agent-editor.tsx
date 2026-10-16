@@ -12,17 +12,27 @@ import {
   ArrowLeft,
   ArrowRight,
   Bot,
+  BriefcaseBusiness,
   Check,
   CheckCheck,
+  FileText,
+  Heart,
+  Languages,
   Loader2,
   MessageSquare,
   ShieldCheck,
+  SlidersHorizontal,
+  Zap,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from "@/components/ui/input-group";
+import { Switch } from "@/components/ui/switch";
 import { SystemMessageDialog } from "./system-message-dialog";
-import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   Select,
@@ -33,16 +43,14 @@ import {
 } from "@/components/ui/select";
 import {
   Field,
-  FieldGroup,
   FieldLabel,
   FieldDescription,
   FieldError,
+  FieldLegend,
+  FieldSet,
 } from "@/components/ui/field";
 import { useAutosave } from "@/hooks/use-autosave";
 import { AutosaveStatus } from "./autosave-status";
-import { Badge } from "@/components/ui/badge";
-import { Card } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import { saveAgentConfiguration } from "@/app/actions/project-settings";
 import {
@@ -53,8 +61,76 @@ import {
   type AgentConfig,
 } from "@/lib/agent-config";
 
-const inputClass =
-  "w-full rounded-xl border bg-background px-4 py-3 text-sm outline-none focus:border-border focus:ring-2 focus:ring-ring/20 disabled:opacity-60";
+const toneIcons = { warm: Heart, professional: BriefcaseBusiness, direct: Zap } as const;
+const lengths = [
+  { value: "concise", label: "Concis", hint: "Recommandé sur WhatsApp" },
+  { value: "balanced", label: "Équilibré", hint: "Réponses structurées" },
+  { value: "detailed", label: "Détaillé", hint: "Explications complètes" },
+] as const;
+const missionTips = [
+  "Votre activité et vos offres",
+  "Vos prix et conditions vérifiés",
+  "Vos horaires et zones de service",
+  "Ce que l’agent ne doit jamais promettre",
+];
+const behaviors = [
+  {
+    key: "agentAskOneQuestion" as const,
+    title: "Une question à la fois",
+    text: "Faire avancer la conversation sans submerger le prospect.",
+    recommended: true,
+  },
+  {
+    key: "agentQualifyLeads" as const,
+    title: "Comprendre le besoin",
+    text: "Identifier la demande et son échéance. Active aussi Instinct IA.",
+    recommended: true,
+  },
+  {
+    key: "agentHumanHandover" as const,
+    title: "Proposer un conseiller",
+    text: "Orienter vers un humain quand une réponse fiable manque. Pas de transfert automatique.",
+    recommended: true,
+  },
+  {
+    key: "agentUseEmojis" as const,
+    title: "Une touche d’emoji",
+    text: "Un emoji au maximum, seulement s’il est pertinent.",
+    recommended: false,
+  },
+];
+
+
+function SectionHeader({
+  eyebrow,
+  icon: Icon,
+  title,
+  description,
+}: {
+  eyebrow?: string;
+  icon: typeof Bot;
+  title: string;
+  description: string;
+}) {
+  return (
+    <div className="mb-6 flex items-start gap-3">
+      <span className="flex size-10 shrink-0 items-center justify-center rounded-xl border bg-background">
+        <Icon aria-hidden="true" className="size-5" />
+      </span>
+      <div className="min-w-0">
+        {eyebrow && (
+          <p className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">
+            {eyebrow}
+          </p>
+        )}
+        <h2 className="font-heading text-lg font-semibold tracking-tight">{title}</h2>
+        <p className="mt-0.5 text-sm text-muted-foreground">{description}</p>
+      </div>
+    </div>
+  );
+}
+
+
 export function AgentEditor({
   projectId,
   projectName,
@@ -185,80 +261,69 @@ export function AgentEditor({
           ? `Bonjour, je suis ${config.agentName || "votre assistant"}, l’assistant IA de ${projectName}. Comment puis-je vous renseigner ?`
           : `Bonjour et bienvenue chez ${projectName} ! Je suis ${config.agentName || "votre assistant"}, votre assistant IA. Comment puis-je vous aider ?`;
   return (
-    <div className="space-y-7">
+    <div className="space-y-6">
       {onboarding && (
-        <div className="space-y-4">
-          <p className="text-sm font-medium" role="status" aria-atomic="true">
-            Étape {step + 1} sur {steps.length} · {steps[step]}
+        <nav aria-label="Étapes de configuration" className="space-y-3">
+          <p className="sr-only" role="status" aria-atomic="true">
+            Étape {step + 1} sur {steps.length} : {steps[step]}
           </p>
-          <Progress
-            value={((step + 1) / steps.length) * 100}
-            aria-label="Avancement dans les étapes de configuration"
-            aria-valuetext={`Étape ${step + 1} sur ${steps.length} : ${steps[step]}`}
-            className="[&>[data-slot=progress-indicator]]:motion-reduce:transition-none"
-          />
-          <ol
-            aria-label="Étapes de configuration"
-            className="grid w-full min-w-0 grid-cols-1 gap-3 lg:grid-cols-3"
-          >
+          <ol className="flex items-center gap-2">
             {steps.map((label, index) => {
               const active = step === index;
               const completed = index < step;
-
               return (
-                <li key={label} aria-current={active ? "step" : undefined}>
-                  <Card
-                    size="sm"
+                <li
+                  key={label}
+                  aria-current={active ? "step" : undefined}
+                  className={cn(
+                    "flex items-center gap-2",
+                    index < steps.length - 1 ? "min-w-0 flex-1" : "shrink-0",
+                  )}
+                >
+                  <span
                     className={cn(
-                      "h-full flex-row items-start gap-3 px-3",
-                      active
-                        ? "bg-primary/5 ring-2 ring-primary"
-                        : completed
-                          ? "bg-muted/50"
-                          : "text-muted-foreground",
+                      "flex size-7 shrink-0 items-center justify-center rounded-full border font-mono text-xs transition-colors",
+                      active && "border-primary bg-primary text-primary-foreground",
+                      completed && "border-primary bg-background text-foreground",
+                      !active && !completed && "text-muted-foreground",
                     )}
                   >
-                    <Badge
-                      variant={active ? "default" : "outline"}
-                      className="h-7 min-w-9 tabular-nums"
-                    >
-                      0{index + 1}
-                    </Badge>
-                    <div className="min-w-0 space-y-1">
-                      <p
-                        className={cn(
-                          "text-sm",
-                          active ? "font-semibold" : "font-medium",
-                        )}
-                      >
-                        {label}
-                      </p>
-                      <p
-                        className={cn(
-                          "flex items-center gap-1 text-xs",
-                          active
-                            ? "font-medium text-primary"
-                            : "text-muted-foreground",
-                        )}
-                      >
-                        {completed && (
-                          <Check className="size-3" aria-hidden="true" />
-                        )}
-                        {active
-                          ? "En cours"
-                          : completed
-                            ? "Terminé"
-                            : "À venir"}
-                      </p>
-                    </div>
-                  </Card>
+                    {completed ? <Check aria-hidden="true" className="size-3.5" /> : index + 1}
+                  </span>
+                  <span
+                    className={cn(
+                      "text-sm",
+                      active
+                        ? "shrink-0 whitespace-nowrap font-medium"
+                        : "hidden truncate text-muted-foreground sm:inline",
+                    )}
+                  >
+                    {label}
+                  </span>
+                  {index < steps.length - 1 && (
+                    <span
+                      aria-hidden="true"
+                      className={cn(
+                        "h-px min-w-4 flex-1 transition-colors",
+                        completed ? "bg-foreground" : "bg-border",
+                      )}
+                    />
+                  )}
                 </li>
               );
             })}
           </ol>
-        </div>
+        </nav>
       )}
-      <div className="grid gap-7 xl:grid-cols-[minmax(0,1fr)_320px]">
+
+      <div
+        className={cn(
+          "grid gap-6",
+          onboarding
+            ? "lg:grid-cols-[minmax(0,1fr)_320px]"
+            : "2xl:grid-cols-[minmax(0,1fr)_300px]",
+        )}
+      >
         <form
           onSubmit={(event) => {
             event.preventDefault();
@@ -268,77 +333,72 @@ export function AgentEditor({
           className="min-w-0 space-y-6"
           noValidate
         >
-          <fieldset disabled={onboarding && pending} className="space-y-6">
+          <fieldset disabled={onboarding && pending} className="min-w-0 space-y-6">
             {show(0) && (
-              <section className="rounded-2xl border bg-card p-5 sm:p-7">
-                <div className="mb-6 flex items-center gap-3">
-                  <span className="rounded-xl bg-muted p-2.5 text-foreground dark:bg-muted dark:text-foreground">
-                    <Bot className="size-5" />
-                  </span>
-                  <div>
-                    <h2 className="text-lg font-semibold">
-                      Donnez-lui une identité
-                    </h2>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      Un nom que vos clients reconnaîtront.
-                    </p>
-                  </div>
-                </div>
-                <FieldGroup>
-                  <Controller
-                    name="agentName"
-                    control={form.control}
-                    render={({ field, fieldState }) => (
-                      <Field data-invalid={fieldState.invalid}>
-                        <FieldLabel htmlFor="agent-name">
-                          Nom de votre agent
-                        </FieldLabel>
-                        <Input
+              <section className="rounded-2xl border bg-card p-5 sm:p-6">
+                <SectionHeader
+                  eyebrow={onboarding ? undefined : `01 · ${steps[0]}`}
+                  icon={Bot}
+                  title="Donnez-lui une identité"
+                  description="Un nom que vos clients reconnaîtront."
+                />
+                <Controller
+                  name="agentName"
+                  control={form.control}
+                  render={({ field, fieldState }) => (
+                    <Field data-invalid={fieldState.invalid}>
+                      <FieldLabel htmlFor="agent-name">Nom de votre agent</FieldLabel>
+                      <InputGroup className="h-11">
+                        <InputGroupInput
                           {...field}
                           id="agent-name"
                           autoComplete="off"
                           maxLength={60}
                           aria-invalid={fieldState.invalid}
                           aria-describedby="agent-name-description agent-name-error"
-                          onChange={(event) =>
-                            update("agentName", event.target.value)
-                          }
-                          className={inputClass}
-                          placeholder="Ex. Nova, l’assistant de votre entreprise"
+                          onChange={(event) => update("agentName", event.target.value)}
+                          placeholder="Ex. Nova"
                         />
-                        <FieldDescription id="agent-name-description">
-                          L’agent se présente comme un assistant IA. Choisissez
-                          un nom simple, sans usurper l’identité d’un membre de
-                          votre équipe.
-                        </FieldDescription>
-                        <FieldError
-                          id="agent-name-error"
-                          errors={[fieldState.error]}
-                        />
-                      </Field>
-                    )}
-                  />
-                </FieldGroup>
+                        <InputGroupAddon align="inline-start">
+                          <Bot />
+                        </InputGroupAddon>
+                        <InputGroupAddon align="inline-end">
+                          <span className="font-mono text-xs tabular-nums">
+                            {config.agentName.length}/60
+                          </span>
+                        </InputGroupAddon>
+                      </InputGroup>
+                      <FieldDescription id="agent-name-description">
+                        L’agent se présente comme un assistant IA. Choisissez un nom
+                        simple, sans usurper l’identité d’un membre de votre équipe.
+                      </FieldDescription>
+                      <FieldError id="agent-name-error" errors={[fieldState.error]} />
+                    </Field>
+                  )}
+                />
               </section>
             )}
+
             {show(1) && (
-              <section className="rounded-2xl border bg-card p-5 sm:p-7">
-                <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
-                  <div>
-                    <h2 className="text-lg font-semibold">
-                      Sa mission, avec vos mots
-                    </h2>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      Le message système guide chaque réponse de l’agent.
-                    </p>
-                  </div>
-                </div>
-                <div className="mb-5 rounded-xl bg-muted/60 p-4 text-sm leading-relaxed">
-                  <p className="font-medium">Un bon point de départ</p>
-                  <p className="mt-1 text-muted-foreground">
-                    Présentez votre activité, vos offres, vos horaires et les
-                    limites à respecter. Ajoutez uniquement des informations
-                    vérifiées, sans identifiants ni secrets.
+              <section className="rounded-2xl border bg-card p-5 sm:p-6">
+                <SectionHeader
+                  eyebrow={onboarding ? undefined : `02 · ${steps[1]}`}
+                  icon={FileText}
+                  title="Sa mission, avec vos mots"
+                  description="Le message système guide chaque réponse de l’agent."
+                />
+                <div className="mb-5 rounded-xl border border-dashed p-4">
+                  <p className="text-sm font-medium">Un bon message système contient</p>
+                  <ul className="mt-3 grid gap-2 sm:grid-cols-2">
+                    {missionTips.map((tip) => (
+                      <li key={tip} className="flex items-start gap-2 text-xs text-muted-foreground">
+                        <Check aria-hidden="true" className="mt-0.5 size-3.5 shrink-0 text-foreground" />
+                        {tip}
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="mt-3 text-xs text-muted-foreground">
+                    Uniquement des informations vérifiées, sans identifiants ni secrets.
                   </p>
                 </div>
                 <Controller
@@ -352,9 +412,7 @@ export function AgentEditor({
                       <SystemMessageDialog
                         projectId={projectId}
                         config={config}
-                        onChange={(value) =>
-                          update("agentSystemMessage", value)
-                        }
+                        onChange={(value) => update("agentSystemMessage", value)}
                         onClose={() => {
                           if (!onboarding) void autosave.queue.flush();
                         }}
@@ -363,100 +421,113 @@ export function AgentEditor({
                         error={fieldState.error}
                         onboarding={onboarding}
                       />
-                      <FieldDescription
-                        id="agent-system-description"
-                        className="flex flex-wrap justify-between gap-2"
-                      >
-                        <span>40 à 12 000 caractères</span>
-                        <span>
-                          {config.agentSystemMessage.length.toLocaleString(
-                            "fr-FR",
-                          )}{" "}
-                          / 12 000
-                        </span>
-                      </FieldDescription>
-                      <FieldError
-                        id="agent-system-error"
-                        errors={[fieldState.error]}
-                      />
+                      <div className="space-y-1.5">
+                        <div
+                          aria-hidden="true"
+                          className="h-1 overflow-hidden rounded-full bg-muted"
+                        >
+                          <div
+                            className={cn(
+                              "h-full rounded-full transition-[width]",
+                              config.agentSystemMessage.trim().length >= 40
+                                ? "bg-foreground"
+                                : "bg-muted-foreground/50",
+                            )}
+                            style={{
+                              width: `${Math.min(100, (config.agentSystemMessage.length / 12000) * 100)}%`,
+                            }}
+                          />
+                        </div>
+                        <FieldDescription
+                          id="agent-system-description"
+                          className="flex flex-wrap justify-between gap-2"
+                        >
+                          <span>40 à 12 000 caractères</span>
+                          <span className="tabular-nums">
+                            {config.agentSystemMessage.length.toLocaleString("fr-FR")} / 12 000
+                          </span>
+                        </FieldDescription>
+                      </div>
+                      <FieldError id="agent-system-error" errors={[fieldState.error]} />
                     </Field>
                   )}
                 />
               </section>
             )}
+
             {show(2) && (
-              <section className="space-y-7 rounded-2xl border bg-card p-5 sm:p-7">
-                <div>
-                  <h2 className="text-lg font-semibold">
-                    La bonne façon de répondre
-                  </h2>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    Des comportements adaptés aux conversations WhatsApp.
-                  </p>
-                </div>
-                <Controller
-                  name="agentTone"
-                  control={form.control}
-                  render={({ field, fieldState }) => (
-                    <Field data-invalid={fieldState.invalid}>
-                      <FieldLabel id="agent-tone-label" htmlFor="agent-tone">
-                        Ton de l’agent
-                      </FieldLabel>
-                      <RadioGroup
-                        id="agent-tone"
-                        name={field.name}
-                        ref={field.ref}
-                        onBlur={field.onBlur}
-                        value={field.value}
-                        onValueChange={(value) =>
-                          update("agentTone", value as AgentConfig["agentTone"])
-                        }
-                        aria-labelledby="agent-tone-label"
-                        aria-invalid={fieldState.invalid}
-                        aria-describedby="agent-tone-error"
-                        className="grid gap-3 sm:grid-cols-3"
-                      >
-                        {AGENT_TONES.map((tone) => (
-                          <FieldLabel
-                            key={tone.value}
-                            htmlFor={`agent-tone-${tone.value}`}
-                            className={`block w-full min-w-0 cursor-pointer rounded-xl border p-4 focus-within:ring-2 focus-within:ring-ring ${config.agentTone === tone.value ? "border-border bg-muted/60 dark:bg-muted/30" : "hover:bg-muted/40"}`}
-                          >
-                            <span className="mb-2 flex items-center justify-between text-sm font-medium">
-                              {tone.label}
-                              <RadioGroupItem
-                                id={`agent-tone-${tone.value}`}
-                                value={tone.value}
-                                aria-describedby={`agent-tone-${tone.value}-description`}
-                              />
-                            </span>
-                            <span
-                              id={`agent-tone-${tone.value}-description`}
-                              className="block text-xs font-normal leading-relaxed text-muted-foreground"
-                            >
-                              {tone.description}
-                            </span>
-                          </FieldLabel>
-                        ))}
-                      </RadioGroup>
-                      <FieldError
-                        id="agent-tone-error"
-                        errors={[fieldState.error]}
-                      />
-                    </Field>
-                  )}
+              <section className="rounded-2xl border bg-card p-5 sm:p-6">
+                <SectionHeader
+                  eyebrow={onboarding ? undefined : `03 · ${steps[2]}`}
+                  icon={SlidersHorizontal}
+                  title="La bonne façon de répondre"
+                  description="Des comportements adaptés aux conversations WhatsApp."
                 />
-                <div className="grid gap-5 sm:grid-cols-2">
+                <div className="space-y-7">
+                  <Controller
+                    name="agentTone"
+                    control={form.control}
+                    render={({ field, fieldState }) => (
+                      <FieldSet data-invalid={fieldState.invalid}>
+                        <FieldLegend variant="label">Ton de l’agent</FieldLegend>
+                        <RadioGroup
+                          name={field.name}
+                          ref={field.ref}
+                          onBlur={field.onBlur}
+                          value={field.value}
+                          onValueChange={(value) =>
+                            update("agentTone", value as AgentConfig["agentTone"])
+                          }
+                          aria-invalid={fieldState.invalid}
+                          aria-describedby="agent-tone-error"
+                          className="grid gap-2 sm:grid-cols-3"
+                        >
+                          {AGENT_TONES.map((tone) => {
+                            const Icon = toneIcons[tone.value];
+                            return (
+                              <FieldLabel
+                                key={tone.value}
+                                htmlFor={`agent-tone-${tone.value}`}
+                                className="w-full! cursor-pointer rounded-xl border p-3 font-normal transition-colors hover:bg-muted/40 has-data-[state=checked]:border-primary has-data-[state=checked]:bg-muted/50"
+                              >
+                                <span className="flex w-full items-start gap-3">
+                                  <span className="flex size-8 shrink-0 items-center justify-center rounded-lg border bg-background">
+                                    <Icon aria-hidden="true" className="size-4" />
+                                  </span>
+                                  <span className="min-w-0 flex-1">
+                                    <span className="block text-sm font-medium">{tone.label}</span>
+                                    <span
+                                      id={`agent-tone-${tone.value}-description`}
+                                      className="block text-xs leading-relaxed text-muted-foreground"
+                                    >
+                                      {tone.description}
+                                    </span>
+                                  </span>
+                                  <RadioGroupItem
+                                    id={`agent-tone-${tone.value}`}
+                                    value={tone.value}
+                                    aria-describedby={`agent-tone-${tone.value}-description`}
+                                  />
+                                </span>
+                              </FieldLabel>
+                            );
+                          })}
+                        </RadioGroup>
+                        <FieldError id="agent-tone-error" errors={[fieldState.error]} />
+                      </FieldSet>
+                    )}
+                  />
+
                   <Controller
                     name="agentResponseLength"
                     control={form.control}
                     render={({ field, fieldState }) => (
-                      <Field data-invalid={fieldState.invalid}>
-                        <FieldLabel htmlFor="agent-length">
-                          Longueur des réponses
-                        </FieldLabel>
-                        <Select
+                      <FieldSet data-invalid={fieldState.invalid}>
+                        <FieldLegend variant="label">Longueur des réponses</FieldLegend>
+                        <RadioGroup
                           name={field.name}
+                          ref={field.ref}
+                          onBlur={field.onBlur}
                           value={field.value}
                           onValueChange={(value) =>
                             update(
@@ -464,46 +535,57 @@ export function AgentEditor({
                               value as AgentConfig["agentResponseLength"],
                             )
                           }
+                          aria-invalid={fieldState.invalid}
+                          aria-describedby="agent-length-error"
+                          className="grid grid-cols-3 gap-2"
                         >
-                          <SelectTrigger
-                            id="agent-length"
-                            ref={field.ref}
-                            onBlur={field.onBlur}
-                            aria-invalid={fieldState.invalid}
-                            aria-describedby="agent-length-error"
-                            className="w-full"
-                          >
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="concise">
-                              Concis · recommandé sur WhatsApp
-                            </SelectItem>
-                            <SelectItem value="balanced">Équilibré</SelectItem>
-                            <SelectItem value="detailed">Détaillé</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FieldError
-                          id="agent-length-error"
-                          errors={[fieldState.error]}
-                        />
-                      </Field>
+                          {lengths.map((option, index) => (
+                            <FieldLabel
+                              key={option.value}
+                              htmlFor={`agent-length-${option.value}`}
+                              className="w-full! cursor-pointer rounded-xl border p-3 font-normal transition-colors hover:bg-muted/40 has-data-[state=checked]:border-primary has-data-[state=checked]:bg-muted/50"
+                            >
+                              <span className="flex w-full flex-col gap-2">
+                                <span aria-hidden="true" className="flex flex-col gap-1">
+                                  {Array.from({ length: index + 1 }, (_, line) => (
+                                    <span
+                                      key={line}
+                                      className="h-1 rounded-full bg-foreground/60"
+                                      style={{ width: `${100 - line * 18}%` }}
+                                    />
+                                  ))}
+                                </span>
+                                <span className="flex items-center justify-between gap-2">
+                                  <span className="text-sm font-medium">{option.label}</span>
+                                  <RadioGroupItem
+                                    id={`agent-length-${option.value}`}
+                                    value={option.value}
+                                    className="sr-only"
+                                  />
+                                </span>
+                                <span className="hidden text-xs text-muted-foreground sm:block">
+                                  {option.hint}
+                                </span>
+                              </span>
+                            </FieldLabel>
+                          ))}
+                        </RadioGroup>
+                        <FieldError id="agent-length-error" errors={[fieldState.error]} />
+                      </FieldSet>
                     )}
                   />
+
                   <Controller
                     name="agentLanguage"
                     control={form.control}
                     render={({ field, fieldState }) => (
                       <Field data-invalid={fieldState.invalid}>
-                        <FieldLabel htmlFor="agent-language">Langue</FieldLabel>
+                        <FieldLabel htmlFor="agent-language">Langue des réponses</FieldLabel>
                         <Select
                           name={field.name}
                           value={field.value}
                           onValueChange={(value) =>
-                            update(
-                              "agentLanguage",
-                              value as AgentConfig["agentLanguage"],
-                            )
+                            update("agentLanguage", value as AgentConfig["agentLanguage"])
                           }
                         >
                           <SelectTrigger
@@ -512,111 +594,81 @@ export function AgentEditor({
                             onBlur={field.onBlur}
                             aria-invalid={fieldState.invalid}
                             aria-describedby="agent-language-error"
-                            className="w-full"
+                            className="w-full sm:max-w-xs"
                           >
+                            <Languages aria-hidden="true" className="text-muted-foreground" />
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="auto">
-                              S’adapter au prospect
-                            </SelectItem>
-                            <SelectItem value="fr">
-                              Toujours en français
-                            </SelectItem>
-                            <SelectItem value="en">
-                              Toujours en anglais
-                            </SelectItem>
+                            <SelectItem value="auto">S’adapter au prospect</SelectItem>
+                            <SelectItem value="fr">Toujours en français</SelectItem>
+                            <SelectItem value="en">Toujours en anglais</SelectItem>
                           </SelectContent>
                         </Select>
-                        <FieldError
-                          id="agent-language-error"
-                          errors={[fieldState.error]}
-                        />
+                        <FieldError id="agent-language-error" errors={[fieldState.error]} />
                       </Field>
                     )}
                   />
-                </div>
-                <div className="divide-y">
-                  {[
-                    {
-                      key: "agentAskOneQuestion" as const,
-                      title: "Une question à la fois",
-                      text: "Faire avancer la conversation sans submerger le prospect.",
-                      recommended: true,
-                    },
-                    {
-                      key: "agentQualifyLeads" as const,
-                      title: "Comprendre le besoin",
-                      text: "Identifier progressivement la demande et son échéance.",
-                      recommended: true,
-                    },
-                    {
-                      key: "agentHumanHandover" as const,
-                      title: "Proposer un conseiller",
-                      text: "Orienter vers un humain quand une réponse fiable manque. Cela ne déclenche pas un transfert automatique.",
-                      recommended: true,
-                    },
-                    {
-                      key: "agentUseEmojis" as const,
-                      title: "Une touche d’emoji",
-                      text: "Un emoji au maximum, seulement s’il est pertinent.",
-                      recommended: false,
-                    },
-                  ].map((item) => (
-                    <Controller
-                      key={item.key}
-                      name={item.key}
-                      control={form.control}
-                      render={({ field, fieldState }) => (
-                        <Field
-                          orientation="horizontal"
-                          data-invalid={fieldState.invalid}
-                          className="items-start justify-between gap-5 py-5"
-                        >
-                          <div>
-                            <FieldLabel
-                              htmlFor={`agent-${item.key}`}
-                              className="block text-sm font-medium"
+
+                  <FieldSet>
+                    <FieldLegend variant="label">Comportements</FieldLegend>
+                    <div className="divide-y rounded-xl border">
+                      {behaviors.map((item) => (
+                        <Controller
+                          key={item.key}
+                          name={item.key}
+                          control={form.control}
+                          render={({ field, fieldState }) => (
+                            <Field
+                              orientation="horizontal"
+                              data-invalid={fieldState.invalid}
+                              className="items-start justify-between gap-4 p-4"
                             >
-                              {item.title}{" "}
-                              {item.recommended && (
-                                <span className="ml-1 text-[10px] font-normal uppercase tracking-wide text-muted-foreground">
-                                  Par défaut
-                                </span>
-                              )}
-                            </FieldLabel>
-                            <FieldDescription
-                              id={`agent-${item.key}-description`}
-                              className="mt-1 text-xs leading-relaxed"
-                            >
-                              {item.text}
-                            </FieldDescription>
-                            <FieldError
-                              id={`agent-${item.key}-error`}
-                              errors={[fieldState.error]}
-                            />
-                          </div>
-                          <Checkbox
-                            id={`agent-${item.key}`}
-                            name={field.name}
-                            ref={field.ref}
-                            onBlur={field.onBlur}
-                            checked={field.value}
-                            onCheckedChange={(checked) =>
-                              update(item.key, checked === true)
-                            }
-                            aria-invalid={fieldState.invalid}
-                            aria-describedby={`agent-${item.key}-description agent-${item.key}-error`}
-                            className="mt-1 size-5 shrink-0"
-                          />
-                        </Field>
-                      )}
-                    />
-                  ))}
+                              <div className="min-w-0">
+                                <FieldLabel
+                                  htmlFor={`agent-${item.key}`}
+                                  className="flex flex-wrap items-center gap-2 text-sm font-medium"
+                                >
+                                  {item.title}
+                                  {item.recommended && (
+                                    <span className="rounded-full border px-1.5 text-[10px] font-normal text-muted-foreground">
+                                      Recommandé
+                                    </span>
+                                  )}
+                                </FieldLabel>
+                                <FieldDescription
+                                  id={`agent-${item.key}-description`}
+                                  className="mt-1 text-xs leading-relaxed"
+                                >
+                                  {item.text}
+                                </FieldDescription>
+                                <FieldError
+                                  id={`agent-${item.key}-error`}
+                                  errors={[fieldState.error]}
+                                />
+                              </div>
+                              <Switch
+                                id={`agent-${item.key}`}
+                                name={field.name}
+                                ref={field.ref}
+                                onBlur={field.onBlur}
+                                checked={field.value}
+                                onCheckedChange={(checked) => update(item.key, checked === true)}
+                                aria-invalid={fieldState.invalid}
+                                aria-describedby={`agent-${item.key}-description agent-${item.key}-error`}
+                                className="mt-0.5"
+                              />
+                            </Field>
+                          )}
+                        />
+                      ))}
+                    </div>
+                  </FieldSet>
                 </div>
               </section>
             )}
           </fieldset>
+
           {error && (
             <p
               role="alert"
@@ -625,7 +677,15 @@ export function AgentEditor({
               {error}
             </p>
           )}
-          <div className="flex flex-col-reverse justify-between gap-3 border-t pt-5 sm:flex-row sm:items-center">
+
+          <div
+            className={cn(
+              "flex flex-col-reverse justify-between gap-3 sm:flex-row sm:items-center",
+              onboarding
+                ? "sticky bottom-0 z-10 -mx-4 border-t bg-background/90 px-4 py-3 backdrop-blur supports-backdrop-filter:bg-background/75 sm:static sm:mx-0 sm:bg-transparent sm:px-0 sm:pt-5 sm:backdrop-blur-none"
+                : "border-t pt-5",
+            )}
+          >
             {onboarding && step > 0 ? (
               <Button
                 type="button"
@@ -637,75 +697,94 @@ export function AgentEditor({
                 variant="outline"
                 size="lg"
               >
-                <ArrowLeft className="size-4" /> Précédent
+                <ArrowLeft data-icon="inline-start" /> Précédent
               </Button>
             ) : (
               <span className="flex items-center gap-2 text-xs text-muted-foreground">
-                <ShieldCheck className="size-4" /> Réglages réservés à votre
+                <ShieldCheck aria-hidden="true" className="size-4" /> Réglages réservés à votre
                 équipe
               </span>
             )}
             {onboarding ? (
               <Button disabled={pending} type="submit" size="lg">
                 {pending ? (
-                  <Loader2 className="size-4 animate-spin" />
-                ) : step < 2 ? (
-                  <ArrowRight className="size-4" />
-                ) : (
-                  <Check className="size-4" />
+                  <Loader2 className="animate-spin" aria-hidden="true" />
+                ) : step < 2 ? null : (
+                  <Check aria-hidden="true" />
                 )}
                 {pending
                   ? "Enregistrement…"
                   : step < 2
-                    ? "Continuer"
+                    ? `Continuer · ${steps[step + 1]}`
                     : "Valider et ouvrir le chat"}
+                {!pending && step < 2 && <ArrowRight data-icon="inline-end" />}
               </Button>
             ) : (
               <AutosaveStatus status={autosave.status} error={autosave.error} />
             )}
           </div>
         </form>
-        <aside className="self-start rounded-2xl bg-muted/50 p-5 xl:sticky xl:top-6">
-          <div className="mb-5 flex items-center gap-2 text-xs font-medium uppercase tracking-widest text-muted-foreground">
-            <MessageSquare className="size-4" /> Aperçu du style
-          </div>
-          <div className="rounded-2xl border bg-card p-4 shadow-sm">
-            <div className="mb-5 flex items-center gap-3 border-b pb-4">
-              <span className="flex size-10 items-center justify-center rounded-full bg-muted text-foreground dark:bg-muted dark:text-foreground">
-                <Bot className="size-5" />
+
+        <aside
+          aria-label="Aperçu du style"
+          className={cn(
+            "self-start rounded-2xl border bg-muted/40 p-4",
+            onboarding ? "lg:sticky lg:top-6" : "2xl:sticky 2xl:top-24",
+          )}
+        >
+          <p className="mb-3 flex items-center gap-2 font-mono text-[11px] uppercase tracking-wider text-muted-foreground">
+            <MessageSquare aria-hidden="true" className="size-3.5" /> Aperçu en direct
+          </p>
+          <div className="overflow-hidden rounded-2xl border bg-card shadow-sm">
+            <div className="flex items-center gap-3 border-b px-4 py-3">
+              <span className="flex size-9 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                <Bot aria-hidden="true" className="size-4" />
               </span>
               <div className="min-w-0">
-                <p className="truncate text-sm font-semibold">
-                  {config.agentName || "Votre agent"}
-                </p>
-                <p className="truncate text-xs text-muted-foreground">
-                  {projectName}
-                </p>
+                <p className="truncate text-sm font-semibold">{config.agentName || "Votre agent"}</p>
+                <p className="truncate text-xs text-muted-foreground">{projectName} · en ligne</p>
               </div>
             </div>
-            <div className="mb-4 mr-7 rounded-xl rounded-bl-sm bg-muted p-3 text-sm">
-              Bonjour !
-            </div>
-            <div className="ml-4 rounded-xl rounded-br-sm bg-primary p-4 text-sm leading-relaxed text-primary-foreground">
-              {preview}
-              {config.agentUseEmojis && " 👋"}
-              <CheckCheck className="ml-auto mt-2 size-4 text-primary-foreground" />
+            <div className="space-y-2 bg-[radial-gradient(var(--border)_1px,transparent_1px)] bg-size-[16px_16px] p-4">
+              <div className="mr-10 w-fit rounded-2xl rounded-bl-sm border bg-background px-3 py-2 text-sm">
+                Bonjour !
+              </div>
+              <div className="ml-6 rounded-2xl rounded-br-sm bg-primary px-3 py-2.5 text-sm leading-relaxed text-primary-foreground">
+                {preview}
+                {config.agentUseEmojis && " 👋"}
+                <CheckCheck aria-hidden="true" className="ml-auto mt-1.5 size-3.5 opacity-70" />
+              </div>
             </div>
           </div>
-          <p className="mt-4 text-xs leading-relaxed text-muted-foreground">
-            Exemple illustratif. Les réponses réelles dépendent de votre message
-            système et de la conversation.
+          <ul aria-label="Réglages actifs" className="mt-3 flex flex-wrap gap-1.5 text-[11px]">
+            <li className="rounded-full border bg-background px-2 py-0.5">
+              {AGENT_TONES.find((tone) => tone.value === config.agentTone)?.label}
+            </li>
+            <li className="rounded-full border bg-background px-2 py-0.5">
+              {lengths.find((option) => option.value === config.agentResponseLength)?.label}
+            </li>
+            {behaviors
+              .filter((item) => config[item.key])
+              .map((item) => (
+                <li key={item.key} className="rounded-full border bg-background px-2 py-0.5">
+                  {item.title}
+                </li>
+              ))}
+          </ul>
+          <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
+            Exemple illustratif : les réponses réelles dépendent de votre message système et de
+            la conversation.
           </p>
-          <div className="mt-6 border-t pt-5">
-            <h3 className="mb-3 text-sm font-medium">Toujours dans le cadre</h3>
-            <ul className="space-y-3 text-xs leading-relaxed text-muted-foreground">
+          <div className="mt-4 border-t pt-4">
+            <p className="mb-2 text-sm font-medium">Toujours dans le cadre</p>
+            <ul className="space-y-2 text-xs leading-relaxed text-muted-foreground">
               {[
                 "Ne pas inventer d’informations commerciales.",
                 "Ne pas demander de mot de passe ni de carte bancaire.",
                 "Permettre à votre équipe de reprendre la main.",
               ].map((text) => (
                 <li key={text} className="flex gap-2">
-                  <ShieldCheck className="mt-0.5 size-3.5 shrink-0 text-foreground dark:text-foreground" />
+                  <ShieldCheck aria-hidden="true" className="mt-0.5 size-3.5 shrink-0 text-foreground" />
                   {text}
                 </li>
               ))}

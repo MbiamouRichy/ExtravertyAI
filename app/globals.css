@@ -40,6 +40,12 @@
   to { background-position: -100% 0; }
 }
 
+/* Balayage décoratif du QR code de connexion WhatsApp. */
+@keyframes qr-scan {
+  0%, 100% { transform: translateY(-10%); }
+  50% { transform: translateY(210%); }
+}
+
 @keyframes ai-word-appear {
   from { opacity: 0; }
   to { opacity: 1; }

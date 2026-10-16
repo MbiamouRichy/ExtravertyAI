@@ -1,7 +1,6 @@
 "use client";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { ArrowUpRight, Loader2, RefreshCw } from "lucide-react";
+import { ArrowUpRight, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { openProjectBillingPortal } from "@/app/actions/project-settings";
 import { BillingPlanButton } from "./billing-plan-button";
@@ -14,7 +13,6 @@ export function BillingActions({
   canManage: boolean;
   configured: boolean;
 }) {
-  const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   async function openPortal() {
@@ -32,7 +30,7 @@ export function BillingActions({
   }
   return (
     <div className="min-w-0 space-y-3">
-      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+      <div className="grid grid-cols-2 gap-2 *:first:col-span-2 sm:flex sm:flex-wrap sm:*:first:col-span-1">
         {canManage && (
           <>
             <BillingPlanButton
@@ -55,21 +53,13 @@ export function BillingActions({
             onClick={() => void openPortal()}
           >
             {busy ? (
-              <Loader2 className="size-4 animate-spin" />
+              <Loader2 className="size-4 animate-spin" aria-hidden="true" />
             ) : (
-              <ArrowUpRight className="size-4" />
-            )}{" "}
-            Gérer mon abonnement
+              <ArrowUpRight className="size-4" aria-hidden="true" />
+            )}
+            Gérer l’abonnement
           </Button>
         )}
-        <Button
-          className="h-auto min-h-9 whitespace-normal text-center"
-          variant="outline"
-          disabled={busy}
-          onClick={() => router.refresh()}
-        >
-          <RefreshCw className="size-4" /> Actualiser
-        </Button>
       </div>
       {error && (
         <p role="alert" className="max-w-md text-sm text-destructive">

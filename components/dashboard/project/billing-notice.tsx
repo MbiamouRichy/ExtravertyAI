@@ -3,7 +3,8 @@
 import Link from "next/link";
 import useSWR from "swr";
 import { useEffect } from "react";
-import { AlertCircle, CalendarClock } from "lucide-react";
+import { AlertCircle, ArrowUpRight, CalendarClock } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { type billingAccess } from "@/lib/billing-access";
 
@@ -54,73 +55,80 @@ export function BillingNotice({
     return () => clearTimeout(timer);
   }, [data.allowed, data.endsAt, mutate]);
   if (data.reason === "active" && !data.automationPaused && !error) return null;
+  const blocked = !data.allowed;
+  const title =
+    error && data.reason === "active" && !data.automationPaused
+      ? "État de l’abonnement à vérifier"
+      : titles[data.reason];
+  const detail =
+    data.reason === "active" && data.automationPaused
+      ? "Votre abonnement reste actif ; les réponses automatiques sont en pause."
+      : data.reason === "trialing"
+        ? null
+        : data.message;
+
   return (
     <aside
       aria-label="État de l’abonnement"
-      className="mx-4 mt-4 rounded-lg border bg-muted/40 p-4 sm:mx-8"
+      className={cn(
+        "mx-4 mt-4 rounded-xl border px-4 py-3 sm:mx-6 xl:mx-8",
+        blocked ? "border-destructive/30 bg-destructive/5" : "bg-muted/40",
+      )}
     >
-      <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-        <div
-          className="flex min-w-0 items-start gap-3"
-          role="status"
-          aria-live="polite"
-        >
-          {data.allowed ? (
-            <CalendarClock
-              aria-hidden="true"
-              className="mt-0.5 size-5 shrink-0 text-muted-foreground"
-            />
-          ) : (
-            <AlertCircle
-              aria-hidden="true"
-              className="mt-0.5 size-5 shrink-0 text-destructive"
-            />
-          )}
-          <div className="min-w-0 space-y-1">
-            <p className="text-sm font-semibold">
-              {error && data.reason === "active" && !data.automationPaused
-                ? "État de l’abonnement à vérifier"
-                : titles[data.reason]}
-            </p>
-            <p className="text-sm text-muted-foreground">
-              {data.reason === "active" && data.automationPaused
-                ? "Votre abonnement reste actif. Vous avez mis les réponses automatiques en pause."
-                : data.message}
-            </p>
-            {data.endsAt && (
-              <p className="text-xs text-muted-foreground">
-                {data.reason === "trialing"
-                  ? "Fin de l’essai"
-                  : "Échéance de la période"}{" "}
-                : <LocalBillingDate value={data.endsAt} />
-              </p>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex min-w-0 items-start gap-3" role="status" aria-live="polite">
+          <span
+            className={cn(
+              "flex size-8 shrink-0 items-center justify-center rounded-lg border bg-background",
+              blocked && "border-destructive/30 text-destructive",
             )}
-            {!canViewBilling && !data.allowed && (
-              <p className="text-xs text-muted-foreground">
-                Contactez le propriétaire du projet pour régulariser
-                l’abonnement.
+          >
+            {blocked ? (
+              <AlertCircle aria-hidden="true" className="size-4" />
+            ) : (
+              <CalendarClock aria-hidden="true" className="size-4" />
+            )}
+          </span>
+          <div className="min-w-0 text-sm">
+            <p className="font-medium">
+              {title}
+              {data.endsAt && (
+                <span className="font-normal text-muted-foreground">
+                  {" "}
+                  · {data.reason === "trialing" ? "jusqu’au" : "échéance le"}{" "}
+                  <LocalBillingDate value={data.endsAt} />
+                </span>
+              )}
+            </p>
+            {detail && <p className="mt-0.5 text-xs text-muted-foreground">{detail}</p>}
+            {!canViewBilling && blocked && (
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                Contactez le propriétaire du projet pour régulariser l’abonnement.
               </p>
             )}
             {error && (
-              <p className="text-xs text-destructive">
-                L’actualisation est indisponible. Réessayez dans quelques
-                instants.
+              <p className="mt-0.5 text-xs text-destructive">
+                Actualisation indisponible. Réessayez dans quelques instants.
               </p>
             )}
           </div>
         </div>
-        <div className="flex flex-wrap gap-2 xl:shrink-0">
-          {canViewBilling && (
-            <Button variant="outline" size="sm" asChild>
-              <Link href={`/projects/${projectId}/billing`}>
-                Consulter la facturation
-              </Link>
-            </Button>
-          )}
-          {canManageBilling && (
-            <BillingPlanButton projectId={projectId} intent="renew" size="sm" />
-          )}
-        </div>
+        {(canViewBilling || canManageBilling) && (
+          <div className="flex shrink-0 flex-wrap gap-2 pl-11 sm:pl-0">
+            {blocked && canManageBilling ? (
+              <BillingPlanButton projectId={projectId} intent="renew" size="sm" />
+            ) : (
+              canViewBilling && (
+                <Button variant="outline" size="sm" asChild>
+                  <Link href={`/projects/${projectId}/billing`}>
+                    Voir la facturation
+                    <ArrowUpRight data-icon="inline-end" />
+                  </Link>
+                </Button>
+              )
+            )}
+          </div>
+        )}
       </div>
     </aside>
   );

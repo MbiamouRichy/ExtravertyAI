@@ -82,6 +82,7 @@ export async function getConnectionData(projectId: string) {
       return {
         status: InstanceStatus.connected,
         qrCodeBase64: null,
+        qrCode: null,
       };
     }
 
@@ -97,6 +98,15 @@ export async function getConnectionData(projectId: string) {
       data.base64.length <= 2_000_000 &&
       /^data:image\/(?:png|jpeg);base64,[a-zA-Z0-9+/=\r\n]+$/.test(data.base64)
         ? data.base64
+        : null;
+
+    // Texte brut du QR (même secret que l’image) : permet un rendu à forte
+    // correction d’erreur avec le logo au centre. Strictement validé.
+    const qrCode =
+      typeof data?.code === "string" &&
+      data.code.length <= 1024 &&
+      /^[!-~]+$/.test(data.code)
+        ? data.code
         : null;
 
     let status: InstanceStatus = project.instanceStatus;
@@ -116,12 +126,14 @@ export async function getConnectionData(projectId: string) {
     return {
       status,
       qrCodeBase64: status === InstanceStatus.connected ? null : qr,
+      qrCode: status === InstanceStatus.connected ? null : qrCode,
     };
   } catch (error) {
     return {
       status: "error" as const,
       error: publicError(error),
       qrCodeBase64: null,
+      qrCode: null,
     };
   }
 }
