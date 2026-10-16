@@ -70,10 +70,10 @@ export function ProjectNameForm({
         event.preventDefault();
         void autosave.queue.flush();
       }}
-      className="space-y-6 rounded-2xl border bg-card p-5 sm:p-7"
+      className="space-y-6 rounded-2xl border bg-card p-4 sm:p-6"
     >
       <div>
-        <h2 className="text-lg font-semibold">Votre projet</h2>
+        <h2 className="font-heading text-lg font-semibold tracking-tight">Votre projet</h2>
         <p className="mt-1 text-sm text-muted-foreground">
           Les informations partagées dans votre espace de travail.
         </p>

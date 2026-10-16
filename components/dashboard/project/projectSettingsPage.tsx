@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { WhatsAppPreferences } from "./whatsapp-preferences";
 import { AgentEditor } from "./agent-editor";
 import { ProjectNameForm } from "./project-name-form";
@@ -30,10 +31,10 @@ import {
 import { DeleteProjectDialog } from "./delete-project-dialog";
 
 const tabs = [
-  { id: "agent", label: "Agent IA", hint: "Ton, objectifs, qualification", icon: Bot },
-  { id: "general", label: "Projet & utilisation", hint: "Nom, quota, abonnement", icon: Settings2 },
-  { id: "whatsapp", label: "WhatsApp", hint: "Connexion et présence", icon: Smartphone },
-  { id: "data", label: "Données & accès", hint: "Exports, pause, suppression", icon: ShieldCheck },
+  { id: "agent", label: "Agent IA", short: "Agent IA", hint: "Ton, objectifs, qualification", icon: Bot },
+  { id: "general", label: "Projet & utilisation", short: "Projet", hint: "Nom, quota, abonnement", icon: Settings2 },
+  { id: "whatsapp", label: "WhatsApp", short: "WhatsApp", hint: "Connexion et présence", icon: Smartphone },
+  { id: "data", label: "Données & accès", short: "Données", hint: "Exports, pause, suppression", icon: ShieldCheck },
 ] as const;
 export default function ProjectSettingsPage({
   project: p,
@@ -142,7 +143,7 @@ export default function ProjectSettingsPage({
             </li>
           </ul>
         </div>
-        <Button asChild variant="outline">
+        <Button asChild variant="outline" className="w-full sm:w-auto">
           <Link href={`/projects/${p.id}/chat`}>
             <MessageSquare data-icon="inline-start" />
             Ouvrir la messagerie
@@ -173,7 +174,7 @@ export default function ProjectSettingsPage({
       <div className="grid gap-7 lg:grid-cols-[240px_minmax(0,1fr)]">
         <nav
           aria-label="Sections des paramètres"
-          className="-mx-4 flex gap-1 overflow-x-auto px-4 [scrollbar-width:none] lg:sticky lg:top-20 lg:mx-0 lg:flex-col lg:self-start lg:overflow-visible lg:px-0"
+          className="grid grid-cols-2 gap-1.5 lg:sticky lg:top-20 lg:flex lg:flex-col lg:gap-1 lg:self-start"
         >
           {tabs.map((item) => (
             <Button
@@ -186,13 +187,19 @@ export default function ProjectSettingsPage({
               }}
               aria-current={tab === item.id ? "page" : undefined}
               variant={tab === item.id ? "secondary" : "ghost"}
-              className="h-auto shrink-0 justify-start gap-3 px-3 py-2 text-left"
+              className={cn(
+                "h-auto min-w-0 justify-start gap-2 px-2 py-2 text-left lg:gap-3 lg:px-3",
+                tab !== item.id && "max-lg:border max-lg:border-border",
+              )}
             >
-              <span className="flex size-8 shrink-0 items-center justify-center rounded-lg border bg-background">
+              <span className="flex size-7 shrink-0 items-center justify-center rounded-lg border bg-background lg:size-8">
                 <item.icon aria-hidden="true" className="size-4" />
               </span>
-              <span className="flex flex-col">
-                <span className="text-sm font-medium">{item.label}</span>
+              <span className="flex min-w-0 flex-col">
+                <span className="truncate text-xs font-medium sm:text-sm">
+                  <span className="sm:hidden">{item.short}</span>
+                  <span className="hidden sm:inline">{item.label}</span>
+                </span>
                 <span className="hidden text-xs font-normal text-muted-foreground lg:block">
                   {item.hint}
                 </span>
@@ -237,10 +244,10 @@ export default function ProjectSettingsPage({
               onVersionChange={setSettingsVersion}
               onSavingChange={setNameSaving}
             />
-            <section className="rounded-2xl border bg-card p-5 sm:p-6">
-              <div className="mb-6 flex flex-wrap justify-between gap-3">
+            <section className="rounded-2xl border bg-card p-4 sm:p-6">
+              <div className="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
                 <div>
-                  <h2 className="text-lg font-semibold">Votre utilisation</h2>
+                  <h2 className="font-heading text-lg font-semibold tracking-tight">Votre utilisation</h2>
                   <p className="mt-1 text-sm text-muted-foreground">
                     Offre <span className="capitalize">{p.plan}</span> ·{" "}
                     {p.periodEnd ? (
@@ -276,9 +283,9 @@ export default function ProjectSettingsPage({
                   </Button>
                 )}
               </div>
-              <div className="mb-3 flex justify-between gap-4 text-sm">
+              <div className="mb-3 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 text-sm">
                 <span>Messages sortants réservés</span>
-                <strong>
+                <strong className="whitespace-nowrap tabular-nums">
                   {p.messageCount.toLocaleString("fr-FR")} /{" "}
                   {p.allMessagesCount.toLocaleString("fr-FR")}
                 </strong>
@@ -322,10 +329,10 @@ export default function ProjectSettingsPage({
             </section>
           </div>
           {tab === "whatsapp" && (
-            <section className="space-y-6 rounded-2xl border bg-card p-5 sm:p-6">
+            <section className="space-y-6 rounded-2xl border bg-card p-4 sm:p-6">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>
-                  <h2 className="text-lg font-semibold">
+                  <h2 className="font-heading text-lg font-semibold tracking-tight">
                     Votre connexion WhatsApp
                   </h2>
                   <p className="mt-1 text-sm text-muted-foreground">
@@ -356,8 +363,8 @@ export default function ProjectSettingsPage({
           )}
           {tab === "data" && (
             <>
-              <section className="rounded-2xl border bg-card p-5 sm:p-6">
-                <h2 className="text-lg font-semibold">
+              <section className="rounded-2xl border bg-card p-4 sm:p-6">
+                <h2 className="font-heading text-lg font-semibold tracking-tight">
                   Vos données restent accessibles
                 </h2>
                 <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
@@ -365,7 +372,7 @@ export default function ProjectSettingsPage({
                   réservés aux propriétaires et administrateurs, dans la limite
                   de 10 000 contacts par export.
                 </p>
-                <div className="mt-6 flex flex-wrap gap-3">
+                <div className="mt-6 grid gap-2 sm:flex sm:flex-wrap sm:gap-3">
                   <Button
                     disabled={!!pending}
                     onClick={() => void download("csv")}
@@ -400,8 +407,8 @@ export default function ProjectSettingsPage({
                   </Button>
                 </div>
               </section>
-              <section className="rounded-2xl border bg-card p-5 sm:p-6">
-                <h2 className="text-lg font-semibold">
+              <section className="rounded-2xl border bg-card p-4 sm:p-6">
+                <h2 className="font-heading text-lg font-semibold tracking-tight">
                   Dernières modifications
                 </h2>
                 <p className="mt-2 text-sm text-muted-foreground">
@@ -413,7 +420,7 @@ export default function ProjectSettingsPage({
                     {p.audit.map((item) => (
                       <li
                         key={item.id}
-                        className="flex flex-wrap justify-between gap-2 py-3 text-sm"
+                        className="flex flex-col gap-0.5 py-3 text-sm sm:flex-row sm:items-center sm:justify-between sm:gap-4"
                       >
                         <span>
                           {item.action === "agent.updated"
@@ -446,12 +453,12 @@ export default function ProjectSettingsPage({
               {canPause && (
                 <section
                   aria-labelledby="project-pause-title"
-                  className="flex flex-col justify-between gap-5 rounded-2xl border bg-card p-5 sm:flex-row sm:items-center sm:p-7"
+                  className="flex flex-col justify-between gap-4 rounded-2xl border bg-card p-4 sm:flex-row sm:items-center sm:p-6"
                 >
                   <div>
                     <h2
                       id="project-pause-title"
-                      className="flex items-center gap-2 font-semibold"
+                      className="flex items-center gap-2 font-heading text-base font-semibold tracking-tight"
                     >
                       <Pause aria-hidden="true" className="size-4" />
                       {paused ? "Projet en pause" : "Mettre le projet en pause"}
@@ -474,6 +481,7 @@ export default function ProjectSettingsPage({
                     type="button"
                     variant={paused ? "default" : "outline"}
                     size="lg"
+                    className="w-full shrink-0 sm:w-auto"
                     disabled={!!pending || p.deletionPending}
                     onClick={() =>
                       void run(
@@ -512,10 +520,10 @@ export default function ProjectSettingsPage({
                 </section>
               )}
               {owner && (
-                <section className="flex flex-col justify-between gap-5 rounded-2xl border border-destructive/25 p-5 sm:flex-row sm:items-center sm:p-7">
+                <section className="flex flex-col justify-between gap-4 rounded-2xl border border-destructive/25 p-4 sm:flex-row sm:items-center sm:p-6">
                   <div>
-                    <h2 className="flex items-center gap-2 font-semibold">
-                      <AlertTriangle className="size-4 text-destructive" />{" "}
+                    <h2 className="flex items-center gap-2 font-heading text-base font-semibold tracking-tight">
+                      <AlertTriangle aria-hidden="true" className="size-4 text-destructive" />
                       Supprimer ce projet
                     </h2>
                     <p className="mt-2 max-w-lg text-sm leading-relaxed text-muted-foreground">
@@ -529,6 +537,7 @@ export default function ProjectSettingsPage({
                     type="button"
                     variant="destructive"
                     size="lg"
+                    className="w-full shrink-0 sm:w-auto"
                   >
                     <Trash2 className="size-4" />{" "}
                     {p.deletionPending
