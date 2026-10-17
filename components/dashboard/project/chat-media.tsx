@@ -42,7 +42,7 @@ export function ChatMedia({
         src={src}
         transcript={transcript}
         footer={footer}
-        className={outgoing ? "rounded-bl-2xl rounded-br-md" : undefined}
+        outgoing={outgoing}
         onError={() => setFailed(true)}
       />
     );

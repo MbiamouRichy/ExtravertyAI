@@ -1,21 +1,15 @@
 import { Skeleton } from "@/components/ui/skeleton";
+import { PageLoading } from "@/components/page-loading";
 
 // Miroir de la page Facturation : en-tête, offre + consommation, moyens de
 // paiement et factures, pour un remplacement sans décalage.
 export default function BillingLoading() {
   return (
-    <main
-      aria-busy="true"
-      aria-label="Facturation"
-      className="mx-auto w-full min-w-0 max-w-6xl p-4 sm:p-6 xl:p-8"
+    <PageLoading
+      label="Chargement de la facturation…"
+      className="mx-auto w-full max-w-6xl p-4 sm:p-6 xl:p-8"
     >
-      <p role="status" className="sr-only">
-        Chargement de la facturation…
-      </p>
-      <div
-        aria-hidden="true"
-        className="space-y-8 motion-reduce:**:data-[slot=skeleton]:animate-none"
-      >
+      <div className="space-y-8">
         <header className="flex flex-col justify-between gap-5 lg:flex-row lg:items-end">
           <div className="min-w-0 space-y-2">
             <Skeleton className="h-3 w-44" />
@@ -92,6 +86,6 @@ export default function BillingLoading() {
           </div>
         </section>
       </div>
-    </main>
+    </PageLoading>
   );
 }

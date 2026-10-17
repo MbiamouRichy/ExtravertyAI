@@ -1,6 +1,6 @@
 "use client";
 
-import { Cell, Pie, PieChart } from "recharts";
+import { Cell, LabelList, Pie, PieChart } from "recharts";
 import { PieChart as PieChartIcon } from "lucide-react";
 
 import {
@@ -76,7 +76,7 @@ export function SourcesChart({ data, total, rangeLabel }: SourcesChartProps) {
                 />
             ) : (
                 <div className="flex h-full flex-col justify-center gap-6">
-                    <div className="relative mx-auto size-48 max-w-full">
+                    <div className="relative mx-auto size-60 max-w-full">
                         <ChartContainer
                             config={config}
                             className="aspect-square size-full"
@@ -90,7 +90,7 @@ export function SourcesChart({ data, total, rangeLabel }: SourcesChartProps) {
                                 <Pie
                                     data={[{ value: 1 }]}
                                     dataKey="value"
-                                    innerRadius="76%"
+                                    innerRadius="48%"
                                     outerRadius="92%"
                                     fill="var(--muted)"
                                     stroke="none"
@@ -101,18 +101,35 @@ export function SourcesChart({ data, total, rangeLabel }: SourcesChartProps) {
                                     data={rows}
                                     dataKey="count"
                                     nameKey="key"
-                                    innerRadius="76%"
+                                    innerRadius="48%"
                                     outerRadius="92%"
                                     startAngle={90}
                                     endAngle={-270}
                                     paddingAngle={multiple ? 3 : 0}
-                                    cornerRadius={multiple ? 6 : 0}
+                                    cornerRadius={multiple ? 8 : 0}
                                     stroke="none"
                                     isAnimationActive={false}
                                 >
                                     {rows.map((row) => (
                                         <Cell key={row.key} fill={row.fill} />
                                     ))}
+                                    {multiple && (
+                                        <LabelList
+                                            dataKey="count"
+                                            position="inside"
+                                            stroke="rgba(0,0,0,0.35)"
+                                            strokeWidth={2}
+                                            paintOrder="stroke"
+                                            fill="white"
+                                            fontSize={12}
+                                            fontWeight={700}
+                                            formatter={(value) =>
+                                                Number(value) / total >= 0.08
+                                                    ? Math.round((Number(value) / total) * 100) + "%"
+                                                    : ""
+                                            }
+                                        />
+                                    )}
                                 </Pie>
                             </PieChart>
                         </ChartContainer>
@@ -121,7 +138,7 @@ export function SourcesChart({ data, total, rangeLabel }: SourcesChartProps) {
                             aria-hidden="true"
                             className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center"
                         >
-                            <span className="font-heading text-3xl font-semibold tracking-tight tabular-nums">
+                            <span className="font-heading text-2xl font-semibold tracking-tight tabular-nums">
                                 {formatNumberFr(total)}
                             </span>
                             <span className="mt-0.5 text-[11px] text-muted-foreground">

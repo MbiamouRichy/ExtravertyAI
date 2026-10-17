@@ -1,16 +1,14 @@
 import { Skeleton } from "@/components/ui/skeleton";
+import { PageLoading } from "@/components/page-loading";
 
 // Miroir de « Vos projets » : en-tête, bandeau de chiffres et grille de cartes.
 export default function ProjectsLoading() {
   return (
-    <div
-      aria-busy="true"
-      className="mx-auto flex w-full min-w-0 max-w-7xl flex-1 flex-col gap-8 p-4 sm:p-6 lg:p-8 motion-reduce:**:data-[slot=skeleton]:animate-none"
+    <PageLoading
+      label="Chargement des projets…"
+      className="mx-auto w-full max-w-7xl flex-1 p-4 sm:p-6 lg:p-8"
     >
-      <p role="status" className="sr-only">
-        Chargement des projets…
-      </p>
-      <div aria-hidden="true" className="contents">
+      <div className="flex min-w-0 flex-col gap-8">
         <header className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
           <div className="min-w-0 space-y-2">
             <Skeleton className="h-3 w-32" />
@@ -69,6 +67,6 @@ export default function ProjectsLoading() {
           ))}
         </ul>
       </div>
-    </div>
+    </PageLoading>
   );
 }

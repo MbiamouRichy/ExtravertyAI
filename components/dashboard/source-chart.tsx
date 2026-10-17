@@ -71,7 +71,7 @@ export function SourceMessageChart({
           <div className="space-y-4">
             <ChartContainer
               config={config}
-              className="mx-auto aspect-square w-full max-w-64"
+              className="mx-auto aspect-square w-full max-w-72"
             >
               <PieChart accessibilityLayer>
                 <ChartTooltip content={<ChartTooltipContent hideLabel />} />
@@ -79,8 +79,8 @@ export function SourceMessageChart({
                   data={rows}
                   dataKey="count"
                   nameKey="key"
-                  innerRadius={44}
-                  outerRadius={104}
+                  innerRadius="48%"
+                  outerRadius="92%"
                   paddingAngle={3}
                   cornerRadius={8}
                   stroke="var(--card)"

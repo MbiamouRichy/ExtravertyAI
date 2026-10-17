@@ -1,4 +1,5 @@
 import { Skeleton } from "@/components/ui/skeleton";
+import { PageLoading } from "@/components/page-loading";
 import {
   ConversationListLoading,
   ConversationMessagesLoading,
@@ -8,16 +9,13 @@ import {
 // mêmes colonnes, bordures et hauteurs, pour un remplacement sans décalage.
 export default function ChatLoading() {
   return (
-    <div
-      aria-busy="true"
-      className="flex h-[calc(100dvh-var(--spacing)*14)] min-h-0 w-full flex-col overflow-hidden bg-background md:h-[calc(100dvh-var(--spacing)*18)] motion-reduce:**:data-[slot=skeleton]:animate-none"
+    <PageLoading
+      label="Chargement de la messagerie…"
+      className="flex h-[calc(100dvh-var(--spacing)*14)] min-h-0 w-full flex-col overflow-hidden bg-background md:h-[calc(100dvh-var(--spacing)*18)]"
     >
-      <p role="status" className="sr-only">
-        Chargement de la messagerie…
-      </p>
-      <div aria-hidden="true" className="flex min-h-0 w-full flex-1 overflow-hidden">
+      <div className="flex min-h-0 w-full flex-1 overflow-hidden">
         {/* Liste des conversations */}
-        <div className="flex w-full min-h-0 shrink-0 flex-col overflow-hidden border-r bg-background md:w-80 xl:w-96">
+        <div className="flex w-full min-h-0 shrink-0 flex-col overflow-hidden border-r bg-background md:w-80 lg:w-[22rem]">
           <div className="space-y-3 border-b px-3 pb-3 pt-4">
             <div className="space-y-1.5 px-1">
               <Skeleton className="h-3 w-24" />
@@ -73,39 +71,30 @@ export default function ChatLoading() {
 
           <div className="shrink-0 bg-background px-5 pb-3 pt-4">
             <div className="mx-auto max-w-4xl">
-              {/* Répondre · Note interne */}
-              <div className="mb-2 flex items-center gap-1">
-                <Skeleton className="h-6 w-22 rounded-md" />
-                <Skeleton className="h-6 w-26 rounded-md" />
-                <Skeleton className="ml-auto hidden h-3 w-48 sm:block" />
+              {/* Suggestions IA : proposées à la demande */}
+              <div className="mb-2 flex items-center justify-between">
+                <Skeleton className="h-2.5 w-24" />
+                <Skeleton className="h-3 w-36" />
               </div>
-              {/* Suggestions IA en cartes */}
-              <div className="mb-2">
-                <Skeleton className="mb-1.5 h-2.5 w-56 max-w-full" />
-                <div className="grid gap-1.5 sm:grid-cols-2">
-                  {[0, 1].map((index) => (
-                    <div key={index} className="space-y-1.5 rounded-xl border px-3 py-2.5">
-                      <Skeleton className="h-3 w-full" />
-                      <Skeleton className={index ? "h-3 w-1/2" : "h-3 w-3/4"} />
-                    </div>
-                  ))}
+              {/* Carte de saisie : bascule, texte, outils */}
+              <div className="overflow-hidden rounded-xl border border-input shadow-xs">
+                <div className="flex items-center gap-1 border-b px-1.5 py-1.5">
+                  <Skeleton className="h-6 w-22 rounded-md" />
+                  <Skeleton className="h-6 w-26 rounded-md" />
+                  <Skeleton className="ml-auto mr-1.5 hidden h-3 w-48 sm:block" />
                 </div>
-              </div>
-              {/* Zone de saisie */}
-              <div className="rounded-2xl border border-input bg-muted/30 px-2 py-1 shadow-sm">
-                <div className="flex h-10 items-center px-2">
+                <div className="flex h-11 items-center px-3">
                   <Skeleton className="h-4 w-40 max-w-full" />
                 </div>
-                <div className="flex items-center gap-0.5">
+                <div className="flex items-center gap-0.5 px-1.5 pb-1.5">
                   {[0, 1, 2].map((index) => (
-                    <div key={index} className="flex size-11 items-center justify-center">
-                      <Skeleton className="size-5 rounded-full" />
+                    <div key={index} className="flex size-8 items-center justify-center">
+                      <Skeleton className="size-4 rounded-full" />
                     </div>
                   ))}
-                  <div className="ml-auto flex size-11 items-center justify-center">
-                    <Skeleton className="size-5 rounded-full" />
-                  </div>
-                  <Skeleton className="size-8 rounded-full" />
+                  <Skeleton className="ml-1 h-4 w-20" />
+                  <Skeleton className="ml-auto mr-1.5 hidden h-3 w-40 lg:block" />
+                  <Skeleton className="size-8 rounded-lg max-lg:ml-auto" />
                 </div>
               </div>
             </div>
@@ -117,6 +106,7 @@ export default function ChatLoading() {
           <div className="flex flex-col items-center gap-2">
             <Skeleton className="size-16 rounded-full" />
             <Skeleton className="mt-1 h-5 w-32" />
+            <Skeleton className="h-3 w-28" />
           </div>
 
           <div className="space-y-3 rounded-xl border p-4">
@@ -168,6 +158,6 @@ export default function ChatLoading() {
           </div>
         </div>
       </div>
-    </div>
+    </PageLoading>
   );
 }

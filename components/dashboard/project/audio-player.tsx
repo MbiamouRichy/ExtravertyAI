@@ -19,14 +19,36 @@ export type AudioTranscript =
   | { state: "pending" }
   | { state: "failed" };
 
+const BAR_COUNT = 30;
+// Placeholder stable avant le calcul des pics réels (évite un saut visuel).
+const PLACEHOLDER = [
+  0.35, 0.6, 0.45, 0.8, 0.5, 0.95, 0.45, 0.7, 0.35, 0.6, 0.85, 0.5, 0.35, 0.75,
+  0.45, 0.6, 0.3, 0.55, 0.75, 0.45, 0.35, 0.55, 0.3, 0.6, 0.45, 0.8, 0.5, 0.4,
+  0.6, 0.35,
+];
+
+/** Réduit les pics décodés à quelques barres lisibles (maximum par segment). */
+function waveformBars(peaks: number[]) {
+  if (!peaks.length) return PLACEHOLDER;
+  const max = Math.max(...peaks, 0.01);
+  return Array.from({ length: BAR_COUNT }, (_, bar) => {
+    const start = Math.floor((bar * peaks.length) / BAR_COUNT);
+    const end = Math.max(start + 1, Math.floor(((bar + 1) * peaks.length) / BAR_COUNT));
+    return Math.max(...peaks.slice(start, end)) / max;
+  });
+}
+
 export function AudioPlayer({
   src,
   onError,
   className,
   transcript,
   footer,
+  outgoing = false,
 }: {
   src: string;
+  /** Message envoyé par l’équipe : reprend le thème sombre des bulles agent. */
+  outgoing?: boolean;
   className?: string;
   onError?: () => void;
   /** Transcription IA affichée dans la bulle, sous le lecteur. */
@@ -81,7 +103,10 @@ export function AudioPlayer({
   return (
     <div
       className={cn(
-        "w-80 max-w-full space-y-2.5 rounded-2xl rounded-bl-md border bg-background p-2.5 shadow-xs",
+        "w-80 max-w-full space-y-2.5 rounded-2xl p-2.5 shadow-xs",
+        outgoing
+          ? "rounded-br-md bg-primary text-primary-foreground"
+          : "rounded-bl-md border bg-background",
         className,
       )}
     >
@@ -123,7 +148,7 @@ export function AudioPlayer({
         <Button
           type="button"
           size="icon"
-          variant="default"
+          variant={outgoing ? "secondary" : "default"}
           className="size-9 shrink-0 rounded-full"
           aria-label={
             playing ? "Mettre l’audio en pause" : "Écouter le message audio"
@@ -159,33 +184,21 @@ export function AudioPlayer({
         </Button>
 
         <div className="relative min-w-0 flex-1">
-          <svg
-            aria-hidden="true"
-            viewBox="0 0 144 32"
-            preserveAspectRatio="none"
-            className="pointer-events-none h-8 w-full"
-          >
-            {(peaks.length ? peaks : Array(48).fill(0.08)).map(
-              (peak, index) => {
-                const height = Math.max(3, peak * 28);
-                return (
-                  <rect
-                    key={index}
-                    x={index * 3}
-                    y={(32 - height) / 2}
-                    width="2"
-                    height={height}
-                    rx="1"
-                    className={
-                      duration && index / 48 < position / duration
-                        ? "fill-foreground"
-                        : "fill-muted-foreground/35"
-                    }
-                  />
-                );
-              },
-            )}
-          </svg>
+          {/* Barres arrondies façon maquette : la partie écoutée est pleine. */}
+          <span aria-hidden="true" className="pointer-events-none flex h-8 items-center justify-between gap-0.5">
+            {waveformBars(peaks).map((peak, index, bars) => (
+              <span
+                key={index}
+                className={cn(
+                  "min-w-0.5 max-w-1 flex-1 rounded-full bg-current transition-opacity duration-150",
+                  duration && index / bars.length < position / duration
+                    ? "opacity-100"
+                    : "opacity-35",
+                )}
+                style={{ height: `${Math.round(Math.max(0.18, peak) * 100)}%` }}
+              />
+            ))}
+          </span>
           <Slider
             className="absolute inset-0 min-h-9 [&_[data-slot=slider-track]]:opacity-0 [&_[data-slot=slider-thumb]]:opacity-0 [&_[data-slot=slider-thumb]:focus-visible]:opacity-100"
             aria-label="Position dans le message audio"
@@ -204,7 +217,7 @@ export function AudioPlayer({
           />
         </div>
         <span
-          className="shrink-0 font-mono text-[11px] tabular-nums text-muted-foreground"
+          className="shrink-0 font-mono text-[11px] tabular-nums opacity-70"
           aria-label="Temps de lecture"
         >
           {position > 0 ? time(position) + " / " : ""}
@@ -216,7 +229,11 @@ export function AudioPlayer({
               type="button"
               size="sm"
               variant="ghost"
-              className="h-7 shrink-0 gap-0.5 rounded-full border px-2 text-xs tabular-nums"
+              className={cn(
+                "h-7 shrink-0 gap-0.5 rounded-full border px-2 text-xs tabular-nums",
+                outgoing &&
+                  "border-primary-foreground/25 text-primary-foreground hover:bg-primary-foreground/10 hover:text-primary-foreground",
+              )}
               aria-label={
                 "Vitesse de lecture : " + rate.toLocaleString("fr-FR") + " fois"
               }
@@ -258,7 +275,17 @@ export function AudioPlayer({
           Lecture indisponible.
         </p>
       )}
-      {transcript && <AiInsight insight={transcript} label="Transcription IA" />}
+      {transcript && (
+        <AiInsight
+          insight={transcript}
+          label="Transcription IA"
+          className={
+            outgoing
+              ? "bg-primary-foreground/10 text-primary-foreground [&_.text-muted-foreground]:text-primary-foreground/70"
+              : undefined
+          }
+        />
+      )}
       {footer}
     </div>
   );

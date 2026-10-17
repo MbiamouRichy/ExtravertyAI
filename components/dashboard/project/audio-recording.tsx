@@ -4,7 +4,15 @@ import { useEffect, useRef } from "react";
 import { Loader2, Square, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-const BAR_COUNT = 40;
+// Profil de repos repris de la maquette : des barres variées, jamais plates.
+const BASE = [
+  0.4, 0.7, 0.5, 0.9, 0.6, 1, 0.5, 0.8, 0.4, 0.7, 0.9, 0.6, 0.4, 0.8, 0.5,
+  0.7, 0.3, 0.6, 0.8, 0.5, 0.4, 0.6, 0.3, 0.7, 0.5, 0.8,
+];
+const BAR_COUNT = BASE.length;
+const STEP = 7.5;
+const VIEW_WIDTH = BAR_COUNT * STEP;
+const idleHeight = (index: number) => 5 + BASE[index] * 13;
 
 export function AudioRecording({
   stream,
@@ -58,7 +66,11 @@ export function AudioRecording({
         bars.forEach((bar, index) => {
           const wave =
             0.35 + 0.65 * Math.abs(Math.sin(index * 0.55 - now / 180));
-          const height = 2 + level * wave * 38;
+          // Au repos : profil de la maquette ; la voix amplifie chaque barre.
+          const height = Math.min(
+            42,
+            idleHeight(index) + level * (0.45 + 0.55 * wave) * 26,
+          );
           bar.setAttribute("height", String(height));
           bar.setAttribute("y", String((44 - height) / 2));
         });
@@ -128,18 +140,18 @@ export function AudioRecording({
         <svg
           ref={spectrum}
           aria-hidden="true"
-          viewBox="0 0 200 44"
-          preserveAspectRatio="none"
-          className="h-11 min-w-0 flex-1 text-foreground"
+          viewBox={`0 0 ${VIEW_WIDTH} 44`}
+          preserveAspectRatio="xMidYMid meet"
+          className="h-11 min-w-0 flex-1 text-muted-foreground"
         >
           {Array.from({ length: BAR_COUNT }, (_, index) => (
             <rect
               key={index}
-              x={index * 5 + 1}
-              y={21}
-              width={3}
-              height={2}
-              rx={1}
+              x={index * STEP + 1.5}
+              y={(44 - idleHeight(index)) / 2}
+              width={4.5}
+              height={idleHeight(index)}
+              rx={2.25}
               fill="currentColor"
             />
           ))}
