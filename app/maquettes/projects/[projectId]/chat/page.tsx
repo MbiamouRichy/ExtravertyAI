@@ -6,7 +6,9 @@ export const metadata: Metadata = { title: "Messagerie" };
 
 export default async function ChatMaquette({
   params,
-}: PageProps<"/maquettes/projects/[projectId]/chat">) {
+}: {
+  params: Promise<{ projectId: string }>;
+}) {
   const { projectId } = await params;
   // Maquette : l’identifiant n’est utilisé que pour construire les liens de navigation.
   const safeId = projectId.slice(0, 64);
