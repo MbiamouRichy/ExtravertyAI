@@ -43,6 +43,28 @@ jobs:
             -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes \
             -o ConnectTimeout=20 -o ServerAliveInterval=30 -o ServerAliveCountMax=5 \
             "root@$DEPLOY_HOST" "deploy $DEPLOY_SHA"
+      - name: Check public database endpoint used by Vercel
+        if: always()
+        env:
+          DB_HOST: ${{ secrets.PREVIEW_DB_PUBLIC_HOST }}
+          DB_PORT: ${{ secrets.PREVIEW_DB_PUBLIC_PORT }}
+        run: |
+          set -euo pipefail
+          if [[ -z "$DB_HOST" || -z "$DB_PORT" ]]; then
+            echo "::warning::PREVIEW_DB_PUBLIC_HOST / PREVIEW_DB_PUBLIC_PORT non configurés : vérification de la base ignorée."
+            exit 0
+          fi
+          [[ "$DB_HOST" =~ ^[a-zA-Z0-9.-]+$ ]]
+          [[ "$DB_PORT" =~ ^[0-9]{1,5}$ ]]
+          for attempt in 1 2 3; do
+            if timeout 10 bash -c "exec 3<>/dev/tcp/$DB_HOST/$DB_PORT"; then
+              echo "Base de preview joignable depuis Internet."
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "::error::Base de preview injoignable sur le port public configuré. Vérifiez son port publié (docker port postgresql-mi4k-postgresql-1) et DATABASE_URL dans Vercel."
+          exit 1
       - name: Remove runner identity
         if: always()
         run: rm -f "$HOME/.ssh/preview_deploy"

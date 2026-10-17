@@ -48,3 +48,6 @@ next-env.d.ts
 /playwright-report/
 /test-results/
 /playwright/.auth/
+
+# Réglages Docker propres à chaque serveur (réseau de la base, etc.)
+compose.override.yaml

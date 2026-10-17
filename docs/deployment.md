@@ -64,6 +64,35 @@ Les secrets GitHub `PREVIEW_VPS_HOST`, `PREVIEW_VPS_SSH_KEY` et `PREVIEW_VPS_KNO
 
 Le script source `scripts/deploy-preview.sh` est installé root-owned sur le VPS à ce chemin. Il vérifie la branche, la révision et la base `extravertyai_preview`, préserve `.env.production` et `compose.override.yaml`, construit les images et vérifie TypeScript, puis sauvegarde PostgreSQL dans `/var/backups/extravertyai-preview` avant de migrer et redémarrer les workers. Les sauvegardes sont privées et leur rétention doit être suivie selon l’espace disponible. Une erreur de migration redémarre les anciens conteneurs ; aucune restauration destructive de base n’est automatisée. Le contrôle final vérifie les processus et leur absence de redémarrage immédiat, pas une conversation réelle de bout en bout.
 
+#### Connexion stable à la base de preview
+
+PostgreSQL tourne sur le même VPS (conteneur `postgresql-mi4k-postgresql-1`, réseau `postgresql-mi4k_default`, alias `postgresql`). Deux règles évitent qu’un redémarrage de la base casse les déploiements :
+
+1. **Les workers passent par le réseau Docker interne**, jamais par le port public. Créer sur le VPS, à côté de `compose.yaml`, un fichier `compose.override.yaml` (ignoré par Git, préservé par le script) :
+
+   ```yaml
+   services:
+     ai-worker:
+       networks: [default, preview_db]
+     outbound-worker:
+       networks: [default, preview_db]
+     billing-worker:
+       networks: [default, preview_db]
+     reports-worker:
+       networks: [default, preview_db]
+
+   networks:
+     preview_db:
+       external: true
+       name: postgresql-mi4k_default
+   ```
+
+   Puis, dans `.env.production`, utiliser l’hôte interne dans `DATABASE_URL` : `postgresql://UTILISATEUR:MOT_DE_PASSE@postgresql:5432/extravertyai_preview`. Vérifier avec `docker compose config --quiet`, puis relancer le workflow.
+
+2. **Le port public utilisé par Vercel est fixe.** Un port déclaré sans port hôte (`- "5432"`) est tiré au hasard par Docker à chaque recréation du conteneur. Publier un port explicite (`- "32768:5432"`) dans la configuration du service PostgreSQL, ou fixer ce port dans le panneau qui gère ce service, et garder la même valeur dans `DATABASE_URL` côté Vercel, avec `sslmode=require`.
+
+Le workflow vérifie à chaque exécution que ce port public répond, si les secrets GitHub `PREVIEW_DB_PUBLIC_HOST` (ex. `db-preview.extravertyai.com`) et `PREVIEW_DB_PUBLIC_PORT` (ex. `32768`) sont renseignés. En cas d’échec, l’exécution s’arrête avec un message explicite au lieu d’une erreur de compilation Vercel.
+
 Pour relancer, utiliser « Run workflow » sur la branche `codex/preproduction`. Pour changer la procédure elle-même, installer explicitement la nouvelle version du script sur le VPS ; un push ne remplace pas la commande SSH privilégiée. Les réglages et secrets du serveur restent en dehors de Git.
 
 `compose.yaml` lance les deux workers uniquement. Il ne remplace pas votre déploiement Next.js. Le nom du Dockerfile respecte la casse Linux. L'image inclut Prisma CLI pour exécuter les migrations. Aucun secret n'est injecté au build ; `.env.production` sert uniquement à l'exécution.
