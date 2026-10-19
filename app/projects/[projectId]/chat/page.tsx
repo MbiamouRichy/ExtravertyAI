@@ -13,6 +13,7 @@ import ProjectNotFoundDialog from "@/components/dashboard/project/projectNotfoun
 import { ChatRefreshButton } from "@/components/dashboard/project/chat-refresh-button";
 
 import prisma from "@/lib/prisma";
+import { planAllows } from "@/lib/plan-features";
 
 export const dynamic = "force-dynamic";
 
@@ -180,6 +181,10 @@ export default async function ChatPage({ params, searchParams }: PageProps) {
         isSuccess={query.success === "true"}
         canManageAi={true}
         canCopyPhone={canManageAi}
+        pipeline={{
+          enabled: planAllows(project.plan, "pipeline"),
+          currency: project.currency,
+        }}
       />
     </>
   );

@@ -118,6 +118,7 @@ export async function getProjectById(projectId: string) {
             automationPaused: true,
             agentSetupCompletedAt: true,
             plan: true,
+            currency: true,
             messageCount: true,
             allMessagesCount: true,
             expiredAt: true,

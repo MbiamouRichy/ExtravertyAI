@@ -6,6 +6,7 @@ import {
   TagNameSchema,
   tagKey,
 } from "./conversation-workflow-schema";
+import { queueCsatSurvey } from "./csat";
 
 // Message sûr à afficher tel quel ; toute autre erreur reste générique.
 export class ConversationWorkflowError extends Error {}
@@ -83,7 +84,15 @@ export async function setConversationResolved(
         resolvedById: input.resolved ? input.userId : null,
       },
     });
-    return { resolvedAt };
+    // Satisfaction survey: only when the project enabled it, at most weekly per contact.
+    const surveySent = input.resolved
+      ? await queueCsatSurvey(tx, {
+          projectId: input.projectId,
+          contactId: input.contactId,
+          userId: input.userId,
+        })
+      : false;
+    return { resolvedAt, surveySent };
   });
 }
 
@@ -195,6 +204,85 @@ export async function createInternalNote(
       author: { select: { id: true, name: true, image: true } },
     },
   });
+}
+
+function firstName(name: string | null | undefined): string {
+  return (name?.trim().split(/\s+/)[0] || "un membre").slice(0, 80);
+}
+
+// Tout membre peut (ré)assigner : l'équipe se répartit le travail sans passer par un admin.
+export async function assignConversation(
+  db: PrismaClient,
+  input: Actor & { assigneeId: string | null },
+) {
+  return db.$transaction(async (tx) => {
+    await lockProject(tx, input.projectId);
+    await requireContact(tx, input);
+
+    const assignee = input.assigneeId
+      ? (
+          await tx.projectMembership.findUnique({
+            where: {
+              userId_projectId: {
+                userId: input.assigneeId,
+                projectId: input.projectId,
+              },
+            },
+            select: { user: { select: { id: true, name: true, image: true } } },
+          })
+        )?.user
+      : null;
+    if (input.assigneeId && !assignee) {
+      throw new ConversationWorkflowError(
+        "Ce membre ne fait plus partie du projet.",
+      );
+    }
+
+    const current = await tx.contact.findUniqueOrThrow({
+      where: { id: input.contactId },
+      select: { assigneeId: true },
+    });
+    if (current.assigneeId === (assignee?.id ?? null)) {
+      return { assignee: assignee ?? null, changed: false };
+    }
+
+    await tx.contact.update({
+      where: { id: input.contactId },
+      data: assignee
+        ? { assigneeId: assignee.id, assignedAt: new Date(), assignedById: input.userId }
+        : { assigneeId: null, assignedAt: null, assignedById: null },
+    });
+    await tx.contactEvent.create({
+      data: {
+        projectId: input.projectId,
+        contactId: input.contactId,
+        actorId: input.userId,
+        type: assignee ? "ASSIGNED" : "UNASSIGNED",
+        // Sans détail : la personne s'est attribué la conversation elle-même.
+        detail: assignee && assignee.id !== input.userId ? firstName(assignee.name) : null,
+      },
+    });
+    return { assignee: assignee ?? null, changed: true };
+  });
+}
+
+export async function assignableMembers(
+  db: PrismaClient,
+  projectId: string,
+  userId: string,
+) {
+  const members = await db.projectMembership.findMany({
+    where: {
+      projectId,
+      project: { deletionPending: false, members: { some: { userId } } },
+    },
+    orderBy: [{ user: { name: "asc" } }, { userId: "asc" }],
+    select: {
+      role: true,
+      user: { select: { id: true, name: true, image: true } },
+    },
+  });
+  return members.map((member) => ({ ...member.user, role: member.role }));
 }
 
 export async function projectTags(db: PrismaClient, projectId: string) {

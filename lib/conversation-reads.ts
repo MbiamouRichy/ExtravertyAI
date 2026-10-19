@@ -63,7 +63,9 @@ export async function unreadConversationCount(
       AND (r."lastReadAt" IS NULL OR (m."createdAt", m.id) > (r."lastReadAt", r."lastReadId"))
       AND (${filter} = 'all'
         OR (${filter} = 'resolved' AND c."resolvedAt" IS NOT NULL)
-        OR (${filter} IN ('ai', 'manual') AND c."resolvedAt" IS NULL AND c."aiActive" = ${filter === "ai"}))
+        OR (${filter} IN ('ai', 'manual') AND c."resolvedAt" IS NULL AND c."aiActive" = ${filter === "ai"})
+        OR (${filter} = 'mine' AND c."resolvedAt" IS NULL AND c."assigneeId" = ${userId})
+        OR (${filter} = 'unassigned' AND c."resolvedAt" IS NULL AND c."assigneeId" IS NULL))
       AND (${tagId ?? null}::text IS NULL OR EXISTS (
         SELECT 1 FROM contact_tag ct JOIN tag t ON t.id = ct."tagId"
         WHERE ct."contactId" = c.id AND t."projectId" = c."projectId" AND t.id = ${tagId ?? null}))

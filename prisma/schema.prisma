@@ -172,6 +172,9 @@ model Project {
 
   pairingCodeRequestedAt  DateTime?
   // --- 💳 FACTURATION STRIPE ---
+  currency String @default("XAF")
+  csatEnabled Boolean @default(false)
+  csatMessage String @default("Merci pour votre échange avec nous ! Comment évaluez-vous notre service ? Répondez par un chiffre de 1 (pas satisfait) à 5 (très satisfait).") @db.Text
   agentName String @default("Assistant")
   agentSystemMessage String @default("") @db.Text
   agentTone String @default("warm")
@@ -211,6 +214,12 @@ model Project {
   internalNotes        InternalNote[]
   contactEvents        ContactEvent[]
   messages             Message[]      // Tous les messages liés à ce projet
+  knowledgeSources     KnowledgeSource[]
+  knowledgeEntries     KnowledgeEntry[]
+  agentTestRuns        AgentTestRun[]
+  aiFeedback           AiFeedback[]
+  knowledgeGaps        KnowledgeGap[]
+  csatSurveys          CsatSurvey[]
   invitations          Invitation[]   // Les invitations au projet
   // Dates
   createdAt            DateTime       @default(now())
@@ -258,11 +267,27 @@ model Contact {
   tags        ContactTag[]
   notes       InternalNote[]
   events      ContactEvent[]
+  knowledgeGaps KnowledgeGap[]
+  csatSurveys CsatSurvey[]
 
   // Conversation traitée par l'équipe ; effacée dès qu'un message client arrive.
   resolvedAt   DateTime?
   resolvedById String?
   resolvedBy   User?     @relation("ContactResolvedBy", fields: [resolvedById], references: [id], onDelete: SetNull)
+
+  assigneeId   String?
+  assignee     User?     @relation("ContactAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  assignedAt   DateTime?
+  assignedById String?
+  assignedBy   User?     @relation("ContactAssignedBy", fields: [assignedById], references: [id], onDelete: SetNull)
+
+  pipelineStage    PipelineStage @default(NEW)
+  // Montant dans l'unité mineure de la devise du projet.
+  dealValue        Int?
+  stageChangedAt   DateTime?
+  // Uniquement pour un déplacement manuel : Instinct IA ne le contredit jamais.
+  stageChangedById String?
+  stageChangedBy   User?     @relation("ContactStageChangedBy", fields: [stageChangedById], references: [id], onDelete: SetNull)
 
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
@@ -285,6 +310,8 @@ lastMessageAt DateTime?
   @@index([projectId])
   @@index([projectId, updatedAt, id])
   @@index([projectId, resolvedAt])
+  @@index([projectId, assigneeId])
+  @@index([projectId, pipelineStage])
   @@map("contact")
 }
 
@@ -331,6 +358,10 @@ model Message {
   agent        User?         @relation(fields: [agentId], references: [id], onDelete: SetNull)
   outboundJob  OutboundJob?  @relation("MessageOutboundJob")
   aiJob        AiJob?
+  feedback     AiFeedback[]
+  knowledgeGap KnowledgeGap?
+  csatSurvey   CsatSurvey?   @relation("CsatSurveyMessage")
+  csatResponse CsatSurvey?   @relation("CsatResponseMessage")
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
 
@@ -383,6 +414,15 @@ model User {
   memberships   ProjectMembership[]
   messagesSent  Message[] // Historique des messages envoyés manuellement par cet utilisateur
   resolvedContacts Contact[] @relation("ContactResolvedBy")
+  assignedContacts Contact[] @relation("ContactAssignee")
+  contactsAssignedBy Contact[] @relation("ContactAssignedBy")
+  contactsStageChanged Contact[] @relation("ContactStageChangedBy")
+  knowledgeSources KnowledgeSource[]
+  knowledgeEntries KnowledgeEntry[]
+  agentTestRuns AgentTestRun[]
+  aiFeedback AiFeedback[]
+  resolvedKnowledgeGaps KnowledgeGap[]
+  csatSurveysResolved CsatSurvey[]
   internalNotes InternalNote[]
   contactEvents ContactEvent[]
   lastActiveAt  DateTime  @default(now())
@@ -735,6 +775,17 @@ enum ContactEventType {
   AI_PAUSED
   AI_PAUSED_BY_REPLY
   AI_PAUSED_FROM_PHONE
+  ASSIGNED
+  UNASSIGNED
+  STAGE_CHANGED
+}
+
+enum PipelineStage {
+  NEW
+  INTERESTED
+  QUOTE_SENT
+  WON
+  LOST
 }
 
 model ContactEvent {
@@ -746,8 +797,174 @@ model ContactEvent {
   actorId   String?
   actor     User?            @relation(fields: [actorId], references: [id], onDelete: SetNull)
   type      ContactEventType
+  detail    String?
   createdAt DateTime         @default(now())
 
   @@index([projectId, contactId, createdAt, id])
   @@map("contact_event")
+}
+
+enum KnowledgeKind {
+  FAQ
+  TEXT
+  PRODUCT
+  CHUNK
+}
+
+enum KnowledgeSourceType {
+  PDF
+  URL
+  CSV
+}
+
+enum KnowledgeSourceStatus {
+  QUEUED
+  PROCESSING
+  READY
+  FAILED
+}
+
+model KnowledgeSource {
+  id          String                @id @default(cuid())
+  projectId   String
+  project     Project               @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  type        KnowledgeSourceType
+  name        String
+  url         String?
+  storageKey  String?
+  status      KnowledgeSourceStatus @default(QUEUED)
+  errorCode   String?
+  attempts    Int                   @default(0)
+  availableAt DateTime              @default(now())
+  leaseToken  String?               @db.Uuid
+  leaseUntil  DateTime?
+  entryCount  Int                   @default(0)
+  // Import arrêté à la limite d'entrées de l'offre.
+  truncated   Boolean               @default(false)
+  createdById String?
+  createdBy   User?                 @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  processedAt DateTime?
+  entries     KnowledgeEntry[]
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+
+  @@index([projectId, createdAt])
+  @@index([status, availableAt])
+  @@map("knowledge_source")
+}
+
+model KnowledgeEntry {
+  id          String                   @id @default(cuid())
+  projectId   String
+  project     Project                  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  sourceId    String?
+  source      KnowledgeSource?         @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  kind        KnowledgeKind
+  title       String
+  content     String                   @db.Text
+  // Prix dans l'unité mineure de la devise du projet.
+  price       Int?
+  stock       Int?
+  enabled     Boolean                  @default(true)
+  // Minuscules sans accents ; la colonne tsvector est générée par la base.
+  searchText  String                   @db.Text
+  search      Unsupported("tsvector")?
+  createdById String?
+  createdBy   User?                    @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  feedback    AiFeedback[]
+  gaps        KnowledgeGap[]
+  createdAt   DateTime                 @default(now())
+  updatedAt   DateTime                 @updatedAt
+
+  @@index([projectId, kind, createdAt])
+  @@index([sourceId])
+  @@map("knowledge_entry")
+}
+
+model AgentTestRun {
+  id          String   @id @default(cuid())
+  projectId   String
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  actorId     String?
+  actor       User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  missingInfo Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  @@index([projectId, createdAt])
+  @@map("agent_test_run")
+}
+
+enum AiFeedbackRating {
+  UP
+  DOWN
+}
+
+model AiFeedback {
+  id         String           @id @default(cuid())
+  projectId  String
+  project    Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  messageId  String
+  message    Message          @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  authorId   String
+  author     User             @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  rating     AiFeedbackRating
+  correction String?          @db.Text
+  entryId    String?
+  entry      KnowledgeEntry?  @relation(fields: [entryId], references: [id], onDelete: SetNull)
+  reviewedAt DateTime?
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+
+  @@unique([messageId, authorId])
+  @@index([projectId, createdAt])
+  @@map("ai_feedback")
+}
+
+enum KnowledgeGapStatus {
+  OPEN
+  ANSWERED
+  DISMISSED
+}
+
+model KnowledgeGap {
+  id           String             @id @default(cuid())
+  projectId    String
+  project      Project            @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  contactId    String?
+  contact      Contact?           @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  messageId    String?            @unique
+  message      Message?           @relation(fields: [messageId], references: [id], onDelete: SetNull)
+  question     String             @db.Text
+  status       KnowledgeGapStatus @default(OPEN)
+  entryId      String?
+  entry        KnowledgeEntry?    @relation(fields: [entryId], references: [id], onDelete: SetNull)
+  resolvedById String?
+  resolvedBy   User?              @relation(fields: [resolvedById], references: [id], onDelete: SetNull)
+  resolvedAt   DateTime?
+  createdAt    DateTime           @default(now())
+
+  @@index([projectId, status, createdAt])
+  @@map("knowledge_gap")
+}
+
+model CsatSurvey {
+  id                String    @id @default(cuid())
+  projectId         String
+  project           Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  contactId         String
+  contact           Contact   @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  messageId         String?   @unique
+  message           Message?  @relation("CsatSurveyMessage", fields: [messageId], references: [id], onDelete: SetNull)
+  resolvedById      String?
+  resolvedBy        User?     @relation(fields: [resolvedById], references: [id], onDelete: SetNull)
+  sentAt            DateTime  @default(now())
+  expiresAt         DateTime
+  score             Int?
+  respondedAt       DateTime?
+  responseMessageId String?   @unique
+  responseMessage   Message?  @relation("CsatResponseMessage", fields: [responseMessageId], references: [id], onDelete: SetNull)
+
+  @@index([contactId, expiresAt])
+  @@index([projectId, sentAt])
+  @@map("csat_survey")
 }

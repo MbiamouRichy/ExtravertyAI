@@ -51,6 +51,7 @@ test("email escapes untrusted values, rejects unsafe links and has a text versio
     activeContacts: 0,
     newContacts: 0,
     changes: 0,
+    csatResponses: 0,
   };
   const snapshot = {
     current: metrics,

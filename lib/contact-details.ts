@@ -33,15 +33,27 @@ export type ContactEventKind =
   | "AI_ENABLED"
   | "AI_PAUSED"
   | "AI_PAUSED_BY_REPLY"
-  | "AI_PAUSED_FROM_PHONE";
+  | "AI_PAUSED_FROM_PHONE"
+  | "ASSIGNED"
+  | "UNASSIGNED"
+  | "STAGE_CHANGED";
 
 /** Libellé de l’événement affiché au centre de la conversation. */
 export function contactEventLabel(
   type: ContactEventKind,
   actorName?: string | null,
+  detail?: string | null,
 ): string {
   const actor = actorName?.trim().split(/\s+/)[0] || "Un membre";
   switch (type) {
+    case "ASSIGNED":
+      return detail
+        ? `${actor} a assigné la conversation à ${detail}`
+        : `${actor} a pris la conversation en charge`;
+    case "UNASSIGNED":
+      return `${actor} a retiré l’assignation`;
+    case "STAGE_CHANGED":
+      return `${actor} a déplacé le prospect vers « ${detail ?? "une autre étape"} »`;
     case "AI_ENABLED":
       return `Assistant IA réactivé par ${actor}`;
     case "AI_PAUSED":

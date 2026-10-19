@@ -126,6 +126,47 @@ export async function notificationFeed(
       read: m.read,
     })),
   );
+  // Conversations confiées par un autre membre et encore ouvertes.
+  const assignments = await db.$queryRaw<
+    {
+      contactId: string;
+      projectId: string;
+      projectName: string;
+      name: string | null;
+      pushName: string | null;
+      assignedAt: Date;
+      assignerName: string | null;
+    }[]
+  >`
+    SELECT c.id AS "contactId", p.id AS "projectId", p.name AS "projectName", c.name, c."pushName",
+      c."assignedAt", u.name AS "assignerName"
+    FROM contact c
+    JOIN project p ON p.id = c."projectId" AND NOT p."deletionPending"
+    JOIN project_membership pm ON pm."projectId" = p.id AND pm."userId" = ${userId}
+    LEFT JOIN "user" u ON u.id = c."assignedById"
+    WHERE c."assigneeId" = ${userId} AND c."assignedById" IS DISTINCT FROM ${userId}
+      AND c."resolvedAt" IS NULL AND c."assignedAt" > NOW() - INTERVAL '30 days'
+    ORDER BY c."assignedAt" DESC LIMIT 20
+  `;
+  items.push(
+    ...assignments.map((a) => ({
+      key: "assigned:" + a.contactId,
+      version: a.assignedAt.toISOString(),
+      projectName: a.projectName,
+      title: "Conversation assignée : " + chatContactName(a),
+      description:
+        (a.assignerName?.trim().split(/\s+/)[0] || "Un membre") +
+        " vous a confié cette conversation.",
+      href:
+        "/projects/" +
+        a.projectId +
+        "/chat?contactId=" +
+        encodeURIComponent(a.contactId),
+      kind: "message" as const,
+      date: a.assignedAt.toISOString(),
+      read: false,
+    })),
+  );
   const receipts = await db.$queryRaw<
     { key: string; version: string }[]
   >`SELECT key, version FROM notification_receipt WHERE "userId" = ${userId}`;

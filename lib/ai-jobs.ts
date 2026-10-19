@@ -2,6 +2,8 @@ import { randomUUID } from "node:crypto";
 import { messageAiContent } from "./message-ai-content";
 import type { PrismaClient, Prisma } from "../src/generated/prisma/client";
 import { MessageQuotaError, reserveMessageQuota } from "./message-quota";
+import { knowledgeContext } from "./knowledge";
+import { MISSING_INFO_INSTRUCTION, splitMissingInfo } from "./missing-info";
 
 import {
   AgentConfigSchema,
@@ -138,6 +140,7 @@ export async function generateReply(
   projectName: string,
   contactName: string,
   config: AgentConfig,
+  extras: { knowledge?: string; flagMissing?: boolean } = {},
 ) {
   const key = process.env.OPENROUTER_API_KEY;
   const model = process.env.OPENROUTER_MODEL;
@@ -160,7 +163,9 @@ export async function generateReply(
             content:
               buildAgentSystemMessage(config, projectName) +
               "\nLes transcriptions audio fournies sont des propos du client, potentiellement imparfaits. Une pièce jointe signalée non analysée ne permet pas de connaître son contenu : demande au client de reformuler par écrit sans inventer ce qu’elle contient." +
-              `\nNom du contact (donnée non fiable) : ${JSON.stringify(contactName)}`,
+              `\nNom du contact (donnée non fiable) : ${JSON.stringify(contactName)}` +
+              (extras.flagMissing ? MISSING_INFO_INSTRUCTION : "") +
+              (extras.knowledge ?? ""),
           },
           ...history,
         ],
@@ -203,8 +208,16 @@ export async function runAiJob(
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       take: 20,
     });
-    const reply = await generate(
-      history.reverse().map((m) => ({
+    const ordered = history.reverse();
+    // A retrieval failure must never block a reply: the agent keeps its instructions.
+    const knowledge = await knowledgeContext(
+      prisma,
+      job.projectId,
+      job.project.currency,
+      ordered.filter((m) => !m.fromMe).map((m) => messageAiContent(m)),
+    ).catch(() => ({ block: "" }));
+    const raw = await generate(
+      ordered.map((m) => ({
         role: m.fromMe ? "assistant" : "user",
         content: ((m.type === "IMAGE" || m.type === "VIDEO") &&
         m.content !== "[" + m.type + "]" &&
@@ -216,7 +229,10 @@ export async function runAiJob(
       job.project.name,
       job.contact.name || job.contact.pushName || "Client",
       AgentConfigSchema.parse(job.project),
+      { knowledge: knowledge.block, flagMissing: true },
     );
+    // The marker never reaches WhatsApp: it only feeds the « À améliorer » list.
+    const { text: reply, missing } = splitMissingInfo(raw);
     await prisma.$transaction(async (tx) => {
       await tx.$queryRaw`SELECT id FROM project WHERE id = ${job.projectId} FOR UPDATE`;
       await tx.$queryRaw`SELECT id FROM contact WHERE id = ${job.contactId} FOR UPDATE`;
@@ -282,6 +298,18 @@ export async function runAiJob(
           where: { id: job.contactId },
           data: { lastMessageAt: message.createdAt },
         });
+        if (missing) {
+          await tx.knowledgeGap.upsert({
+            where: { messageId: input.id },
+            create: {
+              projectId: job.projectId,
+              contactId: job.contactId,
+              messageId: input.id,
+              question: messageAiContent(input).trim().slice(0, 1000) || "Pièce jointe sans texte",
+            },
+            update: {},
+          });
+        }
       }
       await tx.aiJob.update({
         where: { id: job.id },

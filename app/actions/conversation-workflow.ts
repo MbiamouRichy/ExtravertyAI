@@ -7,6 +7,8 @@ import { notifyChatChanged } from "@/lib/chat-realtime";
 import {
   ConversationWorkflowError,
   addContactTag,
+  assignConversation,
+  assignableMembers,
   createInternalNote,
   removeContactTag,
   setConversationResolved,
@@ -31,6 +33,8 @@ const ResolveSchema = Target.extend({
 const AddTagSchema = Target.extend({ name: TagNameSchema });
 const RemoveTagSchema = Target.extend({ tagId: z.string().cuid() });
 const NoteSchema = Target.extend({ content: InternalNoteContentSchema });
+const AssignSchema = Target.extend({ assigneeId: z.string().min(1).max(200).nullable() });
+const ProjectSchema = z.object({ projectId: z.string().cuid() });
 
 // Validation, session et gestion d'erreur communes à chaque action.
 async function run<S extends z.ZodType, T>(
@@ -71,11 +75,11 @@ export async function setConversationResolvedAction(
     input,
     "modifier la conversation",
     async (data, userId) => {
-      const { resolvedAt } = await setConversationResolved(prisma, {
+      const { resolvedAt, surveySent } = await setConversationResolved(prisma, {
         ...data,
         userId,
       });
-      return { resolvedAt: resolvedAt?.toISOString() ?? null };
+      return { resolvedAt: resolvedAt?.toISOString() ?? null, surveySent };
     },
   );
 }
@@ -118,4 +122,44 @@ export async function addInternalNoteAction(input: z.input<typeof NoteSchema>) {
       },
     };
   });
+}
+
+export async function assignConversationAction(
+  input: z.input<typeof AssignSchema>,
+) {
+  return run(
+    AssignSchema,
+    input,
+    "assigner la conversation",
+    async (data, userId) => {
+      const { assignee } = await assignConversation(prisma, { ...data, userId });
+      const agent: ChatAgent | null = assignee;
+      return { assignee: agent };
+    },
+  );
+}
+
+// Lecture seule : aucun événement temps réel à diffuser.
+export async function listAssignableMembersAction(
+  input: z.input<typeof ProjectSchema>,
+): Promise<
+  | { success: true; members: Array<ChatAgent & { role: string }> }
+  | Failure
+> {
+  const parsed = ProjectSchema.safeParse(input);
+  if (!parsed.success) return { success: false, error: "Demande invalide." };
+  const session = await getSession();
+  if (!session?.user?.id) return { success: false, error: "Connexion requise." };
+  try {
+    const members = await assignableMembers(
+      prisma,
+      parsed.data.projectId,
+      session.user.id,
+    );
+    if (!members.length) return { success: false, error: "Projet indisponible." };
+    return { success: true, members };
+  } catch {
+    console.error("[chat] Échec : lister les membres.");
+    return { success: false, error: "Impossible de charger l’équipe. Réessayez." };
+  }
 }

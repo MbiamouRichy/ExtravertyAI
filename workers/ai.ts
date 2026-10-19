@@ -4,6 +4,8 @@ import { workerDatabase, notifyProject } from "./shared";
 import { claimAiJob, runAiJob } from "../lib/ai-jobs";
 import { reconcileProviderReceipts } from "../lib/provider-reconciliation";
 import { runInstinctCycle } from "../lib/ai-instinct";
+import { claimKnowledgeSource, runKnowledgeSource } from "../lib/knowledge";
+import { knowledgeExtractors } from "../lib/knowledge-extract";
 import {
   claimMessageExtraction,
   runMessageExtraction,
@@ -63,7 +65,22 @@ async function extractionLoop() {
     }
   }
 }
-Promise.all([main(), instinctLoop(), extractionLoop()])
+// Imports PDF et pages web de la base de connaissances.
+async function knowledgeLoop() {
+  while (!stopping) {
+    try {
+      const job = await claimKnowledgeSource(prisma);
+      if (job) {
+        await runKnowledgeSource(prisma, job, knowledgeExtractors);
+        await notifyProject(job.projectId);
+      } else await sleep(2000);
+    } catch {
+      console.error("[knowledge] Cycle interrompu.");
+      await sleep(5000);
+    }
+  }
+}
+Promise.all([main(), instinctLoop(), extractionLoop(), knowledgeLoop()])
   .catch(() => {
     stopping = true;
     console.error("[ai-worker] Arrêt sur erreur.");

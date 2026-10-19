@@ -3,7 +3,10 @@ import { redirect } from "next/navigation";
 
 import { getAnalyticsAccess } from "@/lib/analytics-access";
 import { getAnalyticsOverview } from "@/app/actions/analytics";
-import { parseAnalyticsPeriod } from "@/lib/analytics";
+import { PERIOD_DAYS, parseAnalyticsPeriod } from "@/lib/analytics";
+import prisma from "@/lib/prisma";
+import { planAllows } from "@/lib/plan-features";
+import { openPipelineValue, wonValue } from "@/lib/pipeline";
 
 import ProjectNotFoundDialog from "@/components/dashboard/project/projectNotfoundDialog";
 import { AnalyticsHeader } from "@/components/dashboard/analytics-header";
@@ -17,6 +20,13 @@ import { AnalyticsDiscussionsChart } from "@/components/dashboard/AnalyticsNewDi
 import { RespondersCard } from "@/components/dashboard/responders-card";
 import { InstinctFunnelCard } from "@/components/dashboard/instinct-funnel-card";
 import { ActivityHeatmapCard } from "@/components/dashboard/activity-heatmap-card";
+import { PipelineValueCard } from "@/components/dashboard/pipeline-value-card";
+import { CsatCard } from "@/components/dashboard/csat-card";
+import { csatStats } from "@/lib/csat";
+
+function periodStart(period: keyof typeof PERIOD_DAYS) {
+  return new Date(Date.now() - PERIOD_DAYS[period] * 86_400_000);
+}
 
 type PageProps = {
   params: Promise<{ projectId: string }>;
@@ -74,7 +84,28 @@ export default async function AnalyticsPage({
   }
 
   const period = parseAnalyticsPeriod(sp.period);
-  const overview = await getAnalyticsOverview(projectId, period);
+  const since = periodStart(period);
+  const [overview, sales] = await Promise.all([
+    getAnalyticsOverview(projectId, period),
+    // L'accès au projet est déjà vérifié ci-dessus ; seule l'offre est relue ici.
+    prisma.project
+      .findUnique({
+        where: { id: projectId },
+        select: { plan: true, currency: true, csatEnabled: true },
+      })
+      .then(async (project) =>
+        // Pipeline and satisfaction share the same plans (Pro, Business).
+        project && planAllows(project.plan, "pipeline")
+          ? {
+              currency: project.currency,
+              won: await wonValue(prisma, projectId, since),
+              open: await openPipelineValue(prisma, projectId),
+              csatEnabled: project.csatEnabled,
+              csat: await csatStats(prisma, projectId, since),
+            }
+          : null,
+      ),
+  ]);
 
   const sourcesTotal = overview.sources.reduce(
     (sum, source) => sum + source.count,
@@ -187,6 +218,37 @@ export default async function AnalyticsPage({
             timeZone={overview.timeZone}
           />
         </section>
+
+        {sales && (
+          <section aria-labelledby="analytics-sales-title" className="space-y-4">
+            <div>
+              <h2
+                id="analytics-sales-title"
+                className="text-base font-semibold tracking-tight"
+              >
+                Ventes et satisfaction
+              </h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Ce que vos conversations rapportent, et ce qu’en pensent vos clients.
+              </p>
+            </div>
+            <div className="grid min-w-0 gap-4 xl:grid-cols-2">
+              <PipelineValueCard
+                currency={sales.currency}
+                won={sales.won}
+                open={sales.open}
+                rangeLabel={overview.rangeLabel}
+                pipelineHref={`${projectPath}/pipeline`}
+              />
+              <CsatCard
+                stats={sales.csat}
+                enabled={sales.csatEnabled}
+                rangeLabel={overview.rangeLabel}
+                settingsHref={`${projectPath}/settings`}
+              />
+            </div>
+          </section>
+        )}
 
         <section
           aria-labelledby="analytics-quality-title"

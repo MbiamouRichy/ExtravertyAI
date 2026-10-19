@@ -106,6 +106,7 @@ export function useChatContacts(
     ...swr,
     items,
     unreadConversations: swr.data?.[0]?.unreadConversations ?? 0,
+    filterCounts: swr.data?.[0]?.filterCounts,
     projectTags: swr.data?.[0]?.projectTags ?? [],
     searchPending: search !== query,
     hasMore: !!swr.data?.at(-1)?.nextCursor,

@@ -41,7 +41,9 @@ const QuerySchema = z.object({
   contactId: z.string().cuid().optional(),
   cursor: z.string().max(1000).optional(),
   q: z.string().trim().max(100).default(""),
-  filter: z.enum(["all", "ai", "manual", "resolved"]).default("all"),
+  filter: z
+    .enum(["all", "ai", "manual", "resolved", "mine", "unassigned"])
+    .default("all"),
   tag: z.string().cuid().optional(),
 });
 
@@ -132,12 +134,16 @@ export async function GET(
       const rows = await prisma.contact.findMany({
         where: {
           projectId,
-          // « IA » et « Équipe » ne montrent que les conversations ouvertes.
+          // Seul « Résolues » montre les conversations fermées.
           ...(filter === "resolved"
             ? { resolvedAt: { not: null } }
-            : filter !== "all"
+            : filter === "ai" || filter === "manual"
               ? { aiActive: filter === "ai", resolvedAt: null }
-              : {}),
+              : filter === "mine"
+                ? { assigneeId: session.user.id, resolvedAt: null }
+                : filter === "unassigned"
+                  ? { assigneeId: null, resolvedAt: null }
+                  : {}),
           ...(tag
             ? { tags: { some: { tagId: tag, tag: { projectId } } } }
             : {}),
@@ -181,6 +187,9 @@ export async function GET(
           pushName: true,
           aiActive: true,
           resolvedAt: true,
+          assignee: { select: { id: true, name: true, image: true } },
+          pipelineStage: true,
+          dealValue: true,
           tags: {
             where: { tag: { projectId } },
             orderBy: [{ tag: { name: "asc" } }],
@@ -202,6 +211,7 @@ export async function GET(
               id: true,
               content: true,
               type: true,
+              senderType: true,
               createdAt: true,
             },
           },
@@ -211,6 +221,39 @@ export async function GET(
       const page = rows.slice(0, PAGE_SIZE);
       const last = page.at(-1);
       const contactIds = page.map((contact) => contact.id);
+      // Compteurs des filtres : même recherche et même étiquette que la liste.
+      const scope = {
+        projectId,
+        ...(tag ? { tags: { some: { tagId: tag, tag: { projectId } } } } : {}),
+        ...(q
+          ? {
+              OR: [
+                { name: { contains: q, mode: "insensitive" as const } },
+                { pushName: { contains: q, mode: "insensitive" as const } },
+              ],
+            }
+          : {}),
+      };
+      const filterCounts = cursor
+        ? undefined
+        : await Promise.all([
+            prisma.contact.count({ where: scope }),
+            prisma.contact.count({ where: { ...scope, aiActive: true, resolvedAt: null } }),
+            prisma.contact.count({ where: { ...scope, aiActive: false, resolvedAt: null } }),
+            prisma.contact.count({ where: { ...scope, resolvedAt: { not: null } } }),
+            prisma.contact.count({
+              where: { ...scope, assigneeId: session.user.id, resolvedAt: null },
+            }),
+            prisma.contact.count({ where: { ...scope, assigneeId: null, resolvedAt: null } }),
+          ]).then(([all, ai, manual, resolved, mine, unassigned]) => ({
+            all,
+            ai,
+            manual,
+            resolved,
+            mine,
+            unassigned,
+          }));
+
       const [unreadCounts, authors, unreadConversations, tags] =
         await Promise.all([
           conversationUnreadCounts(
@@ -247,6 +290,7 @@ export async function GET(
 
       const result: ChatPage<ChatClient> = {
         unreadConversations,
+        filterCounts,
         projectTags: tags,
         items: page.map((contact) => {
           const latest = contact.messages[0];
@@ -260,6 +304,15 @@ export async function GET(
             name: chatContactName(contact),
             aiActive: contact.aiActive,
             resolvedAt: contact.resolvedAt?.toISOString() ?? null,
+            assignee: contact.assignee,
+            pipelineStage: contact.pipelineStage,
+            dealValue: contact.dealValue,
+            waitingSince:
+              !contact.aiActive &&
+              !contact.resolvedAt &&
+              latest?.senderType === "CLIENT"
+                ? latest.createdAt.toISOString()
+                : null,
             tags: contact.tags.map((link) => link.tag),
             prospectClassification,
             interestingProspect: prospectClassification === "interesting",
@@ -397,6 +450,11 @@ export async function GET(
         senderType: true,
         outboundJob: { select: { state: true, requestId: true } },
         agent: { select: { id: true, name: true, image: true } },
+        feedback: {
+          where: { authorId: session.user.id },
+          select: { rating: true, correction: true },
+          take: 1,
+        },
         content: true,
         type: true,
         extractedText: true,
@@ -446,6 +504,7 @@ export async function GET(
       select: {
         id: true,
         type: true,
+        detail: true,
         createdAt: true,
         actor: { select: { name: true } },
       },
@@ -495,6 +554,7 @@ export async function GET(
           status: normalizeChatStatus(message.status),
           outboundState: message.outboundJob?.state ?? null,
           clientRequestId: message.outboundJob?.requestId ?? null,
+          feedback: message.senderType === "BOT" ? (message.feedback[0] ?? null) : null,
         })),
         ...notes.map((note): ChatMessage => ({
           id: note.id,
@@ -511,7 +571,7 @@ export async function GET(
           id: event.id,
           senderType: "system",
           agent: null,
-          content: contactEventLabel(event.type, event.actor?.name),
+          content: contactEventLabel(event.type, event.actor?.name, event.detail),
           type: "TEXT",
           timestamp: event.createdAt.toISOString(),
           status: "sent",

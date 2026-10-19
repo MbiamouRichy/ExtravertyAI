@@ -9,13 +9,13 @@ test("presence and notifications respect members, tabs, expiry and read versions
   const db = await PGlite.create();
   try {
     await db.exec(`
-      CREATE TABLE "user" (id TEXT PRIMARY KEY);
+      CREATE TABLE "user" (id TEXT PRIMARY KEY, name TEXT);
       INSERT INTO "user" VALUES ('owner'), ('member'), ('stranger');
       CREATE TABLE project (id TEXT PRIMARY KEY, name TEXT, "deletionPending" BOOLEAN DEFAULT false, "instanceStatus" TEXT DEFAULT 'connected', status TEXT DEFAULT 'active', "automationPaused" BOOLEAN DEFAULT false, "statusBeforePause" TEXT, "agentSetupCompletedAt" TIMESTAMPTZ DEFAULT NOW());
       INSERT INTO project (id,name) VALUES ('p','Project'), ('secret','Secret');
       CREATE TABLE project_membership (id TEXT PRIMARY KEY, "userId" TEXT, "projectId" TEXT, role TEXT, "createdAt" TIMESTAMPTZ DEFAULT NOW() - INTERVAL '1 day');
       INSERT INTO project_membership (id,"userId","projectId",role) VALUES ('o','owner','p','OWNER'), ('m','member','p','USER'), ('s','stranger','secret','OWNER');
-      CREATE TABLE contact (id TEXT PRIMARY KEY, "projectId" TEXT, name TEXT, "pushName" TEXT, phone TEXT);
+      CREATE TABLE contact (id TEXT PRIMARY KEY, "projectId" TEXT, name TEXT, "pushName" TEXT, phone TEXT, "resolvedAt" TIMESTAMPTZ, "assigneeId" TEXT, "assignedById" TEXT, "assignedAt" TIMESTAMPTZ);
       INSERT INTO contact VALUES ('c','p',NULL,'24176205629','24176205629'), ('hidden','secret','Hidden',NULL,'99999');
       CREATE TABLE message (id TEXT PRIMARY KEY, "projectId" TEXT, "contactId" TEXT, "senderType" TEXT DEFAULT 'CLIENT', "fromMe" BOOLEAN DEFAULT false, "createdAt" TIMESTAMPTZ DEFAULT NOW());
       INSERT INTO message (id,"projectId","contactId") VALUES ('one','p','c'), ('hidden-message','secret','hidden');
@@ -122,6 +122,20 @@ test("presence and notifications respect members, tabs, expiry and read versions
     assert.equal(
       (await notificationFeed(client, "member")).items[0].read,
       true,
+    );
+    // A conversation handed over by another member notifies the assignee only.
+    await db.exec(
+      `UPDATE "user" SET name = 'Clara Mba' WHERE id = 'owner';
+       UPDATE contact SET "assigneeId" = 'member', "assignedById" = 'owner', "assignedAt" = NOW() WHERE id = 'c'`,
+    );
+    const assigned = (await notificationFeed(client, "member")).items.find(
+      (n) => n.key === "assigned:c",
+    );
+    assert.equal(assigned?.description, "Clara vous a confié cette conversation.");
+    assert.equal(JSON.stringify(assigned).includes("24176205629"), false);
+    assert.equal(
+      (await notificationFeed(client, "owner")).items.some((n) => n.key === "assigned:c"),
+      false,
     );
     await db.exec(
       `UPDATE project SET "instanceStatus"='disconnected', status='past_due' WHERE id='p'`,

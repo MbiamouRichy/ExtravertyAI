@@ -10,6 +10,7 @@ import {
   CircleCheck,
   Clock3,
   Copy,
+  Download,
   Info,
   Link2,
   Loader2,
@@ -36,7 +37,10 @@ import {
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { ConversationSummaryCard } from "./conversation-summary";
+import { downloadConversation } from "./export-conversation";
 import { ContactTagsEditor } from "./chat-workflow";
+import { AssigneePicker } from "./assignee-picker";
+import { ContactPipelineSection } from "./pipeline-controls";
 
 function statusOf({
   resolved,
@@ -84,7 +88,9 @@ export function ChatContactPanel({
   details,
   canCopyPhone,
   formatDate,
-  onTagsChanged,
+  currentUserId,
+  pipeline,
+  onContactChanged,
 }: {
   projectId: string;
   client: ChatClient;
@@ -98,9 +104,13 @@ export function ChatContactPanel({
   /** Propriétaire ou administrateur : seul autorisé à copier le numéro. */
   canCopyPhone: boolean;
   formatDate: (iso: string) => string;
-  onTagsChanged: () => void;
+  currentUserId: string;
+  pipeline?: { enabled: boolean; currency: string };
+  /** Rafraîchit la liste après une modification (étiquettes, assignation). */
+  onContactChanged: () => void;
 }) {
   const [copyState, setCopyState] = useState<"idle" | "busy" | "done">("idle");
+  const [exporting, setExporting] = useState(false);
 
   async function copyPhone() {
     if (copyState === "busy") return;
@@ -236,6 +246,18 @@ export function ChatContactPanel({
           )}
         </div>
 
+        <div className="border-t pt-3">
+          <AssigneePicker
+            key={`assignee-${client.id}`}
+            projectId={projectId}
+            contactId={client.id}
+            contactName={client.name}
+            currentUserId={currentUserId}
+            assignee={client.assignee ?? null}
+            onChanged={onContactChanged}
+          />
+        </div>
+
         <div className="flex items-center justify-between gap-3 border-t pt-3 text-xs">
           <span className="text-muted-foreground">Suivie par</span>
           {agents.length ? (
@@ -268,6 +290,18 @@ export function ChatContactPanel({
         </div>
       </section>
 
+      {pipeline?.enabled && (
+        <ContactPipelineSection
+          key={`pipeline-${client.id}`}
+          projectId={projectId}
+          contactId={client.id}
+          stage={client.pipelineStage ?? "NEW"}
+          dealValue={client.dealValue ?? null}
+          currency={pipeline.currency}
+          onChanged={onContactChanged}
+        />
+      )}
+
       <ConversationSummaryCard
         key={`summary-${client.id}`}
         projectId={projectId}
@@ -281,7 +315,7 @@ export function ChatContactPanel({
         contactId={client.id}
         contactName={client.name}
         tags={client.tags ?? []}
-        onChanged={onTagsChanged}
+        onChanged={onContactChanged}
       />
 
       <section aria-labelledby={`details-${client.id}`}>
@@ -340,6 +374,27 @@ export function ChatContactPanel({
             </div>
           ))}
         </dl>
+        <Button
+          type="button"
+          variant="outline"
+          className="mt-3 w-full"
+          disabled={exporting}
+          onClick={async () => {
+            setExporting(true);
+            await downloadConversation(projectId, client.id);
+            setExporting(false);
+          }}
+        >
+          {exporting ? (
+            <Loader2
+              data-icon="inline-start"
+              className="animate-spin motion-reduce:animate-none"
+            />
+          ) : (
+            <Download data-icon="inline-start" />
+          )}
+          Exporter la conversation
+        </Button>
       </section>
     </div>
   );

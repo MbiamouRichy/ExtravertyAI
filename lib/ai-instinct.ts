@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { PrismaClient } from "../src/generated/prisma/client";
 import { assessProspect } from "./instinct-decision";
+import { promoteInterestingProspect } from "./pipeline";
 export { assessProspect } from "./instinct-decision";
 // A database lease coordinates workers. No network request is held inside a transaction.
 export async function runInstinctCycle(
@@ -70,25 +71,31 @@ export async function runInstinctCycle(
       },
     });
     const classification = await assess(candidate.goals, messages.reverse());
-    const saved = await prisma.contact.updateMany({
-      where: {
-        id: candidate.id,
-        projectId: candidate.projectId,
-        instinctLeaseToken: token,
-        project: {
-          deletionPending: false,
-          agentConfigVersion: candidate.version,
-          agentQualifyLeads: true,
+    const saved = await prisma.$transaction(async (tx) => {
+      const result = await tx.contact.updateMany({
+        where: {
+          id: candidate.id,
+          projectId: candidate.projectId,
+          instinctLeaseToken: token,
+          project: {
+            deletionPending: false,
+            agentConfigVersion: candidate.version,
+            agentQualifyLeads: true,
+          },
         },
-      },
-      data: {
-        instinctInteresting: classification === "interesting",
-        instinctClassification: classification,
-        instinctSourceId: candidate.sourceId,
-        instinctConfigVersion: candidate.version,
-        instinctLeaseToken: null,
-        instinctLeaseUntil: null,
-      },
+        data: {
+          instinctInteresting: classification === "interesting",
+          instinctClassification: classification,
+          instinctSourceId: candidate.sourceId,
+          instinctConfigVersion: candidate.version,
+          instinctLeaseToken: null,
+          instinctLeaseUntil: null,
+        },
+      });
+      if (result.count && classification === "interesting") {
+        await promoteInterestingProspect(tx, candidate.projectId, candidate.id);
+      }
+      return result;
     });
     return saved.count ? candidate.projectId : null;
   } catch {

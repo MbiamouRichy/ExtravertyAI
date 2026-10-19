@@ -37,6 +37,8 @@ export const ReportMetricsSchema = z.object({
   activeContacts: z.number(),
   newContacts: z.number(),
   changes: z.number(),
+  // Absent from snapshots stored before the satisfaction survey existed.
+  csatResponses: z.number().default(0),
 });
 export const ReportSnapshotSchema = z.object({
   current: ReportMetricsSchema,
@@ -54,6 +56,7 @@ export const reportMetricLabels: Record<keyof ReportMetrics, string> = {
   activeContacts: "Contacts actifs",
   newContacts: "Nouveaux contacts",
   changes: "Réglages de l’agent modifiés",
+  csatResponses: "Notes de satisfaction reçues",
 };
 export function reportDelta(current: number, previous: number) {
   if (previous === 0)

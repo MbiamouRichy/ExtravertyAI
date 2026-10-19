@@ -4,6 +4,7 @@ import type {
   MessageType,
   Prisma,
 } from "../src/generated/prisma/client";
+import { openCsatSurvey, parseCsatScore } from "./csat";
 
 export const IncomingSchema = z.object({
   key: z.object({
@@ -152,6 +153,43 @@ export async function ingestMessage(
   });
   if (existing) return;
   if (!msg.message) return;
+  // A short rating answering an open survey is recorded: it neither reopens
+  // the resolved conversation nor triggers an AI reply.
+  const score = type === "TEXT" ? parseCsatScore(text) : null;
+  const known = score
+    ? await tx.contact.findUnique({
+        where: { projectId_remoteJid: { projectId, remoteJid } },
+        select: { id: true },
+      })
+    : null;
+  const survey = known ? await openCsatSurvey(tx, known.id) : null;
+  if (known && survey && score) {
+    await tx.contact.update({
+      where: { id: known.id },
+      data: {
+        ...(msg.pushName ? { pushName: msg.pushName } : {}),
+        lastMessageAt: new Date(),
+      },
+    });
+    const answer = await tx.message.create({
+      data: {
+        projectId,
+        contactId: known.id,
+        evolutionId,
+        content: text,
+        fromMe: false,
+        senderType: "CLIENT",
+        status: "DELIVERED",
+        type,
+        source: "whatsapp",
+      },
+    });
+    await tx.csatSurvey.update({
+      where: { id: survey.id },
+      data: { score, respondedAt: new Date(), responseMessageId: answer.id },
+    });
+    return;
+  }
   const contact = await tx.contact.upsert({
     where: { projectId_remoteJid: { projectId, remoteJid } },
     update: {

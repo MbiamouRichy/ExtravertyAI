@@ -55,6 +55,8 @@ const explanations: Record<keyof ReportMetrics, string> = {
     "Contacts créés sur la période. Il ne s’agit pas de ventes ni de conversions.",
   changes:
     "Enregistrements de configuration de l’agent durant la semaine. Ils ne prouvent pas une amélioration de performance.",
+  csatResponses:
+    "Réponses au questionnaire de satisfaction reçues durant la semaine (offres Pro et Business, si le questionnaire est activé).",
 };
 const states = {
   PENDING: "En attente",

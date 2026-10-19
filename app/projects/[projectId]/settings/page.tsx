@@ -5,6 +5,7 @@ import { getSession } from "@/lib/auth-server";
 import prisma from "@/lib/prisma";
 import { AGENT_DEFAULTS, type AgentConfig } from "@/lib/agent-config";
 import type { ProjectSettingsView } from "@/lib/settings-types";
+import { planAllows } from "@/lib/plan-features";
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "Paramètres du projet | ExtravertyAI",
@@ -79,6 +80,11 @@ export default async function SettingsPage({
       error: p.whatsappSettingsError,
     },
     stats: stats[0],
+    csat: {
+      enabled: p.csatEnabled,
+      message: p.csatMessage,
+      available: planAllows(p.plan, "csat"),
+    },
     audit: audit.map((item) => ({
       ...item,
       createdAt: item.createdAt.toISOString(),

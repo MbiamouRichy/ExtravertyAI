@@ -36,7 +36,10 @@ export async function collectReportMetrics(
       createdAt: { gte: start, lt: end },
     },
   });
-  return { ...counts, newContacts, changes };
+  const csatResponses = await db.csatSurvey.count({
+    where: { projectId, respondedAt: { gte: start, lt: end } },
+  });
+  return { ...counts, newContacts, changes, csatResponses };
 }
 
 export async function queueNextWeeklyReport(

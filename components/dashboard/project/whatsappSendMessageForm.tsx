@@ -5,6 +5,8 @@ import {
   useChatMessages,
   useChatRealtime,
 } from "@/hooks/use-chat-data";
+import { formatWaiting, useNow } from "@/hooks/use-now";
+import { AiFeedbackControls } from "./ai-feedback-controls";
 import {
   useEffect,
   useMemo,
@@ -23,6 +25,7 @@ import {
   CheckCheck,
   CircleAlert,
   CircleCheck,
+  Download,
   Ellipsis,
   Clock3,
   Loader2,
@@ -120,6 +123,7 @@ import { cn } from "@/lib/utils";
 import { AiResponseText, AiThinking, useLiveAiResponses } from "./ai-response";
 import { ChatComposer } from "./chat-composer";
 import { ChatContactPanel } from "./chat-contact-panel";
+import { downloadConversation } from "./export-conversation";
 import { useConversationRead } from "@/hooks/use-conversation-read";
 import { createChatDateFormatters } from "@/lib/chat-dates";
 import { SendChatMessageSchema } from "@/lib/message-schema";
@@ -143,6 +147,8 @@ type WorkspaceProps = {
   canManageAi: boolean;
   /** Propriétaire ou administrateur (vérifié à nouveau côté serveur). */
   canCopyPhone?: boolean;
+  /** Offre Pro ou Business : étape et montant dans la fiche contact. */
+  pipeline?: { enabled: boolean; currency: string };
 };
 
 type Filter = ChatFilter;
@@ -375,14 +381,33 @@ function DeliveryStatus({
   );
 }
 
+/**
+ * Dernier vrai message WhatsApp du fil : ignore les notes internes, les
+ * événements du journal IA et les envois encore optimistes (sans identifiant
+ * serveur), qui ne peuvent pas servir de repère côté serveur.
+ */
+function lastConversationMessage<
+  T extends { id: string; senderType: string },
+>(items: readonly T[]) {
+  return items.findLast(
+    (item) =>
+      (item.senderType === "client" ||
+        item.senderType === "bot" ||
+        item.senderType === "agent") &&
+      !item.id.startsWith("local-"),
+  );
+}
+
 function ChatBubble({
   message,
   contactName,
+  projectId,
   onRestore,
   animate = false,
   grouped = false,
 }: {
   message: DisplayMessage;
+  projectId: string;
   contactName: string;
   onRestore: (content: string) => void;
   animate?: boolean;
@@ -467,6 +492,13 @@ function ChatBubble({
             </MessageHeader>
             <AiResponseText content={message.content} animate={animate} />
             <MessageFooter className="flex-wrap justify-end gap-x-2 gap-y-1 px-1 text-[10px] font-normal">
+              {!message.id.startsWith("local-") && (
+                <AiFeedbackControls
+                  projectId={projectId}
+                  messageId={message.id}
+                  feedback={"feedback" in message ? (message.feedback ?? null) : null}
+                />
+              )}
               {time}
               <DeliveryStatus status={visualStatus} />
             </MessageFooter>
@@ -578,6 +610,7 @@ export default function WhatsappWorkspace({
   isSuccess,
   canManageAi,
   canCopyPhone = false,
+  pipeline,
   initialClient,
 }: WorkspaceProps) {
   const { dateFormatter, previewDateFormatter, timeZone } = useChatDates();
@@ -595,6 +628,7 @@ export default function WhatsappWorkspace({
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
   const [tagFilter, setTagFilter] = useState<string | null>(null);
+  const now = useNow();
 
   const contactsQuery = useChatContacts(project.id, search, filter, tagFilter);
   const historyQuery = useChatMessages(project.id, activeId);
@@ -607,9 +641,8 @@ export default function WhatsappWorkspace({
   const readMarker = useConversationRead({
     projectId: project.id,
     contactId: activeId,
-    // Les notes internes ne sont pas des messages : on lit jusqu'au dernier message.
-    messageId: historyQuery.items.findLast((item) => item.senderType !== "note")
-      ?.id,
+    // Notes internes et événements IA ne sont pas des messages : on lit jusqu'au dernier message.
+    messageId: lastConversationMessage(historyQuery.items)?.id,
     enabled: !historyQuery.error,
     onRead: () => {
       void contactsQuery.mutate();
@@ -789,7 +822,11 @@ export default function WhatsappWorkspace({
           filter === "all" ||
           (filter === "resolved" && !!client.resolvedAt) ||
           (filter === "ai" && !client.resolvedAt && client.aiActive) ||
-          (filter === "manual" && !client.resolvedAt && !client.aiActive);
+          (filter === "manual" && !client.resolvedAt && !client.aiActive) ||
+          (filter === "mine" &&
+            !client.resolvedAt &&
+            client.assignee?.id === user.id) ||
+          (filter === "unassigned" && !client.resolvedAt && !client.assignee);
         const matchesTag =
           !tagFilter || !!client.tags?.some((tag) => tag.id === tagFilter);
 
@@ -811,6 +848,7 @@ export default function WhatsappWorkspace({
     aiOverrides,
     resolvedOverrides,
     localMessages,
+    user.id,
   ]);
 
   const activeClient =
@@ -1170,9 +1208,7 @@ export default function WhatsappWorkspace({
     const contactId = activeClient.id;
     const resolved = !activeResolved;
     // Dernier message réellement chargé : refus côté serveur si le client a réécrit depuis.
-    const seenMessageId = historyQuery.items.findLast(
-      (item) => item.senderType !== "note",
-    )?.id;
+    const seenMessageId = lastConversationMessage(historyQuery.items)?.id;
 
     resolveLock.current = true;
     setResolveBusyId(contactId);
@@ -1204,7 +1240,9 @@ export default function WhatsappWorkspace({
         resolved ? "Conversation résolue" : "Conversation rouverte",
         {
           description: resolved
-            ? "Elle reviendra automatiquement si le client réécrit."
+            ? result.surveySent
+              ? "Questionnaire de satisfaction envoyé au client."
+              : "Elle reviendra automatiquement si le client réécrit."
             : undefined,
         },
       );
@@ -1368,6 +1406,16 @@ export default function WhatsappWorkspace({
                     "Résolues",
                     "Traitées. Elles reviennent si le client réécrit",
                   ],
+                  [
+                    "mine",
+                    "À moi",
+                    "Conversations ouvertes qui vous sont assignées",
+                  ],
+                  [
+                    "unassigned",
+                    "Non assignées",
+                    "Conversations ouvertes sans responsable",
+                  ],
                 ] as const
               ).map(([value, label, hint]) => (
                 <Tooltip key={value}>
@@ -1386,6 +1434,17 @@ export default function WhatsappWorkspace({
                       )}
                     >
                       {label}
+                      {contactsQuery.filterCounts && (
+                        <span
+                          className={cn(
+                            "ml-1 tabular-nums",
+                            filter === value ? "text-foreground/70" : "text-muted-foreground/70",
+                          )}
+                        >
+                          {contactsQuery.filterCounts[value]}
+                          <span className="sr-only"> conversations</span>
+                        </span>
+                      )}
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent>{hint}</TooltipContent>
@@ -1548,6 +1607,32 @@ export default function WhatsappWorkspace({
 
                           {/* Ligne de statut toujours réservée : toutes les lignes ont la même hauteur. */}
                           <span className="mt-1.5 flex h-5 min-w-0 items-center gap-1.5 overflow-hidden text-[11px] text-muted-foreground">
+                              {client.waitingSince && now && (
+                                <span className="inline-flex shrink-0 items-center gap-1 rounded-sm bg-primary px-1.5 py-px font-medium text-primary-foreground">
+                                  <Clock3 aria-hidden="true" className="size-3" />
+                                  <span className="sr-only">Client en attente depuis </span>
+                                  {formatWaiting(client.waitingSince, now)}
+                                </span>
+                              )}
+                              {client.assignee && (
+                                <span
+                                  className="inline-flex shrink-0 items-center gap-1"
+                                  title={`Assignée à ${client.assignee.name ?? "un membre"}`}
+                                >
+                                  <Avatar className="size-4">
+                                    <AvatarImage src={client.assignee.image || undefined} alt="" />
+                                    <AvatarFallback className="text-[8px] font-semibold">
+                                      {getInitials(client.assignee.name?.trim() || "Membre")}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                  <span className="sr-only">
+                                    Assignée à {client.assignee.name ?? "un membre"}
+                                  </span>
+                                  {client.assignee.id === user.id && (
+                                    <span aria-hidden="true">Vous</span>
+                                  )}
+                                </span>
+                              )}
                               {(client.prospectClassification ===
                                 "interesting" ||
                                 client.prospectClassification ===
@@ -1746,6 +1831,14 @@ export default function WhatsappWorkspace({
                         <Lock />
                         Ajouter une note interne
                       </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onSelect={() =>
+                          void downloadConversation(project.id, activeClient.id)
+                        }
+                      >
+                        <Download />
+                        Exporter la conversation
+                      </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       {[
                         { href: "analytics", label: "Statistiques", icon: BarChart3 },
@@ -1920,6 +2013,7 @@ export default function WhatsappWorkspace({
                                   }
                                   animate={animatedAiIds.has(message.id)}
                                   contactName={activeClient.name}
+                                  projectId={project.id}
                                   onRestore={restoreDraft}
                                 />
                               </MessageScrollerItem>
@@ -1976,9 +2070,7 @@ export default function WhatsappWorkspace({
                       contactId={activeClient.id}
                       assistanceEnabled={!aiActive || project.automationPaused}
                       contextVersion={
-                        activeMessages.findLast(
-                          (message) => message.senderType !== "note",
-                        )?.id ?? ""
+                        lastConversationMessage(activeMessages)?.id ?? ""
                       }
                       hasClientMessage={historyQuery.hasClientMessage}
                       draft={draft}
@@ -2039,7 +2131,9 @@ export default function WhatsappWorkspace({
               details={historyQuery.contact}
               canCopyPhone={canCopyPhone}
               formatDate={(iso) => dateFormatter.format(new Date(iso))}
-              onTagsChanged={() => void contactsQuery.mutate()}
+              currentUserId={user.id}
+              pipeline={pipeline}
+              onContactChanged={() => void contactsQuery.mutate()}
             />
           </aside>
         )}
@@ -2071,7 +2165,9 @@ export default function WhatsappWorkspace({
               details={historyQuery.contact}
               canCopyPhone={canCopyPhone}
               formatDate={(iso) => dateFormatter.format(new Date(iso))}
-              onTagsChanged={() => void contactsQuery.mutate()}
+              currentUserId={user.id}
+              pipeline={pipeline}
+              onContactChanged={() => void contactsQuery.mutate()}
             />
           </SheetContent>
         </Sheet>

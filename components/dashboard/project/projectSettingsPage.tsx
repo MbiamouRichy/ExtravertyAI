@@ -16,6 +16,7 @@ import {
   AlertTriangle,
   Trash2,
   MessageSquare,
+  Star,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -23,6 +24,7 @@ import { cn } from "@/lib/utils";
 import { WhatsAppPreferences } from "./whatsapp-preferences";
 import { AgentEditor } from "./agent-editor";
 import { ProjectNameForm } from "./project-name-form";
+import { CsatSettings } from "./csat-settings";
 import type { ProjectSettingsView } from "@/lib/settings-types";
 import {
   setProjectPaused,
@@ -52,6 +54,13 @@ const tabs = [
     short: "WhatsApp",
     hint: "Connexion et présence",
     icon: Smartphone,
+  },
+  {
+    id: "csat",
+    label: "Satisfaction",
+    short: "Satisfaction",
+    hint: "Note du client après résolution",
+    icon: Star,
   },
   {
     id: "data",
@@ -267,6 +276,9 @@ export default function ProjectSettingsPage({
               onSavingChange={setAgentSaving}
             />
           </div>
+          <div hidden={tab !== "csat"}>
+            <CsatSettings key={p.id} projectId={p.id} initial={p.csat} />
+          </div>
           <div hidden={tab !== "general"} className="space-y-6">
             <ProjectNameForm
               key={p.id}
@@ -380,14 +392,13 @@ export default function ProjectSettingsPage({
                       : "À connecter"}
                   </p>
                 </div>
-                <Button asChild variant="outline" size="lg">
-                  <Link href={`/projects/${p.id}/chat`}>
-                    <Smartphone className="size-4" />{" "}
-                    {p.instanceStatus === "connected"
-                      ? "Voir les conversations"
-                      : "Reconnecter"}
-                  </Link>
-                </Button>
+                {p.instanceStatus !== "connected" && (
+                  <Button asChild variant="outline" size="lg">
+                    <Link href={`/projects/${p.id}/chat`}>
+                      <Smartphone className="size-4" /> Reconnecter
+                    </Link>
+                  </Button>
+                )}
               </div>
               <WhatsAppPreferences
                 key={p.id}
