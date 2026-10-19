@@ -61,8 +61,15 @@ export function AssigneePicker({
 }) {
   const [members, setMembers] = useState<Member[] | null>(null);
   const [loadError, setLoadError] = useState(false);
+  // Shown until the refreshed conversation reports another assignee.
   const [optimistic, setOptimistic] = useState<ChatAgent | null | undefined>(undefined);
   const [pending, startTransition] = useTransition();
+  const current = assignee?.id ?? null;
+  const [seen, setSeen] = useState(current);
+  if (seen !== current) {
+    setSeen(current);
+    setOptimistic(undefined);
+  }
   const shown = optimistic === undefined ? assignee : optimistic;
 
   async function loadMembers() {
@@ -79,7 +86,7 @@ export function AssigneePicker({
       ? members?.find((member) => member.id === assigneeId)
       : null;
     // Without the member list yet, wait for the server instead of guessing.
-    setOptimistic(next === undefined ? undefined : next);
+    if (next !== undefined) setOptimistic(next);
     startTransition(async () => {
       const result = await assignConversationAction({
         projectId,
@@ -91,7 +98,8 @@ export function AssigneePicker({
         toast.error(result.error);
         return;
       }
-      setOptimistic(undefined);
+      if ((result.assignee?.id ?? null) !== current) setOptimistic(result.assignee);
+      else setOptimistic(undefined);
       onChanged();
       toast.success(
         result.assignee

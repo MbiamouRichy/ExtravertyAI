@@ -108,7 +108,7 @@ export function AgentSandbox({ projectId, initialRemaining }: { projectId: strin
 
   return (
     <div className="grid gap-4 lg:grid-cols-[1fr_18rem]">
-      <section aria-labelledby={`${id}-title`} className="flex min-h-112 flex-col rounded-2xl border bg-card">
+      <section aria-labelledby={`${id}-title`} className="flex h-128 flex-col rounded-2xl border bg-card">
         <header className="flex items-center justify-between gap-3 border-b px-4 py-3">
           <h2 id={`${id}-title`} className="flex items-center gap-2 text-sm font-semibold tracking-normal">
             <FlaskConical aria-hidden="true" className="size-4" />
@@ -126,7 +126,7 @@ export function AgentSandbox({ projectId, initialRemaining }: { projectId: strin
           </Button>
         </header>
 
-        <div aria-live="polite" className="flex-1 space-y-4 overflow-y-auto p-4">
+        <div aria-live="polite" className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain p-4">
           {!turns.length && (
             <div className="flex h-full flex-col items-center justify-center gap-4 py-8 text-center">
               <p className="max-w-sm text-sm text-muted-foreground">
@@ -179,7 +179,7 @@ export function AgentSandbox({ projectId, initialRemaining }: { projectId: strin
               L’assistant rédige sa réponse…
             </p>
           )}
-          <div ref={endRef} />
+          {turns.length > 0 && <div ref={endRef} />}
         </div>
 
         <form noValidate onSubmit={form.handleSubmit(send)} className="border-t p-3">

@@ -290,12 +290,14 @@ export function ChatContactPanel({
         </div>
       </section>
 
-      {pipeline?.enabled && (
+      {/* The stage is unknown until the conversation list has loaded:
+          never show a default « Nouveau » that may be wrong. */}
+      {pipeline?.enabled && client.pipelineStage && (
         <ContactPipelineSection
           key={`pipeline-${client.id}`}
           projectId={projectId}
           contactId={client.id}
-          stage={client.pipelineStage ?? "NEW"}
+          stage={client.pipelineStage}
           dealValue={client.dealValue ?? null}
           currency={pipeline.currency}
           onChanged={onContactChanged}

@@ -58,7 +58,14 @@ export function StageSelect({
   onChanged: () => void;
 }) {
   const id = useId();
+  // Kept until the refreshed contact reports another stage, so the select
+  // does not flash back to the previous one in between.
   const [optimistic, setOptimistic] = useState<PipelineStageId | null>(null);
+  const [seen, setSeen] = useState(stage);
+  if (seen !== stage) {
+    setSeen(stage);
+    setOptimistic(null);
+  }
   const [pending, startTransition] = useTransition();
   const value = optimistic ?? stage;
 
@@ -75,8 +82,8 @@ export function StageSelect({
           setOptimistic(target);
           startTransition(async () => {
             const result = await movePipelineStageAction({ projectId, contactId, stage: target });
-            setOptimistic(null);
             if (!result.success) {
+              setOptimistic(null);
               toast.error(result.error);
               return;
             }

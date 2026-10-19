@@ -69,7 +69,7 @@ export function KnowledgeWorkspace({
         <UsageMeter label="Documents (PDF et pages web)" used={usage.documents} limit={usage.documentLimit} />
       </div>
       <Tabs defaultValue="entries">
-        <div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+        <div className="-mx-4 overflow-x-auto overflow-y-hidden px-4 sm:mx-0 sm:px-0">
           <TabsList>
             <TabsTrigger value="entries">Questions et infos</TabsTrigger>
             <TabsTrigger value="products">Produits · {products.length}</TabsTrigger>

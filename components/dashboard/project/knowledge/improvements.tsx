@@ -153,7 +153,13 @@ export function Improvements({
   onChanged: () => void;
 }) {
   const [draft, setDraft] = useState<Draft | null>(null);
+  // Handled items disappear at once instead of waiting for the server refresh.
+  const [handled, setHandled] = useState<ReadonlySet<string>>(() => new Set());
   const [pending, startTransition] = useTransition();
+  const markHandled = (kind: Draft["type"], id: string) =>
+    setHandled((previous) => new Set(previous).add(`${kind}:${id}`));
+  const gaps = data.gaps.filter((gap) => !handled.has(`gap:${gap.id}`));
+  const corrections = data.corrections.filter((item) => !handled.has(`correction:${item.id}`));
   const total = data.ratings.up + data.ratings.down;
   const date = new Intl.DateTimeFormat("fr-FR", { dateStyle: "medium" });
 
@@ -163,8 +169,12 @@ export function Improvements({
         kind === "gap"
           ? await dismissGapAction({ projectId, gapId: id })
           : await dismissCorrectionAction({ projectId, feedbackId: id });
-      if (!result.success) toast.error(result.error);
-      else onChanged();
+      if (!result.success) {
+        toast.error(result.error);
+        return;
+      }
+      markHandled(kind, id);
+      onChanged();
     });
   }
 
@@ -194,15 +204,15 @@ export function Improvements({
         <h2 id="improve-gaps" className="mb-3 flex items-center gap-2 text-sm font-semibold tracking-normal">
           <CircleHelp aria-hidden="true" className="size-4" />
           Questions sans réponse
-          <span className="font-mono text-xs font-normal text-muted-foreground">· {data.gaps.length}</span>
+          <span className="font-mono text-xs font-normal text-muted-foreground">· {gaps.length}</span>
         </h2>
         <p className="mb-3 text-sm text-muted-foreground">
           L’assistant a signalé qu’il lui manquait une information pour répondre.
           Répondez une fois, il saura répondre la prochaine fois.
         </p>
-        {data.gaps.length ? (
+        {gaps.length ? (
           <ul className="divide-y rounded-2xl border bg-card">
-            {data.gaps.map((gap) => (
+            {gaps.map((gap) => (
               <li key={gap.id} className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center">
                 <div className="min-w-0 flex-1">
                   <p className="text-sm">« {gap.question} »</p>
@@ -246,11 +256,11 @@ export function Improvements({
         <h2 id="improve-corrections" className="mb-3 flex items-center gap-2 text-sm font-semibold tracking-normal">
           <MessageSquareWarning aria-hidden="true" className="size-4" />
           Corrections proposées par l’équipe
-          <span className="font-mono text-xs font-normal text-muted-foreground">· {data.corrections.length}</span>
+          <span className="font-mono text-xs font-normal text-muted-foreground">· {corrections.length}</span>
         </h2>
-        {data.corrections.length ? (
+        {corrections.length ? (
           <ul className="space-y-3">
-            {data.corrections.map((item) => (
+            {corrections.map((item) => (
               <li key={item.id} className="rounded-2xl border bg-card p-4">
                 <p className="text-xs text-muted-foreground">
                   {item.author} · conversation avec {item.contactName} · {date.format(new Date(item.updatedAt))}
@@ -299,7 +309,10 @@ export function Improvements({
           projectId={projectId}
           draft={draft}
           onClose={() => setDraft(null)}
-          onSaved={onChanged}
+          onSaved={() => {
+            markHandled(draft.type, draft.id);
+            onChanged();
+          }}
         />
       )}
     </div>

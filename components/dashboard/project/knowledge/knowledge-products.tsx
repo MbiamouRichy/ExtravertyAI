@@ -121,21 +121,23 @@ export function KnowledgeProducts({
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-        <InputGroup className="lg:max-w-xs">
-          <InputGroupAddon>
-            <Search aria-hidden="true" />
-          </InputGroupAddon>
-          <InputGroupInput
-            type="search"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Rechercher un produit"
-            aria-label="Rechercher un produit"
-          />
-        </InputGroup>
-        {actions}
-      </div>
+      {products.length > 0 && (
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <InputGroup className="lg:max-w-xs">
+            <InputGroupAddon>
+              <Search aria-hidden="true" />
+            </InputGroupAddon>
+            <InputGroupInput
+              type="search"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Rechercher un produit"
+              aria-label="Rechercher un produit"
+            />
+          </InputGroup>
+          {actions}
+        </div>
+      )}
 
       {products.length === 0 ? (
         <Empty className="rounded-2xl border border-dashed p-10">
