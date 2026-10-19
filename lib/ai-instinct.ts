@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { PrismaClient } from "../src/generated/prisma/client";
 import { assessProspect } from "./instinct-decision";
 import { promoteInterestingProspect } from "./pipeline";
+import { emitIntegrationEvent, integrationContact } from "./integration-events";
 export { assessProspect } from "./instinct-decision";
 // A database lease coordinates workers. No network request is held inside a transaction.
 export async function runInstinctCycle(
@@ -72,6 +73,10 @@ export async function runInstinctCycle(
     });
     const classification = await assess(candidate.goals, messages.reverse());
     const saved = await prisma.$transaction(async (tx) => {
+      const before = await tx.contact.findUnique({
+        where: { id: candidate.id },
+        select: { instinctClassification: true },
+      });
       const result = await tx.contact.updateMany({
         where: {
           id: candidate.id,
@@ -94,6 +99,13 @@ export async function runInstinctCycle(
       });
       if (result.count && classification === "interesting") {
         await promoteInterestingProspect(tx, candidate.projectId, candidate.id);
+        // Only the transition to « Intéressant » is an event, not each re-assessment.
+        if (before?.instinctClassification !== "interesting") {
+          await emitIntegrationEvent(tx, candidate.projectId, "contact.qualified", {
+            contact: await integrationContact(tx, candidate.id),
+            classification,
+          });
+        }
       }
       return result;
     });

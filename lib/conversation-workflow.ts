@@ -7,6 +7,7 @@ import {
   tagKey,
 } from "./conversation-workflow-schema";
 import { queueCsatSurvey } from "./csat";
+import { emitIntegrationEvent, integrationContact } from "./integration-events";
 
 // Message sûr à afficher tel quel ; toute autre erreur reste générique.
 export class ConversationWorkflowError extends Error {}
@@ -92,6 +93,14 @@ export async function setConversationResolved(
           userId: input.userId,
         })
       : false;
+    if (input.resolved) {
+      const actor = await tx.user.findUnique({ where: { id: input.userId }, select: { name: true } });
+      await emitIntegrationEvent(tx, input.projectId, "conversation.resolved", {
+        contact: await integrationContact(tx, input.contactId),
+        resolvedBy: firstName(actor?.name),
+        surveySent,
+      });
+    }
     return { resolvedAt, surveySent };
   });
 }
@@ -261,6 +270,10 @@ export async function assignConversation(
         // Sans détail : la personne s'est attribué la conversation elle-même.
         detail: assignee && assignee.id !== input.userId ? firstName(assignee.name) : null,
       },
+    });
+    await emitIntegrationEvent(tx, input.projectId, "conversation.assigned", {
+      contact: await integrationContact(tx, input.contactId),
+      assignee: assignee ? { id: assignee.id, name: assignee.name } : null,
     });
     return { assignee: assignee ?? null, changed: true };
   });

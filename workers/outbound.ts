@@ -3,6 +3,8 @@ import "dotenv/config";
 import { workerDatabase, notifyProject } from "./shared";
 import { reconcileProviderReceipts } from "../lib/provider-reconciliation";
 import { createOutboundProcessor } from "../lib/outbound-jobs";
+import { claimDelivery, defaultTransport, runDelivery } from "../lib/integrations";
+import { appendEventRow } from "../lib/google-sheets";
 const prisma = workerDatabase();
 const { claimNextJob, dispatch, recoverInterruptedDispatches } =
   createOutboundProcessor(prisma, notifyProject);
@@ -36,7 +38,22 @@ async function main() {
     }
   }
 }
-main()
+// Webhooks et Google Sheets : livraisons de la file integration_delivery.
+async function integrationsLoop() {
+  while (!stopping) {
+    try {
+      const job = await claimDelivery(prisma);
+      if (job) {
+        await runDelivery(prisma, job, { ...defaultTransport, sheets: appendEventRow });
+        await notifyProject(job.projectId);
+      } else await sleep(1000);
+    } catch {
+      console.error("[integrations] Cycle interrompu.");
+      await sleep(5000);
+    }
+  }
+}
+Promise.all([main(), integrationsLoop()])
   .catch(() => {
     console.error("[outbound-worker] Arrêt sur erreur.");
     process.exitCode = 1;

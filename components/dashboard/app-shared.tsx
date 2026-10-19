@@ -14,6 +14,7 @@ import {
   Settings2Icon,
   SquareKanban,
   LibraryBig,
+  PlugIcon,
 } from "lucide-react";
 
 export type SidebarNavItem = {
@@ -109,11 +110,11 @@ export const getNavGroups = (projectId: string): SidebarNavGroup[] => [
         path: `/projects/${projectId}/team`,
         icon: <UsersIcon />,
       },
-      // {
-      // 	title: "Integrations",
-      // 	path: `/projects/${projectId}/integrations`,
-      // 	icon: <PlugIcon />,
-      // },
+      {
+        title: "Intégrations",
+        path: `/projects/${projectId}/integrations`,
+        icon: <PlugIcon />,
+      },
       // {
       // 	title: "API Keys",
       // 	path: `/projects/${projectId}/api-keys`,

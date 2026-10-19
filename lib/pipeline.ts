@@ -2,17 +2,42 @@ import type { PrismaClient, Prisma } from "../src/generated/prisma/client";
 import { chatContactName } from "./chat-privacy";
 import { requirePlanFeature } from "./plan-features";
 import { requireProjectAdmin } from "./project-settings";
+import { emitIntegrationEvent, integrationContact } from "./integration-events";
 import {
   CURRENCIES,
   MAX_DEAL_VALUE,
   PIPELINE_STAGES,
   PipelineError,
+  formatDealValue,
   stageLabel,
   type PipelineColumn,
   type PipelineStageId,
 } from "./pipeline-shared";
 
 export * from "./pipeline-shared";
+
+async function emitStageChange(
+  tx: Prisma.TransactionClient,
+  projectId: string,
+  contactId: string,
+  from: PipelineStageId,
+  to: PipelineStageId,
+) {
+  const [contact, project] = await Promise.all([
+    tx.contact.findUniqueOrThrow({ where: { id: contactId }, select: { dealValue: true } }),
+    tx.project.findUniqueOrThrow({ where: { id: projectId }, select: { currency: true } }),
+  ]);
+  await emitIntegrationEvent(tx, projectId, "pipeline.stage_changed", {
+    contact: await integrationContact(tx, contactId),
+    from,
+    to,
+    fromLabel: stageLabel(from),
+    toLabel: stageLabel(to),
+    dealValue: contact.dealValue,
+    dealValueLabel: contact.dealValue === null ? null : formatDealValue(contact.dealValue, project.currency),
+    currency: project.currency,
+  });
+}
 
 type Actor = { projectId: string; contactId: string; userId: string };
 
@@ -56,6 +81,7 @@ export async function movePipelineStage(
         detail: stageLabel(input.stage),
       },
     });
+    await emitStageChange(tx, input.projectId, input.contactId, contact.pipelineStage as PipelineStageId, input.stage);
     return { changed: true, from: contact.pipelineStage as PipelineStageId };
   });
 }
@@ -103,6 +129,7 @@ export async function promoteInterestingProspect(
     where: { id: contactId, projectId, pipelineStage: "NEW", stageChangedById: null },
     data: { pipelineStage: "INTERESTED", stageChangedAt: new Date() },
   });
+  if (result.count) await emitStageChange(tx, projectId, contactId, "NEW", "INTERESTED");
   return result.count > 0;
 }
 

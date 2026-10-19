@@ -220,6 +220,8 @@ model Project {
   aiFeedback           AiFeedback[]
   knowledgeGaps        KnowledgeGap[]
   csatSurveys          CsatSurvey[]
+  integrationEndpoints IntegrationEndpoint[]
+  integrationDeliveries IntegrationDelivery[]
   invitations          Invitation[]   // Les invitations au projet
   // Dates
   createdAt            DateTime       @default(now())
@@ -423,6 +425,7 @@ model User {
   aiFeedback AiFeedback[]
   resolvedKnowledgeGaps KnowledgeGap[]
   csatSurveysResolved CsatSurvey[]
+  integrationEndpoints IntegrationEndpoint[]
   internalNotes InternalNote[]
   contactEvents ContactEvent[]
   lastActiveAt  DateTime  @default(now())
@@ -967,4 +970,69 @@ model CsatSurvey {
   @@index([contactId, expiresAt])
   @@index([projectId, sentAt])
   @@map("csat_survey")
+}
+
+enum IntegrationKind {
+  WEBHOOK
+  GOOGLE_SHEETS
+}
+
+enum IntegrationDeliveryState {
+  QUEUED
+  DELIVERING
+  DELIVERED
+  FAILED
+}
+
+model IntegrationEndpoint {
+  id                     String                @id @default(cuid())
+  projectId              String
+  project                Project               @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  kind                   IntegrationKind
+  name                   String
+  url                    String?
+  // Chiffrés (AES-256-GCM) et liés à l'identifiant de l'endpoint.
+  secretCiphertext       String?
+  refreshTokenCiphertext String?
+  events                 String[]              @default([])
+  enabled                Boolean               @default(true)
+  consecutiveFailures    Int                   @default(0)
+  disabledReason         String?
+  spreadsheetId          String?
+  spreadsheetUrl         String?
+  sheetName              String?
+  googleEmail            String?
+  createdById            String?
+  createdBy              User?                 @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  lastDeliveryAt         DateTime?
+  deliveries             IntegrationDelivery[]
+  createdAt              DateTime              @default(now())
+  updatedAt              DateTime              @updatedAt
+
+  @@index([projectId])
+  @@map("integration_endpoint")
+}
+
+model IntegrationDelivery {
+  id          String                   @id @default(cuid())
+  projectId   String
+  project     Project                  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  endpointId  String
+  endpoint    IntegrationEndpoint      @relation(fields: [endpointId], references: [id], onDelete: Cascade)
+  event       String
+  payload     Json
+  state       IntegrationDeliveryState @default(QUEUED)
+  attempts    Int                      @default(0)
+  availableAt DateTime                 @default(now())
+  leaseToken  String?                  @db.Uuid
+  leaseUntil  DateTime?
+  lastStatus  Int?
+  lastError   String?
+  deliveredAt DateTime?
+  createdAt   DateTime                 @default(now())
+
+  @@index([state, availableAt])
+  @@index([endpointId, createdAt])
+  @@index([projectId, createdAt])
+  @@map("integration_delivery")
 }

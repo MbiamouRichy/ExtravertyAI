@@ -5,6 +5,7 @@ import type {
   Prisma,
 } from "../src/generated/prisma/client";
 import { openCsatSurvey, parseCsatScore } from "./csat";
+import { emitIntegrationEvent, integrationContact } from "./integration-events";
 
 export const IncomingSchema = z.object({
   key: z.object({
@@ -187,6 +188,10 @@ export async function ingestMessage(
     await tx.csatSurvey.update({
       where: { id: survey.id },
       data: { score, respondedAt: new Date(), responseMessageId: answer.id },
+    });
+    await emitIntegrationEvent(tx, projectId, "csat.received", {
+      contact: await integrationContact(tx, known.id),
+      score,
     });
     return;
   }
