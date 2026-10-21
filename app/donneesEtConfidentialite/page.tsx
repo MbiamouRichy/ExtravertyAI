@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { Ban, Cog, Database, Lock, Mail, Scale, Share2, ShieldCheck, Trash2 } from "lucide-react";
 
-import { Header } from "@/components/website/header";
-import Footer from "@/components/website/footer";
+import { SiteNav } from "@/components/website/vitrine/site-nav";
+import { SiteFooter } from "@/components/website/vitrine/site-footer";
 import { WhatsAppIcon } from "@/components/social-icon";
 import { Button } from "@/components/ui/button";
 
@@ -121,7 +121,7 @@ const sections: {
 export default function PrivacyPolicy() {
   return (
     <>
-      <Header />
+      <SiteNav />
       <main id="contenu">
         <section className="relative isolate border-b px-4 pb-14 pt-14 sm:px-6 md:pt-20">
           <div
@@ -228,7 +228,7 @@ export default function PrivacyPolicy() {
           </div>
         </div>
       </main>
-      <Footer />
+      <SiteFooter />
     </>
   );
 }

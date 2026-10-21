@@ -10,8 +10,8 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { Header } from "@/components/website/header";
-import Footer from "@/components/website/footer";
+import { SiteNav } from "@/components/website/vitrine/site-nav";
+import { SiteFooter } from "@/components/website/vitrine/site-footer";
 import { PricingPlans } from "@/components/website/pricing/pricing-plans";
 
 
@@ -91,7 +91,7 @@ function CellValue({ value }: { value: Cell }) {
 export function PricingPage() {
   return (
     <>
-      <Header />
+      <SiteNav />
       <main id="contenu">
         <section aria-labelledby="tarifs-titre" className="px-4 pb-24 pt-14 sm:px-6 md:pt-20">
           <div className="mx-auto mb-12 max-w-2xl text-center">
@@ -194,7 +194,7 @@ export function PricingPage() {
           </div>
         </section>
       </main>
-      <Footer />
+      <SiteFooter />
     </>
   );
 }

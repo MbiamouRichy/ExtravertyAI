@@ -1,4 +1,4 @@
-import { LandingPage } from "@/components/website/landing/landing-page";
+import { VitrinePage } from "@/components/website/vitrine/vitrine-page";
 import type { Metadata } from "next";
 export const metadata: Metadata = {
   metadataBase: new URL(
@@ -70,5 +70,5 @@ export const metadata: Metadata = {
 export const dynamic = "force-static";
 
 export default function page() {
-  return <LandingPage />;
+  return <VitrinePage />;
 }
