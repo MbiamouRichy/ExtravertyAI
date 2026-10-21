@@ -376,6 +376,125 @@ test(
       );
 
       await t.test(
+        "renewal keeps paid access while Stripe collects the invoice, then opens a fresh quota",
+        async () => {
+          const { project, period } = await fixture();
+          const pending = subscription(project.id, "active", false);
+          const cycleStart = pending.items.data[0].current_period_start;
+          // Cycle payé précédent, qui vient de se terminer au début du nouveau cycle.
+          await client.project.update({
+            where: { id: project.id },
+            data: {
+              status: "active",
+              stripeStatus: "active",
+              stripeSubscriptionId: pending.id,
+            },
+          });
+          await client.quotaPeriod.update({
+            where: { id: period.id },
+            data: {
+              kind: "active",
+              key: `cycle:${pending.id}:${cycleStart - 2592000}`,
+              startsAt: new Date((cycleStart - 2592000) * 1000),
+              endsAt: new Date(cycleStart * 1000 - 1000),
+              limit: 4000,
+              used: 12,
+            },
+          });
+          assert.equal(
+            (await getBillingAccess(client, project.id)).allowed,
+            false,
+          );
+
+          // Facture du nouveau cycle encore ouverte : accès prolongé, quota conservé.
+          await syncSubscription(client, pending, 20);
+          assert.equal(
+            (await getBillingAccess(client, project.id)).allowed,
+            true,
+          );
+          const extended = await client.quotaPeriod.findUniqueOrThrow({
+            where: { id: period.id },
+          });
+          assert.equal(extended.isCurrent, true);
+          assert.ok(
+            extended.endsAt.getTime() > Date.now() + 2 * 86400000,
+            "grace period covers the collection delay",
+          );
+          await client.$transaction((tx) =>
+            reserveMessageQuota(tx, project.id),
+          );
+          assert.equal(
+            (
+              await client.quotaPeriod.findUniqueOrThrow({
+                where: { id: period.id },
+              })
+            ).used,
+            13,
+          );
+          await queueBillingEmails(client, project.id, config);
+          assert.equal(
+            await client.billingEmail.count({
+              where: { projectId: project.id },
+            }),
+            0,
+          );
+
+          // Paiement confirmé : nouveau cycle avec un quota neuf.
+          await syncSubscription(client, subscription(project.id), 21);
+          const renewed = await client.quotaPeriod.findFirstOrThrow({
+            where: { projectId: project.id, isCurrent: true },
+          });
+          assert.equal(renewed.key, `cycle:${pending.id}:${cycleStart}`);
+          assert.equal(renewed.used, 0);
+          assert.equal(renewed.limit, 4000);
+          assert.equal(
+            (await getBillingAccess(client, project.id)).allowed,
+            true,
+          );
+        },
+      );
+
+      await t.test(
+        "a failed renewal payment ends the grace immediately",
+        async () => {
+          const { project, period } = await fixture();
+          const pending = subscription(project.id, "active", false);
+          const cycleStart = pending.items.data[0].current_period_start;
+          await client.project.update({
+            where: { id: project.id },
+            data: {
+              status: "active",
+              stripeStatus: "active",
+              stripeSubscriptionId: pending.id,
+            },
+          });
+          await client.quotaPeriod.update({
+            where: { id: period.id },
+            data: {
+              kind: "active",
+              key: `cycle:${pending.id}:${cycleStart - 2592000}`,
+              startsAt: new Date((cycleStart - 2592000) * 1000),
+              endsAt: new Date(cycleStart * 1000 - 1000),
+              limit: 4000,
+            },
+          });
+          await syncSubscription(client, pending, 30);
+          assert.equal(
+            (await getBillingAccess(client, project.id)).allowed,
+            true,
+          );
+          await syncSubscription(
+            client,
+            subscription(project.id, "past_due", false),
+            31,
+          );
+          const access = await getBillingAccess(client, project.id);
+          assert.equal(access.allowed, false);
+          assert.equal(access.reason, "payment_failed");
+        },
+      );
+
+      await t.test(
         "retry uses identical message identity and payload; uncertain sends stop before provider dedup expires",
         async () => {
           const { project } = await fixture();

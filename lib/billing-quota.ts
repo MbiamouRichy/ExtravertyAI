@@ -1,5 +1,5 @@
 import type Stripe from "stripe";
-import type { PrismaClient } from "../src/generated/prisma/client";
+import type { Prisma, PrismaClient } from "../src/generated/prisma/client";
 
 export function subscriptionStatus(status: Stripe.Subscription.Status) {
   if (status === "trialing") return "trialing" as const;
@@ -29,6 +29,42 @@ export function paidMessageLimit(plan: string) {
   if (!Number.isSafeInteger(value) || value <= 0)
     throw new Error("PAID_MESSAGE_LIMIT_NOT_CONFIGURED");
   return value;
+}
+
+/** Délai maximal accordé à Stripe pour encaisser la facture de renouvellement. */
+export const RENEWAL_GRACE_MS = 3 * 86400000;
+
+// Prolonge uniquement la période payée qui précède immédiatement le nouveau
+// cycle. Un essai, une période plus ancienne ou un paiement échoué (past_due,
+// donc statut « paused ») ne bénéficient jamais de ce délai.
+async function extendPaidPeriodDuringRenewal(
+  tx: Prisma.TransactionClient,
+  projectId: string,
+  subscriptionId: string,
+  item: Stripe.SubscriptionItem,
+) {
+  const cycleStart = item.current_period_start * 1000;
+  const previous = await tx.quotaPeriod.findFirst({
+    where: { projectId, isCurrent: true },
+  });
+  if (
+    !previous ||
+    previous.kind !== "active" ||
+    !previous.key.startsWith(`cycle:${subscriptionId}:`) ||
+    previous.startsAt.getTime() >= cycleStart ||
+    // Doit s’achever au début du nouveau cycle (tolérance d’une heure) :
+    // une période plus ancienne ne se rouvre pas.
+    previous.endsAt.getTime() < cycleStart - 3600000
+  )
+    return;
+  const graceEnd = new Date(
+    Math.min(cycleStart + RENEWAL_GRACE_MS, item.current_period_end * 1000),
+  );
+  if (previous.endsAt >= graceEnd) return;
+  await tx.quotaPeriod.update({
+    where: { id: previous.id },
+    data: { endsAt: graceEnd },
+  });
 }
 
 // The caller retrieves the current subscription with latest_invoice expanded.
@@ -62,15 +98,24 @@ export async function syncSubscription(
   const endsAt = new Date(
     (trial ? sub.trial_end || 0 : item.current_period_end) * 1000,
   );
-  const paidCycle =
-    status === "active" &&
-    invoice?.status === "paid" &&
+  const invoiceCoversCycle =
+    !!invoice &&
     invoice.lines.data.some(
       (line) =>
         line.period.start === item.current_period_start &&
         line.period.end === item.current_period_end &&
         line.pricing?.price_details?.price === item.price.id,
     );
+  const paidCycle =
+    status === "active" && invoice?.status === "paid" && invoiceCoversCycle;
+  // Renouvellement : Stripe avance la période avant d’encaisser la facture
+  // (brouillon ~1 h, puis paiement). Tant qu’elle est en cours d’encaissement,
+  // l’accès payé précédent est prolongé brièvement, sans réinitialiser le quota.
+  const renewalPending =
+    sub.status === "active" &&
+    !paidCycle &&
+    invoiceCoversCycle &&
+    (invoice?.status === "draft" || invoice?.status === "open");
   const mayOpen = trial || paidCycle;
   if (mayOpen && (!startsAt.getTime() || endsAt <= startsAt))
     throw new Error("INVALID_BILLING_PERIOD");
@@ -105,6 +150,10 @@ export async function syncSubscription(
         stripeStatus: sub.status,
       },
     });
+    if (renewalPending) {
+      await extendPaidPeriodDuringRenewal(tx, projectId, sub.id, item);
+      return;
+    }
     if (!mayOpen || limit === undefined) return;
     const key = trial
       ? `trial:${sub.id}`
