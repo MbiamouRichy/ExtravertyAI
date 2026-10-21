@@ -1,6 +1,16 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowUpRight, BarChart3, CalendarClock, CreditCard, Home, LogIn, MessagesSquare } from "lucide-react";
+import {
+  ArrowUpRight,
+  BarChart3,
+  CalendarClock,
+  CreditCard,
+  FolderPlus,
+  Home,
+  LogIn,
+  MessagesSquare,
+  Sparkles,
+} from "lucide-react";
 
 import { LogoIcon } from "@/components/logo";
 import { ModeToggle } from "@/components/theming";
@@ -15,11 +25,23 @@ const pages: {
   live?: string;
 }[] = [
   {
+    href: "/",
+    icon: Sparkles,
+    title: "Vitrine",
+    live: "/",
+    text: "Démo de conversation en direct, parcours d’un message, analytique et matrice des offres.",
+  },
+  {
     href: "/maquettes/accueil",
     icon: Home,
-    title: "Page d’accueil",
-    live: "/",
+    title: "Ancienne page d’accueil",
     text: "Hero avec démo animée, étapes, fonctionnalités en bento, cas d’usage, sécurité, FAQ.",
+  },
+  {
+    href: "/maquettes/projects/new",
+    icon: FolderPlus,
+    title: "Créer un projet",
+    text: "Assistant en 3 étapes avec aperçu en direct de l’assistant WhatsApp et récapitulatif modifiable.",
   },
   {
     href: "/maquettes/projects/demo/chat",
