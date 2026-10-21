@@ -130,10 +130,11 @@ export function AnalyticsTimeChart({
       <ChartTooltip
         position={isMobile ? { x: 0 } : undefined}
         wrapperStyle={{ maxWidth: "100%" }}
-        cursor={{
-          stroke: "var(--border)",
-          strokeDasharray: "4 4",
-        }}
+        cursor={
+          kind === "bar"
+            ? { fill: "var(--muted)", opacity: 0.6 }
+            : { stroke: "var(--border)", strokeDasharray: "4 4" }
+        }
         content={
           <ChartTooltipContent
             className="w-56 min-w-0 max-w-full whitespace-normal"

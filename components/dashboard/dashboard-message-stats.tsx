@@ -69,8 +69,8 @@ export async function DashboardMessageRecu({
 
   return (
     <MessagesChart
-      title="Messages Reçus (7 derniers jours)"
-      description="Volume d'engagement client sur la semaine."
+      title="Messages reçus"
+      description="Messages de vos clients, jour par jour, sur les 7 derniers jours."
       data={chartData}
       growthPct={growthPct}
     />

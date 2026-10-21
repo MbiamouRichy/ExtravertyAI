@@ -1,7 +1,7 @@
 "use client";
 import { useSyncExternalStore } from "react";
 import { Clock3 } from "lucide-react";
-import { CartesianGrid, LabelList, Line, LineChart, XAxis } from "recharts";
+import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
 import {
   ChartContainer,
   ChartTooltip,
@@ -63,28 +63,48 @@ export function FirstAiReplyTimeChart({
             }
           />
         ) : (
+          <>
+          <p className="mb-4 text-xs text-muted-foreground">
+            Calculé sur{" "}
+            <span className="font-medium text-foreground tabular-nums">
+              {count.toLocaleString("fr-FR")}
+            </span>{" "}
+            réponse{count > 1 ? "s" : ""} envoyée{count > 1 ? "s" : ""}.
+          </p>
           <ChartContainer
             config={{
-              seconds: { label: "Délai médian", color: "var(--chart-2)" },
+              seconds: { label: "Délai médian", color: "var(--chart-1)" },
             }}
-            className="aspect-video min-h-48 w-full min-w-0"
+            className="aspect-auto h-56 w-full min-w-0 md:h-64"
           >
             <LineChart
               accessibilityLayer
               data={points}
-              margin={{ top: 28, right: 28, bottom: 8, left: 28 }}
+              margin={{ top: 8, right: 12, bottom: 0, left: 0 }}
             >
-              <CartesianGrid vertical={false} className="stroke-border" />
+              <CartesianGrid vertical={false} strokeDasharray="3 5" className="stroke-border/60" />
               <XAxis
                 dataKey="day"
                 tickLine={false}
                 axisLine={false}
-                tickMargin={8}
+                tickMargin={10}
                 interval={0}
+                fontSize={11}
+                padding={{ left: 12, right: 12 }}
                 tickFormatter={(value) => String(value).slice(0, 3)}
               />
+              <YAxis
+                tickLine={false}
+                axisLine={false}
+                width={48}
+                tickMargin={6}
+                fontSize={11}
+                tickFormatter={(value) =>
+                  Number(value) === 0 ? "0 s" : formatResponseTime(Number(value))
+                }
+              />
               <ChartTooltip
-                cursor={false}
+                cursor={{ stroke: "var(--border)", strokeDasharray: "4 4" }}
                 content={
                   <ChartTooltipContent
                     indicator="line"
@@ -121,30 +141,18 @@ export function FirstAiReplyTimeChart({
                 }
               />
               <Line
-                type="natural"
+                type="linear"
                 dataKey="seconds"
                 stroke="var(--color-seconds)"
                 strokeWidth={2}
                 connectNulls={false}
-                dot={{ r: 4, fill: "var(--color-seconds)" }}
-                activeDot={{ r: 6 }}
+                dot={{ r: 3, fill: "var(--color-seconds)", strokeWidth: 0 }}
+                activeDot={{ r: 5, stroke: "var(--card)", strokeWidth: 2 }}
                 isAnimationActive={false}
-              >
-                <LabelList
-                  dataKey="seconds"
-                  className="fill-foreground"
-                  fontSize={12}
-                  offset={12}
-                  position="top"
-                  formatter={(value) =>
-                    typeof value === "number" && Number.isFinite(value)
-                      ? formatResponseTime(value)
-                      : ""
-                  }
-                />
-              </Line>
+              />
             </LineChart>
           </ChartContainer>
+          </>
         )}
       </CardContent>
     </Card>

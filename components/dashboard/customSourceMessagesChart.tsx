@@ -1,6 +1,6 @@
 "use client";
 
-import { Cell, LabelList, Pie, PieChart } from "recharts";
+import { Cell, Pie, PieChart } from "recharts";
 import { PieChart as PieChartIcon } from "lucide-react";
 
 import {
@@ -16,6 +16,7 @@ import {
     formatPctFr,
     type SourceDatum,
 } from "@/lib/analytics";
+import { messageSourceColor } from "@/lib/message-sources";
 
 const SOURCE_LABELS = new Map<string, string>([
     ["android", "WhatsApp Android"],
@@ -26,15 +27,6 @@ const SOURCE_LABELS = new Map<string, string>([
     ["ai", "IA / Bot"],
     ["unknown", "Autre / inconnu"],
 ]);
-
-// Couleur attribuée par rang : la source principale est toujours la plus contrastée.
-const RANK_COLORS = [
-    "var(--chart-5)",
-    "var(--chart-3)",
-    "var(--chart-2)",
-    "var(--chart-1)",
-    "var(--chart-4)",
-];
 
 interface SourcesChartProps {
     data: SourceDatum[];
@@ -52,7 +44,7 @@ export function SourcesChart({ data, total, rangeLabel }: SourcesChartProps) {
                 label:
                     SOURCE_LABELS.get(datum.source.toLowerCase()) ??
                     datum.source,
-                fill: RANK_COLORS[index % RANK_COLORS.length],
+                fill: messageSourceColor(datum.source),
             };
         });
     const multiple = rows.filter((row) => row.count > 0).length > 1;
@@ -105,31 +97,16 @@ export function SourcesChart({ data, total, rangeLabel }: SourcesChartProps) {
                                     outerRadius="92%"
                                     startAngle={90}
                                     endAngle={-270}
-                                    paddingAngle={multiple ? 3 : 0}
-                                    cornerRadius={multiple ? 8 : 0}
-                                    stroke="none"
+                                    paddingAngle={0}
+                                    cornerRadius={multiple ? 4 : 0}
+                                    stroke="var(--card)"
+                                    strokeWidth={multiple ? 2 : 0}
                                     isAnimationActive={false}
                                 >
+                                    {/* Les parts se lisent dans la légende ci-dessous, pas sur les tranches. */}
                                     {rows.map((row) => (
                                         <Cell key={row.key} fill={row.fill} />
                                     ))}
-                                    {multiple && (
-                                        <LabelList
-                                            dataKey="count"
-                                            position="inside"
-                                            stroke="rgba(0,0,0,0.35)"
-                                            strokeWidth={2}
-                                            paintOrder="stroke"
-                                            fill="white"
-                                            fontSize={12}
-                                            fontWeight={700}
-                                            formatter={(value) =>
-                                                Number(value) / total >= 0.08
-                                                    ? Math.round((Number(value) / total) * 100) + "%"
-                                                    : ""
-                                            }
-                                        />
-                                    )}
                                 </Pie>
                             </PieChart>
                         </ChartContainer>

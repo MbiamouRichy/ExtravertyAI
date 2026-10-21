@@ -1,7 +1,7 @@
 "use client";
 
-import { useId } from "react";
-import { CartesianGrid, Line, LineChart, XAxis } from "recharts";
+import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
+import { MessagesSquare } from "lucide-react";
 import {
 	Card,
 	CardContent,
@@ -16,6 +16,8 @@ import {
 	ChartTooltipContent,
 } from "@/components/ui/chart";
 import { Delta, DeltaIcon, DeltaValue } from "@/components/delta";
+import { formatNumberFr } from "@/lib/analytics";
+import { ChartEmptyState } from "./chart-empty-state";
 
 
 export type DashboardDiscussionRow = {
@@ -30,21 +32,30 @@ interface DashboardDiscussionsChartProps {
 }
 
 const chartConfig = {
-	previousWeek: {
-		label: "Semaine dernière",
-		color: "var(--chart-2)",
-	},
 	currentWeek: {
 		label: "Cette semaine",
 		color: "var(--chart-1)",
 	},
+	previousWeek: {
+		label: "Semaine dernière",
+		color: "var(--chart-3)",
+	},
 } satisfies ChartConfig;
 
-export function DashboardDiscussionsChart({ data, growthPct }: DashboardDiscussionsChartProps) {
-	const chartUid = useId().replace(/:/g, "");
-	const idLineGlow = `dashboard-discussions-glow-${chartUid}`;
+// Le tireté distingue la semaine précédente sans dépendre de la seule couleur.
+const SERIES = [
+	{ key: "currentWeek", dashed: false },
+	{ key: "previousWeek", dashed: true },
+] as const;
 
+export function DashboardDiscussionsChart({ data, growthPct }: DashboardDiscussionsChartProps) {
 	const hasData = data.some((row) => row.currentWeek > 0 || row.previousWeek > 0);
+	const totals = SERIES.map((serie) => ({
+		...serie,
+		label: chartConfig[serie.key].label,
+		color: chartConfig[serie.key].color,
+		total: data.reduce((sum, row) => sum + row[serie.key], 0),
+	}));
 
 	return (
 		<Card className="gap-0">
@@ -66,62 +77,82 @@ export function DashboardDiscussionsChart({ data, growthPct }: DashboardDiscussi
 			</CardHeader>
 			<CardContent>
 				{!hasData ? (
-					<div className="flex aspect-auto h-60 w-full items-center justify-center text-muted-foreground md:h-80">
-						Aucune discussion récente.
-					</div>
+					<ChartEmptyState
+						icon={MessagesSquare}
+						title="Aucune discussion récente"
+						description="Les nouvelles discussions des deux dernières semaines apparaîtront ici."
+						className="h-60 md:h-72"
+					/>
 				) : (
-					<ChartContainer
-						className="aspect-auto h-60 w-full p-0 md:h-80"
-						config={chartConfig}
-					>
-						<LineChart
-							accessibilityLayer
-							data={data}
-							margin={{ left: 12, right: 12, top: 8 }}
+					<>
+						<ul aria-label="Totaux des séries" className="mb-4 flex flex-wrap gap-x-8 gap-y-3">
+							{totals.map((serie) => (
+								<li key={serie.key}>
+									<div className="flex items-center gap-2 text-xs text-muted-foreground">
+										<span
+											aria-hidden="true"
+											className="w-5 border-t-2"
+											style={{
+												borderColor: serie.color,
+												borderTopStyle: serie.dashed ? "dashed" : "solid",
+											}}
+										/>
+										{serie.label}
+									</div>
+									<p className="mt-1 text-2xl font-semibold tracking-tight tabular-nums">
+										{formatNumberFr(serie.total)}
+									</p>
+								</li>
+							))}
+						</ul>
+						<ChartContainer
+							className="aspect-auto h-56 w-full p-0 md:h-64"
+							config={chartConfig}
 						>
-							<CartesianGrid className="stroke-border" vertical={false} />
-							<XAxis
-								axisLine={false}
-								dataKey="day"
-								interval={0}
-								tickLine={false}
-								tickMargin={8}
-							/>
-							<ChartTooltip
-								content={<ChartTooltipContent hideLabel />}
-								cursor={false}
-							/>
-							<defs>
-								<filter
-									height="140%"
-									id={idLineGlow}
-									width="140%"
-									x="-20%"
-									y="-20%"
-								>
-									<feGaussianBlur result="blur" stdDeviation="10" />
-									<feComposite in="SourceGraphic" in2="blur" operator="over" />
-								</filter>
-							</defs>
-							<Line
-								dataKey="previousWeek"
-								dot={false}
-								filter={`url(#${idLineGlow})`}
-								stroke="var(--color-previousWeek)"
-								strokeWidth={2}
-								type="step"
-								strokeDasharray="4 4"// On garde le tireté pour différencier l'ancienne semaine
-							/>
-							<Line
-								dataKey="currentWeek"
-								dot={false}
-								filter={`url(#${idLineGlow})`}
-								stroke="var(--color-currentWeek)"
-								strokeWidth={2}
-								type="step"
-							/>
-						</LineChart>
-					</ChartContainer>
+							<LineChart
+								accessibilityLayer
+								data={data}
+								margin={{ left: 0, right: 12, top: 8, bottom: 0 }}
+							>
+								<CartesianGrid vertical={false} strokeDasharray="3 5" className="stroke-border/60" />
+								<XAxis
+									axisLine={false}
+									dataKey="day"
+									interval={0}
+									tickLine={false}
+									tickMargin={10}
+									fontSize={11}
+									padding={{ left: 8, right: 8 }}
+								/>
+								<YAxis
+									axisLine={false}
+									tickLine={false}
+									allowDecimals={false}
+									width={36}
+									tickMargin={6}
+									tickFormatter={formatNumberFr}
+									fontSize={11}
+								/>
+								<ChartTooltip
+									cursor={{ stroke: "var(--border)", strokeDasharray: "4 4" }}
+									content={<ChartTooltipContent indicator="line" />}
+								/>
+								{SERIES.map((serie) => (
+									<Line
+										key={serie.key}
+										dataKey={serie.key}
+										type="linear"
+										stroke={`var(--color-${serie.key})`}
+										strokeWidth={2}
+										strokeDasharray={serie.dashed ? "5 4" : undefined}
+										dot={false}
+										activeDot={{ r: 4, stroke: "var(--card)", strokeWidth: 2 }}
+										isAnimationActive={false}
+									/>
+								))}
+							</LineChart>
+						</ChartContainer>
+					</>
 				)}
 			</CardContent>
 		</Card>

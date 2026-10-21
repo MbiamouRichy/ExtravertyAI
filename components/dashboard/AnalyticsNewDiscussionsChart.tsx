@@ -20,7 +20,7 @@ export function AnalyticsDiscussionsChart({
                 {
                     key: "count",
                     label: "Nouveaux contacts",
-                    color: "var(--chart-3)",
+                    color: "var(--chart-1)",
                 },
             ]}
             emptyTitle="Aucun nouveau contact"

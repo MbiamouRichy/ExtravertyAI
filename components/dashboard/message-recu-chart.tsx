@@ -1,7 +1,7 @@
 "use client";
 
-import type * as React from "react";
-import { Bar, BarChart, XAxis } from "recharts";
+import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
+import { Inbox } from "lucide-react";
 import {
 	Card,
 	CardContent,
@@ -16,6 +16,8 @@ import {
 	ChartTooltipContent,
 } from "@/components/ui/chart";
 import { Delta, DeltaIcon, DeltaValue } from "@/components/delta";
+import { formatNumberFr } from "@/lib/analytics";
+import { ChartEmptyState } from "./chart-empty-state";
 
 // On définit le format des données attendues
 export type ChartDataPoint = {
@@ -33,72 +35,91 @@ interface MessagesChartProps {
 
 const chartConfig = {
 	messages: {
-		label: "Messages Reçus",
-		color: "var(--chart-2)",
+		label: "Messages reçus",
+		color: "var(--chart-1)",
 	},
 } satisfies ChartConfig;
 
-// Ton CustomGradientBar (adapté pour 'messages')
-function CustomGradientBar(
-	props: React.SVGProps<SVGRectElement> & {
-		index?: number;
-		dataKey?: string | number;
-	}
-) {
-	const { fill, x = 0, y = 0, width = 0, height = 0, dataKey = "messages", index = 0 } = props;
-	const gid = `gradient-bar-${String(dataKey)}-${index}`;
-
-	return (
-		<>
-			<rect fill={`url(#${gid})`} height={height} stroke="none" width={width} x={x} y={y} />
-			<rect fill={fill} height={2} stroke="none" width={width} x={x} y={y} />
-			<defs>
-				<linearGradient id={gid} x1="0" x2="0" y1="0" y2="1">
-					<stop offset="0%" stopColor={fill} stopOpacity={0.5} />
-					<stop offset="100%" stopColor={fill} stopOpacity={0} />
-				</linearGradient>
-			</defs>
-		</>
-	);
-}
-
 export function MessagesChart({
-	title = "Messages Reçus",
+	title = "Messages reçus",
 	description = "Volume de messages entrants.",
 	data,
 	growthPct,
 	className = "gap-0 ",
 }: MessagesChartProps) {
+	const total = data.reduce((sum, point) => sum + point.messages, 0);
+
 	return (
 		<Card className={className}>
 			<CardHeader className="gap-2">
-				<div className="flex flex-wrap items-center justify-between gap-2">
-					<div className="flex items-center gap-2">
-						<CardTitle>{title}</CardTitle>
+				<div className="flex flex-wrap items-center gap-2">
+					<CardTitle>{title}</CardTitle>
+					{total > 0 && (
 						<Delta value={Number(growthPct)} variant="badge">
 							<DeltaIcon variant="trend" />
 							<DeltaValue />
 						</Delta>
-					</div>
+					)}
 				</div>
 				<CardDescription>{description}</CardDescription>
 			</CardHeader>
 			<CardContent>
-				<ChartContainer className="aspect-auto h-60 w-full md:h-80" config={chartConfig}>
-					<BarChart accessibilityLayer data={data}>
-						<XAxis
-							axisLine={false}
-							dataKey="dateLabel"
-							interval="preserveStartEnd" // Évite que les labels se chevauchent sur 30 jours
-							tickFormatter={(value) => String(value)}
-							tickLine={false}
-							tickMargin={10}
-							minTickGap={20}
-						/>
-						<ChartTooltip content={<ChartTooltipContent hideLabel />} cursor={false} />
-						<Bar dataKey="messages" fill="var(--color-messages, #3b82f6)" shape={<CustomGradientBar />} />
-					</BarChart>
-				</ChartContainer>
+				{total === 0 ? (
+					<ChartEmptyState
+						icon={Inbox}
+						title="Aucun message reçu"
+						description="Les messages de vos clients des 7 derniers jours apparaîtront ici."
+						className="h-60 md:h-72"
+					/>
+				) : (
+					<>
+						<p className="mb-4 text-2xl font-semibold tracking-tight tabular-nums">
+							{formatNumberFr(total)}
+							<span className="ml-2 text-xs font-normal text-muted-foreground">
+								au total
+							</span>
+						</p>
+						<ChartContainer className="aspect-auto h-56 w-full md:h-64" config={chartConfig}>
+							<BarChart
+								accessibilityLayer
+								data={data}
+								margin={{ top: 8, right: 4, left: 0, bottom: 0 }}
+								barCategoryGap="28%"
+							>
+								<CartesianGrid vertical={false} strokeDasharray="3 5" className="stroke-border/60" />
+								<XAxis
+									axisLine={false}
+									dataKey="dateLabel"
+									interval="preserveStartEnd"
+									tickLine={false}
+									tickMargin={10}
+									minTickGap={20}
+									fontSize={11}
+								/>
+								<YAxis
+									axisLine={false}
+									tickLine={false}
+									allowDecimals={false}
+									width={36}
+									tickMargin={6}
+									tickFormatter={formatNumberFr}
+									fontSize={11}
+								/>
+								<ChartTooltip
+									cursor={{ fill: "var(--muted)", opacity: 0.6 }}
+									content={<ChartTooltipContent />}
+								/>
+								<Bar
+									dataKey="messages"
+									fill="var(--color-messages)"
+									radius={[4, 4, 0, 0]}
+									maxBarSize={36}
+									isAnimationActive={false}
+								/>
+							</BarChart>
+						</ChartContainer>
+					</>
+				)}
 			</CardContent>
 		</Card>
 	);

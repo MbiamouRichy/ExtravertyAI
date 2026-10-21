@@ -1,7 +1,7 @@
 "use client";
 import { cn } from "@/lib/utils";
 import type { ComponentProps } from "react";
-import { LabelList, Pie, PieChart } from "recharts";
+import { Pie, PieChart } from "recharts";
 import { PieChart as PieChartIcon } from "lucide-react";
 import {
   Card,
@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/chart";
 import { Delta, DeltaIcon, DeltaValue } from "@/components/delta";
 import { visibleMessageSources } from "@/lib/message-sources";
+import { ChartEmptyState } from "./chart-empty-state";
 export type MessageSourceKey = "android" | "ios" | "ai" | "unknown";
 export type SourceDatum = {
   source: MessageSourceKey;
@@ -69,29 +70,41 @@ export function SourceMessageChart({
           </p>
         ) : rows.length && totalMessages > 0 ? (
           <div className="space-y-4">
-            <ChartContainer
-              config={config}
-              className="mx-auto aspect-square w-full max-w-72"
-            >
-              <PieChart accessibilityLayer>
-                <ChartTooltip content={<ChartTooltipContent hideLabel />} />
-                <Pie
-                  data={rows}
-                  dataKey="count"
-                  nameKey="key"
-                  innerRadius="48%"
-                  outerRadius="92%"
-                  paddingAngle={3}
-                  cornerRadius={8}
-                  stroke="var(--card)"
-                  strokeWidth={2}
-                  isAnimationActive={false}
-                >
-                  <LabelList dataKey="count" position="inside" stroke="rgba(0,0,0,0.35)" strokeWidth={2} paintOrder="stroke" fill="white" fontSize={12} fontWeight={700}
-                    formatter={(value) => Number(value) / totalMessages >= 0.08 ? Math.round(Number(value) / totalMessages * 100) + "%" : ""} />
-                </Pie>
-              </PieChart>
-            </ChartContainer>
+            <div className="relative mx-auto aspect-square w-full max-w-64">
+              <ChartContainer config={config} className="aspect-square size-full">
+                <PieChart accessibilityLayer>
+                  <ChartTooltip
+                    cursor={false}
+                    content={<ChartTooltipContent hideLabel />}
+                  />
+                  {/* Les parts se lisent dans la liste ci-dessous, pas sur les tranches. */}
+                  <Pie
+                    data={rows}
+                    dataKey="count"
+                    nameKey="key"
+                    innerRadius="58%"
+                    outerRadius="92%"
+                    startAngle={90}
+                    endAngle={-270}
+                    cornerRadius={rows.length > 1 ? 4 : 0}
+                    stroke="var(--card)"
+                    strokeWidth={rows.length > 1 ? 2 : 0}
+                    isAnimationActive={false}
+                  />
+                </PieChart>
+              </ChartContainer>
+              <div
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center"
+              >
+                <span className="font-heading text-2xl font-semibold tracking-tight tabular-nums">
+                  {totalMessages.toLocaleString("fr-FR")}
+                </span>
+                <span className="mt-0.5 text-[11px] text-muted-foreground">
+                  messages
+                </span>
+              </div>
+            </div>
             <ul aria-label="Répartition des sources" className="divide-y">
               {rows.map((row) => (
                 <li
@@ -123,10 +136,11 @@ export function SourceMessageChart({
             </ul>
           </div>
         ) : (
-          <div className="flex flex-col items-center gap-3 py-12 text-center text-muted-foreground">
-            <PieChartIcon aria-hidden="true" className="size-8" />
-            <p className="text-sm">Aucun message sur cette période.</p>
-          </div>
+          <ChartEmptyState
+            icon={PieChartIcon}
+            title="Aucun message sur cette période"
+            description="La répartition apparaîtra dès la réception de messages."
+          />
         )}
       </CardContent>
     </Card>
