@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { Controller, useForm } from "react-hook-form";
+import { Controller, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { getCountries, getCountryCallingCode } from "libphonenumber-js/max";
 import {
@@ -90,7 +90,6 @@ export function NewProjectWizard({ initialPlan = "starter" }: { initialPlan?: Pl
     control,
     trigger,
     setValue,
-    watch,
     handleSubmit,
     formState: { isSubmitting },
   } = useForm<ProjectCreationFormValues>({
@@ -100,9 +99,12 @@ export function NewProjectWizard({ initialPlan = "starter" }: { initialPlan?: Pl
     defaultValues: { name: "", numero: "", country: "FR", plan: initialPlan },
   });
 
-  const values = watch();
-  const plan = PLANS.find((item) => item.id === values.plan) ?? PLANS[0];
-  const phone = parseProjectPhone(values.numero, values.country);
+  const [name, numero, country, planId] = useWatch({
+    control,
+    name: ["name", "numero", "country", "plan"],
+  });
+  const plan = PLANS.find((item) => item.id === planId) ?? PLANS[0];
+  const phone = parseProjectPhone(numero, country);
 
   // Le focus suit l'étape pour les lecteurs d'écran et le clavier.
   useEffect(() => {
@@ -257,7 +259,7 @@ export function NewProjectWizard({ initialPlan = "starter" }: { initialPlan?: Pl
                           value={field.value}
                           onValueChange={(value) => {
                             field.onChange(value);
-                            if (values.numero) void trigger("numero");
+                            if (numero) void trigger("numero");
                           }}
                         >
                           <SelectTrigger
@@ -298,7 +300,7 @@ export function NewProjectWizard({ initialPlan = "starter" }: { initialPlan?: Pl
                         <InputGroup className="h-11">
                           <InputGroupAddon>
                             <InputGroupText className="tabular-nums">
-                              +{getCountryCallingCode(values.country)}
+                              +{getCountryCallingCode(country)}
                             </InputGroupText>
                           </InputGroupAddon>
                           <InputGroupInput
@@ -325,7 +327,7 @@ export function NewProjectWizard({ initialPlan = "starter" }: { initialPlan?: Pl
                             inputMode="tel"
                             autoComplete="tel-national"
                             maxLength={40}
-                            placeholder={values.country === "FR" ? "06 12 34 56 78" : "Votre numéro"}
+                            placeholder={country === "FR" ? "06 12 34 56 78" : "Votre numéro"}
                             aria-invalid={fieldState.invalid}
                             aria-describedby="maquette-project-phone-help"
                             className="text-base tabular-nums sm:text-sm"
@@ -426,10 +428,10 @@ export function NewProjectWizard({ initialPlan = "starter" }: { initialPlan?: Pl
 
             {step === 2 && (
               <dl className="divide-y rounded-xl border bg-card text-sm">
-                <ReviewRow label="Projet" value={values.name.trim()} onEdit={() => goTo(0)} editLabel="Modifier le projet" />
+                <ReviewRow label="Projet" value={name.trim()} onEdit={() => goTo(0)} editLabel="Modifier le projet" />
                 <ReviewRow
                   label="Numéro WhatsApp"
-                  value={phone?.formatInternational() ?? values.numero}
+                  value={phone?.formatInternational() ?? numero}
                   onEdit={() => goTo(0)}
                   editLabel="Modifier le numéro"
                 />
@@ -494,7 +496,7 @@ export function NewProjectWizard({ initialPlan = "starter" }: { initialPlan?: Pl
 
         <aside aria-label="Aperçu et prochaines étapes" className="min-w-0 space-y-6 lg:sticky lg:top-10">
           <AssistantPreview
-            projectName={values.name.trim()}
+            projectName={name.trim()}
             phone={phone?.formatInternational()}
             planName={plan.name}
           />
