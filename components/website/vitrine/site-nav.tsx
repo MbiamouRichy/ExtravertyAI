@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ArrowRight, Menu } from "lucide-react";
 import { m } from "motion/react";
@@ -45,10 +46,13 @@ function useActiveSection(): SectionId | null {
   return active;
 }
 
+/** Shared by every public page: section links point back to the home page when used elsewhere. */
 export function SiteNav() {
   const scrolled = useScroll(16);
   const active = useActiveSection();
   const [open, setOpen] = useState(false);
+  const onHome = usePathname() === "/";
+  const sectionHref = (id: SectionId) => (onHome ? `#${id}` : `/#${id}`);
 
   return (
     <header
@@ -68,11 +72,13 @@ export function SiteNav() {
         className="mx-auto flex h-16 w-full max-w-7xl items-center justify-between gap-4 px-4 sm:px-8 lg:px-12"
       >
         <Link
-          href="#contenu"
+          href={onHome ? "#contenu" : "/"}
           className="rounded-md outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
         >
           <LogoIcon LogoClassName="w-6" className="gap-1.5" />
-          <span className="sr-only">Haut de page ExtravertyAI</span>
+          <span className="sr-only">
+            {onHome ? "Haut de page ExtravertyAI" : "Accueil ExtravertyAI"}
+          </span>
         </Link>
 
         <ul className="hidden items-center gap-0.5 rounded-full border bg-background/60 p-1 backdrop-blur xl:flex">
@@ -88,8 +94,8 @@ export function SiteNav() {
                     className="absolute inset-0 rounded-full bg-muted"
                   />
                 )}
-                <a
-                  href={`#${section.id}`}
+                <Link
+                  href={sectionHref(section.id)}
                   aria-current={isActive ? "location" : undefined}
                   className={cn(
                     "relative block rounded-full px-3.5 py-1.5 text-sm text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50",
@@ -97,7 +103,7 @@ export function SiteNav() {
                   )}
                 >
                   {section.label}
-                </a>
+                </Link>
               </li>
             );
           })}
@@ -130,14 +136,14 @@ export function SiteNav() {
             <SheetHeader>
               <SheetTitle>Menu</SheetTitle>
               <SheetDescription className="sr-only">
-                Sections de la page ExtravertyAI
+                Navigation du site ExtravertyAI
               </SheetDescription>
             </SheetHeader>
             <ul className="flex flex-col gap-1 px-4">
               {SECTIONS.map((section, index) => (
                 <li key={section.id}>
-                  <a
-                    href={`#${section.id}`}
+                  <Link
+                    href={sectionHref(section.id)}
                     onClick={() => setOpen(false)}
                     aria-current={active === section.id ? "location" : undefined}
                     className="flex items-baseline gap-3 rounded-md px-3 py-2.5 text-base outline-none hover:bg-muted focus-visible:bg-muted aria-[current=location]:bg-muted"
@@ -146,7 +152,7 @@ export function SiteNav() {
                       0{index + 1}
                     </span>
                     {section.label}
-                  </a>
+                  </Link>
                 </li>
               ))}
             </ul>

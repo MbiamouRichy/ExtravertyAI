@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
 
-/** Editorial accent: the italic cut of Crimson Text loaded by the route layout. */
+/** Editorial accent: the italic cut of Crimson Text loaded by `serifItalic` (fonts.ts). */
 export function Serif({ children, className }: { children: ReactNode; className?: string }) {
   return (
     <em

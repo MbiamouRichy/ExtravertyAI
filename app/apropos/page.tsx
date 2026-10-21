@@ -10,8 +10,8 @@ import {
   CheckCheck,
   CircleDot,
 } from "lucide-react";
-import { Header } from "@/components/website/header";
-import Footer from "@/components/website/footer";
+import { SiteNav } from "@/components/website/vitrine/site-nav";
+import { SiteFooter } from "@/components/website/vitrine/site-footer";
 
 export const metadata: Metadata = {
   title: "À propos — La relation client, plus simplement | ExtravertyAI",
@@ -40,7 +40,7 @@ const principles = [
 export default function AboutPage() {
   return (
     <>
-      <Header />
+      <SiteNav />
       <main
         id="contenu"
         className="mx-auto max-w-7xl px-5 pt-14 sm:px-8 lg:px-12 lg:pt-20"
@@ -249,7 +249,7 @@ export default function AboutPage() {
           </Button>
         </section>
       </main>
-      <Footer />
+      <SiteFooter />
     </>
   );
 }
