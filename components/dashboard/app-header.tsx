@@ -1,12 +1,9 @@
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { AppBreadcrumbs } from "@/components/dashboard/app-breadcrumbs";
 import { NavUser } from "@/components/dashboard/nav-user";
-import { Plus } from "lucide-react";
 import { Notifications } from "./notifications";
-import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
-import Link from "next/link";
+import { NewProjectButton } from "./new-project-button";
 import { ConditionalSidebarTrigger } from "./conditional-sidebar-trigger";
 
 export async function AppHeader() {
@@ -26,18 +23,7 @@ export async function AppHeader() {
         <AppBreadcrumbs />
       </div>
       <div className="flex items-center gap-3">
-        <Tooltip>
-          <TooltipTrigger asChild className="cursor-pointer">
-            <Button asChild size="icon-sm">
-              <Link href="/projects/new" title="Nouveau projet">
-                <Plus />
-              </Link>
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p className="text-sm leading-relaxed">Nouveau projet</p>
-          </TooltipContent>
-        </Tooltip>
+        <NewProjectButton />
         <Notifications />
         <Separator
           className="h-4 data-[orientation=vertical]:self-center"
