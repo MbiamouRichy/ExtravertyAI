@@ -18,9 +18,10 @@ import {
 
 import { cn } from "@/lib/utils";
 import { signUpPlanHref } from "@/lib/auth-redirects";
-import { PRICING_PLANS, formatPlanPrice } from "@/lib/pricing";
+import { PRICING_PLANS, formatPlanPrice, projectPlanHref } from "@/lib/pricing";
 import { Button } from "@/components/ui/button";
 
+import { AccountButton } from "./account-button";
 import { AnalyticsPreview } from "./analytics-preview";
 import {
   InstinctWidget,
@@ -250,20 +251,20 @@ function PricingPlans() {
                 / mois
               </span>
             </p>
-            <Button
-              asChild
+            {/* Signed in: straight to the project creation with this plan. */}
+            <AccountButton
+              href={signUpPlanHref(plan.id)}
+              signedInHref={projectPlanHref(plan.id)}
               size="lg"
               variant={featured ? "secondary" : "outline"}
               className="group/cta mt-8 h-11 w-full"
             >
-              <Link href={signUpPlanHref(plan.id)}>
-                Choisir {plan.name}
-                <ArrowRight
-                  data-icon="inline-end"
-                  className="transition-transform group-hover/cta:translate-x-0.5"
-                />
-              </Link>
-            </Button>
+              Choisir {plan.name}
+              <ArrowRight
+                data-icon="inline-end"
+                className="transition-transform group-hover/cta:translate-x-0.5"
+              />
+            </AccountButton>
             <ul className="mt-8 space-y-2.5 text-sm">
               {plan.features.slice(0, 4).map((feature) => (
                 <li key={feature} className="flex gap-2.5">
@@ -377,15 +378,27 @@ export function FinalCta() {
           Ne laissez plus un message <Serif>sans réponse.</Serif>
         </h2>
         <div className="mt-12 flex flex-col gap-3 sm:flex-row">
-          <Button asChild size="lg" variant="secondary" className="group h-11 px-5">
-            <Link href="/sign-up">
-              Commencer gratuitement
-              <ArrowRight
-                data-icon="inline-end"
-                className="transition-transform group-hover:translate-x-0.5"
-              />
-            </Link>
-          </Button>
+          <AccountButton
+            href="/sign-up"
+            size="lg"
+            variant="secondary"
+            className="group h-11 px-5"
+            signedInLabel={
+              <>
+                Ouvrir mon espace
+                <ArrowRight
+                  data-icon="inline-end"
+                  className="transition-transform group-hover:translate-x-0.5"
+                />
+              </>
+            }
+          >
+            Commencer gratuitement
+            <ArrowRight
+              data-icon="inline-end"
+              className="transition-transform group-hover:translate-x-0.5"
+            />
+          </AccountButton>
           <Button
             asChild
             size="lg"

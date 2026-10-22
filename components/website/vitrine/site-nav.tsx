@@ -20,6 +20,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 
+import { AccountButton, useSignedIn } from "./account-button";
 import { SECTIONS, type SectionId } from "./data";
 import { SPRING } from "./motion";
 
@@ -52,6 +53,7 @@ export function SiteNav() {
   const active = useActiveSection();
   const [open, setOpen] = useState(false);
   const onHome = usePathname() === "/";
+  const signedIn = useSignedIn();
   const sectionHref = (id: SectionId) => (onHome ? `#${id}` : `/#${id}`);
 
   return (
@@ -111,18 +113,31 @@ export function SiteNav() {
 
         <div className="ml-auto hidden items-center gap-1.5 md:flex xl:ml-0">
           <ModeToggle screen="desktop" />
-          <Button asChild variant="ghost" size="sm">
-            <Link href="/sign-in">Se connecter</Link>
-          </Button>
-          <Button asChild size="sm" className="group">
-            <Link href="/sign-up">
-              Essai gratuit
-              <ArrowRight
-                data-icon="inline-end"
-                className="transition-transform group-hover:translate-x-0.5"
-              />
-            </Link>
-          </Button>
+          {!signedIn && (
+            <Button asChild variant="ghost" size="sm">
+              <Link href="/sign-in">Se connecter</Link>
+            </Button>
+          )}
+          <AccountButton
+            href="/sign-up"
+            size="sm"
+            className="group"
+            signedInLabel={
+              <>
+                Mon espace
+                <ArrowRight
+                  data-icon="inline-end"
+                  className="transition-transform group-hover:translate-x-0.5"
+                />
+              </>
+            }
+          >
+            Essai gratuit
+            <ArrowRight
+              data-icon="inline-end"
+              className="transition-transform group-hover:translate-x-0.5"
+            />
+          </AccountButton>
         </div>
 
         <Sheet open={open} onOpenChange={setOpen}>
@@ -158,16 +173,21 @@ export function SiteNav() {
             </ul>
             <div className="mt-auto flex flex-col gap-3 p-4">
               <ModeToggle screen="mobile" />
-              <Button asChild variant="outline" size="lg">
-                <Link href="/sign-in" onClick={() => setOpen(false)}>
-                  Se connecter
-                </Link>
-              </Button>
-              <Button asChild size="lg">
-                <Link href="/sign-up" onClick={() => setOpen(false)}>
-                  Essai gratuit
-                </Link>
-              </Button>
+              {!signedIn && (
+                <Button asChild variant="outline" size="lg">
+                  <Link href="/sign-in" onClick={() => setOpen(false)}>
+                    Se connecter
+                  </Link>
+                </Button>
+              )}
+              <AccountButton
+                href="/sign-up"
+                size="lg"
+                signedInLabel="Mon espace"
+                onNavigate={() => setOpen(false)}
+              >
+                Essai gratuit
+              </AccountButton>
             </div>
           </SheetContent>
         </Sheet>

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { AccountButton } from "./account-button";
 import { ArrowRight, Check } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -77,15 +78,26 @@ export function Hero() {
               <span className="text-foreground">Sans changer de numéro.</span>
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row md:flex-col md:items-start xl:items-stretch">
-              <Button asChild size="lg" className="group h-11 px-5">
-                <Link href="/sign-up">
-                  Démarrer l’essai gratuit
-                  <ArrowRight
-                    data-icon="inline-end"
-                    className="transition-transform group-hover:translate-x-0.5"
-                  />
-                </Link>
-              </Button>
+              <AccountButton
+                href="/sign-up"
+                size="lg"
+                className="group h-11 px-5"
+                signedInLabel={
+                  <>
+                    Ouvrir mon espace
+                    <ArrowRight
+                      data-icon="inline-end"
+                      className="transition-transform group-hover:translate-x-0.5"
+                    />
+                  </>
+                }
+              >
+                Démarrer l’essai gratuit
+                <ArrowRight
+                  data-icon="inline-end"
+                  className="transition-transform group-hover:translate-x-0.5"
+                />
+              </AccountButton>
               <Button asChild size="lg" variant="outline" className="h-11 px-5">
                 <Link href="#parcours">Comment ça marche</Link>
               </Button>
