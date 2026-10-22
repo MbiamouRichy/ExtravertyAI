@@ -376,26 +376,38 @@ export function ChatContactPanel({
             </div>
           ))}
         </dl>
+        {/* Ligne d’action au style de la liste « Détails » : le texte passe à la
+            ligne au lieu de déborder dans le panneau étroit du mobile. */}
         <Button
           type="button"
           variant="outline"
-          className="mt-3 w-full"
+          className="mt-3 mb-[max(0.25rem,env(safe-area-inset-bottom))] h-auto w-full min-w-0 justify-start gap-3 whitespace-normal rounded-xl px-3 py-2.5 text-left font-normal"
           disabled={exporting}
+          aria-busy={exporting}
           onClick={async () => {
             setExporting(true);
             await downloadConversation(projectId, client.id);
             setExporting(false);
           }}
         >
-          {exporting ? (
-            <Loader2
-              data-icon="inline-start"
-              className="animate-spin motion-reduce:animate-none"
-            />
-          ) : (
-            <Download data-icon="inline-start" />
-          )}
-          Exporter la conversation
+          <span className="flex size-8 shrink-0 items-center justify-center rounded-lg border bg-background">
+            {exporting ? (
+              <Loader2
+                aria-hidden="true"
+                className="size-4 animate-spin motion-reduce:animate-none"
+              />
+            ) : (
+              <Download aria-hidden="true" className="size-4" />
+            )}
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-sm font-medium leading-snug">
+              Exporter la conversation
+            </span>
+            <span className="block text-xs text-muted-foreground">
+              {exporting ? "Préparation du dossier…" : "Dossier .zip · .txt et .csv"}
+            </span>
+          </span>
         </Button>
       </section>
     </div>

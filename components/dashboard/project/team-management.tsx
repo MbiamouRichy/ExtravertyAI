@@ -433,26 +433,28 @@ export default function TeamManagement({
             return (
               <li
                 key={member.id}
-                className="flex items-center justify-between gap-3 px-4 py-3.5 transition-colors hover:bg-muted/30 sm:px-5"
+                className="flex items-start gap-3 px-4 py-3.5 transition-colors hover:bg-muted/30 sm:items-center sm:px-5"
               >
-                <div className="flex min-w-0 items-center gap-3">
-                  <Avatar className="size-10">
-                    <AvatarImage src={member.image || undefined} alt="" />
-                    <AvatarFallback className="font-heading text-xs font-semibold">
-                      {getInitials(member.name)}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="min-w-0">
-                    <p className="flex items-center gap-2 truncate text-sm font-medium">
-                      {member.name || "Utilisateur"}
-                      {isMe && (
-                        <span className="rounded-full bg-muted px-1.5 text-[10px] font-normal text-muted-foreground">
-                          Vous
-                        </span>
-                      )}
-                    </p>
-                    <p className="truncate text-xs text-muted-foreground">{member.email}</p>
-                    <div className="mt-0.5 text-[11px] text-muted-foreground">
+                <Avatar className="size-10 shrink-0">
+                  <AvatarImage src={member.image || undefined} alt="" />
+                  <AvatarFallback className="font-heading text-xs font-semibold">
+                    {getInitials(member.name)}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="min-w-0 flex-1">
+                  <p className="flex min-w-0 items-center gap-2 text-sm font-medium">
+                    <span className="truncate">{member.name || "Utilisateur"}</span>
+                    {isMe && (
+                      <span className="shrink-0 rounded-full bg-muted px-1.5 text-[10px] font-normal text-muted-foreground">
+                        Vous
+                      </span>
+                    )}
+                  </p>
+                  <p className="truncate text-xs text-muted-foreground">{member.email}</p>
+                  {/* Mobile : rôle et présence sous l’email, pour laisser la largeur au nom. */}
+                  <div className="mt-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[11px] text-muted-foreground sm:mt-0.5">
+                    <span className="sm:hidden">{getRoleBadge(member.role)}</span>
+                    <span className="whitespace-nowrap">
                       <MemberPresence
                         status={
                           presence.error
@@ -460,12 +462,12 @@ export default function TeamManagement({
                             : presence.data?.find((p) => p.userId === member.userId)?.status
                         }
                       />
-                    </div>
+                    </span>
                   </div>
                 </div>
 
                 <div className="flex shrink-0 items-center gap-2">
-                  {getRoleBadge(member.role)}
+                  <span className="hidden sm:inline-flex">{getRoleBadge(member.role)}</span>
                   {!isMe && canManageMember && member.role !== "OWNER" ? (
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
@@ -494,7 +496,7 @@ export default function TeamManagement({
                       </DropdownMenuContent>
                     </DropdownMenu>
                   ) : (
-                    <span aria-hidden="true" className="size-8" />
+                    <span aria-hidden="true" className="hidden size-8 sm:block" />
                   )}
                 </div>
               </li>

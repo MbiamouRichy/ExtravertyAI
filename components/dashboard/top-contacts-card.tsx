@@ -1,7 +1,37 @@
-import { Bot, Clock3, MessageSquareOff, User } from "lucide-react";
+"use client";
+
+import Link from "next/link";
+import { useMemo, useState } from "react";
+import {
+  flexRender,
+  getCoreRowModel,
+  getFilteredRowModel,
+  getSortedRowModel,
+  useReactTable,
+  type ColumnDef,
+  type SortingState,
+} from "@tanstack/react-table";
+import {
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
+  ArrowUpRight,
+  Bot,
+  MessageSquare,
+  MessageSquareOff,
+  Search,
+  User,
+  X,
+} from "lucide-react";
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupInput,
+} from "@/components/ui/input-group";
 import {
   Table,
   TableBody,
@@ -18,6 +48,8 @@ import { ChartEmptyState } from "./chart-empty-state";
 import { cn } from "@/lib/utils";
 import { formatNumberFr, type TopContactRow } from "@/lib/analytics";
 
+type Row = TopContactRow & { rank: number };
+
 function getInitials(name: string): string {
   return (
     name
@@ -31,36 +63,211 @@ function getInitials(name: string): string {
 
 function AiBadge({ active }: { active: boolean }) {
   const Icon = active ? Bot : User;
-
   return (
-    <Badge
-      variant="outline"
+    <span
       className={cn(
-        "gap-1.5 whitespace-nowrap rounded-md px-2 py-1 text-[11px] font-medium",
+        "inline-flex items-center gap-1.5 whitespace-nowrap rounded-md border px-2 py-0.5 text-[11px] font-medium",
         active
-          ? "border-primary/20 bg-primary/5 text-primary"
-          : "border-border bg-muted/40 text-muted-foreground",
+          ? "border-foreground/20 bg-foreground/5 text-foreground"
+          : "bg-muted/40 text-muted-foreground",
       )}
     >
       <Icon aria-hidden="true" className="size-3" />
       {active ? "IA activée" : "IA désactivée"}
-    </Badge>
+    </span>
   );
 }
 
+/** En-tête triable : un clic trie, l’état est annoncé aux lecteurs d’écran. */
+function SortHeader({
+  label,
+  sorted,
+  onToggle,
+  align = "right",
+}: {
+  label: string;
+  sorted: false | "asc" | "desc";
+  onToggle: () => void;
+  align?: "left" | "right";
+}) {
+  const Icon = sorted === "asc" ? ArrowUp : sorted === "desc" ? ArrowDown : ArrowUpDown;
+  return (
+    <Button
+      type="button"
+      variant="ghost"
+      size="xs"
+      onClick={onToggle}
+      className={cn("-mx-2 gap-1 text-xs", align === "right" && "ml-auto flex")}
+      aria-label={`Trier par ${label.toLowerCase()}`}
+    >
+      {label}
+      <Icon
+        aria-hidden="true"
+        className={cn("size-3", !sorted && "text-muted-foreground/60")}
+      />
+    </Button>
+  );
+}
+
+function chatHref(projectId: string, contactId: string) {
+  return `/projects/${encodeURIComponent(projectId)}/chat?contactId=${encodeURIComponent(contactId)}`;
+}
+
 interface TopContactsCardProps {
+  projectId: string;
   contacts: TopContactRow[];
   rangeLabel: string;
 }
 
+/**
+ * Les 15 contacts les plus actifs de la période, dans un tableau filtrable et
+ * triable, avec un accès direct à leur discussion.
+ */
 export function TopContactsCard({
+  projectId,
   contacts,
   rangeLabel,
 }: TopContactsCardProps) {
+  const data = useMemo<Row[]>(
+    () => contacts.map((contact, index) => ({ ...contact, rank: index + 1 })),
+    [contacts],
+  );
+  const [query, setQuery] = useState("");
+  const [sorting, setSorting] = useState<SortingState>([]);
+
+  const columns = useMemo<ColumnDef<Row>[]>(
+    () => [
+      {
+        accessorKey: "rank",
+        header: () => <span className="sr-only">Rang</span>,
+        cell: ({ row }) => (
+          <span className="text-xs tabular-nums text-muted-foreground">
+            {row.original.rank}
+          </span>
+        ),
+      },
+      {
+        id: "contact",
+        accessorFn: (row) => `${row.name} ${row.phone}`,
+        header: "Contact",
+        cell: ({ row }) => (
+          <div className="flex min-w-0 items-center gap-3">
+            <Avatar className="size-8 shrink-0 border">
+              <AvatarFallback className="bg-muted/60 text-[11px] font-medium">
+                {getInitials(row.original.name)}
+              </AvatarFallback>
+            </Avatar>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-medium">{row.original.name}</p>
+              <p className="truncate text-xs tabular-nums text-muted-foreground">
+                {row.original.phone}
+              </p>
+            </div>
+          </div>
+        ),
+      },
+      {
+        accessorKey: "received",
+        header: ({ column }) => (
+          <SortHeader
+            label="Reçus"
+            sorted={column.getIsSorted()}
+            onToggle={() => column.toggleSorting(column.getIsSorted() !== "desc")}
+          />
+        ),
+        cell: ({ row }) => (
+          <span className="block text-right text-sm tabular-nums">
+            {formatNumberFr(row.original.received)}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "sent",
+        header: ({ column }) => (
+          <SortHeader
+            label="Envoyés"
+            sorted={column.getIsSorted()}
+            onToggle={() => column.toggleSorting(column.getIsSorted() !== "desc")}
+          />
+        ),
+        cell: ({ row }) => (
+          <span className="block text-right text-sm tabular-nums">
+            {formatNumberFr(row.original.sent)}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "lastActivityLabel",
+        header: "Dernier échange",
+        enableSorting: false,
+        cell: ({ row }) => (
+          <span className="whitespace-nowrap text-xs text-muted-foreground">
+            {row.original.lastActivityLabel}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "instinct",
+        header: "Instinct IA",
+        enableSorting: false,
+        cell: ({ row }) => <InstinctCell classification={row.original.instinct} />,
+      },
+      {
+        accessorKey: "aiActive",
+        header: "Réglage IA",
+        enableSorting: false,
+        cell: ({ row }) => <AiBadge active={row.original.aiActive} />,
+      },
+      {
+        id: "actions",
+        header: () => <span className="sr-only">Actions</span>,
+        cell: ({ row }) => (
+          <Button asChild variant="outline" size="sm" className="ml-auto flex w-fit">
+            <Link
+              href={chatHref(projectId, row.original.id)}
+              aria-label={`Ouvrir la discussion avec ${row.original.name}`}
+            >
+              <MessageSquare data-icon="inline-start" />
+              Discuter
+            </Link>
+          </Button>
+        ),
+      },
+    ],
+    [projectId],
+  );
+
+  const table = useReactTable({
+    data,
+    columns,
+    state: { globalFilter: query, sorting },
+    onGlobalFilterChange: setQuery,
+    onSortingChange: setSorting,
+    globalFilterFn: (row, _columnId, value: string) => {
+      const needle = value.trim().toLowerCase();
+      if (!needle) return true;
+      return `${row.original.name} ${row.original.phone}`
+        .toLowerCase()
+        .includes(needle);
+    },
+    getCoreRowModel: getCoreRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+  });
+  const rows = table.getRowModel().rows;
+
   return (
     <AnalyticsCard
       title="Contacts les plus actifs"
-      description={`Jusqu’à 5 contacts, classés par volume d’échanges · ${rangeLabel}`}
+      description={`Jusqu’à 15 contacts, classés par volume d’échanges · ${rangeLabel}`}
+      aside={
+        <Button asChild variant="outline" size="sm" className="w-full sm:w-auto">
+          <Link href={`/projects/${encodeURIComponent(projectId)}/contacts`}>
+            Tous les contacts
+            <ArrowUpRight data-icon="inline-end" />
+          </Link>
+        </Button>
+      }
     >
       {contacts.length === 0 ? (
         <ChartEmptyState
@@ -69,102 +276,156 @@ export function TopContactsCard({
           description="Les contacts ayant échangé des messages pendant la période apparaîtront ici."
         />
       ) : (
-        <Table className="table-fixed">
-          <TableCaption className="sr-only">
-            Contacts classés par nombre de messages reçus et envoyés. Dates
-            locales.
-          </TableCaption>
+        <div className="space-y-3">
+          <InputGroup className="sm:max-w-xs">
+            <InputGroupAddon align="inline-start">
+              <Search aria-hidden="true" />
+            </InputGroupAddon>
+            <InputGroupInput
+              type="search"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Rechercher un contact…"
+              aria-label="Rechercher parmi les contacts les plus actifs"
+              autoComplete="off"
+              maxLength={80}
+            />
+            {query && (
+              <InputGroupAddon align="inline-end">
+                <InputGroupButton
+                  size="icon-xs"
+                  aria-label="Effacer la recherche"
+                  onClick={() => setQuery("")}
+                >
+                  <X />
+                </InputGroupButton>
+              </InputGroupAddon>
+            )}
+          </InputGroup>
 
-          <TableHeader>
-            <TableRow className="hover:bg-transparent">
-              <TableHead className="text-xs">Contact</TableHead>
-              <TableHead className="w-16 text-right text-xs sm:w-20">
-                Reçus
-              </TableHead>
-              <TableHead className="w-16 text-right text-xs sm:w-20">
-                Envoyés
-              </TableHead>
-              <TableHead className="hidden w-40 text-xs lg:table-cell">
-                Instinct IA
-              </TableHead>
-              <TableHead className="hidden w-32 text-right text-xs md:table-cell">
-                Réglage IA
-              </TableHead>
-            </TableRow>
-          </TableHeader>
+          <p role="status" className="sr-only">
+            {rows.length} contact{rows.length > 1 ? "s" : ""} affiché
+            {rows.length > 1 ? "s" : ""}
+          </p>
 
-          <TableBody>
-            {contacts.map((contact, index) => (
-              <TableRow key={contact.id} className="hover:bg-muted/30">
-                <TableCell className="py-4 align-top whitespace-normal">
-                  <div className="flex min-w-0 items-start gap-2 sm:gap-3">
-                    <span
-                      aria-hidden="true"
-                      className="hidden w-3 pt-2 text-xs tabular-nums text-muted-foreground sm:block"
-                    >
-                      {index + 1}
-                    </span>
-
-                    <Avatar className="hidden size-9 shrink-0 border sm:flex">
-                      <AvatarFallback className="bg-muted/60 text-xs font-medium">
-                        {getInitials(contact.name)}
-                      </AvatarFallback>
-                    </Avatar>
-
-                    <div className="min-w-0 flex-1">
-                      <span className="block break-words text-sm font-medium">
-                        {contact.name}
-                      </span>
-
-                      <span className="mt-1 block text-xs tabular-nums text-muted-foreground">
-                        {contact.phone}
-                      </span>
-
-                      <div className="mt-3 space-y-2">
-                        <div className="flex items-start gap-1.5 text-xs text-muted-foreground">
-                          <Clock3
-                            aria-hidden
-                            className="mt-0.5 size-3.5 shrink-0"
-                          />
-                          <div className="min-w-0 leading-relaxed">
-                            <span className="block text-[11px]">
-                              Dernier échange
-                            </span>
-                            <span className="block text-foreground/80">
-                              {contact.lastActivityLabel}{" "}
-                            </span>
-                          </div>
+          {rows.length === 0 ? (
+            <p className="rounded-xl border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">
+              Aucun contact ne correspond à « {query.trim()} ».
+            </p>
+          ) : (
+            <>
+              {/* Mobile : cartes empilées. */}
+              <ul className="divide-y rounded-xl border md:hidden">
+                {rows.map((row) => {
+                  const contact = row.original;
+                  return (
+                    <li key={row.id} className="space-y-3 p-3">
+                      <div className="flex items-center gap-3">
+                        <span className="w-4 shrink-0 text-xs tabular-nums text-muted-foreground">
+                          {contact.rank}
+                        </span>
+                        <Avatar className="size-9 shrink-0 border">
+                          <AvatarFallback className="bg-muted/60 text-xs font-medium">
+                            {getInitials(contact.name)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-medium">{contact.name}</p>
+                          <p className="truncate text-xs tabular-nums text-muted-foreground">
+                            {contact.phone} · {contact.lastActivityLabel}
+                          </p>
                         </div>
-                        <div className="flex flex-wrap items-center gap-2 lg:hidden">
-                          <InstinctCell classification={contact.instinct} />
-                          <span className="md:hidden">
-                            <AiBadge active={contact.aiActive} />
-                          </span>
-                        </div>
+                        <Button asChild variant="outline" size="icon" className="shrink-0">
+                          <Link
+                            href={chatHref(projectId, contact.id)}
+                            aria-label={`Ouvrir la discussion avec ${contact.name}`}
+                          >
+                            <MessageSquare />
+                          </Link>
+                        </Button>
                       </div>
-                    </div>
-                  </div>
-                </TableCell>
+                      <div className="flex flex-wrap items-center gap-2 pl-7 text-xs">
+                        <span className="tabular-nums">
+                          <span className="text-muted-foreground">Reçus </span>
+                          {formatNumberFr(contact.received)}
+                        </span>
+                        <span className="tabular-nums">
+                          <span className="text-muted-foreground">Envoyés </span>
+                          {formatNumberFr(contact.sent)}
+                        </span>
+                        <InstinctCell classification={contact.instinct} />
+                        <AiBadge active={contact.aiActive} />
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
 
-                <TableCell className="py-4 text-right align-top text-sm tabular-nums">
-                  {formatNumberFr(contact.received)}
-                </TableCell>
-
-                <TableCell className="py-4 text-right align-top text-sm tabular-nums">
-                  {formatNumberFr(contact.sent)}
-                </TableCell>
-
-                <TableCell className="hidden py-4 align-top lg:table-cell">
-                  <InstinctCell classification={contact.instinct} />
-                </TableCell>
-
-                <TableCell className="hidden py-4 text-right align-top md:table-cell">
-                  <AiBadge active={contact.aiActive} />
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+              {/* Ordinateur : tableau. */}
+              <div className="hidden overflow-x-auto rounded-xl border md:block">
+                <Table>
+                  <TableCaption className="sr-only">
+                    Contacts les plus actifs, classés par volume d’échanges.
+                    Dates locales.
+                  </TableCaption>
+                  <TableHeader>
+                    {table.getHeaderGroups().map((group) => (
+                      <TableRow key={group.id} className="hover:bg-transparent">
+                        {group.headers.map((header) => (
+                          <TableHead
+                            key={header.id}
+                            aria-sort={
+                              header.column.getIsSorted() === "asc"
+                                ? "ascending"
+                                : header.column.getIsSorted() === "desc"
+                                  ? "descending"
+                                  : undefined
+                            }
+                            className={cn(
+                              "h-10 text-xs",
+                              (header.column.id === "received" ||
+                                header.column.id === "sent") &&
+                                "text-right",
+                              header.column.id === "rank" && "w-8",
+                              header.column.id === "lastActivityLabel" &&
+                                "hidden xl:table-cell",
+                            )}
+                          >
+                            {header.isPlaceholder
+                              ? null
+                              : flexRender(
+                                  header.column.columnDef.header,
+                                  header.getContext(),
+                                )}
+                          </TableHead>
+                        ))}
+                      </TableRow>
+                    ))}
+                  </TableHeader>
+                  <TableBody>
+                    {rows.map((row) => (
+                      <TableRow key={row.id} className="hover:bg-muted/30">
+                        {row.getVisibleCells().map((cell) => (
+                          <TableCell
+                            key={cell.id}
+                            className={cn(
+                              "py-2.5",
+                              cell.column.id === "contact" && "max-w-56",
+                              cell.column.id === "lastActivityLabel" &&
+                                "hidden xl:table-cell",
+                            )}
+                          >
+                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                          </TableCell>
+                        ))}
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </>
+          )}
+        </div>
       )}
     </AnalyticsCard>
   );

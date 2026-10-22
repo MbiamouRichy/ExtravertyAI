@@ -1,6 +1,5 @@
 "use client";
 
-import { useId } from "react";
 import { CartesianGrid, Line, LineChart, XAxis } from "recharts";
 import {
 	Card,
@@ -32,7 +31,7 @@ interface DashboardDiscussionsChartProps {
 const chartConfig = {
 	previousWeek: {
 		label: "Semaine dernière",
-		color: "var(--chart-2)",
+		color: "var(--chart-4)",
 	},
 	currentWeek: {
 		label: "Cette semaine",
@@ -41,8 +40,6 @@ const chartConfig = {
 } satisfies ChartConfig;
 
 export function DashboardDiscussionsChart({ data, growthPct }: DashboardDiscussionsChartProps) {
-	const chartUid = useId().replace(/:/g, "");
-	const idLineGlow = `dashboard-discussions-glow-${chartUid}`;
 
 	const hasData = data.some((row) => row.currentWeek > 0 || row.previousWeek > 0);
 
@@ -91,31 +88,16 @@ export function DashboardDiscussionsChart({ data, growthPct }: DashboardDiscussi
 								content={<ChartTooltipContent hideLabel />}
 								cursor={false}
 							/>
-							<defs>
-								<filter
-									height="140%"
-									id={idLineGlow}
-									width="140%"
-									x="-20%"
-									y="-20%"
-								>
-									<feGaussianBlur result="blur" stdDeviation="10" />
-									<feComposite in="SourceGraphic" in2="blur" operator="over" />
-								</filter>
-							</defs>
 							<Line
 								dataKey="previousWeek"
 								dot={false}
-								filter={`url(#${idLineGlow})`}
 								stroke="var(--color-previousWeek)"
 								strokeWidth={2}
 								type="step"
-								strokeDasharray="4 4"// On garde le tireté pour différencier l'ancienne semaine
 							/>
 							<Line
 								dataKey="currentWeek"
 								dot={false}
-								filter={`url(#${idLineGlow})`}
 								stroke="var(--color-currentWeek)"
 								strokeWidth={2}
 								type="step"

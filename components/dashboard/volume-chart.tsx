@@ -25,7 +25,7 @@ export function VolumeChart({
                 {
                     key: "sent",
                     label: "Envoyés",
-                    color: "var(--chart-2)",
+                    color: "var(--chart-3)",
                     dashed: true,
                 },
             ]}

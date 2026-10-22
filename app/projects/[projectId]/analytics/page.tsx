@@ -275,6 +275,7 @@ export default async function AnalyticsPage({
 
             <div className="min-w-0 xl:col-span-2">
               <TopContactsCard
+                projectId={projectId}
                 contacts={overview.topContacts}
                 rangeLabel={overview.rangeLabel}
               />

@@ -279,7 +279,7 @@ export function ConversationSummaryView({
             surface="primary"
             className="h-full"
           >
-            <div className="mx-auto max-w-2xl space-y-4 px-4 py-6 sm:px-6">
+            <div className="mx-auto max-w-2xl space-y-4 px-4 pt-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:px-6">
               <AiResponseText
                 key={result.generatedAt}
                 inverse

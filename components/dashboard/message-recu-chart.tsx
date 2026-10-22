@@ -34,33 +34,9 @@ interface MessagesChartProps {
 const chartConfig = {
 	messages: {
 		label: "Messages Reçus",
-		color: "var(--chart-2)",
+		color: "var(--chart-1)",
 	},
 } satisfies ChartConfig;
-
-// Ton CustomGradientBar (adapté pour 'messages')
-function CustomGradientBar(
-	props: React.SVGProps<SVGRectElement> & {
-		index?: number;
-		dataKey?: string | number;
-	}
-) {
-	const { fill, x = 0, y = 0, width = 0, height = 0, dataKey = "messages", index = 0 } = props;
-	const gid = `gradient-bar-${String(dataKey)}-${index}`;
-
-	return (
-		<>
-			<rect fill={`url(#${gid})`} height={height} stroke="none" width={width} x={x} y={y} />
-			<rect fill={fill} height={2} stroke="none" width={width} x={x} y={y} />
-			<defs>
-				<linearGradient id={gid} x1="0" x2="0" y1="0" y2="1">
-					<stop offset="0%" stopColor={fill} stopOpacity={0.5} />
-					<stop offset="100%" stopColor={fill} stopOpacity={0} />
-				</linearGradient>
-			</defs>
-		</>
-	);
-}
 
 export function MessagesChart({
 	title = "Messages Reçus",
@@ -96,7 +72,7 @@ export function MessagesChart({
 							minTickGap={20}
 						/>
 						<ChartTooltip content={<ChartTooltipContent hideLabel />} cursor={false} />
-						<Bar dataKey="messages" fill="var(--color-messages, #3b82f6)" shape={<CustomGradientBar />} />
+						<Bar dataKey="messages" fill="var(--color-messages)" radius={[6, 6, 0, 0]} maxBarSize={56} />
 					</BarChart>
 				</ChartContainer>
 			</CardContent>

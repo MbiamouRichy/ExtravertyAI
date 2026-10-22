@@ -1028,38 +1028,44 @@ export default function WhatsappWorkspace({
   }
 
   const summaryOpen = !!activeClient && summaryFor === activeClient.id;
+  // Résumé IA : sans fiche contact visible (mobile, écran réduit, fiche fermée),
+  // placé juste après « Note interne ».
+  const summaryButton = activeClient ? (
+    <Button
+      type="button"
+      size="xs"
+      variant={summaryOpen ? "default" : "ghost"}
+      aria-pressed={summaryOpen}
+      onClick={() =>
+        setSummaryFor((current) =>
+          current === activeClient.id ? null : activeClient.id,
+        )
+      }
+      className={cn("shrink-0", panelOpen && "xl:hidden")}
+    >
+      <Sparkles aria-hidden="true" />
+      Résumé IA
+    </Button>
+  ) : null;
   const composerToggle = (
-    <>
-      <ComposerModeToggle
-        mode={composerMode}
-        onChange={changeComposerMode}
-        hint={
-          aiActive && composerMode === "reply"
-            ? canManageAi
-              ? "Cliquer sur « Répondre » met l’IA en pause"
-              : "L’IA peut aussi répondre à ce contact"
-            : undefined
-        }
-      />
-      {/* Sans fiche contact visible (mobile, écran réduit, fiche fermée). */}
-      {activeClient && (
-        <Button
-          type="button"
-          size="xs"
-          variant={summaryOpen ? "default" : "ghost"}
-          aria-pressed={summaryOpen}
-          onClick={() =>
-            setSummaryFor((current) =>
-              current === activeClient.id ? null : activeClient.id,
-            )
-          }
-          className={cn("shrink-0", panelOpen && "xl:hidden")}
-        >
-          <Sparkles aria-hidden="true" />
-          Résumé IA
-        </Button>
-      )}
-    </>
+    <ComposerModeToggle
+      mode={composerMode}
+      onChange={changeComposerMode}
+      showReply={aiActive}
+      extra={summaryButton}
+      onNoteClose={() => {
+        // Refermer une note revient à la saisie sans toucher à l’IA.
+        setComposerMode("reply");
+        requestAnimationFrame(() => textareaRef.current?.focus());
+      }}
+      hint={
+        aiActive && composerMode === "reply"
+          ? canManageAi
+            ? "Cliquer sur « Répondre » met l’IA en pause"
+            : "L’IA peut aussi répondre à ce contact"
+          : undefined
+      }
+    />
   );
 
   function goBack() {
@@ -1939,7 +1945,7 @@ export default function WhatsappWorkspace({
                 </div>
               </header>
 
-              {!activeResolved && (!aiActive || project.automationPaused) && (
+              {!summaryOpen && !activeResolved && (!aiActive || project.automationPaused) && (
                 <div
                   role="status"
                   className="flex shrink-0 items-center gap-2 bg-foreground px-4 py-2 text-xs text-background"
@@ -2112,7 +2118,12 @@ export default function WhatsappWorkspace({
                 </MessageScrollerProvider>
               </div>
 
-              <footer className="chat-floating-composer relative z-10 shrink-0 bg-background px-3 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-5 sm:pt-4">
+              {/* Résumé ouvert : il occupe toute la hauteur ; le compositeur reste monté
+                  (brouillon et pièce jointe conservés) mais masqué. */}
+              <footer
+                hidden={summaryOpen}
+                className="chat-floating-composer relative z-10 shrink-0 bg-background px-3 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-5 sm:pt-4"
+              >
                 <div className="mx-auto max-w-4xl">
                   {composerMode === "note" && (
                     <InternalNoteComposer

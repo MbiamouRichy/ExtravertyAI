@@ -325,7 +325,8 @@ export async function getAnalyticsOverview(
 
   const topContactIds = [...totalsByContact.entries()]
     .sort((a, b) => b[1].received + b[1].sent - (a[1].received + a[1].sent))
-    .slice(0, 5)
+    // Les 15 contacts les plus actifs, affichés dans un tableau filtrable.
+    .slice(0, 15)
     .map(([id]) => id);
 
   let topContacts: TopContactRow[] = [];

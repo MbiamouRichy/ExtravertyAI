@@ -41,7 +41,8 @@ function fileSlug(value: string) {
 }
 
 /**
- * Export CSV d’une conversation, réservé aux membres du projet (qui la lisent
+ * Export d’une conversation (archive .zip : dossier avec une version .txt
+ * lisible et une version .csv), réservé aux membres du projet (qui la lisent
  * déjà dans la messagerie). Le numéro de téléphone et les notes internes ne
  * sont pas exportés.
  */
@@ -126,12 +127,48 @@ export async function GET(
     const csv =
       "﻿" +
       [header, ...rows].map((row) => row.map(csvCell).join(";")).join("\r\n");
-    const day = new Intl.DateTimeFormat("en-CA", { timeZone }).format(new Date());
 
-    return new Response(csv, {
+    // Version lisible : un bloc par message, transcription indentée dessous.
+    const COL = { date: 0, author: 1, member: 2, type: 3, content: 4, insight: 5 };
+    const txt = [
+      `Conversation avec ${contactName}`,
+      `Exportée le ${date.format(new Date())} (${timeZone}) · ${rows.length} message${rows.length > 1 ? "s" : ""}`,
+      "Le numéro de téléphone et les notes internes ne sont pas inclus.",
+      "─".repeat(48),
+      ...rows.map((row) => {
+        const who = row[COL.member]
+          ? `${row[COL.author]} (${row[COL.member]})`
+          : row[COL.author];
+        const media = row[COL.type] !== TYPE.TEXT;
+        return [
+          `[${row[COL.date]}] ${who}${media && row[COL.content] ? ` · ${row[COL.type]}` : ""}`,
+          row[COL.content] || `[${row[COL.type]}]`,
+          ...(row[COL.insight]
+            ? [`  ↳ Transcription / analyse IA : ${row[COL.insight]}`]
+            : []),
+        ].join("\n");
+      }),
+    ].join("\n\n");
+
+    // Un dossier, deux formats : .txt à lire, .csv pour un tableur.
+    const day = new Intl.DateTimeFormat("en-CA", { timeZone }).format(new Date());
+    const folder = `conversation-${fileSlug(contactName)}-${day}`;
+    const { default: JSZip } = await import("jszip");
+    const zip = new JSZip();
+    const dir = zip.folder(folder);
+    if (!dir) throw new Error("EXPORT_FOLDER");
+    dir.file("conversation.txt", "﻿" + txt.replace(/\n/g, "\r\n"));
+    dir.file("conversation.csv", csv);
+    const archive = await zip.generateAsync({
+      type: "uint8array",
+      compression: "DEFLATE",
+      compressionOptions: { level: 6 },
+    });
+
+    return new Response(new Blob([archive as BlobPart], { type: "application/zip" }), {
       headers: {
-        "Content-Type": "text/csv; charset=utf-8",
-        "Content-Disposition": `attachment; filename="conversation-${fileSlug(contactName)}-${day}.csv"`,
+        "Content-Type": "application/zip",
+        "Content-Disposition": `attachment; filename="${folder}.zip"`,
         "Cache-Control": "private, no-store",
         "X-Content-Type-Options": "nosniff",
       },

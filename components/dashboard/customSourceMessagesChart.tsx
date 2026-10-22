@@ -29,11 +29,11 @@ const SOURCE_LABELS = new Map<string, string>([
 
 // Couleur attribuée par rang : la source principale est toujours la plus contrastée.
 const RANK_COLORS = [
-    "var(--chart-5)",
-    "var(--chart-3)",
-    "var(--chart-2)",
     "var(--chart-1)",
+    "var(--chart-2)",
+    "var(--chart-3)",
     "var(--chart-4)",
+    "var(--chart-5)",
 ];
 
 interface SourcesChartProps {

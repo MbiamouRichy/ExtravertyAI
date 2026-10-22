@@ -1,6 +1,5 @@
 "use client";
 
-import { useId } from "react";
 import { ChartNoAxesCombined } from "lucide-react";
 import {
   Area,
@@ -65,7 +64,6 @@ export function AnalyticsTimeChart({
   emptyTitle,
   emptyDescription,
 }: AnalyticsTimeChartProps) {
-  const uid = useId().replace(/[^a-zA-Z0-9_-]/g, "");
   const isMobile = useIsMobile();
 
   const config: ChartConfig = Object.fromEntries(
@@ -229,7 +227,7 @@ export function AnalyticsTimeChart({
                 className="w-5 border-t-2"
                 style={{
                   borderColor: metric.color,
-                  borderTopStyle: metric.dashed ? "dashed" : "solid",
+                  borderTopStyle: "solid",
                 }}
               />
               {metric.label}
@@ -269,7 +267,6 @@ export function AnalyticsTimeChart({
                   key={metric.key}
                   dataKey={metric.key}
                   fill={`var(--color-${metric.key})`}
-                  fillOpacity={0.9}
                   radius={[4, 4, 0, 0]}
                   maxBarSize={30}
                   isAnimationActive={false}
@@ -288,7 +285,6 @@ export function AnalyticsTimeChart({
                   stroke={`var(--color-${metric.key})`}
                   strokeWidth={2}
                   strokeLinejoin="round"
-                  strokeDasharray={metric.dashed ? "5 4" : undefined}
                   dot={
                     data.length === 1
                       ? {
@@ -308,29 +304,6 @@ export function AnalyticsTimeChart({
             </LineChart>
           ) : (
             <AreaChart accessibilityLayer data={data} margin={chartMargin}>
-              <defs>
-                {metrics.map((metric) => (
-                  <linearGradient
-                    key={metric.key}
-                    id={`${uid}-${metric.key}`}
-                    x1="0"
-                    y1="0"
-                    x2="0"
-                    y2="1"
-                  >
-                    <stop
-                      offset="0%"
-                      stopColor={`var(--color-${metric.key})`}
-                      stopOpacity={0.18}
-                    />
-                    <stop
-                      offset="100%"
-                      stopColor={`var(--color-${metric.key})`}
-                      stopOpacity={0.01}
-                    />
-                  </linearGradient>
-                ))}
-              </defs>
 
               {axes}
 
@@ -341,8 +314,8 @@ export function AnalyticsTimeChart({
                   type="linear"
                   stroke={`var(--color-${metric.key})`}
                   strokeWidth={2}
-                  strokeDasharray={metric.dashed ? "5 4" : undefined}
-                  fill={`url(#${uid}-${metric.key})`}
+                  fill={`var(--color-${metric.key})`}
+                  fillOpacity={0.08}
                   dot={data.length === 1 ? { r: 4 } : false}
                   activeDot={{
                     r: 4,

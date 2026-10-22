@@ -3,7 +3,8 @@
 import { toast } from "sonner";
 
 /**
- * Télécharge la conversation au format CSV. Passe par fetch pour afficher une
+ * Télécharge la conversation : archive .zip contenant un dossier avec les
+ * versions .txt et .csv. Passe par fetch pour afficher une
  * erreur claire plutôt qu’une page d’erreur si l’export est refusé.
  */
 export async function downloadConversation(
@@ -26,7 +27,7 @@ export async function downloadConversation(
     const name =
       /filename="([^"]+)"/.exec(
         response.headers.get("Content-Disposition") ?? "",
-      )?.[1] ?? "conversation.csv";
+      )?.[1] ?? "conversation.zip";
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
@@ -37,7 +38,8 @@ export async function downloadConversation(
     URL.revokeObjectURL(url);
     toast.success("Conversation exportée", {
       id,
-      description: "Fichier CSV, sans numéro de téléphone ni notes internes.",
+      description:
+        "Dossier .zip avec une version .txt et une version .csv, sans numéro ni notes internes.",
     });
   } catch (error) {
     toast.error(

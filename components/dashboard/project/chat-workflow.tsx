@@ -388,11 +388,26 @@ export function ComposerModeToggle({
   mode,
   onChange,
   hint,
+  showReply = true,
+  onNoteClose,
+  extra,
 }: {
+  /** Action supplémentaire placée juste après « Note interne » (ex. Résumé IA). */
+  extra?: ReactNode;
+  /**
+   * Fermeture de la note par un second clic. Distincte de « Répondre » pour ne
+   * pas mettre l’IA en pause en refermant simplement une note.
+   */
+  onNoteClose?: () => void;
   mode: ComposerMode;
   onChange: (mode: ComposerMode) => void;
   /** Short contextual hint shown on the right (e.g. AI takeover). */
   hint?: string;
+  /**
+   * « Répondre » sert à reprendre la main sur l’IA. Quand elle est déjà
+   * désactivée, il est masqué et « Note interne » devient une bascule.
+   */
+  showReply?: boolean;
 }) {
   return (
     <div
@@ -400,26 +415,34 @@ export function ComposerModeToggle({
       aria-label="Type de message"
       className="flex min-w-0 flex-1 items-center gap-1"
     >
-      <Button
-        type="button"
-        size="xs"
-        variant={mode === "reply" ? "secondary" : "ghost"}
-        aria-pressed={mode === "reply"}
-        onClick={() => onChange("reply")}
-      >
-        <MessageSquare aria-hidden="true" />
-        Répondre
-      </Button>
+      {showReply && (
+        <Button
+          type="button"
+          size="xs"
+          variant={mode === "reply" ? "secondary" : "ghost"}
+          aria-pressed={mode === "reply"}
+          onClick={() => onChange("reply")}
+        >
+          <MessageSquare aria-hidden="true" />
+          Répondre
+        </Button>
+      )}
       <Button
         type="button"
         size="xs"
         variant={mode === "note" ? "secondary" : "ghost"}
         aria-pressed={mode === "note"}
-        onClick={() => onChange("note")}
+        // Bascule : un clic ouvre la note interne, un second la referme.
+        onClick={() => {
+          if (mode !== "note") onChange("note");
+          else if (onNoteClose) onNoteClose();
+          else onChange("reply");
+        }}
       >
         <Lock aria-hidden="true" />
         Note interne
       </Button>
+      {extra}
       {hint && (
         <span className="ml-auto hidden min-w-0 truncate pr-1.5 text-[11px] text-muted-foreground sm:inline">
           {hint}

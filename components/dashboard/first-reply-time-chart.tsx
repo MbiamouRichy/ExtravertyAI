@@ -65,7 +65,7 @@ export function FirstAiReplyTimeChart({
         ) : (
           <ChartContainer
             config={{
-              seconds: { label: "Délai médian", color: "var(--chart-2)" },
+              seconds: { label: "Délai médian", color: "var(--chart-1)" },
             }}
             className="aspect-video min-h-48 w-full min-w-0"
           >
