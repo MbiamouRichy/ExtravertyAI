@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import {
   Bot,
@@ -15,7 +15,9 @@ import {
   Link2,
   Loader2,
   MessagesSquare,
+  Moon,
   Sparkles,
+  Sunrise,
   UsersRound,
 } from "lucide-react";
 
@@ -29,6 +31,7 @@ import {
 import type { ChatAgent, ChatClient } from "@/lib/chat";
 import type { ChatContactDetails } from "@/lib/contact-details";
 import { revealContactPhone } from "@/app/actions/contact-phone";
+import { wakeAssistantAction } from "@/app/actions/ai-quiet";
 import { Button } from "@/components/ui/button";
 import {
   Tooltip,
@@ -46,10 +49,12 @@ function statusOf({
   resolved,
   aiActive,
   automationPaused,
+  quiet,
 }: {
   resolved: boolean;
   aiActive: boolean;
   automationPaused: boolean;
+  quiet: boolean;
 }) {
   if (resolved)
     return {
@@ -62,6 +67,12 @@ function statusOf({
       icon: Bot,
       label: "IA en pause (projet)",
       hint: "Le projet est en pause : l’assistant ne répond à aucun contact.",
+    };
+  if (aiActive && quiet)
+    return {
+      icon: Moon,
+      label: "IA en veille",
+      hint: "Conversation terminée : l’assistant ne répond plus aux simples « merci » ou « d’accord ». Il reprend dès que le client pose une vraie question.",
     };
   if (aiActive)
     return {
@@ -135,7 +146,27 @@ export function ChatContactPanel({
     }
   }
 
-  const status = statusOf({ resolved, aiActive, automationPaused });
+  // Hidden at once after a wake-up; a later quiet period has another date.
+  const [wokenAt, setWokenAt] = useState<string | null>(null);
+  const [waking, startWaking] = useTransition();
+  const quiet =
+    !!client.aiQuietSince && client.aiQuietSince !== wokenAt && !automationPaused;
+
+  function wake() {
+    const since = client.aiQuietSince ?? null;
+    startWaking(async () => {
+      const result = await wakeAssistantAction({ projectId, contactId: client.id });
+      if (!result.success) {
+        toast.error(result.error);
+        return;
+      }
+      setWokenAt(since);
+      onContactChanged();
+      toast.success("L’IA répondra au prochain message du client");
+    });
+  }
+
+  const status = statusOf({ resolved, aiActive, automationPaused, quiet });
   const StatusIcon = status.icon;
   const instinct = client.prospectClassification;
 
@@ -198,6 +229,26 @@ export function ChatContactPanel({
             Statut · {status.label}
           </h2>
           <p className="mt-1 text-xs leading-relaxed">{status.hint}</p>
+          {quiet && aiActive && !resolved && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="mt-3"
+              disabled={waking}
+              onClick={wake}
+            >
+              {waking ? (
+                <Loader2
+                  data-icon="inline-start"
+                  className="animate-spin motion-reduce:animate-none"
+                />
+              ) : (
+                <Sunrise data-icon="inline-start" />
+              )}
+              Réveiller l’IA
+            </Button>
+          )}
         </div>
 
         <div className="border-t pt-3">

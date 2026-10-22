@@ -34,6 +34,7 @@ import {
   Loader2,
   Lock,
   MessageCircle,
+  Moon,
   PanelRightClose,
   PanelRightOpen,
   Pause,
@@ -1709,6 +1710,15 @@ export default function WhatsappWorkspace({
                                     className="size-3"
                                   />
                                   Résolue
+                                </span>
+                              )}
+                              {client.aiQuietSince && client.aiActive && !client.resolvedAt && (
+                                <span
+                                  className="inline-flex shrink-0 items-center gap-1"
+                                  title="Fin de conversation : l’IA ignore les simples « merci » jusqu’au prochain vrai message"
+                                >
+                                  <Moon aria-hidden="true" className="size-3" />
+                                  En veille
                                 </span>
                               )}
                               {client.tags?.[0] && (

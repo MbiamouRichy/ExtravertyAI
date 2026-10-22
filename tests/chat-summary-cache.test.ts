@@ -182,7 +182,7 @@ test("every member may toggle their contact, without crossing project boundaries
     await db.exec(`
       CREATE TABLE project (id TEXT PRIMARY KEY, "deletionPending" BOOLEAN DEFAULT false);
       CREATE TABLE project_membership ("projectId" TEXT, "userId" TEXT, role TEXT);
-      CREATE TABLE contact (id TEXT PRIMARY KEY, "projectId" TEXT, "aiActive" BOOLEAN DEFAULT true, "aiVersion" INT DEFAULT 0, "updatedAt" TIMESTAMP);
+      CREATE TABLE contact (id TEXT PRIMARY KEY, "projectId" TEXT, "aiActive" BOOLEAN DEFAULT true, "aiVersion" INT DEFAULT 0, "updatedAt" TIMESTAMP, "aiQuietSince" TIMESTAMP);
       CREATE TYPE "ContactEventType" AS ENUM ('AI_ENABLED', 'AI_PAUSED', 'AI_PAUSED_BY_REPLY', 'AI_PAUSED_FROM_PHONE');
       CREATE TABLE contact_event (id TEXT PRIMARY KEY, "projectId" TEXT, "contactId" TEXT, "actorId" TEXT, type "ContactEventType", "createdAt" TIMESTAMP DEFAULT NOW());
       INSERT INTO project (id) VALUES ('p'), ('other');

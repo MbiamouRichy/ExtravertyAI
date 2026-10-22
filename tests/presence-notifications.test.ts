@@ -15,7 +15,7 @@ test("presence and notifications respect members, tabs, expiry and read versions
       INSERT INTO project (id,name) VALUES ('p','Project'), ('secret','Secret');
       CREATE TABLE project_membership (id TEXT PRIMARY KEY, "userId" TEXT, "projectId" TEXT, role TEXT, "createdAt" TIMESTAMPTZ DEFAULT NOW() - INTERVAL '1 day');
       INSERT INTO project_membership (id,"userId","projectId",role) VALUES ('o','owner','p','OWNER'), ('m','member','p','USER'), ('s','stranger','secret','OWNER');
-      CREATE TABLE contact (id TEXT PRIMARY KEY, "projectId" TEXT, name TEXT, "pushName" TEXT, phone TEXT, "resolvedAt" TIMESTAMPTZ, "assigneeId" TEXT, "assignedById" TEXT, "assignedAt" TIMESTAMPTZ);
+      CREATE TABLE contact (id TEXT PRIMARY KEY, "projectId" TEXT, name TEXT, "pushName" TEXT, phone TEXT, "resolvedAt" TIMESTAMPTZ, "assigneeId" TEXT, "assignedById" TEXT, "assignedAt" TIMESTAMPTZ, "aiActive" BOOLEAN DEFAULT true, "aiQuietSince" TIMESTAMPTZ, "pipelineStage" TEXT);
       INSERT INTO contact VALUES ('c','p',NULL,'24176205629','24176205629'), ('hidden','secret','Hidden',NULL,'99999');
       CREATE TABLE message (id TEXT PRIMARY KEY, "projectId" TEXT, "contactId" TEXT, "senderType" TEXT DEFAULT 'CLIENT', "fromMe" BOOLEAN DEFAULT false, "createdAt" TIMESTAMPTZ DEFAULT NOW());
       INSERT INTO message (id,"projectId","contactId") VALUES ('one','p','c'), ('hidden-message','secret','hidden');

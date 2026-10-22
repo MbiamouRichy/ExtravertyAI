@@ -22,6 +22,8 @@ import { InstinctFunnelCard } from "@/components/dashboard/instinct-funnel-card"
 import { ActivityHeatmapCard } from "@/components/dashboard/activity-heatmap-card";
 import { PipelineValueCard } from "@/components/dashboard/pipeline-value-card";
 import { CsatCard } from "@/components/dashboard/csat-card";
+import { AvoidedRepliesCard } from "@/components/dashboard/avoided-replies-card";
+import { avoidedReplies } from "@/lib/ai-quiet";
 import { csatStats } from "@/lib/csat";
 
 function periodStart(period: keyof typeof PERIOD_DAYS) {
@@ -85,7 +87,7 @@ export default async function AnalyticsPage({
 
   const period = parseAnalyticsPeriod(sp.period);
   const since = periodStart(period);
-  const [overview, sales] = await Promise.all([
+  const [overview, sales, avoided] = await Promise.all([
     getAnalyticsOverview(projectId, period),
     // L'accès au projet est déjà vérifié ci-dessus ; seule l'offre est relue ici.
     prisma.project
@@ -105,6 +107,17 @@ export default async function AnalyticsPage({
             }
           : null,
       ),
+    // Réponses que l’IA n’a volontairement pas envoyées (toutes offres).
+    Promise.all([
+      avoidedReplies(prisma, projectId, since),
+      prisma.project.findUnique({
+        where: { id: projectId },
+        select: { aiQuietEnabled: true },
+      }),
+    ]).then(([stats, project]) => ({
+      stats,
+      enabled: project?.aiQuietEnabled ?? true,
+    })),
   ]);
 
   const sourcesTotal = overview.sources.reduce(
@@ -211,6 +224,13 @@ export default async function AnalyticsPage({
               settingsHref={`${projectPath}/settings`}
             />
           </div>
+
+          <AvoidedRepliesCard
+            stats={avoided.stats}
+            enabled={avoided.enabled}
+            rangeLabel={overview.rangeLabel}
+            settingsHref={`${projectPath}/settings`}
+          />
 
           <ActivityHeatmapCard
             heatmap={overview.heatmap}

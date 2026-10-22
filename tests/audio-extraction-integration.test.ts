@@ -187,6 +187,13 @@ test(
           const job = await claimMessageExtraction(client);
           assert.ok(job);
           await runMessageExtraction(client, job, async () => result, load);
+          // The audio and the later text get a single reply: the older job is
+          // merged into the newer one, which sees the transcript.
+          assert.equal(await claimAiJob(client), null);
+          const voice = await client.message.findFirstOrThrow({
+            where: { projectId: project.id, type: "AUDIO" },
+          });
+          assert.equal(voice.aiSkip, "MERGED");
           const aiJob = await claimAiJob(client);
           assert.ok(aiJob);
           let sawTranscript = false;

@@ -36,7 +36,9 @@ export type ContactEventKind =
   | "AI_PAUSED_FROM_PHONE"
   | "ASSIGNED"
   | "UNASSIGNED"
-  | "STAGE_CHANGED";
+  | "STAGE_CHANGED"
+  | "AI_QUIET"
+  | "AI_WOKEN";
 
 /** Libellé de l’événement affiché au centre de la conversation. */
 export function contactEventLabel(
@@ -62,5 +64,13 @@ export function contactEventLabel(
       return `${actor} a répondu · IA en pause`;
     case "AI_PAUSED_FROM_PHONE":
       return "Réponse depuis le téléphone · IA en pause";
+    case "AI_QUIET":
+      return detail === "REPEATED"
+        ? "Réponse de l’IA retenue : elle répétait un message déjà envoyé"
+        : "Fin de conversation · IA en veille jusqu’au prochain vrai message du client";
+    case "AI_WOKEN":
+      return actorName
+        ? `${actor} a réveillé l’IA`
+        : "Nouvelle demande du client · l’IA reprend";
   }
 }

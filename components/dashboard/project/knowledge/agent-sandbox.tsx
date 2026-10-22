@@ -5,7 +5,7 @@ import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
-import { Bot, CircleAlert, FlaskConical, Loader2, RotateCcw, SendHorizontal, UserRound } from "lucide-react";
+import { Bot, CircleAlert, FlaskConical, Loader2, Moon, RotateCcw, SendHorizontal, UserRound } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
@@ -30,6 +30,11 @@ const SUGGESTIONS = [
   "Vous livrez en dehors de la capitale ?",
   "Combien coûte votre produit le plus vendu ?",
 ];
+
+// In a real conversation these replies are never sent, so they are not part of
+// the history either.
+const withheld = (turn: Turn) =>
+  turn.role === "assistant" && (turn.trace.ending === "silent" || turn.trace.ending === "repeated");
 
 const ComposerSchema = z.object({
   message: z.string().trim().min(1, "Écrivez un message.").max(1000, "1 000 caractères au maximum."),
@@ -60,6 +65,20 @@ function Trace({ trace }: { trace: SandboxTrace }) {
         Ton {trace.settings.tone.toLowerCase()} · longueur {trace.settings.length.toLowerCase()} ·{" "}
         {trace.settings.language.toLowerCase()} · emojis {trace.settings.emojis ? "autorisés" : "désactivés"}
       </p>
+      {trace.ending === "end" && (
+        <p className="flex items-start gap-1.5 font-medium">
+          <Moon aria-hidden="true" className="mt-0.5 size-3.5 shrink-0" />
+          Fin de conversation : en réel, l’IA se mettrait en veille et ne
+          répondrait plus aux simples « merci » ou « d’accord ».
+        </p>
+      )}
+      {trace.ending === "repeated" && (
+        <p className="flex items-start gap-1.5 font-medium">
+          <CircleAlert aria-hidden="true" className="mt-0.5 size-3.5 shrink-0" />
+          Réponse retenue : elle répétait un message précédent. En réel, elle
+          ne serait pas envoyée et l’équipe en serait informée.
+        </p>
+      )}
       {trace.missingInfo && (
         <p className="flex items-start gap-1.5 font-medium">
           <CircleAlert aria-hidden="true" className="mt-0.5 size-3.5 shrink-0" />
@@ -93,7 +112,10 @@ export function AgentSandbox({ projectId, initialRemaining }: { projectId: strin
     setThinking(true);
     const result = await testAgentAction({
       projectId,
-      messages: history.slice(-20).map(({ role, content }) => ({ role, content })),
+      messages: history
+        .filter((turn) => !withheld(turn))
+        .slice(-20)
+        .map(({ role, content }) => ({ role, content })),
     });
     setThinking(false);
     if (!result.success) {
@@ -173,15 +195,26 @@ export function AgentSandbox({ projectId, initialRemaining }: { projectId: strin
               </span>
               <div className={cn("min-w-0 max-w-[85%]", turn.role === "assistant" && "flex flex-col items-end")}>
                 <p className="sr-only">{turn.role === "user" ? "Client test :" : "Assistant :"}</p>
-                <p
-                  dir="auto"
-                  className={cn(
-                    "whitespace-pre-wrap wrap-anywhere rounded-2xl px-3.5 py-2 text-sm leading-relaxed",
-                    turn.role === "user" ? "rounded-bl-md border bg-background" : "rounded-br-md bg-primary text-primary-foreground",
-                  )}
-                >
-                  {turn.content}
-                </p>
+                {turn.role === "assistant" && turn.trace.ending === "silent" ? (
+                  <p className="flex items-center gap-1.5 rounded-2xl rounded-br-md border border-dashed px-3.5 py-2 text-sm text-muted-foreground">
+                    <Moon aria-hidden="true" className="size-3.5 shrink-0" />
+                    Pas de réponse : la conversation est terminée.
+                  </p>
+                ) : (
+                  <p
+                    dir="auto"
+                    className={cn(
+                      "whitespace-pre-wrap wrap-anywhere rounded-2xl px-3.5 py-2 text-sm leading-relaxed",
+                      turn.role === "user"
+                        ? "rounded-bl-md border bg-background"
+                        : withheld(turn)
+                          ? "rounded-br-md border border-dashed text-muted-foreground"
+                          : "rounded-br-md bg-primary text-primary-foreground",
+                    )}
+                  >
+                    {turn.content}
+                  </p>
+                )}
                 {turn.role === "assistant" && <Trace trace={turn.trace} />}
               </div>
             </div>

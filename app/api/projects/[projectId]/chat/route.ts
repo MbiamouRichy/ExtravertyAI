@@ -190,6 +190,7 @@ export async function GET(
           assignee: { select: { id: true, name: true, image: true } },
           pipelineStage: true,
           dealValue: true,
+          aiQuietSince: true,
           tags: {
             where: { tag: { projectId } },
             orderBy: [{ tag: { name: "asc" } }],
@@ -309,6 +310,9 @@ export async function GET(
             aiActive: contact.aiActive,
             resolvedAt: contact.resolvedAt?.toISOString() ?? null,
             assignee: contact.assignee,
+            aiQuietSince: contact.aiActive
+              ? (contact.aiQuietSince?.toISOString() ?? null)
+              : null,
             pipelineStage: contact.pipelineStage,
             dealValue: contact.dealValue,
             // Masqué quand l’indicateur est désactivé dans les paramètres.

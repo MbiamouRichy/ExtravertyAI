@@ -2,6 +2,7 @@ import { z } from "zod";
 import type { PrismaClient } from "../src/generated/prisma/client";
 import { AgentConfigSchema } from "./agent-config";
 import { generateReply } from "./ai-jobs";
+import { findRepetition, repetitionHint, splitConversationEnd } from "./conversation-end";
 import { knowledgeContext } from "./knowledge";
 import { splitMissingInfo } from "./missing-info";
 import { planFeatures } from "./plan-features";
@@ -29,6 +30,11 @@ export type SandboxTrace = {
   sources: Array<{ id: string; kind: string; title: string }>;
   settings: { tone: string; length: string; language: string; emojis: boolean };
   missingInfo: boolean;
+  /**
+   * What would happen in a real conversation: « end » closes it and puts the
+   * assistant in quiet mode, « silent » and « repeated » send nothing.
+   */
+  ending: "none" | "end" | "silent" | "repeated";
 };
 
 const TONE: Record<string, string> = { warm: "Chaleureux", professional: "Professionnel", direct: "Direct" };
@@ -76,12 +82,30 @@ export async function runAgentTest(
     project.currency,
     messages.filter((message) => message.role === "user").map((message) => message.content),
   );
+  const extras = { knowledge: knowledge.block, flagMissing: true, quiet: project.aiQuietEnabled };
+  // Same loop guard as in production, against the assistant's previous test replies.
+  const previous = messages
+    .filter((message) => message.role === "assistant")
+    .map((message) => message.content)
+    .reverse();
+  const clientTexts = messages.filter((message) => message.role === "user").map((message) => message.content);
+  const clientAsked =
+    clientTexts.length > 1 &&
+    !!findRepetition(clientTexts.at(-1) ?? "", clientTexts.slice(0, -1).reverse());
   let raw: string;
+  let repeated = false;
   try {
-    raw = await generate(messages, project.name, "Client test", config, {
-      knowledge: knowledge.block,
-      flagMissing: true,
-    });
+    raw = await generate(messages, project.name, "Client test", config, extras);
+    const first = splitConversationEnd(raw);
+    const repetition = first.silent ? null : findRepetition(first.text, previous, { clientAsked });
+    if (repetition) {
+      raw = await generate(messages, project.name, "Client test", config, {
+        ...extras,
+        avoid: repetitionHint(repetition),
+      });
+      const second = splitConversationEnd(raw);
+      repeated = !second.silent && !!findRepetition(second.text, previous, { clientAsked });
+    }
   } catch (error) {
     // A failed generation does not count against the daily allowance.
     await db.agentTestRun.delete({ where: { id: run.id } }).catch(() => undefined);
@@ -91,7 +115,10 @@ export async function runAgentTest(
         : "L’assistant n’a pas pu répondre. Réessayez dans un instant.",
     );
   }
-  const { text, missing } = splitMissingInfo(raw);
+  const closing = splitConversationEnd(raw);
+  const { text, missing } = closing.silent
+    ? { text: "", missing: false }
+    : splitMissingInfo(closing.text);
   if (missing) {
     await db.agentTestRun.update({ where: { id: run.id }, data: { missingInfo: true } });
   }
@@ -104,6 +131,7 @@ export async function runAgentTest(
       emojis: config.agentUseEmojis,
     },
     missingInfo: missing,
+    ending: closing.silent ? "silent" : repeated ? "repeated" : closing.end ? "end" : "none",
   };
   return { reply: text, trace, remaining };
 }

@@ -27,5 +27,6 @@ export type ProjectSettingsView = {
   stats: { week: number; month: number; year: number };
   csat: { enabled: boolean; message: string; available: boolean };
   showWaitingTime: boolean;
+  aiQuietEnabled: boolean;
   audit: Array<{ id: string; action: string; createdAt: string }>;
 };

@@ -176,6 +176,8 @@ model Project {
   csatEnabled Boolean @default(false)
   // Badge « client en attente » dans la messagerie (réglable par les admins).
   showWaitingTime Boolean @default(true)
+  // L'IA se met en veille quand une conversation est terminée (réglable par les admins).
+  aiQuietEnabled Boolean @default(true)
   csatMessage String @default("Merci pour votre échange avec nous ! Comment évaluez-vous notre service ? Répondez par un chiffre de 1 (pas satisfait) à 5 (très satisfait).") @db.Text
   agentName String @default("Assistant")
   agentSystemMessage String @default("") @db.Text
@@ -260,6 +262,9 @@ model Contact {
   
   name        String?   // Nom assigné par l'agent ou l'IA dans l'interface
   aiActive    Boolean   @default(true) // Handover: False si un agent a pris le relais
+  // Fin de conversation détectée : l'IA ignore les simples accusés de réception
+  // (« merci », « d'accord »…) jusqu'au prochain vrai message du client.
+  aiQuietSince DateTime?
   
   // --- Relations ---
   projectId   String
@@ -333,6 +338,8 @@ model Message {
   content      String        @db.Text
   type         MessageType   @default(TEXT)
   mediaUrl     String?       // URL du fichier si c'est un média
+  // Message client resté volontairement sans réponse de l'IA (compté dans l'analytique).
+  aiSkip       AiSkipReason?
   
   // Durable media extraction, reused by every AI consumer.
   extractedText String? @db.Text
@@ -535,6 +542,14 @@ model AccountDeletionFeedback {
 
   @@index([expiresAt])
   @@map("account_deletion_feedback")
+}
+
+// Pourquoi l'IA n'a pas répondu à un message client.
+enum AiSkipReason {
+  QUIET_ACK // simple accusé de réception pendant la veille
+  SILENCE   // l'IA a jugé qu'aucune réponse n'était attendue
+  REPEATED  // la réponse répétait un message déjà envoyé
+  MERGED    // regroupé avec un message plus récent du même client
 }
 
 enum AiJobState {
@@ -783,6 +798,8 @@ enum ContactEventType {
   ASSIGNED
   UNASSIGNED
   STAGE_CHANGED
+  AI_QUIET
+  AI_WOKEN
 }
 
 enum PipelineStage {

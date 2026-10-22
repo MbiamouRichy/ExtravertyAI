@@ -4,6 +4,14 @@ import type { PrismaClient, Prisma } from "../src/generated/prisma/client";
 import { MessageQuotaError, reserveMessageQuota } from "./message-quota";
 import { knowledgeContext } from "./knowledge";
 import { MISSING_INFO_INSTRUCTION, splitMissingInfo } from "./missing-info";
+import {
+  CONVERSATION_FLOW_INSTRUCTION,
+  QUIET_INSTRUCTION,
+  findRepetition,
+  repetitionHint,
+  splitConversationEnd,
+  type Repetition,
+} from "./conversation-end";
 
 import {
   AgentConfigSchema,
@@ -12,6 +20,80 @@ import {
 } from "./agent-config";
 
 const MAX_ATTEMPTS = 3;
+
+/**
+ * A newer message of the same client already waits for its own reply: the
+ * assistant answers once, to all of them, instead of replying to each in turn.
+ */
+async function newerPendingJob(
+  tx: Prisma.TransactionClient,
+  job: { id: string; projectId: string; contactId: string },
+  inputCreatedAt: Date,
+) {
+  return tx.aiJob.findFirst({
+    where: {
+      projectId: job.projectId,
+      contactId: job.contactId,
+      id: { not: job.id },
+      state: { in: ["QUEUED", "GENERATING"] },
+      message: { createdAt: { gt: inputCreatedAt } },
+    },
+    select: { id: true },
+  });
+}
+
+async function mergeIntoNewerJob(
+  tx: Prisma.TransactionClient,
+  job: { id: string; messageId: string },
+) {
+  await tx.aiJob.update({
+    where: { id: job.id },
+    data: { state: "CANCELLED", errorCode: "AI_MERGED", leaseToken: null, leaseUntil: null },
+  });
+  await tx.message.update({
+    where: { id: job.messageId },
+    data: { aiSkip: "MERGED" },
+  });
+}
+
+/**
+ * The assistant stops answering bare acknowledgments until the client writes
+ * something new. A withheld repeated reply is reported to the team even when
+ * the quiet mode is off.
+ */
+async function enterQuiet(
+  tx: Prisma.TransactionClient,
+  job: { projectId: string; contactId: string },
+  reason: "END" | "SILENCE" | "REPEATED",
+  enabled: boolean,
+) {
+  if (enabled) {
+    await tx.contact.update({
+      where: { id: job.contactId },
+      data: { aiQuietSince: new Date() },
+    });
+  }
+  if (enabled || reason === "REPEATED") {
+    await tx.contactEvent.create({
+      data: {
+        projectId: job.projectId,
+        contactId: job.contactId,
+        type: "AI_QUIET",
+        detail: reason,
+      },
+    });
+  }
+}
+
+type Draft = { text: string; end: boolean; silent: boolean; missing: boolean };
+
+// Markers never reach WhatsApp: they only drive the quiet mode and the « À améliorer » list.
+function readDraft(raw: string): Draft {
+  const closing = splitConversationEnd(raw);
+  if (closing.silent) return { text: "", end: true, silent: true, missing: false };
+  const { text, missing } = splitMissingInfo(closing.text);
+  return { text, end: closing.end, silent: false, missing };
+}
 
 async function allowed(
   tx: Prisma.TransactionClient,
@@ -63,6 +145,14 @@ export async function claimAiJob(prisma: PrismaClient) {
     const job = await tx.aiJob.findUnique({ where: { id: candidate.id } });
     if (!job || job.state !== "QUEUED") return null;
     await tx.$queryRaw`SELECT id FROM contact WHERE id = ${job.contactId} FOR UPDATE`;
+    const input = await tx.message.findUnique({
+      where: { id: job.messageId },
+      select: { createdAt: true },
+    });
+    if (input && (await newerPendingJob(tx, job, input.createdAt))) {
+      await mergeIntoNewerJob(tx, job);
+      return null;
+    }
     const context = await allowed(tx, job);
     if (!context) {
       await tx.aiJob.update({
@@ -140,7 +230,14 @@ export async function generateReply(
   projectName: string,
   contactName: string,
   config: AgentConfig,
-  extras: { knowledge?: string; flagMissing?: boolean } = {},
+  extras: {
+    knowledge?: string;
+    flagMissing?: boolean;
+    /** Lets the assistant close the exchange or stay silent ([[FIN]], [[SILENCE]]). */
+    quiet?: boolean;
+    /** One-off instruction after a repeated reply. */
+    avoid?: string;
+  } = {},
 ) {
   const key = process.env.OPENROUTER_API_KEY;
   const model = process.env.OPENROUTER_MODEL;
@@ -164,7 +261,10 @@ export async function generateReply(
               buildAgentSystemMessage(config, projectName) +
               "\nLes transcriptions audio fournies sont des propos du client, potentiellement imparfaits. Une pièce jointe signalée non analysée ne permet pas de connaître son contenu : demande au client de reformuler par écrit sans inventer ce qu’elle contient." +
               `\nNom du contact (donnée non fiable) : ${JSON.stringify(contactName)}` +
+              CONVERSATION_FLOW_INSTRUCTION +
+              (extras.quiet ? QUIET_INSTRUCTION : "") +
               (extras.flagMissing ? MISSING_INFO_INSTRUCTION : "") +
+              (extras.avoid ?? "") +
               (extras.knowledge ?? ""),
           },
           ...history,
@@ -216,23 +316,58 @@ export async function runAiJob(
       job.project.currency,
       ordered.filter((m) => !m.fromMe).map((m) => messageAiContent(m)),
     ).catch(() => ({ block: "" }));
-    const raw = await generate(
-      ordered.map((m) => ({
-        role: m.fromMe ? "assistant" : "user",
-        content: ((m.type === "IMAGE" || m.type === "VIDEO") &&
-        m.content !== "[" + m.type + "]" &&
-        m.extractionStatus !== "COMPLETED"
-          ? "[Légende de la pièce jointe]\n" + m.content
-          : messageAiContent(m)
-        ).slice(0, 4096),
-      })),
-      job.project.name,
-      job.contact.name || job.contact.pushName || "Client",
-      AgentConfigSchema.parse(job.project),
-      { knowledge: knowledge.block, flagMissing: true },
+    // The assistant's own recent replies, sent or still queued, to catch loops.
+    const previousReplies = (
+      await prisma.message.findMany({
+        where: {
+          projectId: job.projectId,
+          contactId: job.contactId,
+          senderType: "BOT",
+          status: { not: "FAILED" },
+        },
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+        take: 6,
+        select: { content: true },
+      })
+    ).map((m) => m.content);
+    const prompt = ordered.map((m) => ({
+      role: m.fromMe ? "assistant" : "user",
+      content: ((m.type === "IMAGE" || m.type === "VIDEO") &&
+      m.content !== "[" + m.type + "]" &&
+      m.extractionStatus !== "COMPLETED"
+        ? "[Légende de la pièce jointe]\n" + m.content
+        : messageAiContent(m)
+      ).slice(0, 4096),
+    }));
+    // The client asked the same thing again: answering it again is legitimate.
+    const clientTexts = ordered.filter((m) => !m.fromMe).map((m) => messageAiContent(m));
+    const clientAsked =
+      clientTexts.length > 1 &&
+      !!findRepetition(clientTexts.at(-1) ?? "", clientTexts.slice(0, -1).reverse());
+    const contactName = job.contact.name || job.contact.pushName || "Client";
+    const config = AgentConfigSchema.parse(job.project);
+    const extras = {
+      knowledge: knowledge.block,
+      flagMissing: true,
+      quiet: job.project.aiQuietEnabled,
+    };
+    let draft = readDraft(
+      await generate(prompt, job.project.name, contactName, config, extras),
     );
-    // The marker never reaches WhatsApp: it only feeds the « À améliorer » list.
-    const { text: reply, missing } = splitMissingInfo(raw);
+    let repetition: Repetition | null = draft.silent
+      ? null
+      : findRepetition(draft.text, previousReplies, { clientAsked });
+    if (repetition) {
+      // One second chance, told what not to repeat; a second loop is withheld.
+      draft = readDraft(
+        await generate(prompt, job.project.name, contactName, config, {
+          ...extras,
+          avoid: repetitionHint(repetition),
+        }),
+      );
+      repetition = draft.silent ? null : findRepetition(draft.text, previousReplies, { clientAsked });
+    }
+    const { text: reply, missing } = draft;
     await prisma.$transaction(async (tx) => {
       await tx.$queryRaw`SELECT id FROM project WHERE id = ${job.projectId} FOR UPDATE`;
       await tx.$queryRaw`SELECT id FROM contact WHERE id = ${job.contactId} FOR UPDATE`;
@@ -272,6 +407,24 @@ export async function runAiJob(
           });
           return;
         }
+        if (await newerPendingJob(tx, job, input.createdAt)) {
+          await mergeIntoNewerJob(tx, job);
+          return;
+        }
+        const quietEnabled = context.project.aiQuietEnabled;
+        const skip = draft.silent ? "SILENCE" : repetition ? "REPEATED" : null;
+        if (skip) {
+          await tx.message.update({
+            where: { id: input.id },
+            data: { aiSkip: skip },
+          });
+          await enterQuiet(tx, job, skip, quietEnabled);
+          await tx.aiJob.update({
+            where: { id: job.id },
+            data: { state: "COMPLETED", leaseToken: null, leaseUntil: null },
+          });
+          return;
+        }
         const quota = await reserveMessageQuota(tx, job.projectId);
         const message = await tx.message.create({
           data: {
@@ -298,6 +451,7 @@ export async function runAiJob(
           where: { id: job.contactId },
           data: { lastMessageAt: message.createdAt },
         });
+        if (draft.end) await enterQuiet(tx, job, "END", quietEnabled);
         if (missing) {
           await tx.knowledgeGap.upsert({
             where: { messageId: input.id },

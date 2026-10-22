@@ -26,6 +26,7 @@ import { AgentEditor } from "./agent-editor";
 import { ProjectNameForm } from "./project-name-form";
 import { CsatSettings } from "./csat-settings";
 import { WaitingTimeSettings } from "./waiting-time-settings";
+import { AiQuietSettings } from "./ai-quiet-settings";
 import type { ProjectSettingsView } from "@/lib/settings-types";
 import {
   setProjectPaused,
@@ -267,7 +268,7 @@ export default function ProjectSettingsPage({
               </Button>
             </div>
           )}
-          <div hidden={tab !== "agent"}>
+          <div hidden={tab !== "agent"} className="space-y-6">
             <AgentEditor
               key={p.id}
               projectId={p.id}
@@ -275,6 +276,12 @@ export default function ProjectSettingsPage({
               initial={p.config}
               version={p.agentConfigVersion}
               onSavingChange={setAgentSaving}
+            />
+            <AiQuietSettings
+              key={`quiet-${p.id}`}
+              projectId={p.id}
+              initial={p.aiQuietEnabled}
+              disabled={!!pending || p.deletionPending}
             />
           </div>
           <div hidden={tab !== "csat"}>
@@ -490,6 +497,10 @@ export default function ProjectSettingsPage({
                                 ? "Temps d’attente des clients affiché"
                                 : item.action === "waiting.disabled"
                                   ? "Temps d’attente des clients masqué"
+                              : item.action === "ai_quiet.enabled"
+                                ? "Mise en veille de l’IA activée"
+                                : item.action === "ai_quiet.disabled"
+                                  ? "Mise en veille de l’IA désactivée"
                               : item.action === "whatsapp.updated"
                                 ? "Réglages WhatsApp"
                                 : item.action === "project.paused"

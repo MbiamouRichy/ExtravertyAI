@@ -25,7 +25,9 @@ export async function writeContactAiState(
         )
       FOR UPDATE OF c
     ), updated AS (
-      UPDATE contact c SET "aiActive" = ${enabled}, "aiVersion" = c."aiVersion" + 1, "updatedAt" = NOW()
+      UPDATE contact c SET "aiActive" = ${enabled}, "aiVersion" = c."aiVersion" + 1, "updatedAt" = NOW(),
+        -- Re-enabling the assistant also ends its quiet mode.
+        "aiQuietSince" = CASE WHEN ${enabled} THEN NULL ELSE c."aiQuietSince" END
       FROM target
       WHERE c.id = target.id
       RETURNING c.id, target.was

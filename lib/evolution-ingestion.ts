@@ -4,6 +4,7 @@ import type {
   MessageType,
   Prisma,
 } from "../src/generated/prisma/client";
+import { isAcknowledgment } from "./conversation-end";
 import { openCsatSurvey, parseCsatScore } from "./csat";
 import { emitIntegrationEvent, integrationContact } from "./integration-events";
 
@@ -212,11 +213,31 @@ export async function ingestMessage(
       lastMessageAt: new Date(),
     },
   });
+  const project = await tx.project.findUniqueOrThrow({
+    where: { id: projectId },
+  });
+  // Media jobs wait for the durable extraction before generating a reply.
+  const canReply =
+    (text.trim() || type === "AUDIO" || type === "IMAGE") &&
+    contact.aiActive &&
+    project.agentSetupCompletedAt &&
+    !project.automationPaused &&
+    !project.deletionPending &&
+    ["active", "trialing"].includes(project.status);
+  // After the end of a conversation, a bare « merci » or « d'accord » is kept
+  // without a reply; any other message wakes the assistant up.
+  const quietAck =
+    !!canReply &&
+    !!contact.aiQuietSince &&
+    project.aiQuietEnabled &&
+    type === "TEXT" &&
+    isAcknowledgment(text);
   const message = await tx.message.create({
     data: {
       projectId,
       contactId: contact.id,
       evolutionId,
+      ...(quietAck ? { aiSkip: "QUIET_ACK" as const } : {}),
       content: text || `[${type}]`,
       fromMe: false,
       senderType: "CLIENT",
@@ -231,18 +252,16 @@ export async function ingestMessage(
         : {}),
     },
   });
-  const project = await tx.project.findUniqueOrThrow({
-    where: { id: projectId },
-  });
-  // Media jobs wait for the durable extraction before generating a reply.
-  if (
-    (text.trim() || type === "AUDIO" || type === "IMAGE") &&
-    contact.aiActive &&
-    project.agentSetupCompletedAt &&
-    !project.automationPaused &&
-    !project.deletionPending &&
-    ["active", "trialing"].includes(project.status)
-  ) {
+  if (canReply && !quietAck) {
+    if (contact.aiQuietSince) {
+      await tx.contact.update({
+        where: { id: contact.id },
+        data: { aiQuietSince: null },
+      });
+      await tx.contactEvent.create({
+        data: { projectId, contactId: contact.id, type: "AI_WOKEN" },
+      });
+    }
     await tx.aiJob.create({
       data: {
         projectId,

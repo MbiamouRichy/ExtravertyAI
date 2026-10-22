@@ -167,6 +167,44 @@ export async function notificationFeed(
       read: false,
     })),
   );
+  // Prospects chauds dont l’IA a clos l’échange : une relance humaine peut conclure.
+  const quietLeads = await db.$queryRaw<
+    {
+      contactId: string;
+      projectId: string;
+      projectName: string;
+      name: string | null;
+      pushName: string | null;
+      aiQuietSince: Date;
+    }[]
+  >`
+    SELECT c.id AS "contactId", p.id AS "projectId", p.name AS "projectName", c.name, c."pushName",
+      c."aiQuietSince"
+    FROM contact c
+    JOIN project p ON p.id = c."projectId" AND NOT p."deletionPending"
+    JOIN project_membership pm ON pm."projectId" = p.id AND pm."userId" = ${userId}
+    WHERE c."aiQuietSince" > NOW() - INTERVAL '7 days' AND c."aiActive" AND c."resolvedAt" IS NULL
+      AND c."pipelineStage" IN ('INTERESTED', 'QUOTE_SENT')
+      AND (c."assigneeId" IS NULL OR c."assigneeId" = ${userId})
+    ORDER BY c."aiQuietSince" DESC LIMIT 20
+  `;
+  items.push(
+    ...quietLeads.map((lead) => ({
+      key: "quiet:" + lead.contactId,
+      version: lead.aiQuietSince.toISOString(),
+      projectName: lead.projectName,
+      title: "Prospect à relancer : " + chatContactName(lead),
+      description: "L’IA a clos l’échange. Une relance de votre part peut conclure la vente.",
+      href:
+        "/projects/" +
+        lead.projectId +
+        "/chat?contactId=" +
+        encodeURIComponent(lead.contactId),
+      kind: "message" as const,
+      date: lead.aiQuietSince.toISOString(),
+      read: false,
+    })),
+  );
   const receipts = await db.$queryRaw<
     { key: string; version: string }[]
   >`SELECT key, version FROM notification_receipt WHERE "userId" = ${userId}`;

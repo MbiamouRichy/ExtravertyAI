@@ -81,6 +81,7 @@ export default async function SettingsPage({
     },
     stats: stats[0],
     showWaitingTime: p.showWaitingTime,
+    aiQuietEnabled: p.aiQuietEnabled,
     csat: {
       enabled: p.csatEnabled,
       message: p.csatMessage,

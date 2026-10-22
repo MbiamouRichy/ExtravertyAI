@@ -23,6 +23,8 @@ export type ChatClient = {
   assignee?: ChatAgent | null;
   // Conversation reprise par l’équipe dont le dernier message vient du client.
   waitingSince?: string | null;
+  // Fin de conversation : l’IA ignore les simples accusés de réception.
+  aiQuietSince?: string | null;
   pipelineStage?: PipelineStageId;
   dealValue?: number | null;
 };
