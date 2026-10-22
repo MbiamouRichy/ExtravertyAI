@@ -160,13 +160,21 @@ export function WhatsAppPreferences({
           />
         ))}
       </FieldGroup>
-      <p role="status" className="mt-3 text-sm text-muted-foreground">
+      {/* Visible seulement pendant un enregistrement ou une synchronisation en attente ;
+          la confirmation passe par une notification. */}
+      <p
+        role="status"
+        className={
+          saving || initial.pending
+            ? "mt-3 text-sm text-muted-foreground"
+            : "sr-only"
+        }
+      >
         {saving
           ? status
           : initial.pending
             ? "Réglages enregistrés. Synchronisation WhatsApp en attente."
-            : status ||
-              "Chaque modification est enregistrée et appliquée automatiquement."}
+            : ""}
       </p>
     </form>
   );

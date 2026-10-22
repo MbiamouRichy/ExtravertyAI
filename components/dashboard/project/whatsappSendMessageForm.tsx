@@ -17,9 +17,12 @@ import {
 import Link from "next/link";
 import {
   ArrowLeft,
-  BarChart3,
   BookUser,
   Hand,
+  Hourglass,
+  LibraryBig,
+  Plug,
+  SquareKanban,
   Bot,
   Check,
   CheckCheck,
@@ -124,6 +127,7 @@ import { AiResponseText, AiThinking, useLiveAiResponses } from "./ai-response";
 import { ChatComposer } from "./chat-composer";
 import { ChatContactPanel } from "./chat-contact-panel";
 import { downloadConversation } from "./export-conversation";
+import { ConversationSummaryView } from "./conversation-summary";
 import { useConversationRead } from "@/hooks/use-conversation-read";
 import { createChatDateFormatters } from "@/lib/chat-dates";
 import { SendChatMessageSchema } from "@/lib/message-schema";
@@ -276,6 +280,38 @@ function ConversationParticipants({
         </AvatarGroup>
       )}
     </span>
+  );
+}
+
+/**
+ * Temps d’attente d’un client sans réponse de l’équipe. Style distinct des
+ * badges Instinct IA (pastille en pointillés, sablier, chiffres à chasse fixe) ;
+ * passe en rouge au-delà d’une heure.
+ */
+function WaitingBadge({ since, now }: { since: string; now: number }) {
+  const label = formatWaiting(since, now);
+  const urgent = now - new Date(since).getTime() >= 60 * 60_000;
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span
+          className={cn(
+            "inline-flex shrink-0 items-center gap-1 rounded-full border border-dashed px-1.5 font-mono text-[10px] font-medium tabular-nums",
+            urgent
+              ? "border-destructive/50 bg-destructive/10 text-destructive"
+              : "border-foreground/40 bg-background text-foreground",
+          )}
+        >
+          <Hourglass aria-hidden="true" className="size-3" />
+          <span className="sr-only">Client en attente de réponse depuis </span>
+          {label}
+        </span>
+      </TooltipTrigger>
+      <TooltipContent className="max-w-60">
+        Client en attente de réponse depuis {label}. Disparaît dès qu’un membre
+        de l’équipe répond.
+      </TooltipContent>
+    </Tooltip>
   );
 }
 
@@ -623,6 +659,8 @@ export default function WhatsappWorkspace({
   const [mobileChat, setMobileChat] = useState(!!initialClient);
   // Fiche contact : colonne à droite sur grand écran, panneau latéral sinon.
   const [panelOpen, setPanelOpen] = useState(true);
+  // Résumé IA affiché à la place des messages, pour un contact donné.
+  const [summaryFor, setSummaryFor] = useState<string | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
 
   const [search, setSearch] = useState("");
@@ -989,18 +1027,39 @@ export default function WhatsappWorkspace({
     if (mode === "reply") requestAnimationFrame(() => textareaRef.current?.focus());
   }
 
+  const summaryOpen = !!activeClient && summaryFor === activeClient.id;
   const composerToggle = (
-    <ComposerModeToggle
-      mode={composerMode}
-      onChange={changeComposerMode}
-      hint={
-        aiActive && composerMode === "reply"
-          ? canManageAi
-            ? "Cliquer sur « Répondre » met l’IA en pause"
-            : "L’IA peut aussi répondre à ce contact"
-          : undefined
-      }
-    />
+    <>
+      <ComposerModeToggle
+        mode={composerMode}
+        onChange={changeComposerMode}
+        hint={
+          aiActive && composerMode === "reply"
+            ? canManageAi
+              ? "Cliquer sur « Répondre » met l’IA en pause"
+              : "L’IA peut aussi répondre à ce contact"
+            : undefined
+        }
+      />
+      {/* Sans fiche contact visible (mobile, écran réduit, fiche fermée). */}
+      {activeClient && (
+        <Button
+          type="button"
+          size="xs"
+          variant={summaryOpen ? "default" : "ghost"}
+          aria-pressed={summaryOpen}
+          onClick={() =>
+            setSummaryFor((current) =>
+              current === activeClient.id ? null : activeClient.id,
+            )
+          }
+          className={cn("shrink-0", panelOpen && "xl:hidden")}
+        >
+          <Sparkles aria-hidden="true" />
+          Résumé IA
+        </Button>
+      )}
+    </>
   );
 
   function goBack() {
@@ -1608,11 +1667,7 @@ export default function WhatsappWorkspace({
                           {/* Ligne de statut toujours réservée : toutes les lignes ont la même hauteur. */}
                           <span className="mt-1.5 flex h-5 min-w-0 items-center gap-1.5 overflow-hidden text-[11px] text-muted-foreground">
                               {client.waitingSince && now && (
-                                <span className="inline-flex shrink-0 items-center gap-1 rounded-sm bg-primary px-1.5 py-px font-medium text-primary-foreground">
-                                  <Clock3 aria-hidden="true" className="size-3" />
-                                  <span className="sr-only">Client en attente depuis </span>
-                                  {formatWaiting(client.waitingSince, now)}
-                                </span>
+                                <WaitingBadge since={client.waitingSince} now={now} />
                               )}
                               {client.assignee && (
                                 <span
@@ -1841,8 +1896,10 @@ export default function WhatsappWorkspace({
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       {[
-                        { href: "analytics", label: "Statistiques", icon: BarChart3 },
-                        { href: "contacts", label: "Contacts", icon: BookUser },
+                        { href: "pipeline", label: "Pipeline", icon: SquareKanban },
+                        { href: "knowledge", label: "Base de connaissances de l’IA", icon: LibraryBig },
+                        { href: "integrations", label: "Intégrations", icon: Plug },
+                        { href: "contacts", label: "Liste de contacts", icon: BookUser },
                         { href: "team", label: "Équipe", icon: Users },
                         { href: "settings", label: "Paramètres", icon: Settings },
                       ].map(({ href, label, icon: Icon }) => (
@@ -1923,7 +1980,17 @@ export default function WhatsappWorkspace({
                 </div>
               )}
 
-              <div className="min-h-0 flex-1 bg-[radial-gradient(var(--border)_1px,transparent_1px)] bg-size-[20px_20px]">
+              <div className="relative min-h-0 flex-1 bg-[radial-gradient(var(--border)_1px,transparent_1px)] bg-size-[20px_20px]">
+                {summaryOpen && (
+                  <ConversationSummaryView
+                    key={activeClient.id}
+                    projectId={project.id}
+                    contactId={activeClient.id}
+                    contactName={activeClient.name}
+                    enabled={historyQuery.hasClientMessage}
+                    onClose={() => setSummaryFor(null)}
+                  />
+                )}
                 <MessageScrollerProvider
                   key={activeClient.id}
                   autoScroll

@@ -73,9 +73,35 @@
   animation: loading-bar 1.4s cubic-bezier(0.65, 0, 0.35, 1) infinite;
 }
 
+/* Coche « enregistré » : apparaît, reste un instant, puis s'efface. */
+@keyframes save-check {
+  0% { opacity: 0; transform: scale(0.5); }
+  18% { opacity: 1; transform: scale(1.1); }
+  28% { transform: scale(1); }
+  75% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+.save-check {
+  animation: save-check 1.8s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* Champ en cours d'enregistrement : bordure marquée et halo qui respire. */
+@keyframes field-saving {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in oklch, var(--foreground) 0%, transparent); }
+  50% { box-shadow: 0 0 0 3px color-mix(in oklch, var(--foreground) 12%, transparent); }
+}
+
+.field-saving {
+  border-color: color-mix(in oklch, var(--foreground) 40%, transparent);
+  animation: field-saving 1.4s ease-in-out infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .skeleton-shimmer [data-slot="skeleton"] { animation: none; background-image: none; }
   .loading-bar { animation: none; transform: none; width: 100%; opacity: 0.4; }
+  .save-check { animation: none; }
+  .field-saving { animation: none; }
 }
 
 @keyframes ai-word-appear {

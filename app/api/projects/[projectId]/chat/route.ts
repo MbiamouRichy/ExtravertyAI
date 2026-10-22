@@ -199,7 +199,11 @@ export async function GET(
           instinctSourceId: true,
           instinctConfigVersion: true,
           project: {
-            select: { agentConfigVersion: true, agentQualifyLeads: true },
+            select: {
+              agentConfigVersion: true,
+              agentQualifyLeads: true,
+              showWaitingTime: true,
+            },
           },
           createdAt: true,
           updatedAt: true,
@@ -307,7 +311,9 @@ export async function GET(
             assignee: contact.assignee,
             pipelineStage: contact.pipelineStage,
             dealValue: contact.dealValue,
+            // Masqué quand l’indicateur est désactivé dans les paramètres.
             waitingSince:
+              contact.project.showWaitingTime &&
               !contact.aiActive &&
               !contact.resolvedAt &&
               latest?.senderType === "CLIENT"

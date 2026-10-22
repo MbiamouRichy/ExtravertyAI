@@ -174,6 +174,8 @@ model Project {
   // --- 💳 FACTURATION STRIPE ---
   currency String @default("XAF")
   csatEnabled Boolean @default(false)
+  // Badge « client en attente » dans la messagerie (réglable par les admins).
+  showWaitingTime Boolean @default(true)
   csatMessage String @default("Merci pour votre échange avec nous ! Comment évaluez-vous notre service ? Répondez par un chiffre de 1 (pas satisfait) à 5 (très satisfait).") @db.Text
   agentName String @default("Assistant")
   agentSystemMessage String @default("") @db.Text

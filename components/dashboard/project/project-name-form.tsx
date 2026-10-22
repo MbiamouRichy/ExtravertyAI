@@ -3,7 +3,11 @@ import { useEffect } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Input } from "@/components/ui/input";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from "@/components/ui/input-group";
 import {
   Field,
   FieldGroup,
@@ -12,7 +16,12 @@ import {
 } from "@/components/ui/field";
 import { saveProjectPreferences } from "@/app/actions/project-settings";
 import { useAutosave } from "@/hooks/use-autosave";
-import { AutosaveStatus } from "./autosave-status";
+import { cn } from "@/lib/utils";
+import {
+  AutosaveFieldIcon,
+  AutosaveFieldProgress,
+  autosaveFieldClassName,
+} from "./autosave-field-indicator";
 
 const schema = z.object({
   name: z
@@ -73,7 +82,9 @@ export function ProjectNameForm({
       className="space-y-6 rounded-2xl border bg-card p-4 sm:p-6"
     >
       <div>
-        <h2 className="font-heading text-lg font-semibold tracking-tight">Votre projet</h2>
+        <h2 className="font-heading text-lg font-semibold tracking-tight">
+          Votre projet
+        </h2>
         <p className="mt-1 text-sm text-muted-foreground">
           Les informations partagées dans votre espace de travail.
         </p>
@@ -85,32 +96,52 @@ export function ProjectNameForm({
           render={({ field, fieldState }) => (
             <Field data-invalid={fieldState.invalid}>
               <FieldLabel htmlFor="project-name">Nom du projet</FieldLabel>
-              <Input
-                {...field}
-                id="project-name"
-                autoComplete="off"
-                maxLength={100}
-                disabled={disabled}
-                aria-invalid={fieldState.invalid}
-                aria-describedby="project-name-error"
-                onBlur={() => {
-                  field.onBlur();
-                  void autosave.queue.flush();
-                }}
-                onChange={(event) => {
-                  field.onChange(event);
-                  const parsed = schema.safeParse({ name: event.target.value });
-                  void form.trigger("name");
-                  if (parsed.success) autosave.queue.schedule(parsed.data, 600);
-                  else autosave.queue.invalidate();
-                }}
-              />
+              <InputGroup
+                className={cn(
+                  "relative overflow-hidden",
+                  autosaveFieldClassName(autosave.status),
+                )}
+              >
+                <InputGroupInput
+                  {...field}
+                  id="project-name"
+                  autoComplete="off"
+                  maxLength={100}
+                  disabled={disabled}
+                  aria-invalid={fieldState.invalid}
+                  aria-describedby="project-name-error project-name-save-error"
+                  onBlur={() => {
+                    field.onBlur();
+                    void autosave.queue.flush();
+                  }}
+                  onChange={(event) => {
+                    field.onChange(event);
+                    const parsed = schema.safeParse({
+                      name: event.target.value,
+                    });
+                    void form.trigger("name");
+                    if (parsed.success)
+                      autosave.queue.schedule(parsed.data, 600);
+                    else autosave.queue.invalidate();
+                  }}
+                />
+                {/* L’enregistrement se lit dans le champ : icône à droite, barre en bas. */}
+                <InputGroupAddon align="inline-end">
+                  <AutosaveFieldIcon status={autosave.status} />
+                </InputGroupAddon>
+                <AutosaveFieldProgress status={autosave.status} />
+              </InputGroup>
               <FieldError id="project-name-error" errors={[fieldState.error]} />
+              {autosave.status === "error" && (
+                <FieldError
+                  id="project-name-save-error"
+                  errors={[{ message: autosave.error }]}
+                />
+              )}
             </Field>
           )}
         />
       </FieldGroup>
-      <AutosaveStatus status={autosave.status} error={autosave.error} />
     </form>
   );
 }

@@ -12,25 +12,62 @@ import { KnowledgeEntries } from "./knowledge-entries";
 import { KnowledgeProducts } from "./knowledge-products";
 import type { KnowledgeEntryView, KnowledgeSourceView, KnowledgeUsage } from "./types";
 
-function UsageMeter({ label, used, limit }: { label: string; used: number; limit: number }) {
+function UsageMeter({
+  label,
+  short,
+  hint,
+  used,
+  limit,
+}: {
+  label: string;
+  /** Libellé court affiché sur mobile. */
+  short: string;
+  hint?: string;
+  used: number;
+  limit: number;
+}) {
   const ratio = Math.min(1, limit ? used / limit : 0);
+  const full = limit > 0 && used >= limit;
   return (
-    <div className="min-w-40 flex-1">
-      <div className="flex items-baseline justify-between gap-3 text-xs">
-        <span className="text-muted-foreground">{label}</span>
-        <span className="font-mono tabular-nums">
-          {used.toLocaleString("fr-FR")} / {limit.toLocaleString("fr-FR")}
+    <div className="min-w-0 px-4 py-3.5 sm:px-5">
+      <p className="flex min-w-0 items-baseline gap-1.5 text-xs text-muted-foreground">
+        <span className="truncate">
+          <span className="sm:hidden" aria-hidden="true">
+            {short}
+          </span>
+          <span className="max-sm:sr-only">{label}</span>
         </span>
-      </div>
+        {hint && (
+          <span className="hidden shrink-0 text-[11px] text-muted-foreground/70 md:inline">
+            · {hint}
+          </span>
+        )}
+      </p>
+      <p className="mt-1 flex items-baseline gap-1 tabular-nums">
+        <span className="font-heading text-xl font-semibold tracking-tight sm:text-2xl">
+          {used.toLocaleString("fr-FR")}
+        </span>
+        <span className="text-xs text-muted-foreground">
+          / {limit.toLocaleString("fr-FR")}
+        </span>
+        {full && (
+          <span className="ml-auto rounded-full border border-destructive/30 px-1.5 text-[10px] font-medium text-destructive">
+            Limite
+          </span>
+        )}
+      </p>
       <div
         role="meter"
         aria-label={label}
         aria-valuemin={0}
         aria-valuemax={limit}
         aria-valuenow={used}
-        className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-muted"
+        className="mt-2 h-1 overflow-hidden rounded-full bg-muted"
       >
-        <div className="h-full rounded-full bg-foreground transition-[width]" style={{ width: `${ratio * 100}%` }} />
+        <div
+          className={`h-full rounded-full transition-[width] motion-reduce:transition-none ${full ? "bg-destructive" : "bg-foreground"}`}
+          style={{ width: `${ratio * 100}%` }}
+        />
       </div>
     </div>
   );
@@ -64,10 +101,24 @@ export function KnowledgeWorkspace({
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap gap-6 rounded-2xl border bg-card p-4">
-        <UsageMeter label="Entrées utilisées" used={usage.entries} limit={usage.entryLimit} />
-        <UsageMeter label="Documents (PDF et pages web)" used={usage.documents} limit={usage.documentLimit} />
-      </div>
+      <section
+        aria-label="Utilisation de la base de connaissances"
+        className="grid grid-cols-2 divide-x rounded-2xl border bg-card"
+      >
+        <UsageMeter
+          label="Entrées utilisées"
+          short="Entrées"
+          used={usage.entries}
+          limit={usage.entryLimit}
+        />
+        <UsageMeter
+          label="Documents importés"
+          short="Documents"
+          hint="PDF et pages web"
+          used={usage.documents}
+          limit={usage.documentLimit}
+        />
+      </section>
       <Tabs defaultValue="entries">
         <div className="-mx-4 overflow-x-auto overflow-y-hidden px-4 sm:mx-0 sm:px-0">
           <TabsList>

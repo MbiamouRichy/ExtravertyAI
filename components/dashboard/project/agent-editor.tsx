@@ -51,6 +51,11 @@ import {
 } from "@/components/ui/field";
 import { useAutosave } from "@/hooks/use-autosave";
 import { AutosaveStatus } from "./autosave-status";
+import {
+  AutosaveFieldIcon,
+  AutosaveFieldProgress,
+  autosaveFieldClassName,
+} from "./autosave-field-indicator";
 import { cn } from "@/lib/utils";
 import { saveAgentConfiguration } from "@/app/actions/project-settings";
 import {
@@ -113,19 +118,33 @@ function SectionHeader({
   description: string;
 }) {
   return (
-    <div className="mb-6 flex items-start gap-3">
-      <span className="flex size-10 shrink-0 items-center justify-center rounded-xl border bg-background">
+    // Mobile : icône et étiquette sur une ligne, puis titre et description en
+    // pleine largeur. À partir de sm : texte aligné à droite de l’icône.
+    <div className="mb-6 grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-3 gap-y-1">
+      <span
+        className={cn(
+          "flex size-10 shrink-0 items-center justify-center rounded-xl border bg-background",
+          eyebrow && "sm:row-span-3 sm:self-start",
+        )}
+      >
         <Icon aria-hidden="true" className="size-5" />
       </span>
-      <div className="min-w-0">
-        {eyebrow && (
-          <p className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">
-            {eyebrow}
-          </p>
+      {eyebrow && (
+        <p className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">
+          {eyebrow}
+        </p>
+      )}
+      <h2
+        className={cn(
+          "font-heading text-lg font-semibold tracking-tight",
+          eyebrow && "col-span-2 mt-2 sm:col-span-1 sm:col-start-2 sm:mt-0",
         )}
-        <h2 className="font-heading text-lg font-semibold tracking-tight">{title}</h2>
-        <p className="mt-0.5 text-sm text-muted-foreground">{description}</p>
-      </div>
+      >
+        {title}
+      </h2>
+      <p className="col-span-2 text-sm text-muted-foreground sm:col-span-1 sm:col-start-2">
+        {description}
+      </p>
     </div>
   );
 }
@@ -179,10 +198,14 @@ export function AgentEditor({
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
   const [savedVersion, setSavedVersion] = useState(version);
+  // Dernier champ modifié : seul le champ concerné affiche l’enregistrement.
+  const [lastEdited, setLastEdited] = useState<keyof AgentConfig | null>(null);
+  const nameStatus = lastEdited === "agentName" ? autosave.status : "idle";
   const update = <K extends keyof AgentConfig>(
     key: K,
     value: FieldPathValue<AgentConfig, K>,
   ) => {
+    setLastEdited(key);
     form.setValue(key, value, { shouldDirty: true, shouldValidate: true });
     if (onboarding) return;
     const parsed = AgentConfigSchema.safeParse(form.getValues());
@@ -348,14 +371,19 @@ export function AgentEditor({
                   render={({ field, fieldState }) => (
                     <Field data-invalid={fieldState.invalid}>
                       <FieldLabel htmlFor="agent-name">Nom de votre agent</FieldLabel>
-                      <InputGroup className="h-11">
+                      <InputGroup
+                        className={cn(
+                          "relative h-11 overflow-hidden",
+                          autosaveFieldClassName(nameStatus),
+                        )}
+                      >
                         <InputGroupInput
                           {...field}
                           id="agent-name"
                           autoComplete="off"
                           maxLength={60}
                           aria-invalid={fieldState.invalid}
-                          aria-describedby="agent-name-description agent-name-error"
+                          aria-describedby="agent-name-error"
                           onChange={(event) => update("agentName", event.target.value)}
                           placeholder="Ex. Nova"
                         />
@@ -366,12 +394,11 @@ export function AgentEditor({
                           <span className="font-mono text-xs tabular-nums">
                             {config.agentName.length}/60
                           </span>
+                          {/* Coche ou spinner à l’extrémité droite du champ. */}
+                          {!onboarding && <AutosaveFieldIcon status={nameStatus} />}
                         </InputGroupAddon>
+                        <AutosaveFieldProgress status={nameStatus} />
                       </InputGroup>
-                      <FieldDescription id="agent-name-description">
-                        L’agent se présente comme un assistant IA. Choisissez un nom
-                        simple, sans usurper l’identité d’un membre de votre équipe.
-                      </FieldDescription>
                       <FieldError id="agent-name-error" errors={[fieldState.error]} />
                     </Field>
                   )}
@@ -542,16 +569,20 @@ export function AgentEditor({
                           }
                           aria-invalid={fieldState.invalid}
                           aria-describedby="agent-length-error"
-                          className="grid grid-cols-3 gap-2"
+                          className="grid grid-cols-1 gap-2 sm:grid-cols-3"
                         >
                           {lengths.map((option, index) => (
                             <FieldLabel
                               key={option.value}
                               htmlFor={`agent-length-${option.value}`}
-                              className="w-full! cursor-pointer rounded-xl border p-3 font-normal transition-colors hover:bg-muted/40 has-data-[state=checked]:border-primary has-data-[state=checked]:bg-muted/50"
+                              className="w-full! min-w-0 cursor-pointer rounded-xl border p-3 font-normal transition-colors hover:bg-muted/40 has-data-[state=checked]:border-primary has-data-[state=checked]:bg-muted/50"
                             >
-                              <span className="flex w-full flex-col gap-2">
-                                <span aria-hidden="true" className="flex flex-col gap-1">
+                              {/* Mobile : ligne (illustration, texte) ; à partir de sm : carte verticale. */}
+                              <span className="flex w-full min-w-0 items-center gap-3 sm:flex-col sm:items-stretch sm:gap-2">
+                                <span
+                                  aria-hidden="true"
+                                  className="flex w-10 shrink-0 flex-col gap-1 sm:w-full"
+                                >
                                   {Array.from({ length: index + 1 }, (_, line) => (
                                     <span
                                       key={line}
@@ -560,17 +591,19 @@ export function AgentEditor({
                                     />
                                   ))}
                                 </span>
-                                <span className="flex items-center justify-between gap-2">
-                                  <span className="text-sm font-medium">{option.label}</span>
-                                  <RadioGroupItem
-                                    id={`agent-length-${option.value}`}
-                                    value={option.value}
-                                    className="sr-only"
-                                  />
+                                <span className="min-w-0 flex-1">
+                                  <span className="block text-sm font-medium">
+                                    {option.label}
+                                  </span>
+                                  <span className="mt-0.5 block text-xs text-muted-foreground">
+                                    {option.hint}
+                                  </span>
                                 </span>
-                                <span className="hidden text-xs text-muted-foreground sm:block">
-                                  {option.hint}
-                                </span>
+                                <RadioGroupItem
+                                  id={`agent-length-${option.value}`}
+                                  value={option.value}
+                                  className="sr-only"
+                                />
                               </span>
                             </FieldLabel>
                           ))}
@@ -724,16 +757,21 @@ export function AgentEditor({
                     : "Valider et ouvrir le chat"}
                 {!pending && step < 2 && <ArrowRight data-icon="inline-end" />}
               </Button>
-            ) : (
+            ) : autosave.status === "error" || autosave.status === "invalid" ? (
+              // Plus de texte de progression : seuls les échecs restent écrits.
               <AutosaveStatus status={autosave.status} error={autosave.error} />
-            )}
+            ) : lastEdited && lastEdited !== "agentName" ? (
+              // Autres réglages (interrupteurs, choix) : indicateur sans texte.
+              <AutosaveFieldIcon status={autosave.status} />
+            ) : null}
           </div>
         </form>
 
         <aside
           aria-label="Aperçu du style"
           className={cn(
-            "self-start rounded-2xl border bg-muted/40 p-4",
+            // Masqué sur mobile : il repoussait les réglages sous un long aperçu.
+            "self-start rounded-2xl border bg-muted/40 p-4 max-md:hidden",
             onboarding ? "lg:sticky lg:top-6" : "2xl:sticky 2xl:top-24",
           )}
         >

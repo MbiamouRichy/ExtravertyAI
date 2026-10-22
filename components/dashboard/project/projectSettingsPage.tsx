@@ -25,6 +25,7 @@ import { WhatsAppPreferences } from "./whatsapp-preferences";
 import { AgentEditor } from "./agent-editor";
 import { ProjectNameForm } from "./project-name-form";
 import { CsatSettings } from "./csat-settings";
+import { WaitingTimeSettings } from "./waiting-time-settings";
 import type { ProjectSettingsView } from "@/lib/settings-types";
 import {
   setProjectPaused,
@@ -289,6 +290,12 @@ export default function ProjectSettingsPage({
               onVersionChange={setSettingsVersion}
               onSavingChange={setNameSaving}
             />
+            <WaitingTimeSettings
+              key={`waiting-${p.id}`}
+              projectId={p.id}
+              initial={p.showWaitingTime}
+              disabled={!!pending || p.deletionPending}
+            />
             <section className="rounded-2xl border bg-card p-4 sm:p-6">
               <div className="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
                 <div>
@@ -479,6 +486,10 @@ export default function ProjectSettingsPage({
                           <span>
                             {item.action === "agent.updated"
                               ? "Configuration de l’agent"
+                              : item.action === "waiting.enabled"
+                                ? "Temps d’attente des clients affiché"
+                                : item.action === "waiting.disabled"
+                                  ? "Temps d’attente des clients masqué"
                               : item.action === "whatsapp.updated"
                                 ? "Réglages WhatsApp"
                                 : item.action === "project.paused"

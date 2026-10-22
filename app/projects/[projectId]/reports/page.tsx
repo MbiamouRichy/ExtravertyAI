@@ -189,9 +189,9 @@ export default async function ReportsPage({
               </div>
             ))}
           </div>
-          <div aria-hidden="true" className="mt-4 rounded-xl bg-muted/50 p-3 text-xs text-muted-foreground">
-            <Lightbulb className="mb-1 size-3.5 text-foreground" />
-            Relisez les conversations transmises par l’IA pour enrichir ses consignes.
+          <div aria-hidden="true" className="mt-4 flex items-start gap-2 rounded-xl bg-muted/50 p-3 text-xs leading-relaxed text-muted-foreground">
+            <Lightbulb className="mt-px size-3.5 shrink-0 text-foreground" />
+            <span>Relisez les conversations transmises par l’IA pour enrichir ses consignes.</span>
           </div>
         </figure>
       </main>

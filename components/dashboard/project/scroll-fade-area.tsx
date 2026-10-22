@@ -23,7 +23,7 @@ export function ScrollFadeArea({
   children: ReactNode;
   className?: string;
   /** Couleur du fond sur lequel la zone est posée, reprise par les fondus. */
-  surface?: "muted" | "card";
+  surface?: "muted" | "card" | "primary";
   /** Nom accessible de la zone (elle est focalisable au clavier). */
   label: string;
 }) {
@@ -74,7 +74,9 @@ export function ScrollFadeArea({
           "pointer-events-none absolute inset-x-0 top-0 h-8 backdrop-blur-[2px] transition-opacity duration-200 mask-[linear-gradient(to_bottom,black,transparent)]",
           surface === "card"
             ? "bg-linear-to-b from-card to-transparent"
-            : "bg-linear-to-b from-muted/80 to-transparent",
+            : surface === "primary"
+              ? "bg-linear-to-b from-primary to-transparent"
+              : "bg-linear-to-b from-muted/80 to-transparent",
           edges.top ? "opacity-100" : "opacity-0",
         )}
       />
@@ -84,7 +86,9 @@ export function ScrollFadeArea({
           "pointer-events-none absolute inset-x-0 bottom-0 h-10 backdrop-blur-[2px] transition-opacity duration-200 mask-[linear-gradient(to_top,black,transparent)]",
           surface === "card"
             ? "bg-linear-to-t from-card to-transparent"
-            : "bg-linear-to-t from-muted/80 to-transparent",
+            : surface === "primary"
+              ? "bg-linear-to-t from-primary to-transparent"
+              : "bg-linear-to-t from-muted/80 to-transparent",
           edges.bottom ? "opacity-100" : "opacity-0",
         )}
       />

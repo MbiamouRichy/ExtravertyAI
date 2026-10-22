@@ -235,11 +235,20 @@ export function SystemMessageDialog({
                   ? "Le brouillon sera enregistré à la fin de la configuration."
                   : "Chaque modification est enregistrée automatiquement."}
               </DialogDescription>
-              <SaveIndicator
-                status={status}
-                error={saveError}
-                onboarding={onboarding}
-              />
+              <div className="flex min-w-0 items-center gap-2">
+                <SaveIndicator
+                  status={status}
+                  error={saveError}
+                  onboarding={onboarding}
+                />
+                {/* Sur mobile, la longueur rejoint le statut pour libérer la barre d’outils. */}
+                <span
+                  className="shrink-0 text-xs tabular-nums text-muted-foreground sm:hidden"
+                  aria-label={`${length} caractères sur ${MAX_LENGTH}`}
+                >
+                  · {length.toLocaleString("fr-FR")} / 12 000
+                </span>
+              </div>
             </div>
             <Button
               type="button"
@@ -254,11 +263,12 @@ export function SystemMessageDialog({
           </div>
 
           {/* Barre d’outils : actions IA à gauche, longueur à droite */}
-          <div className="flex shrink-0 items-center gap-2 border-b px-4 py-2 sm:px-6">
+          <div className="flex shrink-0 items-center gap-2 border-b px-4 py-2.5 sm:px-6 sm:py-2">
             <Button
               type="button"
               variant="secondary"
               size="sm"
+              className="max-sm:h-9 max-sm:flex-1"
               disabled={!!pending}
               onClick={() => void assist("generate")}
             >
@@ -272,8 +282,9 @@ export function SystemMessageDialog({
             </Button>
             <Button
               type="button"
-              variant="ghost"
+              variant="outline"
               size="sm"
+              className="max-sm:h-9 max-sm:flex-1 sm:border-transparent sm:shadow-none"
               disabled={!!pending || config.agentSystemMessage.trim().length < 40}
               onClick={() => void assist("rewrite")}
             >
@@ -304,7 +315,7 @@ export function SystemMessageDialog({
                 <TooltipContent>Revenir au texte précédent</TooltipContent>
               </Tooltip>
             )}
-            <div className="ml-auto flex shrink-0 items-center gap-2">
+            <div className="ml-auto hidden shrink-0 items-center gap-2 sm:flex">
               <div
                 aria-hidden="true"
                 className="hidden h-1 w-16 overflow-hidden rounded-full bg-muted sm:block"

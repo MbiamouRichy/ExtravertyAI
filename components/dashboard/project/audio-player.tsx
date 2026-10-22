@@ -15,9 +15,7 @@ const time = (seconds: number) =>
   ":" +
   String(Math.floor(seconds % 60)).padStart(2, "0");
 export type AudioTranscript =
-  | { state: "ready"; text: string }
-  | { state: "pending" }
-  | { state: "failed" };
+  { state: "ready"; text: string } | { state: "pending" } | { state: "failed" };
 
 const BAR_COUNT = 30;
 // Placeholder stable avant le calcul des pics réels (évite un saut visuel).
@@ -33,7 +31,10 @@ function waveformBars(peaks: number[]) {
   const max = Math.max(...peaks, 0.01);
   return Array.from({ length: BAR_COUNT }, (_, bar) => {
     const start = Math.floor((bar * peaks.length) / BAR_COUNT);
-    const end = Math.max(start + 1, Math.floor(((bar + 1) * peaks.length) / BAR_COUNT));
+    const end = Math.max(
+      start + 1,
+      Math.floor(((bar + 1) * peaks.length) / BAR_COUNT),
+    );
     return Math.max(...peaks.slice(start, end)) / max;
   });
 }
@@ -144,7 +145,7 @@ export function AudioPlayer({
           onError?.();
         }}
       />
-      <div className="flex items-center gap-2.5">
+      <div className="flex items-start gap-2.5">
         <Button
           type="button"
           size="icon"
@@ -183,46 +184,53 @@ export function AudioPlayer({
           )}
         </Button>
 
-        <div className="relative min-w-0 flex-1">
-          {/* Barres arrondies façon maquette : la partie écoutée est pleine. */}
-          <span aria-hidden="true" className="pointer-events-none flex h-8 items-center justify-between gap-0.5">
-            {waveformBars(peaks).map((peak, index, bars) => (
-              <span
-                key={index}
-                className={cn(
-                  "min-w-0.5 max-w-1 flex-1 rounded-full bg-current transition-opacity duration-150",
-                  duration && index / bars.length < position / duration
-                    ? "opacity-100"
-                    : "opacity-35",
-                )}
-                style={{ height: `${Math.round(Math.max(0.18, peak) * 100)}%` }}
-              />
-            ))}
-          </span>
-          <Slider
-            className="absolute inset-0 min-h-9 [&_[data-slot=slider-track]]:opacity-0 [&_[data-slot=slider-thumb]]:opacity-0 [&_[data-slot=slider-thumb]:focus-visible]:opacity-100"
-            aria-label="Position dans le message audio"
-            aria-valuetext={time(position) + " sur " + time(duration)}
-            min={0}
-            max={duration || 1}
-            step={0.1}
-            value={[Math.min(position, duration || 1)]}
-            disabled={!duration || failed}
-            onValueChange={([value]) => {
-              if (ref.current) {
-                ref.current.currentTime = value;
-                setPosition(value);
-              }
-            }}
-          />
+        <div className="min-w-0 flex-1">
+          <div className="relative">
+            {/* Barres arrondies façon maquette : la partie écoutée est pleine. */}
+            <span
+              aria-hidden="true"
+              className="pointer-events-none flex h-8 items-center justify-between gap-0.5 overflow-hidden"
+            >
+              {waveformBars(peaks).map((peak, index, bars) => (
+                <span
+                  key={index}
+                  className={cn(
+                    "min-w-0.5 max-w-1 flex-1 rounded-full bg-current transition-opacity duration-150",
+                    duration && index / bars.length < position / duration
+                      ? "opacity-100"
+                      : "opacity-35",
+                  )}
+                  style={{
+                    height: `${Math.round(Math.max(0.18, peak) * 100)}%`,
+                  }}
+                />
+              ))}
+            </span>
+            <Slider
+              className="absolute inset-0 min-h-9 [&_[data-slot=slider-track]]:opacity-0 [&_[data-slot=slider-thumb]]:opacity-0 [&_[data-slot=slider-thumb]:focus-visible]:opacity-100"
+              aria-label="Position dans le message audio"
+              aria-valuetext={time(position) + " sur " + time(duration)}
+              min={0}
+              max={duration || 1}
+              step={0.1}
+              value={[Math.min(position, duration || 1)]}
+              disabled={!duration || failed}
+              onValueChange={([value]) => {
+                if (ref.current) {
+                  ref.current.currentTime = value;
+                  setPosition(value);
+                }
+              }}
+            />
+          </div>
+          {/* Temps écouté à gauche, durée totale à droite, sous la piste. */}
+          <div className="mt-0.5 flex items-center justify-between font-mono text-[10px] tabular-nums opacity-70">
+            <span aria-label="Temps écouté">{time(position)}</span>
+            <span aria-label="Durée du message audio">
+              {duration ? time(duration) : "--:--"}
+            </span>
+          </div>
         </div>
-        <span
-          className="shrink-0 font-mono text-[11px] tabular-nums opacity-70"
-          aria-label="Temps de lecture"
-        >
-          {position > 0 ? time(position) + " / " : ""}
-          {duration ? time(duration) : "--:--"}
-        </span>
         <Popover>
           <PopoverTrigger asChild>
             <Button
@@ -230,7 +238,7 @@ export function AudioPlayer({
               size="sm"
               variant="ghost"
               className={cn(
-                "h-7 shrink-0 gap-0.5 rounded-full border px-2 text-xs tabular-nums",
+                "mt-0.5 h-7 shrink-0 gap-0.5 rounded-full border px-2 text-xs tabular-nums",
                 outgoing &&
                   "border-primary-foreground/25 text-primary-foreground hover:bg-primary-foreground/10 hover:text-primary-foreground",
               )}
@@ -291,7 +299,6 @@ export function AudioPlayer({
   );
 }
 
-
 /** Bloc repliable « Transcription IA » / « Analyse IA » affiché dans une bulle. */
 export function AiInsight({
   insight,
@@ -304,7 +311,12 @@ export function AiInsight({
 }) {
   const [open, setOpen] = useState(true);
   return (
-    <div className={cn("rounded-xl bg-muted/70 px-3 py-2 text-sm text-foreground", className)}>
+    <div
+      className={cn(
+        "rounded-xl bg-muted/70 px-3 py-2 text-sm text-foreground",
+        className,
+      )}
+    >
       {insight.state === "ready" ? (
         <>
           <button
@@ -317,20 +329,32 @@ export function AiInsight({
             {label}
             <ChevronDown
               aria-hidden="true"
-              className={cn("size-3 transition-transform", !open && "-rotate-90")}
+              className={cn(
+                "size-3 transition-transform",
+                !open && "-rotate-90",
+              )}
             />
           </button>
           {open && (
-            <p dir="auto" className="mt-1 whitespace-pre-wrap leading-relaxed wrap-anywhere">
+            <p
+              dir="auto"
+              className="mt-1 whitespace-pre-wrap leading-relaxed wrap-anywhere"
+            >
               {insight.text}
             </p>
           )}
         </>
       ) : (
-        <p role="status" className="flex items-center gap-1.5 text-xs text-muted-foreground">
+        <p
+          role="status"
+          className="flex items-center gap-1.5 text-xs text-muted-foreground"
+        >
           {insight.state === "pending" ? (
             <>
-              <Loader2 aria-hidden="true" className="size-3 animate-spin motion-reduce:animate-none" />
+              <Loader2
+                aria-hidden="true"
+                className="size-3 animate-spin motion-reduce:animate-none"
+              />
               Analyse en cours…
             </>
           ) : (

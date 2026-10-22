@@ -107,39 +107,52 @@ export function AgentSandbox({ projectId, initialRemaining }: { projectId: strin
   }
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[1fr_18rem]">
-      <section aria-labelledby={`${id}-title`} className="flex h-128 flex-col rounded-2xl border bg-card">
-        <header className="flex items-center justify-between gap-3 border-b px-4 py-3">
-          <h2 id={`${id}-title`} className="flex items-center gap-2 text-sm font-semibold tracking-normal">
-            <FlaskConical aria-hidden="true" className="size-4" />
-            Conversation de test
+    <div className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_18rem]">
+      <section
+        aria-labelledby={`${id}-title`}
+        className="flex h-[min(32rem,75dvh)] min-w-0 flex-col overflow-hidden rounded-2xl border bg-card"
+      >
+        <header className="flex min-w-0 items-center gap-2 border-b px-3 py-2.5 sm:px-4 sm:py-3">
+          <h2
+            id={`${id}-title`}
+            className="flex min-w-0 flex-1 items-center gap-2 text-sm font-semibold tracking-normal"
+          >
+            <FlaskConical aria-hidden="true" className="size-4 shrink-0" />
+            <span className="truncate">Conversation de test</span>
           </h2>
+          {/* Compteur visible ici sur mobile : le panneau latéral passe sous le chat. */}
+          <span className="shrink-0 rounded-full border px-2 py-0.5 text-[11px] text-muted-foreground tabular-nums lg:hidden">
+            {remaining} test{remaining > 1 ? "s" : ""}
+          </span>
           <Button
             type="button"
             variant="ghost"
             size="sm"
             disabled={!turns.length || thinking}
             onClick={() => setTurns([])}
+            aria-label="Recommencer la conversation de test"
+            className="shrink-0 max-sm:size-8 max-sm:px-0"
           >
-            <RotateCcw data-icon="inline-start" />
-            Recommencer
+            <RotateCcw data-icon="inline-start" className="max-sm:m-0" />
+            <span className="hidden sm:inline">Recommencer</span>
           </Button>
         </header>
 
-        <div aria-live="polite" className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain p-4">
+        <div aria-live="polite" className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain p-3 sm:p-4">
           {!turns.length && (
-            <div className="flex h-full flex-col items-center justify-center gap-4 py-8 text-center">
-              <p className="max-w-sm text-sm text-muted-foreground">
+            <div className="flex min-h-full flex-col items-center justify-center gap-4 py-4 text-center sm:py-8">
+              <p className="max-w-sm text-pretty text-sm text-muted-foreground">
                 Jouez le rôle d’un client. L’assistant répond avec vos instructions
                 et votre base de connaissances, sans rien envoyer sur WhatsApp.
               </p>
-              <div className="flex flex-wrap justify-center gap-2">
+              <div className="flex w-full max-w-md flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-center">
                 {SUGGESTIONS.map((suggestion) => (
                   <Button
                     key={suggestion}
                     type="button"
                     variant="outline"
                     size="sm"
+                    className="h-auto max-w-full justify-start whitespace-normal py-2 text-left leading-snug sm:justify-center sm:text-center"
                     disabled={thinking || remaining <= 0}
                     onClick={() => void send({ message: suggestion })}
                   >
@@ -163,7 +176,7 @@ export function AgentSandbox({ projectId, initialRemaining }: { projectId: strin
                 <p
                   dir="auto"
                   className={cn(
-                    "whitespace-pre-wrap rounded-2xl px-3.5 py-2 text-sm leading-relaxed",
+                    "whitespace-pre-wrap wrap-anywhere rounded-2xl px-3.5 py-2 text-sm leading-relaxed",
                     turn.role === "user" ? "rounded-bl-md border bg-background" : "rounded-br-md bg-primary text-primary-foreground",
                   )}
                 >
@@ -182,7 +195,7 @@ export function AgentSandbox({ projectId, initialRemaining }: { projectId: strin
           {turns.length > 0 && <div ref={endRef} />}
         </div>
 
-        <form noValidate onSubmit={form.handleSubmit(send)} className="border-t p-3">
+        <form noValidate onSubmit={form.handleSubmit(send)} className="border-t p-2.5 sm:p-3">
           <Controller
             name="message"
             control={form.control}
@@ -206,9 +219,9 @@ export function AgentSandbox({ projectId, initialRemaining }: { projectId: strin
                         void form.handleSubmit(send)();
                       }
                     }}
-                    className="min-h-11 resize-none"
+                    className="min-h-11 min-w-0 resize-none"
                   />
-                  <Button type="submit" size="icon" disabled={thinking || remaining <= 0} aria-label="Envoyer le message de test">
+                  <Button type="submit" size="icon" className="shrink-0" disabled={thinking || remaining <= 0} aria-label="Envoyer le message de test">
                     {thinking ? (
                       <Loader2 aria-hidden="true" className="animate-spin motion-reduce:animate-none" />
                     ) : (
@@ -223,7 +236,7 @@ export function AgentSandbox({ projectId, initialRemaining }: { projectId: strin
         </form>
       </section>
 
-      <aside className="space-y-3 rounded-2xl border bg-card p-4 text-sm">
+      <aside className="min-w-0 space-y-3 rounded-2xl border bg-card p-4 text-sm">
         <p className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">Tests aujourd’hui</p>
         <p className="font-heading text-3xl font-bold tracking-tight tabular-nums">{remaining}</p>
         <p className="text-xs text-muted-foreground">

@@ -80,9 +80,12 @@ export function AiThinking({ generation }: { generation: ChatGeneration }) {
 export function AiResponseText({
   content,
   animate,
+  inverse = false,
 }: {
   content: string;
   animate: boolean;
+  /** Texte clair posé sur un fond primary. */
+  inverse?: boolean;
 }) {
   // Keep words and whitespace intact, including emoji and multiline text.
   const words = useMemo(() => content.match(/\S+\s*|\s+/gu) ?? [], [content]);
@@ -129,7 +132,9 @@ export function AiResponseText({
 
   const revealing = animate && visible < words.length;
   return (
-    <div className="text-sm leading-7 text-foreground">
+    <div
+      className={`text-sm leading-7 ${inverse ? "text-primary-foreground" : "text-foreground"}`}
+    >
       {/* Assistive technology reads the complete answer once, never each word. */}
       <p dir="auto" className="sr-only">
         {content}
@@ -150,7 +155,9 @@ export function AiResponseText({
           ) : null,
         )}
         {revealing && (
-          <span className="ml-1 inline-block size-1.5 animate-pulse rounded-full bg-primary align-middle motion-reduce:animate-none" />
+          <span
+            className={`ml-1 inline-block size-1.5 animate-pulse rounded-full align-middle motion-reduce:animate-none ${inverse ? "bg-primary-foreground" : "bg-primary"}`}
+          />
         )}
       </p>
     </div>

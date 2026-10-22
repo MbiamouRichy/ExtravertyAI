@@ -80,6 +80,7 @@ export default async function SettingsPage({
       error: p.whatsappSettingsError,
     },
     stats: stats[0],
+    showWaitingTime: p.showWaitingTime,
     csat: {
       enabled: p.csatEnabled,
       message: p.csatMessage,
