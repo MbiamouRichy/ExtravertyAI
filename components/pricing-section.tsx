@@ -233,7 +233,7 @@ export function PricingCard({
           className="w-full"
           variant={plan.highlighted ? "default" : "outline"}
         >
-          <Link title={plan.btn.text} href={plan.btn.href} target="_blank">
+          <Link title={plan.btn.text} href={plan.btn.href} target="_blank" rel="noopener noreferrer">
             {plan.btn.text}
           </Link>
         </Button>

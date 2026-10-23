@@ -152,6 +152,7 @@ export const AutomatiserButton = ({
       href={href}
       title={text}
       target={target}
+      rel={target === "_blank" ? "noopener noreferrer" : undefined}
       className={cn(
         buttonVariants({ variant, size: "lg" }),
         "group text-sm md:text-base",
