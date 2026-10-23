@@ -1001,6 +1001,8 @@ export default function WhatsappWorkspace({
 
   function selectClient(id: string) {
     setComposerMode("reply");
+    // Changer de conversation referme le résumé IA.
+    setSummaryFor(null);
     const client = clients.find((item) => item.id === id);
 
     if (!client) return;
@@ -1999,7 +2001,10 @@ export default function WhatsappWorkspace({
               <div className="relative min-h-0 flex-1 bg-[radial-gradient(var(--border)_1px,transparent_1px)] bg-size-[20px_20px]">
                 {summaryOpen && (
                   <ConversationSummaryView
-                    key={activeClient.id}
+                    // Clé distincte de celle du MessageScrollerProvider voisin : deux
+                    // frères avec la même clé empêchaient React de retirer l’ancien
+                    // résumé (blocs empilés, bouton fermer inopérant).
+                    key={`summary-${activeClient.id}`}
                     projectId={project.id}
                     contactId={activeClient.id}
                     contactName={activeClient.name}
@@ -2222,6 +2227,7 @@ export default function WhatsappWorkspace({
               currentUserId={user.id}
               pipeline={pipeline}
               onContactChanged={() => void contactsQuery.mutate()}
+              projectTags={contactsQuery.projectTags}
             />
           </aside>
         )}
@@ -2256,6 +2262,7 @@ export default function WhatsappWorkspace({
               currentUserId={user.id}
               pipeline={pipeline}
               onContactChanged={() => void contactsQuery.mutate()}
+              projectTags={contactsQuery.projectTags}
             />
           </SheetContent>
         </Sheet>

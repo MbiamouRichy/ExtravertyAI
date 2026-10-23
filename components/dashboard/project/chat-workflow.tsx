@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState, type ReactNode } from "react";
-import { Controller, useForm } from "react-hook-form";
+import { Controller, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import {
@@ -110,11 +110,14 @@ function TagForm({
   pending,
   onAdd,
   onCancel,
+  suggestions = [],
 }: {
   existing: ChatTag[];
   pending: boolean;
   onAdd: (name: string) => Promise<boolean>;
   onCancel: () => void;
+  /** Étiquettes déjà créées dans le projet, proposées à la sélection. */
+  suggestions?: Array<ChatTag & { count?: number }>;
 }) {
   const form = useForm<
     z.input<typeof TagFormSchema>,
@@ -124,6 +127,14 @@ function TagForm({
     resolver: zodResolver(TagFormSchema),
     defaultValues: { name: "" },
   });
+  const typed = useWatch({ control: form.control, name: "name" }) ?? "";
+  const query = tagKey(typed);
+  // Étiquettes du projet pas encore posées sur ce contact, filtrées par la saisie.
+  const available = suggestions
+    .filter((tag) => !existing.some((item) => item.id === tag.id))
+    .filter((tag) => !query || tagKey(tag.name).includes(query))
+    .sort((a, b) => (b.count ?? 0) - (a.count ?? 0) || a.name.localeCompare(b.name, "fr"));
+  const exactMatch = available.find((tag) => tagKey(tag.name) === query);
 
   return (
     <form
@@ -138,13 +149,53 @@ function TagForm({
         if (await onAdd(name)) form.reset();
       })}
     >
+      {suggestions.some((tag) => !existing.some((item) => item.id === tag.id)) && (
+        <div className="mb-3">
+          <p id="chat-existing-tags" className="mb-1.5 text-xs font-medium">
+            Étiquettes existantes
+          </p>
+          {available.length ? (
+            <ul
+              aria-labelledby="chat-existing-tags"
+              className="flex max-h-28 flex-wrap gap-1.5 overflow-y-auto overscroll-contain"
+            >
+              {available.map((tag) => (
+                <li key={tag.id}>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="xs"
+                    disabled={pending}
+                    aria-label={`Ajouter l’étiquette ${tag.name}`}
+                    onClick={async () => {
+                      if (await onAdd(tag.name)) form.reset();
+                    }}
+                  >
+                    <Tag aria-hidden="true" />
+                    {tag.name}
+                    {typeof tag.count === "number" && (
+                      <span className="tabular-nums text-muted-foreground">
+                        {tag.count}
+                      </span>
+                    )}
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              Aucune étiquette existante ne correspond.
+            </p>
+          )}
+        </div>
+      )}
       <Controller
         name="name"
         control={form.control}
         render={({ field, fieldState }) => (
           <Field data-invalid={fieldState.invalid} className="gap-1.5">
             <FieldLabel htmlFor="chat-new-tag" className="text-xs">
-              Nouvelle étiquette
+              {suggestions.length ? "Rechercher ou créer une étiquette" : "Nouvelle étiquette"}
             </FieldLabel>
             <InputGroup className="h-8">
               <InputGroupInput
@@ -178,7 +229,7 @@ function TagForm({
                       className="animate-spin motion-reduce:animate-none"
                     />
                   )}
-                  Ajouter
+                  {exactMatch || !query ? "Ajouter" : "Créer"}
                 </InputGroupButton>
               </InputGroupAddon>
             </InputGroup>
@@ -202,12 +253,15 @@ export function ContactTagsEditor({
   contactName,
   tags,
   onChanged,
+  projectTags = [],
 }: {
   projectId: string;
   contactId: string;
   contactName: string;
   tags: ChatTag[];
   onChanged: () => void;
+  /** Étiquettes du projet, pour réutiliser une étiquette existante. */
+  projectTags?: Array<ChatTag & { count: number }>;
 }) {
   const [added, setAdded] = useState<ChatTag[]>([]);
   const [removed, setRemoved] = useState<string[]>([]);
@@ -334,6 +388,7 @@ export function ContactTagsEditor({
         <div className="mt-2">
           <TagForm
             existing={display}
+            suggestions={projectTags}
             pending={pending === "add"}
             onAdd={add}
             onCancel={() => setAdding(false)}

@@ -28,7 +28,7 @@ import {
   AvatarGroup,
   AvatarImage,
 } from "@/components/ui/avatar";
-import type { ChatAgent, ChatClient } from "@/lib/chat";
+import type { ChatAgent, ChatClient, ChatTag } from "@/lib/chat";
 import type { ChatContactDetails } from "@/lib/contact-details";
 import { revealContactPhone } from "@/app/actions/contact-phone";
 import { wakeAssistantAction } from "@/app/actions/ai-quiet";
@@ -102,6 +102,7 @@ export function ChatContactPanel({
   currentUserId,
   pipeline,
   onContactChanged,
+  projectTags = [],
 }: {
   projectId: string;
   client: ChatClient;
@@ -119,6 +120,8 @@ export function ChatContactPanel({
   pipeline?: { enabled: boolean; currency: string };
   /** Rafraîchit la liste après une modification (étiquettes, assignation). */
   onContactChanged: () => void;
+  /** Étiquettes du projet, proposées à l’ajout. */
+  projectTags?: Array<ChatTag & { count: number }>;
 }) {
   const [copyState, setCopyState] = useState<"idle" | "busy" | "done">("idle");
   const [exporting, setExporting] = useState(false);
@@ -368,6 +371,7 @@ export function ChatContactPanel({
         contactId={client.id}
         contactName={client.name}
         tags={client.tags ?? []}
+        projectTags={projectTags}
         onChanged={onContactChanged}
       />
 

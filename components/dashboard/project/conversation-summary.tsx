@@ -279,25 +279,44 @@ export function ConversationSummaryView({
             surface="primary"
             className="h-full"
           >
-            <div className="mx-auto max-w-2xl space-y-4 px-4 pt-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:px-6">
-              <AiResponseText
-                key={result.generatedAt}
-                inverse
-                animate
-                content={[
-                  `L’essentiel\n${result.summary.summary}`,
-                  `Analyse\n${result.summary.assessment}`,
-                  ...(result.summary.nextSteps.length
-                    ? [
-                        `Prochaines actions\n${result.summary.nextSteps.map((step) => `• ${step}`).join("\n")}`,
-                      ]
-                    : []),
-                ].join("\n\n")}
-              />
-              <p className="text-xs text-primary-foreground/60">
+            <div className="mx-auto max-w-2xl space-y-6 px-4 pt-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:px-6">
+              {/* Sections titrées ; le texte garde l’animation de génération. */}
+              {[
+                { title: "L’essentiel", content: result.summary.summary },
+                { title: "Analyse", content: result.summary.assessment },
+                ...(result.summary.nextSteps.length
+                  ? [
+                      {
+                        title: "Prochaines actions",
+                        content: result.summary.nextSteps
+                          .map((step) => `• ${step}`)
+                          .join("\n"),
+                      },
+                    ]
+                  : []),
+              ].map((section) => (
+                <section key={section.title} className="space-y-1.5">
+                  <h3 className="font-mono text-[11px] font-normal uppercase tracking-wider text-primary-foreground/60">
+                    {section.title}
+                  </h3>
+                  <AiResponseText
+                    key={`${result.generatedAt}-${section.title}`}
+                    inverse
+                    animate
+                    content={section.content}
+                  />
+                </section>
+              ))}
+              <p className="border-t border-primary-foreground/15 pt-4 text-xs text-primary-foreground/60">
+                Généré à{" "}
+                {new Date(result.generatedAt).toLocaleTimeString("fr-FR", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}{" "}
+                ·{" "}
                 {result.partial
-                  ? "Basé sur les 200 derniers messages. À vérifier avant d’agir."
-                  : "Analyse ponctuelle, à vérifier avant d’agir."}
+                  ? "basé sur les 200 derniers messages. À vérifier avant d’agir."
+                  : "analyse ponctuelle, à vérifier avant d’agir."}
               </p>
             </div>
           </ScrollFadeArea>
