@@ -19,7 +19,8 @@ import {
 test("plan features gate pipeline, satisfaction and integrations", () => {
   assert.equal(planAllows("starter", "pipeline"), false);
   assert.equal(planAllows("pro", "pipeline"), true);
-  assert.equal(planAllows("pro", "integrations"), false);
+  assert.equal(planAllows("pro", "integrations"), true);
+  assert.equal(planAllows("starter", "integrations"), false);
   assert.equal(planAllows("business", "integrations"), true);
   // Unknown plans fall back to the most restrictive one.
   assert.equal(planFeatures("enterprise").knowledgeEntries, 100);

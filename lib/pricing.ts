@@ -5,6 +5,7 @@ export const PRICING_PLANS = [
     priceCents: 1599,
     messageLimit: 4000,
     users: 2,
+    storage: "500 Mo",
     description: "Pour automatiser vos premiers échanges clients.",
     highlighted: false,
     features: [
@@ -13,6 +14,7 @@ export const PRICING_PLANS = [
       "Réponses textuelles uniquement",
       "Assistant disponible 24 h/24, 7 j/7",
       "Statistiques sur 30 jours",
+      "500 Mo de fichiers",
       "Support standard",
     ],
   },
@@ -22,6 +24,7 @@ export const PRICING_PLANS = [
     priceCents: 3999,
     messageLimit: 10000,
     users: 4,
+    storage: "1,2 Go",
     description:
       "Pour qualifier vos prospects et accompagner votre croissance.",
     highlighted: true,
@@ -32,7 +35,9 @@ export const PRICING_PLANS = [
       "Assistant disponible 24 h/24, 7 j/7",
       "Statistiques sur 90 jours",
       "Résumé IA des conversations",
-      "Qualification des prospects et export CSV",
+      "Pipeline, qualification des prospects et export CSV",
+      "Intégrations et assignation automatique",
+      "1,2 Go de fichiers",
       "Support prioritaire",
     ],
   },
@@ -42,6 +47,7 @@ export const PRICING_PLANS = [
     priceCents: 9900,
     messageLimit: 25000,
     users: 10,
+    storage: "3 Go",
     description: "Pour les équipes avec un volume important de conversations.",
     highlighted: false,
     features: [
@@ -51,8 +57,9 @@ export const PRICING_PLANS = [
       "Assistant disponible 24 h/24, 7 j/7",
       "Statistiques sur 12 mois",
       "Résumé IA et qualification des prospects",
-      "Rapports programmés et exports",
-      "Accompagnement à la configuration",
+      "Pipeline, intégrations et rapports programmés",
+      "3 Go de fichiers",
+      "Support prioritaire",
     ],
   },
 ] as const;
@@ -86,6 +93,9 @@ const SHARED_CAPABILITIES = [
   "Reformulation IA de vos messages",
   "Notes internes et étiquettes",
   "Reprise en main d’une conversation en un clic",
+  "Base de connaissances et test de l’agent",
+  "Mise en veille de l’IA en fin de conversation",
+  "Export des conversations (.txt et .csv)",
 ] as const;
 
 /** Liste complète affichée sous « Afficher plus », cohérente avec `features`. */
@@ -94,6 +104,7 @@ export const PLAN_CAPABILITIES: Record<PlanId, readonly string[]> = {
     ...SHARED_CAPABILITIES,
     "Réponses textuelles",
     "Statistiques sur 30 jours",
+    "500 Mo de fichiers",
     "Support standard",
   ],
   pro: [
@@ -101,8 +112,13 @@ export const PLAN_CAPABILITIES: Record<PlanId, readonly string[]> = {
     "Compréhension des notes vocales",
     "Instinct IA : repère les prospects intéressants",
     "Résumé IA des conversations",
+    "Pipeline de prospects",
+    "Questionnaire de satisfaction",
+    "Intégrations : webhooks et Google Sheets",
+    "Assignation automatique des conversations",
     "Export CSV des contacts",
     "Statistiques sur 90 jours",
+    "1,2 Go de fichiers",
     "Support prioritaire",
   ],
   business: [
@@ -110,9 +126,14 @@ export const PLAN_CAPABILITIES: Record<PlanId, readonly string[]> = {
     "Compréhension des notes vocales et des images",
     "Instinct IA : repère les prospects intéressants",
     "Résumé IA des conversations",
+    "Pipeline de prospects",
+    "Questionnaire de satisfaction",
+    "Intégrations : webhooks et Google Sheets",
+    "Assignation automatique des conversations",
     "Rapports hebdomadaires programmés",
     "Exports CSV",
     "Statistiques sur 12 mois",
-    "Accompagnement à la configuration",
+    "3 Go de fichiers",
+    "Support prioritaire",
   ],
 };

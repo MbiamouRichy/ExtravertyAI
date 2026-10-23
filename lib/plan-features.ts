@@ -4,6 +4,8 @@ import { resolvePlanId, type PlanId } from "./pricing";
 export type PlanFeatures = {
   knowledgeEntries: number;
   knowledgeSources: number;
+  /** Taille maximale d’un PDF importé dans la base de connaissances. */
+  pdfMaxMb: number;
   sandboxPerDay: number;
   pipeline: boolean;
   csat: boolean;
@@ -14,6 +16,7 @@ export const PLAN_FEATURES: Record<PlanId, PlanFeatures> = {
   starter: {
     knowledgeEntries: 100,
     knowledgeSources: 3,
+    pdfMaxMb: 5,
     sandboxPerDay: 30,
     pipeline: false,
     csat: false,
@@ -22,14 +25,16 @@ export const PLAN_FEATURES: Record<PlanId, PlanFeatures> = {
   pro: {
     knowledgeEntries: 1000,
     knowledgeSources: 20,
+    pdfMaxMb: 10,
     sandboxPerDay: 100,
     pipeline: true,
     csat: true,
-    integrations: false,
+    integrations: true,
   },
   business: {
     knowledgeEntries: 10000,
     knowledgeSources: 100,
+    pdfMaxMb: 10,
     sandboxPerDay: 300,
     pipeline: true,
     csat: true,
@@ -42,7 +47,7 @@ export type GatedFeature = "pipeline" | "csat" | "integrations";
 const REQUIRED_PLAN_LABEL: Record<GatedFeature, string> = {
   pipeline: "Pro ou Business",
   csat: "Pro ou Business",
-  integrations: "Business",
+  integrations: "Pro ou Business",
 };
 
 const FEATURE_LABEL: Record<GatedFeature, string> = {

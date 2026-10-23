@@ -90,7 +90,8 @@ function SortHeader({
   onToggle: () => void;
   align?: "left" | "right";
 }) {
-  const Icon = sorted === "asc" ? ArrowUp : sorted === "desc" ? ArrowDown : ArrowUpDown;
+  const Icon =
+    sorted === "asc" ? ArrowUp : sorted === "desc" ? ArrowDown : ArrowUpDown;
   return (
     <Button
       type="button"
@@ -158,7 +159,9 @@ export function TopContactsCard({
               </AvatarFallback>
             </Avatar>
             <div className="min-w-0">
-              <p className="truncate text-sm font-medium">{row.original.name}</p>
+              <p className="truncate text-sm font-medium">
+                {row.original.name}
+              </p>
               <p className="truncate text-xs tabular-nums text-muted-foreground">
                 {row.original.phone}
               </p>
@@ -172,7 +175,9 @@ export function TopContactsCard({
           <SortHeader
             label="Reçus"
             sorted={column.getIsSorted()}
-            onToggle={() => column.toggleSorting(column.getIsSorted() !== "desc")}
+            onToggle={() =>
+              column.toggleSorting(column.getIsSorted() !== "desc")
+            }
           />
         ),
         cell: ({ row }) => (
@@ -187,7 +192,9 @@ export function TopContactsCard({
           <SortHeader
             label="Envoyés"
             sorted={column.getIsSorted()}
-            onToggle={() => column.toggleSorting(column.getIsSorted() !== "desc")}
+            onToggle={() =>
+              column.toggleSorting(column.getIsSorted() !== "desc")
+            }
           />
         ),
         cell: ({ row }) => (
@@ -210,7 +217,9 @@ export function TopContactsCard({
         accessorKey: "instinct",
         header: "Instinct IA",
         enableSorting: false,
-        cell: ({ row }) => <InstinctCell classification={row.original.instinct} />,
+        cell: ({ row }) => (
+          <InstinctCell classification={row.original.instinct} />
+        ),
       },
       {
         accessorKey: "aiActive",
@@ -222,7 +231,12 @@ export function TopContactsCard({
         id: "actions",
         header: () => <span className="sr-only">Actions</span>,
         cell: ({ row }) => (
-          <Button asChild variant="outline" size="sm" className="ml-auto flex w-fit">
+          <Button
+            asChild
+            variant="outline"
+            size="sm"
+            className="ml-auto flex w-fit"
+          >
             <Link
               href={chatHref(projectId, row.original.id)}
               aria-label={`Ouvrir la discussion avec ${row.original.name}`}
@@ -261,7 +275,12 @@ export function TopContactsCard({
       title="Contacts les plus actifs"
       description={`Jusqu’à 15 contacts, classés par volume d’échanges · ${rangeLabel}`}
       aside={
-        <Button asChild variant="outline" size="sm" className="w-full sm:w-auto">
+        <Button
+          asChild
+          variant="outline"
+          size="sm"
+          className="w-full sm:w-auto"
+        >
           <Link href={`/projects/${encodeURIComponent(projectId)}/contacts`}>
             Tous les contacts
             <ArrowUpRight data-icon="inline-end" />
@@ -276,8 +295,10 @@ export function TopContactsCard({
           description="Les contacts ayant échangé des messages pendant la période apparaîtront ici."
         />
       ) : (
-        <div className="space-y-3">
-          <InputGroup className="sm:max-w-xs">
+        // Bascule selon la largeur de la carte, pas de l’écran : avec la barre
+        // latérale, la carte est bien plus étroite que la fenêtre.
+        <div className="@container/top-contacts space-y-3">
+          <InputGroup className="@md/top-contacts:max-w-xs">
             <InputGroupAddon align="inline-start">
               <Search aria-hidden="true" />
             </InputGroupAddon>
@@ -314,12 +335,12 @@ export function TopContactsCard({
             </p>
           ) : (
             <>
-              {/* Mobile : cartes empilées. */}
-              <ul className="divide-y rounded-xl border md:hidden">
+              {/* Carte étroite : une fiche par contact. */}
+              <ul className="divide-y rounded-xl border @4xl/top-contacts:hidden">
                 {rows.map((row) => {
                   const contact = row.original;
                   return (
-                    <li key={row.id} className="space-y-3 p-3">
+                    <li key={row.id} className="p-3 sm:p-4">
                       <div className="flex items-center gap-3">
                         <span className="w-4 shrink-0 text-xs tabular-nums text-muted-foreground">
                           {contact.rank}
@@ -330,39 +351,64 @@ export function TopContactsCard({
                           </AvatarFallback>
                         </Avatar>
                         <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-medium">{contact.name}</p>
+                          <p className="truncate text-sm font-medium">
+                            {contact.name}
+                          </p>
                           <p className="truncate text-xs tabular-nums text-muted-foreground">
-                            {contact.phone} · {contact.lastActivityLabel}
+                            {contact.phone}
                           </p>
                         </div>
-                        <Button asChild variant="outline" size="icon" className="shrink-0">
+                        <Button
+                          asChild
+                          variant="outline"
+                          size="sm"
+                          className="shrink-0"
+                        >
                           <Link
                             href={chatHref(projectId, contact.id)}
                             aria-label={`Ouvrir la discussion avec ${contact.name}`}
                           >
-                            <MessageSquare />
+                            <MessageSquare data-icon="inline-start" />
+                            <span className="@max-xs/top-contacts:sr-only">
+                              Discuter
+                            </span>
                           </Link>
                         </Button>
                       </div>
-                      <div className="flex flex-wrap items-center gap-2 pl-7 text-xs">
-                        <span className="tabular-nums">
-                          <span className="text-muted-foreground">Reçus </span>
-                          {formatNumberFr(contact.received)}
-                        </span>
-                        <span className="tabular-nums">
-                          <span className="text-muted-foreground">Envoyés </span>
-                          {formatNumberFr(contact.sent)}
-                        </span>
-                        <InstinctCell classification={contact.instinct} />
-                        <AiBadge active={contact.aiActive} />
+                      <div className="mt-3 space-y-2.5 pl-7">
+                        <dl className="grid grid-cols-2 gap-2">
+                          {[
+                            ["Reçus", contact.received],
+                            ["Envoyés", contact.sent],
+                          ].map(([label, value]) => (
+                            <div
+                              key={label}
+                              className="rounded-lg bg-muted/50 px-3 py-2"
+                            >
+                              <dt className="text-[11px] text-muted-foreground">
+                                {label}
+                              </dt>
+                              <dd className="text-sm font-semibold tabular-nums">
+                                {formatNumberFr(Number(value))}
+                              </dd>
+                            </div>
+                          ))}
+                        </dl>
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+                          <InstinctCell classification={contact.instinct} />
+                          <AiBadge active={contact.aiActive} />
+                          <span className="ml-auto whitespace-nowrap text-[11px] text-muted-foreground">
+                            {contact.lastActivityLabel}
+                          </span>
+                        </div>
                       </div>
                     </li>
                   );
                 })}
               </ul>
 
-              {/* Ordinateur : tableau. */}
-              <div className="hidden overflow-x-auto rounded-xl border md:block">
+              {/* Carte large : tableau complet. */}
+              <div className="hidden overflow-x-auto rounded-xl border @4xl/top-contacts:block">
                 <Table>
                   <TableCaption className="sr-only">
                     Contacts les plus actifs, classés par volume d’échanges.
@@ -388,7 +434,7 @@ export function TopContactsCard({
                                 "text-right",
                               header.column.id === "rank" && "w-8",
                               header.column.id === "lastActivityLabel" &&
-                                "hidden xl:table-cell",
+                                "hidden @5xl/top-contacts:table-cell",
                             )}
                           >
                             {header.isPlaceholder
@@ -412,10 +458,13 @@ export function TopContactsCard({
                               "py-2.5",
                               cell.column.id === "contact" && "max-w-56",
                               cell.column.id === "lastActivityLabel" &&
-                                "hidden xl:table-cell",
+                                "hidden @5xl/top-contacts:table-cell",
                             )}
                           >
-                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                            {flexRender(
+                              cell.column.columnDef.cell,
+                              cell.getContext(),
+                            )}
                           </TableCell>
                         ))}
                       </TableRow>

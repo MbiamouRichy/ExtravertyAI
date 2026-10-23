@@ -75,13 +75,17 @@ test("integrations", { timeout: 180000 }, async (t) => {
     await addMember(prisma, project.id, member.id, "USER");
     const admin = { projectId: project.id, userId: owner.id };
 
-    await t.test("only Business admins create webhooks, to public URLs", async () => {
-      const pro = await createProject(prisma, { plan: "pro" });
-      await addMember(prisma, pro.id, owner.id, "OWNER");
+    await t.test("only Pro and Business admins create webhooks, to public URLs", async () => {
+      const starter = await createProject(prisma, { plan: "starter" });
+      await addMember(prisma, starter.id, owner.id, "OWNER");
       await assert.rejects(
-        createWebhook(prisma, { projectId: pro.id, userId: owner.id, name: "Make", url: "https://hook.example.com/a", events: ["contact.qualified"] }),
+        createWebhook(prisma, { projectId: starter.id, userId: owner.id, name: "Make", url: "https://hook.example.com/a", events: ["contact.qualified"] }),
         PlanFeatureError,
       );
+      const pro = await createProject(prisma, { plan: "pro" });
+      await addMember(prisma, pro.id, owner.id, "OWNER");
+      const allowed = await createWebhook(prisma, { projectId: pro.id, userId: owner.id, name: "Make", url: "https://hook.example.com/a", events: ["contact.qualified"] });
+      assert.match(allowed.secret, /^whsec_/);
       await assert.rejects(
         createWebhook(prisma, { projectId: project.id, userId: member.id, name: "Make", url: "https://hook.example.com/a", events: ["contact.qualified"] }),
         /droits/,
@@ -106,7 +110,7 @@ test("integrations", { timeout: 180000 }, async (t) => {
       assert.doesNotMatch(stored.secretCiphertext, new RegExp(created.secret));
     });
 
-    await t.test("events reach subscribed, enabled endpoints of Business projects only", async () => {
+    await t.test("events reach subscribed, enabled endpoints of Pro and Business projects only", async () => {
       const contact = await ingestText(prisma, project.id, "Bonjour");
       const queued = await prisma.$transaction((tx) =>
         emitIntegrationEvent(tx, project.id, "pipeline.stage_changed", { contact: { id: contact.id } }),

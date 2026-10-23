@@ -40,7 +40,7 @@ export function Hero() {
           <span className="rounded-full bg-primary px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-primary-foreground">
             Nouveau
           </span>
-          Résumés IA de chaque conversation
+          Pipeline de prospects et intégrations
           <ArrowRight
             aria-hidden="true"
             className="size-3 transition-transform group-hover:translate-x-0.5"

@@ -181,6 +181,12 @@ test("knowledge base", { timeout: 180000 }, async (t) => {
         addPdfSource(prisma, { ...admin, fileName: "x.pdf", bytes: Buffer.from("not a pdf") }, storage),
         /fichier PDF/,
       );
+      // Starter : 5 Mo par PDF, vérifié avant tout envoi vers le stockage.
+      const sixMb = Buffer.concat([Buffer.from("%PDF-1.4"), Buffer.alloc(6 * 1024 * 1024)]);
+      await assert.rejects(
+        addPdfSource(prisma, { ...admin, fileName: "gros.pdf", bytes: sixMb }, storage),
+        /5 Mo au maximum/,
+      );
       // The source limit (3) is already reached by the URL test.
       await assert.rejects(
         addPdfSource(prisma, { ...admin, fileName: "x.pdf", bytes: Buffer.from("%PDF-1.4") }, storage),

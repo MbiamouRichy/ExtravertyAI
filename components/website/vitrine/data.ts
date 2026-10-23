@@ -16,6 +16,7 @@ import {
   type PlanId,
   type PricingPlan,
 } from "@/lib/pricing";
+import { PLAN_FEATURES } from "@/lib/plan-features";
 
 /* -------------------------------------------------------------------------- */
 /* Navigation                                                                  */
@@ -341,9 +342,10 @@ export const PIPELINE_NODES: readonly PipelineNode[] = [
     caption: "Vos règles, votre ton",
     icon: Workflow,
     description:
-      "Il s’appuie sur les instructions que vous lui donnez : votre activité, vos prix, vos horaires, votre façon de parler.",
+      "Il suit vos consignes et puise dans votre base de connaissances : questions fréquentes, catalogue, documents et pages de votre site.",
     config: [
-      { key: "instructions", value: "rédigées par vous" },
+      { key: "consignes", value: "rédigées par vous" },
+      { key: "connaissances", value: "FAQ, produits, PDF" },
       { key: "ton", value: "personnalisé" },
       { key: "pause", value: "par conversation ou globale" },
     ],
@@ -522,6 +524,8 @@ export interface MatrixGroup {
 }
 
 const all = { starter: true, pro: true, business: true } as const;
+const fromPro = { starter: false, pro: true, business: true } as const;
+const count = (value: number) => new Intl.NumberFormat("fr-FR").format(value);
 
 /** Reads a value from every plan so capacity rows stay in sync with lib/pricing. */
 function byPlan(pick: (plan: PricingPlan) => MatrixCell): Record<PlanId, MatrixCell> {
@@ -536,6 +540,7 @@ export const MATRIX_GROUPS: readonly MatrixGroup[] = [
       { label: "Utilisateurs", values: byPlan((plan) => String(plan.users)) },
       { label: "Numéro WhatsApp", values: byPlan(() => "1") },
       { label: "Messages par mois", values: byPlan((plan) => formatMessageLimit(plan.messageLimit)) },
+      { label: "Stockage des fichiers", values: byPlan((plan) => plan.storage) },
     ],
   },
   {
@@ -543,19 +548,50 @@ export const MATRIX_GROUPS: readonly MatrixGroup[] = [
     rows: [
       { label: "Assistant WhatsApp 24 h/24, 7 j/7", values: all },
       { label: "Réponses textuelles", values: all },
-      { label: "Compréhension des notes vocales", values: { starter: false, pro: true, business: true } },
+      { label: "Compréhension des notes vocales", values: fromPro },
       { label: "Compréhension des images", values: { starter: false, pro: false, business: true } },
       { label: "Suggestions et reformulation IA", values: all },
+      { label: "Mise en veille en fin de conversation", values: all },
+    ],
+  },
+  {
+    title: "Base de connaissances",
+    rows: [
+      {
+        label: "Questions, infos et produits",
+        values: byPlan((plan) => count(PLAN_FEATURES[plan.id].knowledgeEntries)),
+      },
+      {
+        label: "Documents PDF et pages web",
+        values: byPlan((plan) => count(PLAN_FEATURES[plan.id].knowledgeSources)),
+      },
+      {
+        label: "Taille maximale d’un PDF",
+        values: byPlan((plan) => `${PLAN_FEATURES[plan.id].pdfMaxMb} Mo`),
+      },
+      {
+        label: "Tests de l’agent par jour",
+        values: byPlan((plan) => count(PLAN_FEATURES[plan.id].sandboxPerDay)),
+      },
     ],
   },
   {
     title: "Pilotage commercial",
     rows: [
-      { label: "Instinct IA : prospects repérés", values: { starter: false, pro: true, business: true } },
-      { label: "Résumé IA des conversations", values: { starter: false, pro: true, business: true } },
-      { label: "Export CSV des contacts", values: { starter: false, pro: true, business: true } },
+      { label: "Instinct IA : prospects repérés", values: fromPro },
+      { label: "Pipeline de prospects", values: fromPro },
+      { label: "Résumé IA des conversations", values: fromPro },
+      { label: "Questionnaire de satisfaction", values: fromPro },
+      { label: "Export CSV des contacts", values: fromPro },
       { label: "Rapports hebdomadaires programmés", values: { starter: false, pro: false, business: true } },
       { label: "Historique des statistiques", values: { starter: "30 jours", pro: "90 jours", business: "12 mois" } },
+    ],
+  },
+  {
+    title: "Intégrations",
+    rows: [
+      { label: "Webhooks signés (Make, Zapier, CRM)", values: fromPro },
+      { label: "Google Sheets", values: fromPro },
     ],
   },
   {
@@ -564,9 +600,12 @@ export const MATRIX_GROUPS: readonly MatrixGroup[] = [
       { label: "Messagerie partagée", values: all },
       { label: "Notes internes et étiquettes", values: all },
       { label: "Reprise en main en un clic", values: all },
+      { label: "Notifications en temps réel", values: all },
+      { label: "Export des conversations (.txt, .csv)", values: all },
+      { label: "Assignation automatique des conversations", values: fromPro },
       {
         label: "Accompagnement",
-        values: { starter: "Standard", pro: "Prioritaire", business: "Configuration incluse" },
+        values: { starter: "Standard", pro: "Prioritaire", business: "Prioritaire" },
       },
     ],
   },

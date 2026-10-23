@@ -29,4 +29,6 @@ export type KnowledgeUsage = {
   entryLimit: number;
   documents: number;
   documentLimit: number;
+  /** Taille maximale d’un PDF selon l’offre. */
+  pdfMaxMb: number;
 };

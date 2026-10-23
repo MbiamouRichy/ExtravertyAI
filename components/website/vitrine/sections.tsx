@@ -8,6 +8,9 @@ import {
   Check,
   FileText,
   Hand,
+  LibraryBig,
+  Plug,
+  SquareKanban,
   Lock,
   ShieldCheck,
   Sparkles,
@@ -66,17 +69,26 @@ interface CellHeaderProps {
   index: string;
   icon: LucideIcon;
   title: string;
+  /** Offre minimale, quand la brique n’est pas incluse partout. */
+  plan?: string;
   children: ReactNode;
 }
 
-function CellHeader({ index, icon: Icon, title, children }: CellHeaderProps) {
+function CellHeader({ index, icon: Icon, title, plan, children }: CellHeaderProps) {
   return (
     <header>
-      <div className="mb-10 flex items-center justify-between">
+      <div className="mb-10 flex items-center justify-between gap-3">
         <span className="flex size-9 items-center justify-center rounded-md border bg-card">
           <Icon aria-hidden="true" className="size-4" />
         </span>
-        <span className="font-mono text-[11px] text-muted-foreground">{index}</span>
+        <span className="flex items-center gap-2 font-mono text-[11px] text-muted-foreground">
+          {plan && (
+            <span className="rounded-full border px-2 py-0.5 uppercase tracking-wider">
+              {plan}
+            </span>
+          )}
+          {index}
+        </span>
       </div>
       <h3 className="text-2xl tracking-tight">{title}</h3>
       <p className="mt-2 max-w-md text-pretty text-sm text-muted-foreground">{children}</p>
@@ -89,6 +101,86 @@ const TEAM: readonly { name: string; role: string; handles: number; ai?: boolean
   { name: "Clara", role: "Administratrice", handles: 4 },
   { name: "Inès", role: "Membre", handles: 2 },
 ];
+
+const PIPELINE_DEMO: readonly { stage: string; cards: readonly { name: string; detail: string }[] }[] = [
+  {
+    stage: "Intéressé",
+    cards: [
+      { name: "Kevin M.", detail: "Sneakers · 42" },
+      { name: "Moussa K.", detail: "Commande en gros" },
+    ],
+  },
+  { stage: "Devis envoyé", cards: [{ name: "Inès B.", detail: "180 000 FCFA" }] },
+  { stage: "Gagné", cards: [{ name: "Paul E.", detail: "45 000 FCFA" }] },
+];
+
+function PipelineWidget() {
+  return (
+    <ol aria-label="Exemple de pipeline" className="mt-8 grid grid-cols-3 gap-2">
+      {PIPELINE_DEMO.map((column) => (
+        <li key={column.stage} className="min-w-0 rounded-lg border bg-muted/40 p-2">
+          <p className="mb-2 flex items-center justify-between gap-1 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+            <span className="truncate">{column.stage}</span>
+            <span className="tabular-nums">{column.cards.length}</span>
+          </p>
+          <ul className="space-y-1.5">
+            {column.cards.map((card) => (
+              <li key={card.name} className="rounded-md border bg-card px-2 py-1.5">
+                <span className="block truncate text-xs font-medium">{card.name}</span>
+                <span className="block truncate font-mono text-[10px] text-muted-foreground">{card.detail}</span>
+              </li>
+            ))}
+          </ul>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+const KNOWLEDGE_DEMO: readonly { kind: string; text: string; meta: string }[] = [
+  { kind: "FAQ", text: "Livrez-vous à Douala ?", meta: "Oui, sous 48 h" },
+  { kind: "Produit", text: "Sneakers Urban blanches", meta: "45 000 FCFA · 3 en stock" },
+  { kind: "PDF", text: "catalogue-2026.pdf", meta: "Prêt · 24 pages" },
+];
+
+function KnowledgeWidget() {
+  return (
+    <ul aria-label="Exemple de base de connaissances" className="mt-8 divide-y rounded-lg border bg-card">
+      {KNOWLEDGE_DEMO.map((item) => (
+        <li key={item.text} className="flex items-center gap-3 px-3 py-2.5">
+          <span className="w-14 shrink-0 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+            {item.kind}
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-xs font-medium">{item.text}</span>
+            <span className="block truncate font-mono text-[11px] text-muted-foreground">{item.meta}</span>
+          </span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+const INTEGRATION_DEMO: readonly { event: string; target: string }[] = [
+  { event: "Prospect qualifié", target: "Google Sheets" },
+  { event: "Étape du pipeline modifiée", target: "Make" },
+  { event: "Note de satisfaction reçue", target: "Votre CRM" },
+];
+
+function IntegrationsWidget() {
+  return (
+    <ul aria-label="Exemples d’événements envoyés" className="mt-8 space-y-2">
+      {INTEGRATION_DEMO.map((item) => (
+        <li key={item.event} className="flex items-center gap-2 rounded-lg border bg-card px-3 py-2.5 text-xs">
+          <span className="min-w-0 flex-1 truncate font-medium">{item.event}</span>
+          <ArrowRight aria-hidden="true" className="size-3.5 shrink-0 text-muted-foreground" />
+          <span className="shrink-0 font-mono text-[11px] text-muted-foreground">{item.target}</span>
+          <Check aria-label="livré" className="size-3.5 shrink-0" />
+        </li>
+      ))}
+    </ul>
+  );
+}
 
 function TeamWidget() {
   return (
@@ -178,6 +270,27 @@ export function FeaturesSection() {
             besoin, et l’IA travaille à côté de vous.
           </CellHeader>
           <TeamWidget />
+        </SpotlightCell>
+        <SpotlightCell className="p-6 sm:p-8 md:col-span-3 lg:col-span-4">
+          <CellHeader index="02.6" icon={SquareKanban} title="Pipeline de prospects" plan="dès Pro">
+            De « Intéressé » à « Gagné » : suivez chaque prospect et la valeur
+            de chaque affaire, sans tableur.
+          </CellHeader>
+          <PipelineWidget />
+        </SpotlightCell>
+        <SpotlightCell className="p-6 sm:p-8 md:col-span-3 lg:col-span-4">
+          <CellHeader index="02.7" icon={LibraryBig} title="Base de connaissances">
+            Questions fréquentes, catalogue et PDF : l’IA répond avec vos prix
+            et vos conditions. Testez-la avant de la laisser parler.
+          </CellHeader>
+          <KnowledgeWidget />
+        </SpotlightCell>
+        <SpotlightCell className="p-6 sm:p-8 md:col-span-6 lg:col-span-4">
+          <CellHeader index="02.8" icon={Plug} title="Intégrations" plan="dès Pro">
+            Webhooks signés et Google Sheets : vos prospects arrivent dans vos
+            outils dès qu’ils sont qualifiés.
+          </CellHeader>
+          <IntegrationsWidget />
         </SpotlightCell>
       </div>
     </SectionShell>

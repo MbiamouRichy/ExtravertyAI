@@ -196,6 +196,10 @@ export async function addPdfSource(
   // Fail fast on rights and limits before uploading anything.
   await db.$transaction(async (tx) => {
     const project = await lockAdmin(tx, input);
+    const { pdfMaxMb } = planFeatures(project.plan);
+    if (input.bytes.length > pdfMaxMb * 1024 * 1024) {
+      throw new KnowledgeError(`Votre offre accepte des PDF de ${pdfMaxMb} Mo au maximum.`);
+    }
     await requireSourceCapacity(tx, input.projectId, project.plan);
   });
   const id = randomUUID();
@@ -381,6 +385,7 @@ export async function knowledgeOverview(db: PrismaClient, projectId: string, use
       entryLimit: limits.knowledgeEntries,
       documents: sources.filter((source) => source.type !== "CSV").length,
       documentLimit: limits.knowledgeSources,
+      pdfMaxMb: limits.pdfMaxMb,
     },
     entries,
     products,

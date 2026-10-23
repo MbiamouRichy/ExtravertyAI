@@ -164,13 +164,15 @@ export function KnowledgeDocuments({
   onChanged: () => void;
 }) {
   const fileInput = useRef<HTMLInputElement>(null);
+  const pdfButtonId = useId();
   const [uploading, setUploading] = useState(false);
   const [pending, startTransition] = useTransition();
   const full = usage.documents >= usage.documentLimit;
 
   async function upload(file: File) {
-    if (file.size > KNOWLEDGE_LIMITS.pdfMaxBytes) {
-      toast.error("Le PDF dépasse 10 Mo.");
+    // Confort uniquement : la limite de l’offre est vérifiée par le serveur.
+    if (file.size > Math.min(KNOWLEDGE_LIMITS.pdfMaxBytes, usage.pdfMaxMb * 1024 * 1024)) {
+      toast.error(`Le PDF dépasse ${usage.pdfMaxMb} Mo, la limite de votre offre.`);
       return;
     }
     setUploading(true);
@@ -195,16 +197,19 @@ export function KnowledgeDocuments({
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 lg:grid-cols-[1fr_auto] lg:items-start">
+      {/* Deux champs étiquetés de même hauteur : le bouton s’aligne sur le champ d’adresse. */}
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
         <UrlForm projectId={projectId} disabled={full} onAdded={onChanged} />
-        <div className="space-y-2 lg:pt-6">
+        <Field>
+          <FieldLabel htmlFor={pdfButtonId}>Document PDF</FieldLabel>
           <Button
+            id={pdfButtonId}
             type="button"
             variant="outline"
             className="w-full lg:w-auto"
             disabled={full || uploading}
             onClick={() => fileInput.current?.click()}
-            title="PDF de 10 Mo et 200 pages maximum"
+            title={`PDF de ${usage.pdfMaxMb} Mo et ${KNOWLEDGE_LIMITS.pdfMaxPages} pages maximum`}
           >
             {uploading ? (
               <Loader2 data-icon="inline-start" className="animate-spin motion-reduce:animate-none" />
@@ -226,7 +231,7 @@ export function KnowledgeDocuments({
               if (file) void upload(file);
             }}
           />
-        </div>
+        </Field>
       </div>
       {full && (
         <p role="status" className="rounded-xl border bg-muted/40 p-3 text-sm">
