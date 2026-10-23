@@ -114,7 +114,8 @@ export function AgentSandbox({ projectId, initialRemaining }: { projectId: strin
       projectId,
       messages: history
         .filter((turn) => !withheld(turn))
-        .slice(-20)
+        // Le serveur ne garde que la mémoire de contexte de l’offre.
+        .slice(-50)
         .map(({ role, content }) => ({ role, content })),
     });
     setThinking(false);

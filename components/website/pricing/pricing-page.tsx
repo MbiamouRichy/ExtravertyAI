@@ -28,6 +28,7 @@ const comparison: { group: string; rows: { label: string; values: Cell[] }[] }[]
       },
       { label: "Utilisateurs", values: PRICING_PLANS.map((plan) => String(plan.users)) },
       { label: "Numéros WhatsApp", values: ["1", "1", "1"] },
+      { label: "Stockage des fichiers", values: PRICING_PLANS.map((plan) => plan.storage) },
     ],
   },
   {
@@ -36,6 +37,7 @@ const comparison: { group: string; rows: { label: string; values: Cell[] }[] }[]
       { label: "Réponses texte 24/7", values: [true, true, true] },
       { label: "Notes vocales", values: [false, true, true] },
       { label: "Compréhension des images", values: [false, false, true] },
+      { label: "Mémoire de contexte", values: ["20 messages", "30 messages", "50 messages"] },
       { label: "Résumé des conversations", values: [false, true, true] },
       { label: "Qualification des prospects", values: [false, true, true] },
     ],
@@ -44,9 +46,13 @@ const comparison: { group: string; rows: { label: string; values: Cell[] }[] }[]
     group: "Pilotage",
     rows: [
       { label: "Historique des statistiques", values: ["30 jours", "90 jours", "12 mois"] },
-      { label: "Export CSV", values: [false, true, true] },
+      { label: "Pipeline de prospects", values: [false, true, true] },
+      { label: "Google Sheets", values: [true, true, true] },
+      { label: "Webhooks (Make, Zapier, CRM)", values: [false, true, true] },
+      { label: "Assignation automatique", values: [false, false, true] },
+      { label: "Export CSV des contacts", values: [true, true, true] },
       { label: "Rapports programmés", values: [false, false, true] },
-      { label: "Support", values: ["Standard", "Prioritaire", "Accompagné"] },
+      { label: "Support", values: ["Standard", "Prioritaire", "Prioritaire"] },
     ],
   },
 ];
@@ -62,7 +68,7 @@ const faqs = [
   },
   {
     q: "Qu’est-ce qui compte comme un message ?",
-    a: "Chaque message envoyé ou reçu par votre numéro connecté, qu’il soit traité par l’IA ou par un membre de l’équipe.",
+    a: "Chaque message envoyé depuis votre numéro connecté, par l’IA ou par un membre de l’équipe. Les messages reçus de vos clients ne sont pas comptés.",
   },
   {
     q: "Comment fonctionne la résiliation ?",

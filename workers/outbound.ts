@@ -5,6 +5,7 @@ import { reconcileProviderReceipts } from "../lib/provider-reconciliation";
 import { createOutboundProcessor } from "../lib/outbound-jobs";
 import { claimDelivery, defaultTransport, runDelivery } from "../lib/integrations";
 import { appendEventRow } from "../lib/google-sheets";
+import { PRESENCE_REFRESH_MS, refreshOnlinePresence } from "../lib/whatsapp-presence";
 const prisma = workerDatabase();
 const { claimNextJob, dispatch, recoverInterruptedDispatches } =
   createOutboundProcessor(prisma, notifyProject);
@@ -53,7 +54,20 @@ async function integrationsLoop() {
     }
   }
 }
-Promise.all([main(), integrationsLoop()])
+// « Afficher le statut en ligne » : présence renvoyée chaque minute.
+async function presenceLoop() {
+  while (!stopping) {
+    try {
+      await refreshOnlinePresence(prisma);
+    } catch {
+      console.error("[presence] Cycle interrompu.");
+    }
+    // Attente découpée : l’arrêt du worker n’attend pas une minute.
+    for (let waited = 0; waited < PRESENCE_REFRESH_MS && !stopping; waited += 1000)
+      await sleep(1000);
+  }
+}
+Promise.all([main(), integrationsLoop(), presenceLoop()])
   .catch(() => {
     console.error("[outbound-worker] Arrêt sur erreur.");
     process.exitCode = 1;

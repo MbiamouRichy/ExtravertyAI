@@ -20,6 +20,8 @@ export type TeamMember = {
   role: Role;
   createdAt: Date | string;
   open?: number;
+  /** Conversations ouvertes qui lui sont assignées. */
+  assigned?: number;
 };
 
 // ============================================================================
@@ -75,6 +77,16 @@ export async function getTeamMembers(projectId: string) {
     {} as Record<string, number>,
   );
 
+  // Conversations ouvertes (non résolues) assignées à chaque membre.
+  const assignedRows = await prisma.contact.groupBy({
+    by: ["assigneeId"],
+    where: { projectId, resolvedAt: null, assigneeId: { not: null } },
+    _count: { _all: true },
+  });
+  const assignedParMembre = Object.fromEntries(
+    assignedRows.map((row) => [row.assigneeId, row._count._all]),
+  ) as Record<string, number>;
+
   // 4. Formater les données pour le composant
   return memberships.map((m) => {
     return {
@@ -86,6 +98,7 @@ export async function getTeamMembers(projectId: string) {
       image: m.user.image,
       createdAt: m.createdAt,
       open: countParAgent[m.user.id] || 0, // <-- Le vrai chiffre calculé !
+      assigned: assignedParMembre[m.user.id] || 0,
     };
   });
 }

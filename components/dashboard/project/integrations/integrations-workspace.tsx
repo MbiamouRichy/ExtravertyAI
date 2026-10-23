@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useState, useTransition } from "react";
 import { toast } from "sonner";
@@ -250,12 +251,15 @@ export function IntegrationsWorkspace({
   endpoints,
   deliveries,
   googleAvailable,
+  webhooksAvailable,
   googleOutcome,
 }: {
   projectId: string;
   endpoints: EndpointView[];
   deliveries: DeliveryView[];
   googleAvailable: boolean;
+  /** Webhooks : offres Pro et Business (vérifié aussi côté serveur). */
+  webhooksAvailable: boolean;
   googleOutcome: string | null;
 }) {
   const router = useRouter();
@@ -335,10 +339,16 @@ export function IntegrationsWorkspace({
               automatiquement pendant environ 24 h en cas d’échec.
             </p>
           </div>
-          <Button type="button" onClick={() => setCreating(true)}>
-            <Plus data-icon="inline-start" />
-            Webhook
-          </Button>
+          {webhooksAvailable ? (
+            <Button type="button" onClick={() => setCreating(true)}>
+              <Plus data-icon="inline-start" />
+              Webhook
+            </Button>
+          ) : (
+            <Button asChild variant="outline">
+              <Link href={`/projects/${projectId}/billing`}>Passer à l’offre Pro</Link>
+            </Button>
+          )}
         </div>
         {endpoints.some((endpoint) => endpoint.kind === "WEBHOOK") ? (
           <ul className="divide-y rounded-2xl border bg-card">
@@ -357,6 +367,11 @@ export function IntegrationsWorkspace({
           </ul>
         ) : (
           <p className="rounded-2xl border border-dashed p-8 text-center text-sm text-muted-foreground">
+            {webhooksAvailable ? null : (
+              <span className="mb-1 block font-medium text-foreground">
+                Les webhooks sont inclus dans les offres Pro et Business.
+              </span>
+            )}
             Aucun webhook. Créez-en un avec l’adresse fournie par Make (module
             « Webhooks · Custom webhook ») ou Zapier (« Webhooks by Zapier · Catch Hook »).
           </p>

@@ -65,7 +65,7 @@ test("presence and notifications respect members, tabs, expiry and read versions
       "online",
     );
     await db.exec(
-      `UPDATE user_presence SET "lastActiveAt" = NOW() - INTERVAL '3 minutes'`,
+      `UPDATE user_presence SET "lastActiveAt" = NOW() - INTERVAL '6 minutes'`,
     );
     assert.equal(
       (await projectPresence(client, "p", "owner")).find(

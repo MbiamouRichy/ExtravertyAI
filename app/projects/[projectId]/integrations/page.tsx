@@ -103,6 +103,7 @@ export default async function IntegrationsPage({
       <IntegrationsWorkspace
         projectId={projectId}
         googleAvailable={googleConfigured() && encryption}
+        webhooksAvailable={planAllows(membership.project.plan, "webhooks")}
         googleOutcome={outcome}
         endpoints={overview.endpoints.map((endpoint) => ({
           ...endpoint,

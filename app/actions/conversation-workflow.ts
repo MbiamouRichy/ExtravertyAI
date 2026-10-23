@@ -8,6 +8,7 @@ import {
   ConversationWorkflowError,
   addContactTag,
   assignConversation,
+  assignNextConversation,
   assignableMembers,
   createInternalNote,
   removeContactTag,
@@ -35,6 +36,19 @@ const RemoveTagSchema = Target.extend({ tagId: z.string().cuid() });
 const NoteSchema = Target.extend({ content: InternalNoteContentSchema });
 const AssignSchema = Target.extend({ assigneeId: z.string().min(1).max(200).nullable() });
 const ProjectSchema = z.object({ projectId: z.string().cuid() });
+const AssignNextSchema = ProjectSchema.extend({ assigneeId: z.string().min(1).max(200) });
+
+/** Tableau d’équipe : confie la prochaine conversation en attente à un équipier. */
+export async function assignNextConversationAction(
+  input: z.input<typeof AssignNextSchema>,
+) {
+  return run(
+    AssignNextSchema,
+    input,
+    "assigner une conversation",
+    async (data, userId) => assignNextConversation(prisma, { ...data, userId }),
+  );
+}
 
 // Validation, session et gestion d'erreur communes à chaque action.
 async function run<S extends z.ZodType, T>(

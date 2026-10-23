@@ -8,9 +8,25 @@ import { InstanceStatus } from "@/src/generated/prisma/client";
 import { confirmInstanceConnection } from "@/lib/instance-connection";
 
 import {
+  getEvolutionConnectionState,
   getEvolutionInstanceConnect,
+  logoutEvolutionInstance,
   requestEvolutionPairingCode,
 } from "./evolutionAPI";
+
+const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/** Code de liaison WhatsApp : 8 caractères alphanumériques. */
+function pairingCodeOf(data: Record<string, unknown> | null | undefined) {
+  const nested =
+    data?.qrcode && typeof data.qrcode === "object"
+      ? (data.qrcode as Record<string, unknown>).pairingCode
+      : undefined;
+  return [data?.pairingCode, nested]
+    .filter((value): value is string => typeof value === "string")
+    .map((value) => value.replace(/[\s-]/g, "").toUpperCase())
+    .find((value) => /^[A-Z0-9]{8}$/.test(value));
+}
 
 const ProjectIdSchema = z.string().cuid();
 
@@ -74,13 +90,32 @@ function publicError(error: unknown): string {
     : "Le service de connexion est temporairement indisponible.";
 }
 
-export async function getConnectionData(projectId: string) {
+export async function getConnectionData(
+  projectId: string,
+  mode: "qr" | "phone" = "qr",
+) {
   try {
     const project = await requireConnectionAdmin(projectId);
 
     if (project.instanceStatus === InstanceStatus.connected) {
       return {
         status: InstanceStatus.connected,
+        qrCodeBase64: null,
+        qrCode: null,
+      };
+    }
+
+    // Liaison par code en cours : on lit l’état sans relancer de session QR,
+    // sinon la passerelle invaliderait le code affiché.
+    if (mode === "phone") {
+      const state = await getEvolutionConnectionState(project.instanceName);
+      return {
+        status:
+          state === "open"
+            ? await confirmInstanceConnection(prisma, project)
+            : state === "connecting"
+              ? InstanceStatus.connecting
+              : InstanceStatus.disconnected,
         qrCodeBase64: null,
         qrCode: null,
       };
@@ -178,20 +213,27 @@ export async function generatePairingCode(projectId: string) {
       );
     }
 
-    const data = await requestEvolutionPairingCode(
-      project.instanceName,
-      number,
-    );
+    // Evolution ne crée un code que pour une session fermée : une session QR
+    // en attente est d’abord fermée, puis rouverte avec le numéro.
+    const state = await getEvolutionConnectionState(project.instanceName);
+    if (state === "open") {
+      await confirmInstanceConnection(prisma, project);
+      throw new ConnectionError("WhatsApp est déjà connecté.");
+    }
+    if (state === "connecting") {
+      await logoutEvolutionInstance(project.instanceName);
+      await wait(1000);
+    }
 
-    // Hypothèse héritée de ton intégration actuelle :
-    // code de liaison alphanumérique de 8 caractères.
-    // À confirmer sur la version Evolution installée.
-    const candidates = [data?.pairingCode, data?.code];
-
-    const code = candidates
-      .filter((value): value is string => typeof value === "string")
-      .map((value) => value.replace(/[\s-]/g, "").toUpperCase())
-      .find((value) => /^[A-Z0-9]{8}$/.test(value));
+    // Le code est demandé à WhatsApp juste après l’ouverture : quelques
+    // relectures courtes suffisent (la session reste alors « connecting »).
+    let code: string | undefined;
+    for (let attempt = 0; attempt < 4 && !code; attempt += 1) {
+      if (attempt) await wait(1500);
+      code = pairingCodeOf(
+        await requestEvolutionPairingCode(project.instanceName, number),
+      );
+    }
 
     if (!code) {
       throw new ConnectionError(

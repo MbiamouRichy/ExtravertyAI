@@ -20,8 +20,16 @@ test("plan features gate pipeline, satisfaction and integrations", () => {
   assert.equal(planAllows("starter", "pipeline"), false);
   assert.equal(planAllows("pro", "pipeline"), true);
   assert.equal(planAllows("pro", "integrations"), true);
-  assert.equal(planAllows("starter", "integrations"), false);
+  // Google Sheets pour toutes les offres, webhooks dès Pro.
+  assert.equal(planAllows("starter", "integrations"), true);
+  assert.equal(planAllows("starter", "webhooks"), false);
+  assert.equal(planAllows("pro", "webhooks"), true);
   assert.equal(planAllows("business", "integrations"), true);
+  // Mémoire de contexte : 20, 30 puis 50 derniers messages.
+  assert.deepEqual(
+    ["starter", "pro", "business"].map((plan) => planFeatures(plan).contextMessages),
+    [20, 30, 50],
+  );
   // Unknown plans fall back to the most restrictive one.
   assert.equal(planFeatures("enterprise").knowledgeEntries, 100);
   assert.throws(() => requirePlanFeature("starter", "csat"), PlanFeatureError);

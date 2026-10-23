@@ -125,7 +125,9 @@ export function FirstAiReplyTimeChart({
                 dataKey="seconds"
                 stroke="var(--color-seconds)"
                 strokeWidth={2}
-                connectNulls={false}
+                // Les jours sans réponse IA n’ont pas de point, mais la courbe
+                // relie les jours mesurés au lieu de se couper.
+                connectNulls
                 dot={{ r: 4, fill: "var(--color-seconds)" }}
                 activeDot={{ r: 6 }}
                 isAnimationActive={false}

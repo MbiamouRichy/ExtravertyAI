@@ -3,6 +3,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import useSWRInfinite from "swr/infinite";
 import Pusher from "pusher-js";
+import type { z } from "zod";
+import {
+  CONTACT_PRESENCE_EVENT,
+  ContactPresenceEventSchema,
+} from "@/lib/contact-presence-shared";
 
 import type {
   ChatClient,
@@ -167,13 +172,20 @@ export function useChatMessages(projectId: string, contactId: string | null) {
   };
 }
 
-export function useChatRealtime(projectId: string, onChange: () => void) {
+export function useChatRealtime(
+  projectId: string,
+  onChange: () => void,
+  /** Statut WhatsApp d’un contact (« en ligne », « écrit… »), relayé sans être enregistré. */
+  onPresence?: (event: z.infer<typeof ContactPresenceEventSchema>) => void,
+) {
   const callback = useRef(onChange);
+  const presenceCallback = useRef(onPresence);
   const [connected, setConnected] = useState(false);
 
   useEffect(() => {
     callback.current = onChange;
-  }, [onChange]);
+    presenceCallback.current = onPresence;
+  }, [onChange, onPresence]);
 
   useEffect(() => {
     const key = process.env.NEXT_PUBLIC_PUSHER_KEY;
@@ -224,6 +236,12 @@ export function useChatRealtime(projectId: string, onChange: () => void) {
     channel.bind("pusher:subscription_error", onDisconnected);
     channel.bind("chat.changed", scheduleRefresh);
 
+    function onContactPresence(data: unknown) {
+      const parsed = ContactPresenceEventSchema.safeParse(data);
+      if (parsed.success) presenceCallback.current?.(parsed.data);
+    }
+    channel.bind(CONTACT_PRESENCE_EVENT, onContactPresence);
+
     pusher.connection.bind("disconnected", onDisconnected);
     pusher.connection.bind("unavailable", onDisconnected);
 
@@ -237,6 +255,7 @@ export function useChatRealtime(projectId: string, onChange: () => void) {
       channel.unbind("pusher:subscription_succeeded", onSubscribed);
       channel.unbind("pusher:subscription_error", onDisconnected);
       channel.unbind("chat.changed", scheduleRefresh);
+      channel.unbind(CONTACT_PRESENCE_EVENT, onContactPresence);
 
       pusher.connection.unbind("disconnected", onDisconnected);
       pusher.connection.unbind("unavailable", onDisconnected);

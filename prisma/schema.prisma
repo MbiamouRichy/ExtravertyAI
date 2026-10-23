@@ -219,6 +219,11 @@ model Project {
   contactEvents        ContactEvent[]
   messages             Message[]      // Tous les messages liés à ce projet
   knowledgeSources     KnowledgeSource[]
+  storedFiles          StoredFile[]
+  // Icône de l'entreprise (clé du fichier dans le stockage), servie par /api/projects/[id]/logo.
+  logoKey              String?
+  // Version des événements demandés au webhook Evolution (2 : présence des contacts).
+  webhookEventsVersion Int            @default(1)
   knowledgeEntries     KnowledgeEntry[]
   agentTestRuns        AgentTestRun[]
   aiFeedback           AiFeedback[]
@@ -846,6 +851,18 @@ enum KnowledgeSourceStatus {
   PROCESSING
   READY
   FAILED
+}
+
+// Fichiers déposés par l'équipe (médias du chat, PDF) : base du quota de stockage par offre.
+model StoredFile {
+  key       String   @id
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  bytes     Int
+  createdAt DateTime @default(now())
+
+  @@index([projectId])
+  @@map("stored_file")
 }
 
 model KnowledgeSource {

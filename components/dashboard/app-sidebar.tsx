@@ -1,8 +1,8 @@
 "use client";
 
-import { useParams } from "next/navigation"; // Ajout de useParams
+import Link from "next/link";
+import { useParams } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { LogoIcon } from "@/components/logo";
 import {
 	Sidebar,
 	SidebarContent,
@@ -13,6 +13,9 @@ import {
 import { getNavGroups } from "@/components/dashboard/app-shared";
 import { NavGroup } from "@/components/dashboard/nav-group";
 import { useIsProjectContext } from "./conditional-sidebar-trigger";
+import { useProjectIdentity } from "./project-identity";
+import { ProjectIcon } from "./project/project-icon";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export function AppSidebar() {
 	const isProjectContext = useIsProjectContext();
@@ -23,6 +26,7 @@ export function AppSidebar() {
 
 	// Génération de la navigation dynamique
 	const navGroups = projectId ? getNavGroups(projectId) : [];
+	const identity = useProjectIdentity(projectId);
 
 	if (isProjectContext && projectId) {
 		return (
@@ -33,9 +37,28 @@ export function AppSidebar() {
 				collapsible="icon"
 				variant="inset"
 			>
+				{/* Le projet ouvert (icône et nom) plutôt que la marque de l’application. */}
 				<SidebarHeader className="h-14 justify-center px-2">
-					<SidebarMenuButton asChild>
-						<LogoIcon LogoClassName="w-6" />
+					<SidebarMenuButton asChild size="lg" tooltip={identity?.name}>
+						<Link href={`/projects/${encodeURIComponent(projectId)}`}>
+							{identity ? (
+								<ProjectIcon
+									name={identity.name}
+									logoUrl={identity.logoUrl}
+									className="size-8 rounded-lg after:rounded-lg"
+									fallbackClassName="rounded-lg text-xs"
+								/>
+							) : (
+								<Skeleton className="size-8 shrink-0 rounded-lg" />
+							)}
+							{identity ? (
+								<span className="truncate font-heading text-sm font-semibold">
+									{identity.name}
+								</span>
+							) : (
+								<Skeleton className="h-4 w-28" />
+							)}
+						</Link>
 					</SidebarMenuButton>
 				</SidebarHeader>
 				<SidebarContent>

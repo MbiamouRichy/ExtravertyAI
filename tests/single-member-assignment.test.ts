@@ -9,11 +9,11 @@ import {
 } from "./helpers/database";
 
 test(
-  "a one-member team gets every new conversation assigned to itself",
+  "a one-member Business team gets every new conversation assigned to itself",
   { timeout: 600000 },
   async () => {
     await withTestDatabase(async (prisma) => {
-      const solo = await createProject(prisma);
+      const solo = await createProject(prisma, { plan: "business" });
       const owner = await createUser(prisma, "Kuifeu Florence");
       await addMember(prisma, solo.id, owner.id, "OWNER");
       const contact = await ingestText(prisma, solo.id, "Bonjour");
@@ -23,8 +23,19 @@ test(
       assert.equal(saved.assigneeId, owner.id);
       assert.ok(saved.assignedAt);
 
+      // Offres Starter et Pro : l'assignation automatique n'est pas incluse.
+      const starter = await createProject(prisma, { plan: "pro" });
+      const alone = await createUser(prisma, "Paul Ekang");
+      await addMember(prisma, starter.id, alone.id, "OWNER");
+      const unassigned = await ingestText(prisma, starter.id, "Salut");
+      assert.equal(
+        (await prisma.contact.findUniqueOrThrow({ where: { id: unassigned.id } }))
+          .assigneeId,
+        null,
+      );
+
       // Une équipe de deux : aucune assignation implicite.
-      const team = await createProject(prisma);
+      const team = await createProject(prisma, { plan: "business" });
       const first = await createUser(prisma, "Clara Mba");
       const second = await createUser(prisma, "Inès Obame");
       await addMember(prisma, team.id, first.id, "OWNER");

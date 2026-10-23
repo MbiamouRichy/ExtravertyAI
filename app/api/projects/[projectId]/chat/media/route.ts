@@ -13,6 +13,11 @@ import {
   validateMediaBytes,
 } from "@/lib/chat-media-server";
 import { projectBillingStatus } from "@/lib/project-status";
+import {
+  StorageQuotaError,
+  releaseStorage,
+  reserveStorage,
+} from "@/lib/storage-quota";
 export const runtime = "nodejs";
 export async function POST(
   request: Request,
@@ -64,19 +69,41 @@ export async function POST(
       requestId: requestId.data,
       expires: Date.now() + 24 * 60 * 60 * 1000,
     });
+    // Quota de stockage de l’offre : la place est réservée sous le verrou du
+    // projet, avant l’envoi, et rendue si l’envoi échoue.
+    try {
+      await prisma.$transaction(async (tx) => {
+        const [locked] = await tx.$queryRaw<{ plan: string }[]>`
+          SELECT plan::text AS plan FROM project WHERE id = ${projectId} FOR UPDATE`;
+        await reserveStorage(tx, {
+          projectId,
+          plan: locked?.plan,
+          key,
+          bytes: bytes.length,
+        });
+      });
+    } catch (error) {
+      if (error instanceof StorageQuotaError) return json(error.message, 413);
+      throw error;
+    }
     const { s3Client } = await import("@/lib/storage");
     const { PutObjectCommand, DeleteObjectCommand } =
       await import("@aws-sdk/client-s3");
-    await s3Client.send(
-      new PutObjectCommand({
-        Bucket: process.env.MINIO_BUCKET,
-        Key: key,
-        Body: bytes,
-        ContentType: mime,
-        Metadata: { filename: encodeURIComponent(filename) },
-      }),
-      { abortSignal: AbortSignal.timeout(20_000) },
-    );
+    try {
+      await s3Client.send(
+        new PutObjectCommand({
+          Bucket: process.env.MINIO_BUCKET,
+          Key: key,
+          Body: bytes,
+          ContentType: mime,
+          Metadata: { filename: encodeURIComponent(filename) },
+        }),
+        { abortSignal: AbortSignal.timeout(20_000) },
+      );
+    } catch (error) {
+      await releaseStorage(prisma, key).catch(() => undefined);
+      throw error;
+    }
     const stillAllowed = await prisma.projectMembership.findFirst({
       where: {
         userId: session.user.id,
@@ -89,6 +116,7 @@ export async function POST(
       await s3Client.send(
         new DeleteObjectCommand({ Bucket: process.env.MINIO_BUCKET, Key: key }),
       );
+      await releaseStorage(prisma, key).catch(() => undefined);
       return json("Projet indisponible.", 404);
     }
     return Response.json(

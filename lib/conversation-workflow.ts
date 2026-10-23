@@ -7,6 +7,7 @@ import {
   tagKey,
 } from "./conversation-workflow-schema";
 import { queueCsatSurvey } from "./csat";
+import { chatContactName } from "./chat-privacy";
 import { emitIntegrationEvent, integrationContact } from "./integration-events";
 
 // Message sûr à afficher tel quel ; toute autre erreur reste générique.
@@ -94,7 +95,10 @@ export async function setConversationResolved(
         })
       : false;
     if (input.resolved) {
-      const actor = await tx.user.findUnique({ where: { id: input.userId }, select: { name: true } });
+      const actor = await tx.user.findUnique({
+        where: { id: input.userId },
+        select: { name: true },
+      });
       await emitIntegrationEvent(tx, input.projectId, "conversation.resolved", {
         contact: await integrationContact(tx, input.contactId),
         resolvedBy: firstName(actor?.name),
@@ -227,55 +231,141 @@ export async function assignConversation(
   return db.$transaction(async (tx) => {
     await lockProject(tx, input.projectId);
     await requireContact(tx, input);
+    return applyAssignment(tx, input);
+  });
+}
 
-    const assignee = input.assigneeId
-      ? (
-          await tx.projectMembership.findUnique({
-            where: {
-              userId_projectId: {
-                userId: input.assigneeId,
-                projectId: input.projectId,
-              },
+/** Assignation sous le verrou du projet : historique et intégrations inclus. */
+async function applyAssignment(
+  tx: Prisma.TransactionClient,
+  input: Actor & { assigneeId: string | null },
+) {
+  const assignee = input.assigneeId
+    ? (
+        await tx.projectMembership.findUnique({
+          where: {
+            userId_projectId: {
+              userId: input.assigneeId,
+              projectId: input.projectId,
             },
-            select: { user: { select: { id: true, name: true, image: true } } },
-          })
-        )?.user
-      : null;
-    if (input.assigneeId && !assignee) {
+          },
+          select: { user: { select: { id: true, name: true, image: true } } },
+        })
+      )?.user
+    : null;
+  if (input.assigneeId && !assignee) {
+    throw new ConversationWorkflowError(
+      "Ce membre ne fait plus partie du projet.",
+    );
+  }
+
+  const current = await tx.contact.findUniqueOrThrow({
+    where: { id: input.contactId },
+    select: { assigneeId: true },
+  });
+  if (current.assigneeId === (assignee?.id ?? null)) {
+    return { assignee: assignee ?? null, changed: false };
+  }
+
+  await tx.contact.update({
+    where: { id: input.contactId },
+    data: assignee
+      ? {
+          assigneeId: assignee.id,
+          assignedAt: new Date(),
+          assignedById: input.userId,
+        }
+      : { assigneeId: null, assignedAt: null, assignedById: null },
+  });
+  await tx.contactEvent.create({
+    data: {
+      projectId: input.projectId,
+      contactId: input.contactId,
+      actorId: input.userId,
+      type: assignee ? "ASSIGNED" : "UNASSIGNED",
+      // Sans détail : la personne s'est attribué la conversation elle-même.
+      detail:
+        assignee && assignee.id !== input.userId
+          ? firstName(assignee.name)
+          : null,
+    },
+  });
+  await emitIntegrationEvent(tx, input.projectId, "conversation.assigned", {
+    contact: await integrationContact(tx, input.contactId),
+    assignee: assignee ? { id: assignee.id, name: assignee.name } : null,
+  });
+  return { assignee: assignee ?? null, changed: true };
+}
+
+/**
+ * Confie à un équipier la prochaine conversation ouverte sans responsable :
+ * d’abord celles où le client attend une réponse, la plus ancienne en premier.
+ * Réservé aux propriétaires et administrateurs ; jamais au propriétaire lui-même.
+ */
+export async function assignNextConversation(
+  db: PrismaClient,
+  input: { projectId: string; userId: string; assigneeId: string },
+) {
+  return db.$transaction(async (tx) => {
+    await lockProject(tx, input.projectId);
+    const [actor, assignee] = await Promise.all(
+      [input.userId, input.assigneeId].map((userId) =>
+        tx.projectMembership.findFirst({
+          where: {
+            userId,
+            projectId: input.projectId,
+            project: { deletionPending: false },
+          },
+          select: { role: true, user: { select: { name: true } } },
+        }),
+      ),
+    );
+    if (!actor || !["OWNER", "ADMIN"].includes(actor.role)) {
+      throw new ConversationWorkflowError(
+        "Seuls les propriétaires et administrateurs répartissent les conversations.",
+      );
+    }
+    if (!assignee) {
       throw new ConversationWorkflowError(
         "Ce membre ne fait plus partie du projet.",
       );
     }
-
-    const current = await tx.contact.findUniqueOrThrow({
-      where: { id: input.contactId },
-      select: { assigneeId: true },
-    });
-    if (current.assigneeId === (assignee?.id ?? null)) {
-      return { assignee: assignee ?? null, changed: false };
+    if (assignee.role === "OWNER") {
+      throw new ConversationWorkflowError(
+        "Le propriétaire choisit ses conversations lui-même.",
+      );
     }
-
-    await tx.contact.update({
-      where: { id: input.contactId },
-      data: assignee
-        ? { assigneeId: assignee.id, assignedAt: new Date(), assignedById: input.userId }
-        : { assigneeId: null, assignedAt: null, assignedById: null },
+    const [next] = await tx.$queryRaw<{ id: string }[]>`
+      SELECT c.id FROM contact c
+      LEFT JOIN LATERAL (
+        SELECT m."createdAt", m."fromMe" FROM message m
+        WHERE m."contactId" = c.id AND m."projectId" = c."projectId"
+        ORDER BY m."createdAt" DESC, m.id DESC LIMIT 1
+      ) last ON true
+      WHERE c."projectId" = ${input.projectId} AND c."assigneeId" IS NULL AND c."resolvedAt" IS NULL
+      ORDER BY (last."fromMe" IS FALSE) DESC, last."createdAt" ASC NULLS LAST, c.id
+      LIMIT 1`;
+    if (!next) {
+      throw new ConversationWorkflowError(
+        "Aucune conversation en attente d’un responsable.",
+      );
+    }
+    await applyAssignment(tx, {
+      projectId: input.projectId,
+      contactId: next.id,
+      userId: input.userId,
+      assigneeId: input.assigneeId,
     });
-    await tx.contactEvent.create({
-      data: {
-        projectId: input.projectId,
-        contactId: input.contactId,
-        actorId: input.userId,
-        type: assignee ? "ASSIGNED" : "UNASSIGNED",
-        // Sans détail : la personne s'est attribué la conversation elle-même.
-        detail: assignee && assignee.id !== input.userId ? firstName(assignee.name) : null,
-      },
+    const contact = await tx.contact.findUniqueOrThrow({
+      where: { id: next.id },
+      select: { name: true, pushName: true },
     });
-    await emitIntegrationEvent(tx, input.projectId, "conversation.assigned", {
-      contact: await integrationContact(tx, input.contactId),
-      assignee: assignee ? { id: assignee.id, name: assignee.name } : null,
-    });
-    return { assignee: assignee ?? null, changed: true };
+    return {
+      contactId: next.id,
+      // Jamais le numéro : nom masqué comme dans la messagerie.
+      contactName: chatContactName(contact),
+      assigneeName: assignee.user.name,
+    };
   });
 }
 

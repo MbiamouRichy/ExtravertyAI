@@ -11,6 +11,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { MemberPresence, useProjectPresence } from "./user/member-presence";
+import { AssignNextButton } from "./project/assign-next-button";
 import { ArrowRightIcon } from "lucide-react";
 import { Button } from "../ui/button";
 import { getInitials } from "../getInitials";
@@ -23,6 +24,9 @@ export type Teammate = {
   name: string;
 
   open: number;
+  role: string;
+  /** Conversations ouvertes qui lui sont assignées. */
+  assigned: number;
   image?: string | null;
 };
 
@@ -67,20 +71,17 @@ export function TeamOnDuty({
         )}
         <ul className="flex flex-col divide-y divide-border">
           {teammates.slice(0, 10).map((t) => (
-            <li
-              className="flex items-start gap-2 p-3 sm:items-center sm:first:pt-0 sm:last:pb-0 sm:gap-3"
-              key={t.id}
-            >
-              <Avatar className="size-8 shrink-0">
-                {/* Gérer le cas où l'image est null ou undefined */}
-                <AvatarImage alt={t.name} src={t.image || undefined} />
+            <li className="flex items-center gap-3 px-4 py-3" key={t.id}>
+              <Avatar className="size-9 shrink-0">
+                <AvatarImage alt="" src={t.image || undefined} />
                 <AvatarFallback>{getInitials(t.name)}</AvatarFallback>
               </Avatar>
-              <div className="min-w-0 flex-1 pr-1">
-                <p className="truncate font-medium text-foreground text-sm leading-snug">
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium leading-snug text-foreground">
                   {t.name}
                 </p>
-                <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs leading-relaxed sm:flex-nowrap sm:text-[10px] sm:leading-snug">
+                {/* Présence et charge : passent à la ligne sur petit écran. */}
+                <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
                   <MemberPresence
                     status={
                       presence.error
@@ -89,8 +90,23 @@ export function TeamOnDuty({
                             ?.status
                     }
                   />
+                  <span aria-hidden="true" className="text-muted-foreground/60">
+                    ·
+                  </span>
+                  <span className="whitespace-nowrap tabular-nums">
+                    {t.assigned.toLocaleString("fr-FR")}{" "}
+                    {t.assigned > 1 ? "assignées" : "assignée"}
+                  </span>
                 </p>
               </div>
+              {/* Le propriétaire choisit ses conversations lui-même. */}
+              {t.role !== "OWNER" && (
+                <AssignNextButton
+                  projectId={projectId}
+                  assigneeId={t.userId}
+                  assigneeName={t.name}
+                />
+              )}
             </li>
           ))}
         </ul>

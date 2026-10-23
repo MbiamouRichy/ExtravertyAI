@@ -1,5 +1,6 @@
 import "server-only";
 import { randomBytes } from "node:crypto";
+import { EVOLUTION_WEBHOOK_EVENTS } from "@/lib/contact-presence";
 const EVOLUTION_API_URL = process.env.EVOLUTION_API_URL;
 const EVOLUTION_API_TOKEN = process.env.EVOLUTION_API_KEY;
 const WEBHOOK_SECRET = process.env.EVOLUTION_WEBHOOK_SECRET;
@@ -23,7 +24,7 @@ export async function createEvolutionInstance(
   }
 
   const webhookUrl = `${APP_URL}/api/webhooks/evolution?secret=${WEBHOOK_SECRET}`;
-  const events = ["CONNECTION_UPDATE", "MESSAGES_UPSERT", "MESSAGES_UPDATE"];
+  const events = EVOLUTION_WEBHOOK_EVENTS;
   const cleanNumero = number.replace(/\D/g, "");
   const instanceToken = randomBytes(32).toString("hex");
 
@@ -218,10 +219,45 @@ export async function getEvolutionInstanceConnect(instanceName: string) {
   return response.json();
 }
 
+/** État seul (« open », « connecting », « close »), sans relancer de connexion. */
+export async function getEvolutionConnectionState(instanceName: string) {
+  const { EVOLUTION_API_URL, EVOLUTION_API_TOKEN } = getEnvVars();
+  const response = await fetch(
+    `${EVOLUTION_API_URL}/instance/connectionState/${encodeURIComponent(instanceName.trim())}`,
+    {
+      headers: { apikey: EVOLUTION_API_TOKEN },
+      cache: "no-store",
+      signal: AbortSignal.timeout(8000),
+    },
+  );
+  if (!response.ok) throw new Error(`Erreur réseau (${response.status})`);
+  const data = await response.json();
+  return typeof data?.instance?.state === "string"
+    ? data.instance.state.toLowerCase()
+    : null;
+}
+
+/** Ferme une session en attente (QR affiché) avant une liaison par code. */
+export async function logoutEvolutionInstance(instanceName: string) {
+  const { EVOLUTION_API_URL, EVOLUTION_API_TOKEN } = getEnvVars();
+  const response = await fetch(
+    `${EVOLUTION_API_URL}/instance/logout/${encodeURIComponent(instanceName.trim())}`,
+    {
+      method: "DELETE",
+      headers: { apikey: EVOLUTION_API_TOKEN },
+      cache: "no-store",
+      signal: AbortSignal.timeout(8000),
+    },
+  );
+  // 400 : déjà fermée, ce qui convient.
+  if (!response.ok && response.status !== 400)
+    throw new Error(`Erreur réseau (${response.status})`);
+}
+
 export async function requestEvolutionPairingCode(
   instanceName: string,
   phoneNumber: string,
-): Promise<{ code: string; [key: string]: unknown }> {
+): Promise<Record<string, unknown>> {
   const { EVOLUTION_API_URL, EVOLUTION_API_TOKEN } = getEnvVars();
   const safeInstanceName = encodeURIComponent(instanceName.trim());
 
@@ -230,7 +266,7 @@ export async function requestEvolutionPairingCode(
 
   try {
     const response = await fetch(
-      `${EVOLUTION_API_URL}/instance/connect/${safeInstanceName}?number=${phoneNumber}`,
+      `${EVOLUTION_API_URL}/instance/connect/${safeInstanceName}?number=${encodeURIComponent(phoneNumber)}`,
       {
         method: "GET",
         headers: {
@@ -255,7 +291,8 @@ export async function requestEvolutionPairingCode(
 
     const data = await response.json();
 
-    if (!data || typeof data.code !== "string") {
+    // Le code de liaison peut arriver sans QR code : seule la forme compte ici.
+    if (!data || typeof data !== "object") {
       throw new Error(
         "La structure de la réponse de l'API Evolution est invalide.",
       );

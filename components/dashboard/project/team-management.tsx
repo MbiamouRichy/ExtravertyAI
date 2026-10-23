@@ -81,6 +81,7 @@ import { ChangeRoleModal } from "./changeRoleModal";
 import { TransferOwnershipDialog } from "./transfer-ownership-dialog";
 import { MemberPresence, useProjectPresence } from "../user/member-presence";
 import { getInitials } from "@/components/getInitials";
+import { AssignNextButton } from "./assign-next-button";
 
 // --- 1. SCHÉMA DE VALIDATION ZOD ---
 const inviteSchema = z.object({
@@ -463,11 +464,36 @@ export default function TeamManagement({
                         }
                       />
                     </span>
+                    <span aria-hidden="true" className="text-muted-foreground/60">
+                      ·
+                    </span>
+                    <span className="whitespace-nowrap tabular-nums">
+                      {(member.assigned ?? 0).toLocaleString("fr-FR")}{" "}
+                      {(member.assigned ?? 0) > 1 ? "assignées" : "assignée"}
+                    </span>
                   </div>
+                  {/* Mobile : l’action passe sous les informations. */}
+                  {member.role !== "OWNER" && (
+                    <AssignNextButton
+                      projectId={projectId}
+                      assigneeId={member.userId}
+                      assigneeName={member.name || "ce membre"}
+                      className="mt-2.5 sm:hidden"
+                    />
+                  )}
                 </div>
 
                 <div className="flex shrink-0 items-center gap-2">
                   <span className="hidden sm:inline-flex">{getRoleBadge(member.role)}</span>
+                  {/* Le propriétaire choisit ses conversations lui-même. */}
+                  {member.role !== "OWNER" && (
+                    <AssignNextButton
+                      projectId={projectId}
+                      assigneeId={member.userId}
+                      assigneeName={member.name || "ce membre"}
+                      className="hidden sm:inline-flex"
+                    />
+                  )}
                   {!isMe && canManageMember && member.role !== "OWNER" ? (
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>

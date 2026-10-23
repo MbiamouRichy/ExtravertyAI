@@ -16,7 +16,6 @@ import {
   QrCode,
   RefreshCw,
   ScanLine,
-  ShieldAlert,
   Smartphone,
 } from "lucide-react";
 
@@ -30,8 +29,11 @@ import { cn } from "@/lib/utils";
 type ConnectionData = Awaited<ReturnType<typeof getConnectionData>>;
 type Method = "qr" | "phone";
 
-const fetchConnection = ([, projectId]: readonly [string, string]) =>
-  getConnectionData(projectId);
+const fetchConnection = ([, projectId, method]: readonly [
+  string,
+  string,
+  Method,
+]) => getConnectionData(projectId, method);
 
 function normalizeQrImage(value: unknown): string | null {
   if (typeof value !== "string") return null;
@@ -69,7 +71,9 @@ function ConnectionPanel({ projectId }: { projectId: string }) {
 
   const { data, error, isLoading, isValidating, mutate } =
     useSWR<ConnectionData>(
-      ["whatsapp-connection", projectId] as const,
+      // Par code : l’état seul est relu, pour ne pas relancer de QR code
+      // qui invaliderait le code de liaison affiché.
+      ["whatsapp-connection", projectId, method] as const,
       fetchConnection,
       {
         refreshInterval: (current) =>
@@ -139,7 +143,8 @@ function ConnectionPanel({ projectId }: { projectId: string }) {
         !result.pairingCode.trim()
       ) {
         setActionError(
-          "Impossible de générer le code. Vérifiez le numéro configuré pour ce projet.",
+          (!result.success && result.error) ||
+            "Impossible de générer le code. Vérifiez le numéro configuré pour ce projet.",
         );
         return;
       }
@@ -201,21 +206,36 @@ function ConnectionPanel({ projectId }: { projectId: string }) {
           className="absolute inset-0 -z-10 bg-[radial-gradient(var(--border)_1px,transparent_1px)] mask-[radial-gradient(ellipse_at_center,black,transparent_70%)] bg-size-[18px_18px]"
         />
         <span className="mx-auto flex size-16 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-foreground/10 motion-safe:animate-in motion-safe:zoom-in-75 motion-safe:duration-500">
-          <CheckCircle2 aria-hidden="true" className="size-8" strokeWidth={1.7} />
+          <CheckCircle2
+            aria-hidden="true"
+            className="size-8"
+            strokeWidth={1.7}
+          />
         </span>
         <p className="mt-6 font-mono text-xs uppercase tracking-wider text-muted-foreground">
           Connexion établie
         </p>
-        <h2 id="connection-success-title" className="mt-2 text-3xl tracking-tight">
+        <h2
+          id="connection-success-title"
+          className="mt-2 text-3xl tracking-tight"
+        >
           WhatsApp est connecté
         </h2>
         <p className="mx-auto mt-3 max-w-sm text-sm text-muted-foreground">
           Votre numéro est associé au projet. La messagerie va s’ouvrir
           automatiquement.
         </p>
-        <p role="status" className="mt-6 flex items-center justify-center gap-2 text-xs text-muted-foreground">
-          <Loader2 aria-hidden="true" className="size-4 animate-spin motion-reduce:animate-none" />
-          {opening ? "Ouverture des conversations…" : "Préparation de votre espace…"}
+        <p
+          role="status"
+          className="mt-6 flex items-center justify-center gap-2 text-xs text-muted-foreground"
+        >
+          <Loader2
+            aria-hidden="true"
+            className="size-4 animate-spin motion-reduce:animate-none"
+          />
+          {opening
+            ? "Ouverture des conversations…"
+            : "Préparation de votre espace…"}
         </p>
         <Button asChild variant="outline" className="mt-5">
           <a href={chatUrl}>
@@ -231,15 +251,28 @@ function ConnectionPanel({ projectId }: { projectId: string }) {
     method === "qr"
       ? [
           { icon: Smartphone, text: "Ouvrez WhatsApp sur votre téléphone." },
-          { icon: Link2, text: "Touchez « Appareils connectés », puis « Connecter un appareil »." },
+          {
+            icon: Link2,
+            text: "Touchez « Appareils connectés », puis « Connecter un appareil ».",
+          },
           { icon: ScanLine, text: "Pointez l’appareil photo vers le QR code." },
         ]
       : [
-          { icon: Smartphone, text: "Ouvrez WhatsApp sur le téléphone du numéro configuré pour ce projet." },
-          { icon: Link2, text: "Touchez « Appareils connectés », puis « Connecter un appareil »." },
-          { icon: Hash, text: "Choisissez « Associer avec un numéro de téléphone » et saisissez le code." },
+          {
+            icon: Smartphone,
+            text: "Ouvrez WhatsApp sur le téléphone du numéro configuré pour ce projet.",
+          },
+          {
+            icon: Link2,
+            text: "Touchez « Appareils connectés », puis « Connecter un appareil ».",
+          },
+          {
+            icon: Hash,
+            text: "Choisissez « Associer avec un numéro de téléphone » et saisissez le code.",
+          },
         ];
-  const waiting = !unavailable && (method === "qr" ? !!(qrCode || qrImage) : !!pairingCode);
+  const waiting =
+    !unavailable && (method === "qr" ? !!(qrCode || qrImage) : !!pairingCode);
 
   return (
     <section
@@ -252,11 +285,15 @@ function ConnectionPanel({ projectId }: { projectId: string }) {
             <Smartphone aria-hidden="true" className="size-5" />
           </span>
           <div>
-            <h2 id="whatsapp-connect-title" className="font-heading text-lg font-semibold tracking-tight">
+            <h2
+              id="whatsapp-connect-title"
+              className="font-heading text-lg font-semibold tracking-tight"
+            >
               Associer votre compte WhatsApp
             </h2>
             <p className="mt-0.5 text-sm text-muted-foreground">
-              Validez la connexion depuis votre téléphone, en moins d’une minute.
+              Validez la connexion depuis votre téléphone, en moins d’une
+              minute.
             </p>
           </div>
         </div>
@@ -274,7 +311,11 @@ function ConnectionPanel({ projectId }: { projectId: string }) {
             <span
               className={cn(
                 "relative inline-flex size-2 rounded-full",
-                unavailable ? "bg-destructive" : waiting ? "bg-foreground" : "bg-muted-foreground/50",
+                unavailable
+                  ? "bg-destructive"
+                  : waiting
+                    ? "bg-foreground"
+                    : "bg-muted-foreground/50",
               )}
             />
           </span>
@@ -288,7 +329,11 @@ function ConnectionPanel({ projectId }: { projectId: string }) {
 
       <div className="grid md:grid-cols-[1fr_1.05fr]">
         <div className="space-y-7 border-b bg-muted/30 p-5 sm:p-7 md:border-b-0 md:border-r">
-          <div role="group" aria-label="Méthode de connexion" className="grid grid-cols-2 gap-1 rounded-xl border bg-background p-1">
+          <div
+            role="group"
+            aria-label="Méthode de connexion"
+            className="grid grid-cols-2 gap-1 rounded-xl border bg-background p-1"
+          >
             {[
               { value: "qr" as const, label: "QR code", icon: QrCode },
               { value: "phone" as const, label: "Code de liaison", icon: Hash },
@@ -302,7 +347,10 @@ function ConnectionPanel({ projectId }: { projectId: string }) {
                   setMethod(value);
                   setActionError(null);
                 }}
-                className={cn("h-10 rounded-lg", method !== value && "text-muted-foreground")}
+                className={cn(
+                  "h-10 rounded-lg",
+                  method !== value && "text-muted-foreground",
+                )}
               >
                 <Icon data-icon="inline-start" />
                 {label}
@@ -335,12 +383,17 @@ function ConnectionPanel({ projectId }: { projectId: string }) {
           {unavailable ? (
             <div className="w-full max-w-sm text-center">
               <span className="mx-auto flex size-12 items-center justify-center rounded-2xl border border-destructive/30 bg-destructive/5">
-                <AlertCircle aria-hidden="true" className="size-5 text-destructive" />
+                <AlertCircle
+                  aria-hidden="true"
+                  className="size-5 text-destructive"
+                />
               </span>
-              <h3 className="mt-4 text-base font-semibold">Connexion temporairement indisponible</h3>
+              <h3 className="mt-4 text-base font-semibold">
+                Connexion temporairement indisponible
+              </h3>
               <p className="mt-2 text-sm text-muted-foreground">
-                Nous tentons de récupérer l’état de l’instance. Vous pouvez aussi
-                relancer la vérification.
+                Nous tentons de récupérer l’état de l’instance. Vous pouvez
+                aussi relancer la vérification.
               </p>
               <Button
                 type="button"
@@ -351,7 +404,9 @@ function ConnectionPanel({ projectId }: { projectId: string }) {
               >
                 <RefreshCw
                   aria-hidden="true"
-                  className={cn(isValidating && "animate-spin motion-reduce:animate-none")}
+                  className={cn(
+                    isValidating && "animate-spin motion-reduce:animate-none",
+                  )}
                 />
                 Réessayer
               </Button>
@@ -360,10 +415,22 @@ function ConnectionPanel({ projectId }: { projectId: string }) {
             <>
               {/* Un QR code doit rester sombre sur fond clair, quel que soit le thème. */}
               <div className="relative w-full max-w-72 rounded-3xl border bg-white p-5 shadow-lg shadow-foreground/10">
-                <span aria-hidden="true" className="absolute left-2.5 top-2.5 size-5 rounded-tl-lg border-l-2 border-t-2 border-neutral-900" />
-                <span aria-hidden="true" className="absolute right-2.5 top-2.5 size-5 rounded-tr-lg border-r-2 border-t-2 border-neutral-900" />
-                <span aria-hidden="true" className="absolute bottom-2.5 left-2.5 size-5 rounded-bl-lg border-b-2 border-l-2 border-neutral-900" />
-                <span aria-hidden="true" className="absolute bottom-2.5 right-2.5 size-5 rounded-br-lg border-b-2 border-r-2 border-neutral-900" />
+                <span
+                  aria-hidden="true"
+                  className="absolute left-2.5 top-2.5 size-5 rounded-tl-lg border-l-2 border-t-2 border-neutral-900"
+                />
+                <span
+                  aria-hidden="true"
+                  className="absolute right-2.5 top-2.5 size-5 rounded-tr-lg border-r-2 border-t-2 border-neutral-900"
+                />
+                <span
+                  aria-hidden="true"
+                  className="absolute bottom-2.5 left-2.5 size-5 rounded-bl-lg border-b-2 border-l-2 border-neutral-900"
+                />
+                <span
+                  aria-hidden="true"
+                  className="absolute bottom-2.5 right-2.5 size-5 rounded-br-lg border-b-2 border-r-2 border-neutral-900"
+                />
                 <div className="relative aspect-square w-full overflow-hidden">
                   {qrCode ? (
                     <QRCodeSVG
@@ -394,8 +461,14 @@ function ConnectionPanel({ projectId }: { projectId: string }) {
                       className="object-contain"
                     />
                   ) : (
-                    <div role="status" className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-center">
-                      <div aria-hidden="true" className="grid size-24 grid-cols-3 gap-1.5 opacity-60">
+                    <div
+                      role="status"
+                      className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-center"
+                    >
+                      <div
+                        aria-hidden="true"
+                        className="grid size-24 grid-cols-3 gap-1.5 opacity-60"
+                      >
                         {Array.from({ length: 9 }, (_, cell) => (
                           <span
                             key={cell}
@@ -405,7 +478,9 @@ function ConnectionPanel({ projectId }: { projectId: string }) {
                         ))}
                       </div>
                       <p className="text-xs text-neutral-600">
-                        {isLoading ? "Connexion à votre instance…" : "Génération du QR code…"}
+                        {isLoading
+                          ? "Connexion à votre instance…"
+                          : "Génération du QR code…"}
                       </p>
                     </div>
                   )}
@@ -439,7 +514,10 @@ function ConnectionPanel({ projectId }: { projectId: string }) {
                   <p dir="ltr" className="sr-only">
                     {pairingCode.split("").join(" ")}
                   </p>
-                  <div aria-hidden="true" className="mt-4 flex flex-wrap items-center justify-center gap-1.5">
+                  <div
+                    aria-hidden="true"
+                    className="mt-4 flex flex-wrap items-center justify-center gap-1.5"
+                  >
                     {pairingCode.split("").map((char, index) => (
                       <span key={index} className="contents">
                         {index > 0 && index % 4 === 0 && (
@@ -458,14 +536,21 @@ function ConnectionPanel({ projectId }: { projectId: string }) {
                     className="mt-4"
                     onClick={copyPairingCode}
                   >
-                    {copied ? <Check data-icon="inline-start" /> : <Copy data-icon="inline-start" />}
+                    {copied ? (
+                      <Check data-icon="inline-start" />
+                    ) : (
+                      <Copy data-icon="inline-start" />
+                    )}
                     {copied ? "Code copié" : "Copier le code"}
                   </Button>
                 </div>
               )}
 
               {actionError && (
-                <p role="alert" className="mb-4 rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-xs leading-relaxed text-destructive">
+                <p
+                  role="alert"
+                  className="mb-4 rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-xs leading-relaxed text-destructive"
+                >
                   {actionError}
                 </p>
               )}
@@ -479,7 +564,10 @@ function ConnectionPanel({ projectId }: { projectId: string }) {
                 variant={pairingCode ? "outline" : "default"}
               >
                 {generating && (
-                  <Loader2 aria-hidden="true" className="animate-spin motion-reduce:animate-none" />
+                  <Loader2
+                    aria-hidden="true"
+                    className="animate-spin motion-reduce:animate-none"
+                  />
                 )}
                 {generating
                   ? "Génération…"
@@ -489,7 +577,10 @@ function ConnectionPanel({ projectId }: { projectId: string }) {
               </Button>
 
               {pairingCode && (
-                <p role="status" className="mt-4 text-center text-xs text-muted-foreground">
+                <p
+                  role="status"
+                  className="mt-4 text-center text-xs text-muted-foreground"
+                >
                   En attente de confirmation sur votre téléphone…
                 </p>
               )}
@@ -497,16 +588,6 @@ function ConnectionPanel({ projectId }: { projectId: string }) {
           )}
         </div>
       </div>
-
-      <footer className="flex items-start gap-3 border-t px-5 py-4 sm:px-7">
-        <ShieldAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
-        <p className="text-xs leading-relaxed text-muted-foreground">
-          <strong className="font-medium text-foreground">Gardez ces codes privés.</strong>{" "}
-          Le QR code et le code de liaison permettent d’associer un appareil à
-          votre compte. Ne les partagez avec personne, même quelqu’un qui se
-          présente comme le support.
-        </p>
-      </footer>
     </section>
   );
 }

@@ -8,6 +8,7 @@ import {
 import { formatWaiting, useNow } from "@/hooks/use-now";
 import { AiFeedbackControls } from "./ai-feedback-controls";
 import {
+  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -16,6 +17,12 @@ import {
   type ReactNode,
 } from "react";
 import Link from "next/link";
+import {
+  PRESENCE_LABEL,
+  PRESENCE_SUBSCRIBE_EVERY_MS,
+  PRESENCE_TTL_MS,
+  type ContactPresence,
+} from "@/lib/contact-presence-shared";
 import {
   ArrowLeft,
   BookUser,
@@ -733,7 +740,55 @@ export default function WhatsappWorkspace({
     void historyQuery.mutate();
   }
 
-  useChatRealtime(project.id, refresh);
+  // Statut WhatsApp des prospects : gardé en mémoire le temps de son affichage.
+  const [presences, setPresences] = useState<
+    Record<string, { state: ContactPresence; at: number }>
+  >({});
+  const [presenceNow, setPresenceNow] = useState(() => Date.now());
+  const onPresence = useCallback(
+    ({ contactId, presence }: { contactId: string; presence: ContactPresence }) => {
+      const at = Date.now();
+      setPresenceNow(at);
+      setPresences((previous) => ({
+        ...previous,
+        [contactId]: { state: presence, at },
+      }));
+    },
+    [],
+  );
+  useChatRealtime(project.id, refresh, onPresence);
+  // WhatsApp n’envoie la présence qu’aux abonnés : abonnement à l’ouverture,
+  // renouvelé tant que la conversation reste ouverte et l’onglet visible.
+  useEffect(() => {
+    if (!activeId) return;
+    const subscribe = () => {
+      if (document.visibilityState !== "visible") return;
+      void fetch(
+        `/api/projects/${encodeURIComponent(project.id)}/chat/contact-presence`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ contactId: activeId }),
+        },
+      ).catch(() => undefined);
+    };
+    subscribe();
+    const timer = window.setInterval(subscribe, PRESENCE_SUBSCRIBE_EVERY_MS);
+    return () => window.clearInterval(timer);
+  }, [activeId, project.id]);
+  // Un statut sans nouvelle de WhatsApp finit par s’effacer.
+  useEffect(() => {
+    if (!Object.keys(presences).length) return;
+    const timer = window.setInterval(() => setPresenceNow(Date.now()), 5000);
+    return () => window.clearInterval(timer);
+  }, [presences]);
+  const presenceOf = (contactId: string) => {
+    const entry = presences[contactId];
+    if (!entry || entry.state === "offline") return null;
+    return presenceNow - entry.at <= PRESENCE_TTL_MS[entry.state]
+      ? entry.state
+      : null;
+  };
 
   const refreshing = contactsQuery.isValidating || historyQuery.isValidating;
 
@@ -833,13 +888,8 @@ export default function WhatsappWorkspace({
     });
   }, [messages]);
 
-  useEffect(() => {
-    if (activeId || clients.length === 0) return;
-
-    setActiveId(clients[0].id);
-    setSelectedClient(clients[0]);
-  }, [activeId, clients]);
-
+  // Aucune conversation n’est ouverte d’office : seul un lien
+  // (?contactId=…) ou un clic dans la liste en ouvre une.
   useEffect(() => {
     if (!activeId) return;
 
@@ -926,6 +976,7 @@ export default function WhatsappWorkspace({
   const activeClient =
     clients.find((client) => client.id === activeId) ??
     (selectedClient?.id === activeId ? selectedClient : undefined);
+  const activePresence = activeClient ? presenceOf(activeClient.id) : null;
   const aiActive = activeClient
     ? (aiOverrides[activeClient.id] ?? activeClient.aiActive)
     : false;
@@ -1862,11 +1913,19 @@ export default function WhatsappWorkspace({
                     aria-label={`Voir la fiche de ${activeClient.name}`}
                     className="flex min-w-0 flex-1 items-center gap-2 rounded-lg p-1 text-left outline-none hover:bg-muted/60 focus-visible:ring-3 focus-visible:ring-ring/50 sm:gap-3"
                   >
-                    <Avatar className="hidden size-9 shrink-0 sm:flex">
-                      <AvatarFallback className="font-heading text-xs font-semibold">
-                        {getInitials(activeClient.name)}
-                      </AvatarFallback>
-                    </Avatar>
+                    <span className="relative hidden shrink-0 sm:flex">
+                      <Avatar className="size-9">
+                        <AvatarFallback className="font-heading text-xs font-semibold">
+                          {getInitials(activeClient.name)}
+                        </AvatarFallback>
+                      </Avatar>
+                      {activePresence && (
+                        <span
+                          aria-hidden="true"
+                          className="absolute -bottom-0.5 -right-0.5 size-3 rounded-full border-2 border-background bg-emerald-500"
+                        />
+                      )}
+                    </span>
 
                     <span className="block min-w-0 flex-1">
                       <span className="flex min-w-0 items-center gap-2">
@@ -1879,11 +1938,24 @@ export default function WhatsappWorkspace({
                           loading={historyQuery.isLoading}
                         />
                       </span>
-                      <span className="mt-0.5 hidden sm:flex">
-                        <InstinctBadge
-                          classification={activeClient.prospectClassification}
-                        />
-                      </span>
+                      {activePresence ? (
+                        <span
+                          role="status"
+                          className="mt-0.5 flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400"
+                        >
+                          <span
+                            aria-hidden="true"
+                            className="size-1.5 rounded-full bg-emerald-500 sm:hidden"
+                          />
+                          {PRESENCE_LABEL[activePresence]}
+                        </span>
+                      ) : (
+                        <span className="mt-0.5 hidden sm:flex">
+                          <InstinctBadge
+                            classification={activeClient.prospectClassification}
+                          />
+                        </span>
+                      )}
                     </span>
                   </button>
                 </div>
@@ -2286,12 +2358,12 @@ export default function WhatsappWorkspace({
               </div>
 
               <h2 className="text-xl font-semibold tracking-tight">
-                Votre espace de conversation
+                Sélectionnez une conversation
               </h2>
 
               <p className="mt-3 max-w-sm text-sm leading-relaxed text-muted-foreground">
-                Consultez vos échanges, répondez à vos contacts et gérez
-                l’activation de l’IA au même endroit.
+                Choisissez un contact dans la liste pour lire ses messages,
+                lui répondre ou reprendre la main sur l’IA.
               </p>
             </div>
           )}

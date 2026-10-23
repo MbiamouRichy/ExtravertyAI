@@ -22,7 +22,7 @@ export const SandboxInputSchema = z.object({
   messages: z
     .array(SandboxMessageSchema)
     .min(1)
-    .max(20)
+    .max(50)
     .refine((messages) => messages.at(-1)?.role === "user", "Le dernier message doit venir du client."),
 });
 
@@ -50,7 +50,7 @@ export async function runAgentTest(
   input: z.input<typeof SandboxInputSchema> & { userId: string },
   generate = generateReply,
 ) {
-  const { projectId, messages } = SandboxInputSchema.parse(input);
+  const { projectId, messages: allMessages } = SandboxInputSchema.parse(input);
   const { project, run, remaining } = await db.$transaction(async (tx) => {
     await tx.$queryRaw`SELECT id FROM project WHERE id = ${projectId} FOR UPDATE`;
     const { project } = await requireProjectAdmin(tx, projectId, input.userId);
@@ -75,6 +75,8 @@ export async function runAgentTest(
     return { project, run, remaining: limit - used - 1 };
   });
 
+  // Même mémoire de contexte qu’en production pour cette offre.
+  const messages = allMessages.slice(-planFeatures(project.plan).contextMessages);
   const config = AgentConfigSchema.parse(project);
   const knowledge = await knowledgeContext(
     db,

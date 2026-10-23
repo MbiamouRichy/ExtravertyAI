@@ -3,6 +3,8 @@ import { getSession } from "@/lib/auth-server";
 import prisma from "@/lib/prisma";
 import { getBillingAccess } from "@/lib/billing-access";
 import { BillingNotice } from "@/components/dashboard/project/billing-notice";
+import { ProjectIdentitySync } from "@/components/dashboard/project-identity";
+import { projectLogoUrl } from "@/lib/project-logo";
 
 export default async function ProjectLayout({
   children,
@@ -16,12 +18,17 @@ export default async function ProjectLayout({
   if (!session?.user?.id) redirect("/sign-in");
   const member = await prisma.projectMembership.findUnique({
     where: { userId_projectId: { userId: session.user.id, projectId } },
-    select: { role: true },
+    select: { role: true, project: { select: { name: true, logoKey: true } } },
   });
   if (!member) notFound();
   const access = await getBillingAccess(prisma, projectId);
   return (
     <>
+      <ProjectIdentitySync
+        projectId={projectId}
+        name={member.project.name}
+        logoUrl={projectLogoUrl(projectId, member.project.logoKey)}
+      />
       <BillingNotice
         projectId={projectId}
         initial={access}

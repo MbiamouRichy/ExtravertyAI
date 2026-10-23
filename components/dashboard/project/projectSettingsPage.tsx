@@ -23,9 +23,11 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { WhatsAppPreferences } from "./whatsapp-preferences";
 import { ProjectNameForm } from "./project-name-form";
+import { ProjectLogoSettings } from "./project-logo-settings";
 import { CsatSettings } from "./csat-settings";
 import { WaitingTimeSettings } from "./waiting-time-settings";
 import type { ProjectSettingsView } from "@/lib/settings-types";
+import { formatStorage } from "@/lib/storage-quota";
 import {
   setProjectPaused,
   openProjectBillingPortal,
@@ -271,6 +273,13 @@ export default function ProjectSettingsPage({
             <CsatSettings key={p.id} projectId={p.id} initial={p.csat} />
           </div>
           <div hidden={tab !== "general"} className="space-y-6">
+            <ProjectLogoSettings
+              key={`logo-${p.id}`}
+              projectId={p.id}
+              name={p.name}
+              logoUrl={p.logoUrl}
+              disabled={!canPause || !!pending || p.deletionPending}
+            />
             <ProjectNameForm
               key={p.id}
               projectId={p.id}
@@ -353,6 +362,31 @@ export default function ProjectSettingsPage({
                   }
                   style={{
                     width: `${Math.min(100, (p.messageCount / Math.max(p.allMessagesCount, 1)) * 100)}%`,
+                  }}
+                />
+              </div>
+              <div className="mb-3 mt-6 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 text-sm">
+                <span>Fichiers déposés (médias, PDF)</span>
+                <strong className="whitespace-nowrap tabular-nums">
+                  {formatStorage(p.storage.used)} / {formatStorage(p.storage.limit)}
+                </strong>
+              </div>
+              <div
+                role="progressbar"
+                aria-label="Espace de fichiers utilisé"
+                aria-valuemin={0}
+                aria-valuemax={p.storage.limit}
+                aria-valuenow={Math.min(p.storage.used, p.storage.limit)}
+                className="h-2.5 overflow-hidden rounded-full bg-muted"
+              >
+                <div
+                  className={
+                    p.storage.used / Math.max(p.storage.limit, 1) >= 0.9
+                      ? "h-full rounded-full bg-destructive"
+                      : "h-full rounded-full bg-foreground"
+                  }
+                  style={{
+                    width: `${Math.min(100, (p.storage.used / Math.max(p.storage.limit, 1)) * 100)}%`,
                   }}
                 />
               </div>

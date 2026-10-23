@@ -28,7 +28,7 @@ const options = [
     key: "alwaysOnline",
     title: "Afficher le statut en ligne",
     description:
-      "Garder votre compte visible comme étant en ligne sur WhatsApp.",
+      "Statut renouvelé chaque minute. WhatsApp peut le masquer brièvement, par exemple quand vous fermez l’application sur votre téléphone.",
   },
   {
     key: "readMessages",

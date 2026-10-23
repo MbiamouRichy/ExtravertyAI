@@ -7,6 +7,7 @@ import z from "zod";
 import { setProjectPaused } from "./project-settings";
 import { deleteProjectResources } from "@/lib/project-deletion";
 import { billingAccess } from "@/lib/billing-access";
+import { projectLogoUrl } from "@/lib/project-logo";
 import {
   contactExportSnapshot,
   verifyExportReceipt,
@@ -50,6 +51,7 @@ export async function getProjects() {
             expiredAt: true,
             instanceStatus: true,
             stripeCurrentPeriodEnd: true,
+            logoKey: true,
           },
         },
       },
@@ -64,11 +66,14 @@ export async function getProjects() {
         stripeStatus,
         statusBeforePause,
         deletionPending,
+        logoKey,
         ...visible
       } = project;
       const period = quotaPeriods[0];
       return {
         ...visible,
+        // Seule l’adresse protégée quitte le serveur, jamais la clé de stockage.
+        logoUrl: projectLogoUrl(project.id, logoKey),
         canManageBilling: role === "OWNER",
         billingAccess: billingAccess(
           {

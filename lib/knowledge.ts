@@ -3,6 +3,7 @@ import { z } from "zod";
 import type { Prisma, PrismaClient } from "../src/generated/prisma/client";
 import { planFeatures } from "./plan-features";
 import { requireProjectAdmin } from "./project-settings";
+import { StorageQuotaError, releaseStorage, reserveStorage } from "./storage-quota";
 import { SafeFetchError, parsePublicUrl } from "./safe-fetch";
 import { MAX_DEAL_VALUE } from "./pipeline-shared";
 import {
@@ -204,8 +205,17 @@ export async function addPdfSource(
   });
   const id = randomUUID();
   const key = knowledgeFileKey(input.projectId, id);
-  await storage.put(key, input.bytes);
+  // La place est réservée avant l’envoi : un fichier refusé n’est jamais stocké.
+  await db.$transaction(async (tx) => {
+    const project = await lockAdmin(tx, input);
+    await reserveStorage(tx, { projectId: input.projectId, plan: project.plan, key, bytes: input.bytes.length }).catch(
+      (error: unknown) => {
+        throw error instanceof StorageQuotaError ? new KnowledgeError(error.message) : error;
+      },
+    );
+  });
   try {
+    await storage.put(key, input.bytes);
     return await db.$transaction(async (tx) => {
       const project = await lockAdmin(tx, input);
       await requireSourceCapacity(tx, input.projectId, project.plan);
@@ -222,6 +232,7 @@ export async function addPdfSource(
     });
   } catch (error) {
     await storage.remove(key).catch(() => undefined);
+    await releaseStorage(db, key).catch(() => undefined);
     throw error;
   }
 }
@@ -317,6 +328,7 @@ export async function deleteSource(
     if (!source) throw new KnowledgeError("Source introuvable.");
     // Entries cascade with their source.
     await tx.knowledgeSource.delete({ where: { id: source.id } });
+    if (source.storageKey) await releaseStorage(tx, source.storageKey);
     return source;
   });
   if (removed.storageKey) await removeFile(removed.storageKey).catch(() => undefined);

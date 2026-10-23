@@ -3,6 +3,7 @@ import { timingSafeEqual } from "node:crypto";
 import { z } from "zod";
 import prisma from "@/lib/prisma";
 import { notifyChatChanged } from "@/lib/chat-realtime";
+import { relayPresenceUpdate } from "@/lib/contact-presence";
 import {
   deliveryStatus,
   ingestMessage,
@@ -45,6 +46,11 @@ export async function POST(req: Request) {
     if (!project)
       return NextResponse.json({ error: "Instance inconnue" }, { status: 404 });
     const eventName = event.toLowerCase().replaceAll("_", ".");
+    // Présence d’un contact : relayée en direct, rien n’est enregistré.
+    if (eventName === "presence.update") {
+      await relayPresenceUpdate(prisma, project.id, data);
+      return NextResponse.json({ success: true });
+    }
     await prisma.$transaction(
       async (tx) => {
         await tx.$queryRaw`SELECT id FROM project WHERE id = ${project.id} FOR UPDATE`;

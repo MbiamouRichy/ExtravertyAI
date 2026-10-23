@@ -34,7 +34,7 @@ export type SidebarNavGroup = {
 // Transformation en fonction pour accepter projectId
 export const getNavGroups = (projectId: string): SidebarNavGroup[] => [
   {
-    label: "Product",
+    label: "Produit",
     items: [
       {
         title: "Dashboard",
@@ -52,7 +52,7 @@ export const getNavGroups = (projectId: string): SidebarNavGroup[] => [
         icon: <CalendarClock />,
       },
       {
-        title: "Chat",
+        title: "Conversations",
         path: `/projects/${projectId}/chat`, // Chemin dynamique
         icon: <MessageSquareIcon />,
       },
@@ -103,10 +103,10 @@ export const getNavGroups = (projectId: string): SidebarNavGroup[] => [
     ],
   },
   {
-    label: "Workspace",
+    label: "Espace de travail",
     items: [
       {
-        title: "Team",
+        title: "Équipe",
         path: `/projects/${projectId}/team`,
         icon: <UsersIcon />,
       },
@@ -126,7 +126,7 @@ export const getNavGroups = (projectId: string): SidebarNavGroup[] => [
     label: "Administration",
     items: [
       {
-        title: "Settings",
+        title: "Paramètres",
         path: `/projects/${projectId}/settings`,
         icon: <SettingsIcon />,
       },

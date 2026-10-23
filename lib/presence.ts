@@ -21,7 +21,7 @@ export async function projectPresence(
 ) {
   return db.$queryRaw<{ userId: string; status: PresenceStatus }[]>`
     SELECT pm."userId", CASE
-      WHEN bool_or(up."lastSeenAt" > NOW() - INTERVAL '90 seconds' AND up."lastActiveAt" > NOW() - INTERVAL '2 minutes') THEN 'online'
+      WHEN bool_or(up."lastSeenAt" > NOW() - INTERVAL '90 seconds' AND up."lastActiveAt" > NOW() - INTERVAL '5 minutes') THEN 'online'
       WHEN bool_or(up."lastSeenAt" > NOW() - INTERVAL '90 seconds') THEN 'idle'
       ELSE 'offline' END AS status
     FROM project_membership pm

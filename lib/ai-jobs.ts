@@ -3,6 +3,7 @@ import { messageAiContent } from "./message-ai-content";
 import type { PrismaClient, Prisma } from "../src/generated/prisma/client";
 import { MessageQuotaError, reserveMessageQuota } from "./message-quota";
 import { knowledgeContext } from "./knowledge";
+import { planFeatures } from "./plan-features";
 import { MISSING_INFO_INSTRUCTION, splitMissingInfo } from "./missing-info";
 import {
   CONVERSATION_FLOW_INSTRUCTION,
@@ -306,7 +307,8 @@ export async function runAiJob(
         ],
       },
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-      take: 20,
+      // Mémoire de contexte de l’offre : 20, 30 ou 50 derniers messages.
+      take: planFeatures(job.project.plan).contextMessages,
     });
     const ordered = history.reverse();
     // A retrieval failure must never block a reply: the agent keeps its instructions.

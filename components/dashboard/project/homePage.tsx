@@ -22,7 +22,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { WhatsAppConnectionStatus } from "./whatsapp-connection-status";
 import { LocalBillingDate } from "./local-billing-date";
-import { BillingPlanMenuItem } from "./billing-plan-button";
+import { BillingPlanButton, BillingPlanMenuItem } from "./billing-plan-button";
+import { ProjectIcon } from "./project-icon";
 
 const statusLabel: Record<string, string> = {
   active: "Actif",
@@ -36,6 +37,7 @@ export interface CustomProjectProps {
     id: string;
     canManageBilling?: boolean;
     name: string;
+    logoUrl?: string | null;
     numero: string;
     status: string;
     billingAccess?: ReturnType<typeof billingAccess>;
@@ -164,9 +166,7 @@ export default function HomeProjectsPage({ projects }: CustomProjectProps) {
                 >
                   <div className="flex min-w-0 items-start justify-between gap-3 p-4 pb-4 sm:p-5">
                     <div className="flex min-w-0 items-center gap-3">
-                      <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary font-heading text-sm font-bold text-primary-foreground">
-                        {project.name.trim().slice(0, 1).toUpperCase() || "P"}
-                      </span>
+                      <ProjectIcon name={project.name} logoUrl={project.logoUrl} />
                       <div className="min-w-0">
                         <h2 className="truncate font-heading text-base font-semibold tracking-tight">
                           <Link
@@ -211,6 +211,17 @@ export default function HomeProjectsPage({ projects }: CustomProjectProps) {
                       </span>
                     </span>
                     <div className="relative z-10 flex shrink-0 items-center gap-1">
+                      {/* Renouvellement visible : réservé au propriétaire (vérifié par le serveur). */}
+                      {project.canManageBilling && (
+                        <BillingPlanButton
+                          projectId={project.id}
+                          intent="renew"
+                          size="sm"
+                          variant="outline"
+                          label="Renouveler"
+                          className="mr-1 min-h-8 text-xs"
+                        />
+                      )}
                       <Button asChild variant="ghost" size="icon-sm">
                         <Link href={`/projects/${project.id}/chat`} aria-label={`Messagerie de ${project.name}`}>
                           <MessagesSquare />
@@ -238,7 +249,6 @@ export default function HomeProjectsPage({ projects }: CustomProjectProps) {
                           {project.canManageBilling && (
                             <>
                               <DropdownMenuSeparator />
-                              <BillingPlanMenuItem projectId={project.id} intent="renew" />
                               <BillingPlanMenuItem projectId={project.id} intent="upgrade" />
                             </>
                           )}

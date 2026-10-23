@@ -1,240 +1,215 @@
+import type { ReactNode } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { PageLoading } from "@/components/page-loading";
 
-function SectionTitle() {
-    return (
-        <div className="space-y-1.5">
-            <Skeleton className="h-5 w-44" />
-            <Skeleton className="h-3.5 w-72 max-w-full" />
-        </div>
-    );
+// Miroir de la page Statistiques, section par section.
+
+function SectionTitle({ width = "w-44" }: { width?: string }) {
+  return (
+    <div className="space-y-1.5">
+      <Skeleton className={`h-5 ${width}`} />
+      <Skeleton className="h-3.5 w-72 max-w-full" />
+    </div>
+  );
 }
 
-function CardHeader() {
-    return (
-        <div className="space-y-2 p-4 sm:p-6">
-            <Skeleton className="h-4 w-40 max-w-full" />
-            <Skeleton className="h-3 w-64 max-w-full" />
-        </div>
-    );
-}
-
-function Card({
-    children,
-    className = "",
+function ChartCard({
+  children,
+  className = "",
 }: {
-    children: React.ReactNode;
-    className?: string;
+  children: ReactNode;
+  className?: string;
 }) {
-    return (
-        <div
-            className={`min-w-0 overflow-hidden rounded-2xl border border-border/70 bg-card shadow-xs ${className}`}
-        >
-            {children}
-        </div>
-    );
+  return (
+    <div className={`min-w-0 rounded-2xl border bg-card ${className}`}>
+      <div className="space-y-2 p-4 sm:p-6">
+        <Skeleton className="h-4 w-44 max-w-full" />
+        <Skeleton className="h-3 w-64 max-w-full" />
+      </div>
+      <div className="px-4 pb-5 sm:px-6">{children}</div>
+    </div>
+  );
 }
 
-/** Barres en pointillés : silhouette proche du graphique de volume réel. */
-function BarsSilhouette() {
-    const bars = [12, 30, 18, 46, 28, 62, 38, 22, 54, 34, 70, 26, 44, 16, 58];
-    return (
-        <div className="relative h-60 px-4 pb-8 sm:px-6">
-            <div className="absolute inset-x-4 inset-y-0 bottom-8 flex flex-col justify-between sm:inset-x-6">
-                {[0, 1, 2, 3].map((line) => (
-                    <div
-                        key={line}
-                        className="border-t border-dashed border-border/70"
-                    />
-                ))}
-            </div>
-            <div className="relative flex h-full items-end gap-1.5 sm:gap-2">
-                {bars.map((height, index) => (
-                    <Skeleton
-                        key={index}
-                        className="flex-1 rounded-t-sm rounded-b-none"
-                        style={{ height: `${height}%` }}
-                    />
-                ))}
-            </div>
-        </div>
-    );
+/** Grille et barres : silhouette des graphiques d’activité. */
+function Bars({ height = "h-56" }: { height?: string }) {
+  const bars = [14, 32, 20, 46, 28, 60, 38, 24, 52, 34, 68, 26, 44, 18];
+  return (
+    <div className={`flex items-end gap-1.5 sm:gap-2 ${height}`}>
+      {bars.map((value, index) => (
+        <Skeleton
+          key={index}
+          className="flex-1 rounded-b-none rounded-t-sm"
+          style={{ height: `${value}%` }}
+        />
+      ))}
+    </div>
+  );
 }
 
-function DonutSilhouette() {
-    return (
-        <div className="flex flex-col items-center gap-6 px-4 pb-6 sm:px-6">
-            <Skeleton className="relative size-48 rounded-full">
-                <span className="absolute inset-[16%] rounded-full bg-card" />
-            </Skeleton>
-            <div className="w-full divide-y rounded-xl border">
-                {[0, 1, 2].map((row) => (
-                    <div
-                        key={row}
-                        className="flex items-center justify-between px-3 py-2.5"
-                    >
-                        <Skeleton className="h-3 w-28" />
-                        <Skeleton className="h-3 w-12" />
-                    </div>
-                ))}
-            </div>
+/** Courbe de points : silhouette du temps de réponse IA. */
+function Dots() {
+  const points = [52, 38, 60, 44, 30, 48, 36];
+  return (
+    <div className="relative h-56">
+      <div className="absolute inset-0 flex flex-col justify-between">
+        {[0, 1, 2, 3].map((line) => (
+          <div key={line} className="border-t border-dashed" />
+        ))}
+      </div>
+      <div className="relative flex h-full items-end justify-between px-2">
+        {points.map((value, index) => (
+          <div key={index} className="flex h-full items-end" style={{ paddingBottom: `${value}%` }}>
+            <Skeleton className="size-2.5 rounded-full" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function Rows({ count = 4 }: { count?: number }) {
+  return (
+    <div className="divide-y rounded-xl border">
+      {Array.from({ length: count }, (_, row) => (
+        <div key={row} className="flex items-center justify-between gap-4 px-3 py-3">
+          <Skeleton className="h-3.5 w-32 max-w-[60%]" />
+          <Skeleton className="h-3.5 w-12" />
         </div>
-    );
+      ))}
+    </div>
+  );
 }
 
 export default function AnalyticsLoading() {
-    return (
-        <div
-            aria-busy="true"
-            aria-label="Chargement des statistiques"
-            className="min-w-0 bg-muted/20"
-        >
-            <p role="status" className="sr-only">
-                Chargement des statistiques…
-            </p>
-
-            <div
-                aria-hidden="true"
-                className="skeleton-shimmer relative mx-auto flex w-full max-w-400 flex-col gap-6 p-4 sm:p-6 xl:gap-8 xl:p-8"
-            >
-                <div className="absolute inset-x-0 top-0 h-0.5 overflow-hidden bg-muted">
-                    <div className="loading-bar h-full w-1/3 rounded-full bg-foreground/50" />
-                </div>
-
-                {/* En-tête : titre, période, export */}
-                <div className="space-y-5 border-b border-border/70 pb-5">
-                    <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
-                        <div className="w-full max-w-lg space-y-3">
-                            <Skeleton className="h-3.5 w-36" />
-                            <Skeleton className="h-9 w-52" />
-                            <Skeleton className="h-4 w-full max-w-md" />
-                        </div>
-                        <div className="flex gap-2">
-                            <Skeleton className="h-9 w-28 rounded-lg" />
-                            <Skeleton className="h-9 w-9 rounded-lg" />
-                        </div>
-                    </div>
-                    <div className="flex flex-wrap gap-1.5">
-                        {[16, 20, 20, 24].map((width, index) => (
-                            <Skeleton
-                                key={index}
-                                className="h-8 rounded-full"
-                                style={{ width: `${width * 4}px` }}
-                            />
-                        ))}
-                    </div>
-                </div>
-
-                {/* Indicateurs clés */}
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
-                    {Array.from({ length: 6 }, (_, index) => (
-                        <Card key={index} className="p-4">
-                            <div className="flex items-center justify-between">
-                                <Skeleton className="h-3.5 w-28" />
-                                <Skeleton className="size-4 rounded" />
-                            </div>
-                            <div className="mt-4 flex items-end justify-between gap-2">
-                                <Skeleton className="h-8 w-20" />
-                                <Skeleton className="h-5 w-16 rounded-full" />
-                            </div>
-                            <Skeleton className="mt-3 h-3 w-32 max-w-full" />
-                            <div className="mt-4 border-t pt-3">
-                                <Skeleton className="h-3 w-20" />
-                            </div>
-                        </Card>
-                    ))}
-                </div>
-
-                {/* Activité & acquisition */}
-                <div className="space-y-4">
-                    <SectionTitle />
-                    <div className="grid gap-4 xl:grid-cols-3">
-                        <Card className="xl:col-span-2">
-                            <CardHeader />
-                            <div className="flex gap-8 px-4 pb-4 sm:px-6">
-                                <Skeleton className="h-8 w-14" />
-                                <Skeleton className="h-8 w-14" />
-                            </div>
-                            <BarsSilhouette />
-                        </Card>
-                        <Card>
-                            <CardHeader />
-                            <DonutSilhouette />
-                        </Card>
-                    </div>
-                    <div className="grid gap-4 lg:grid-cols-2">
-                        {[0, 1].map((index) => (
-                            <Card key={index}>
-                                <CardHeader />
-                                <BarsSilhouette />
-                            </Card>
-                        ))}
-                    </div>
-                </div>
-
-                {/* IA & prospects */}
-                <div className="space-y-4">
-                    <SectionTitle />
-                    <div className="grid gap-4 lg:grid-cols-2">
-                        {[0, 1].map((index) => (
-                            <Card key={index}>
-                                <CardHeader />
-                                <div className="space-y-4 px-4 pb-6 sm:px-6">
-                                    {[0, 1, 2].map((row) => (
-                                        <div key={row} className="space-y-2">
-                                            <div className="flex justify-between">
-                                                <Skeleton className="h-3 w-32" />
-                                                <Skeleton className="h-3 w-10" />
-                                            </div>
-                                            <Skeleton
-                                                className="h-2 rounded-full"
-                                                style={{ width: `${88 - row * 24}%` }}
-                                            />
-                                        </div>
-                                    ))}
-                                </div>
-                            </Card>
-                        ))}
-                    </div>
-                    <Card>
-                        <CardHeader />
-                        <div className="grid grid-cols-12 gap-1 px-4 pb-6 sm:px-6">
-                            {Array.from({ length: 84 }, (_, index) => (
-                                <Skeleton
-                                    key={index}
-                                    className="aspect-square rounded-sm"
-                                />
-                            ))}
-                        </div>
-                    </Card>
-                </div>
-
-                {/* Livraison & contacts */}
-                <div className="space-y-4">
-                    <SectionTitle />
-                    <div className="grid gap-4 xl:grid-cols-3">
-                        <Card>
-                            <CardHeader />
-                            <DonutSilhouette />
-                        </Card>
-                        <Card className="xl:col-span-2">
-                            <CardHeader />
-                            <div className="divide-y px-4 pb-4 sm:px-6">
-                                {Array.from({ length: 6 }, (_, row) => (
-                                    <div
-                                        key={row}
-                                        className="flex items-center gap-3 py-3"
-                                    >
-                                        <Skeleton className="size-8 rounded-full" />
-                                        <Skeleton className="h-3.5 w-36" />
-                                        <Skeleton className="ml-auto h-5 w-20 rounded-full" />
-                                        <Skeleton className="h-3.5 w-10" />
-                                    </div>
-                                ))}
-                            </div>
-                        </Card>
-                    </div>
-                </div>
+  return (
+    <PageLoading label="Chargement des statistiques…" className="min-w-0 bg-muted/20">
+      <div className="mx-auto flex w-full max-w-400 flex-col gap-6 p-4 sm:p-6 xl:gap-8 xl:p-8">
+        {/* En-tête : titre, export, choix de la période */}
+        <header className="space-y-5 border-b pb-5">
+          <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
+            <div className="w-full max-w-lg space-y-3">
+              <Skeleton className="h-3.5 w-36" />
+              <Skeleton className="h-9 w-56 max-w-full" />
+              <Skeleton className="h-4 w-full max-w-md" />
             </div>
+            <Skeleton className="h-9 w-full rounded-md sm:w-32" />
+          </div>
+          <div className="flex flex-col justify-between gap-3 xl:flex-row xl:items-center">
+            <div className="flex flex-wrap gap-1.5">
+              {[16, 20, 20, 24].map((width, index) => (
+                <Skeleton
+                  key={index}
+                  className="h-8 rounded-full"
+                  style={{ width: `${width * 4}px` }}
+                />
+              ))}
+            </div>
+            <Skeleton className="h-3.5 w-56" />
+          </div>
+        </header>
+
+        {/* Indicateurs clés */}
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
+          {Array.from({ length: 6 }, (_, index) => (
+            <div key={index} className="space-y-3 rounded-2xl border bg-card p-4">
+              <Skeleton className="h-3 w-24" />
+              <Skeleton className="h-7 w-20" />
+              <Skeleton className="h-4 w-28 rounded-full" />
+            </div>
+          ))}
         </div>
-    );
+
+        {/* Activité & acquisition */}
+        <section className="space-y-4">
+          <SectionTitle />
+          <div className="grid min-w-0 gap-4 xl:grid-cols-3">
+            <ChartCard className="xl:col-span-2">
+              <Bars height="h-64" />
+            </ChartCard>
+            <ChartCard>
+              <div className="flex flex-col items-center gap-5">
+                <Skeleton className="relative size-44 rounded-full">
+                  <span className="absolute inset-[18%] rounded-full bg-card" />
+                </Skeleton>
+                <div className="w-full">
+                  <Rows count={3} />
+                </div>
+              </div>
+            </ChartCard>
+          </div>
+          <div className="grid min-w-0 gap-4 lg:grid-cols-2">
+            <ChartCard>
+              <Bars />
+            </ChartCard>
+            <ChartCard>
+              <Bars />
+            </ChartCard>
+          </div>
+        </section>
+
+        {/* IA & prospects : qui répond, Instinct IA, temps de réponse, réponses évitées, heures */}
+        <section className="space-y-4">
+          <SectionTitle width="w-32" />
+          <div className="grid min-w-0 gap-4 lg:grid-cols-2">
+            <ChartCard>
+              <Rows count={3} />
+            </ChartCard>
+            <ChartCard>
+              <div className="space-y-2">
+                {[100, 70, 45, 25].map((width, index) => (
+                  <Skeleton
+                    key={index}
+                    className="h-9 rounded-lg"
+                    style={{ width: `${width}%` }}
+                  />
+                ))}
+              </div>
+            </ChartCard>
+          </div>
+          <div className="grid min-w-0 gap-4 lg:grid-cols-2">
+            <ChartCard>
+              <Dots />
+            </ChartCard>
+            <ChartCard>
+              <Skeleton className="h-10 w-24" />
+              <Skeleton className="mt-4 h-3 w-full max-w-sm" />
+            </ChartCard>
+          </div>
+          <ChartCard>
+            <div className="grid grid-cols-12 gap-1">
+              {Array.from({ length: 84 }, (_, cell) => (
+                <Skeleton key={cell} className="aspect-square rounded-sm" />
+              ))}
+            </div>
+          </ChartCard>
+        </section>
+
+        {/* Livraison & contacts */}
+        <section className="space-y-4">
+          <SectionTitle width="w-40" />
+          <div className="grid min-w-0 gap-4 xl:grid-cols-3">
+            <ChartCard>
+              <Rows />
+            </ChartCard>
+            <ChartCard className="xl:col-span-2">
+              <Skeleton className="mb-3 h-9 w-full rounded-md sm:max-w-xs" />
+              <div className="divide-y rounded-xl border">
+                {Array.from({ length: 5 }, (_, row) => (
+                  <div key={row} className="flex items-center gap-3 p-3">
+                    <Skeleton className="size-8 shrink-0 rounded-full" />
+                    <div className="min-w-0 flex-1 space-y-1.5">
+                      <Skeleton className="h-3.5 w-32 max-w-full" />
+                      <Skeleton className="h-3 w-20" />
+                    </div>
+                    <Skeleton className="h-8 w-24 shrink-0 rounded-md" />
+                  </div>
+                ))}
+              </div>
+            </ChartCard>
+          </div>
+        </section>
+      </div>
+    </PageLoading>
+  );
 }

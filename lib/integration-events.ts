@@ -29,9 +29,12 @@ export const INTEGRATION_EVENTS = [
   },
 ] as const;
 
-export type IntegrationEventId = (typeof INTEGRATION_EVENTS)[number]["id"] | "test.ping";
+export type IntegrationEventId =
+  (typeof INTEGRATION_EVENTS)[number]["id"] | "test.ping";
 
-export const INTEGRATION_EVENT_IDS = INTEGRATION_EVENTS.map((event) => event.id) as [
+export const INTEGRATION_EVENT_IDS = INTEGRATION_EVENTS.map(
+  (event) => event.id,
+) as [
   (typeof INTEGRATION_EVENTS)[number]["id"],
   ...(typeof INTEGRATION_EVENTS)[number]["id"][],
 ];
@@ -71,11 +74,22 @@ export async function emitIntegrationEvent(
     where: { id: projectId },
     select: { plan: true, deletionPending: true },
   });
-  if (!project || project.deletionPending || !planAllows(project.plan, "integrations")) return 0;
+  if (
+    !project ||
+    project.deletionPending ||
+    !planAllows(project.plan, "integrations")
+  )
+    return 0;
   const endpoints = await tx.integrationEndpoint.findMany({
-    where: onlyEndpointId
-      ? { id: onlyEndpointId, projectId }
-      : { projectId, enabled: true, events: { has: event } },
+    where: {
+      ...(onlyEndpointId
+        ? { id: onlyEndpointId, projectId }
+        : { projectId, enabled: true, events: { has: event } }),
+      // Sans l’offre Pro, seuls les envois vers Google Sheets partent.
+      ...(planAllows(project.plan, "webhooks")
+        ? {}
+        : { kind: "GOOGLE_SHEETS" as const }),
+    },
     select: { id: true },
   });
   if (!endpoints.length) return 0;

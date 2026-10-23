@@ -23,6 +23,8 @@ import { ActivityHeatmapCard } from "@/components/dashboard/activity-heatmap-car
 import { PipelineValueCard } from "@/components/dashboard/pipeline-value-card";
 import { CsatCard } from "@/components/dashboard/csat-card";
 import { AvoidedRepliesCard } from "@/components/dashboard/avoided-replies-card";
+import { FirstAiReplyTimeChart } from "@/components/dashboard/first-reply-time-chart";
+import { getAiResponseTimeData } from "@/app/actions/ai-metrics";
 import { avoidedReplies } from "@/lib/ai-quiet";
 import { csatStats } from "@/lib/csat";
 
@@ -87,7 +89,7 @@ export default async function AnalyticsPage({
 
   const period = parseAnalyticsPeriod(sp.period);
   const since = periodStart(period);
-  const [overview, sales, avoided] = await Promise.all([
+  const [overview, sales, avoided, responseTime] = await Promise.all([
     getAnalyticsOverview(projectId, period),
     // L'accès au projet est déjà vérifié ci-dessus ; seule l'offre est relue ici.
     prisma.project
@@ -118,6 +120,8 @@ export default async function AnalyticsPage({
       stats,
       enabled: project?.aiQuietEnabled ?? true,
     })),
+    // Délai médian de réponse de l’IA, toujours sur les 7 derniers jours.
+    getAiResponseTimeData(projectId),
   ]);
 
   const sourcesTotal = overview.sources.reduce(
@@ -225,12 +229,15 @@ export default async function AnalyticsPage({
             />
           </div>
 
-          <AvoidedRepliesCard
-            stats={avoided.stats}
-            enabled={avoided.enabled}
-            rangeLabel={overview.rangeLabel}
-            settingsHref={`${projectPath}/knowledge`}
-          />
+          <div className="grid min-w-0 gap-4 lg:grid-cols-2">
+            <FirstAiReplyTimeChart data={responseTime} />
+            <AvoidedRepliesCard
+              stats={avoided.stats}
+              enabled={avoided.enabled}
+              rangeLabel={overview.rangeLabel}
+              settingsHref={`${projectPath}/knowledge`}
+            />
+          </div>
 
           <ActivityHeatmapCard
             heatmap={overview.heatmap}

@@ -2,7 +2,7 @@ import { createHmac, randomBytes, randomUUID, timingSafeEqual } from "node:crypt
 import { z } from "zod";
 import type { Prisma, PrismaClient } from "../src/generated/prisma/client";
 import { INTEGRATION_EVENT_IDS, emitIntegrationEvent } from "./integration-events";
-import { requirePlanFeature } from "./plan-features";
+import { planAllows, requirePlanFeature } from "./plan-features";
 import { requireProjectAdmin } from "./project-settings";
 import { SafeFetchError, parsePublicUrl, safeRequest, type SafeRequestInit } from "./safe-fetch";
 import { openSecret, sealSecret } from "./secret-box";
@@ -24,12 +24,26 @@ export const WebhookInputSchema = z.object({
 
 type Admin = { projectId: string; userId: string };
 
-async function lockBusinessAdmin(tx: Prisma.TransactionClient, { projectId, userId }: Admin) {
+async function lockIntegrationsAdmin(tx: Prisma.TransactionClient, { projectId, userId }: Admin) {
   await tx.$queryRaw`SELECT id FROM project WHERE id = ${projectId} FOR UPDATE`;
   const { project } = await requireProjectAdmin(tx, projectId, userId);
   if (project.deletionPending) throw new IntegrationError("Ce projet est en cours de suppression.");
   requirePlanFeature(project.plan, "integrations");
   return project;
+}
+
+/** Google Sheets est inclus partout ; un webhook demande l’offre Pro ou Business. */
+async function requireEndpointPlan(
+  tx: Prisma.TransactionClient,
+  plan: unknown,
+  { projectId, endpointId }: { projectId: string; endpointId: string },
+) {
+  if (planAllows(plan, "webhooks")) return;
+  const endpoint = await tx.integrationEndpoint.findFirst({
+    where: { id: endpointId, projectId },
+    select: { kind: true },
+  });
+  if (endpoint?.kind === "WEBHOOK") requirePlanFeature(plan, "webhooks");
 }
 
 function newSecret() {
@@ -84,7 +98,8 @@ export async function createWebhook(
     throw new IntegrationError(webhookUrlError(error));
   }
   return db.$transaction(async (tx) => {
-    await lockBusinessAdmin(tx, input);
+    const project = await lockIntegrationsAdmin(tx, input);
+    requirePlanFeature(project.plan, "webhooks");
     const count = await tx.integrationEndpoint.count({ where: { projectId: input.projectId } });
     if (count >= MAX_ENDPOINTS) {
       throw new IntegrationError(`${MAX_ENDPOINTS} intégrations au maximum par projet.`);
@@ -114,7 +129,9 @@ export async function updateEndpoint(
 ) {
   const events = input.events ? z.array(z.enum(INTEGRATION_EVENT_IDS)).min(1).parse(input.events) : undefined;
   await db.$transaction(async (tx) => {
-    await lockBusinessAdmin(tx, input);
+    const project = await lockIntegrationsAdmin(tx, input);
+    // Un webhook reste désactivable après un passage en Starter.
+    if (input.enabled !== false || events) await requireEndpointPlan(tx, project.plan, input);
     const result = await tx.integrationEndpoint.updateMany({
       where: { id: input.endpointId, projectId: input.projectId },
       data: {
@@ -130,7 +147,8 @@ export async function updateEndpoint(
 
 export async function rotateWebhookSecret(db: PrismaClient, input: Admin & { endpointId: string }) {
   return db.$transaction(async (tx) => {
-    await lockBusinessAdmin(tx, input);
+    const project = await lockIntegrationsAdmin(tx, input);
+    requirePlanFeature(project.plan, "webhooks");
     const endpoint = await tx.integrationEndpoint.findFirst({
       where: { id: input.endpointId, projectId: input.projectId, kind: "WEBHOOK" },
       select: { id: true },
@@ -169,7 +187,8 @@ export async function deleteEndpoint(
 
 export async function sendTestEvent(db: PrismaClient, input: Admin & { endpointId: string }) {
   await db.$transaction(async (tx) => {
-    await lockBusinessAdmin(tx, input);
+    const project = await lockIntegrationsAdmin(tx, input);
+    await requireEndpointPlan(tx, project.plan, input);
     const queued = await emitIntegrationEvent(
       tx,
       input.projectId,
@@ -183,7 +202,12 @@ export async function sendTestEvent(db: PrismaClient, input: Admin & { endpointI
 
 export async function redeliver(db: PrismaClient, input: Admin & { deliveryId: string }) {
   await db.$transaction(async (tx) => {
-    await lockBusinessAdmin(tx, input);
+    const project = await lockIntegrationsAdmin(tx, input);
+    const delivery = await tx.integrationDelivery.findFirst({
+      where: { id: input.deliveryId, projectId: input.projectId },
+      select: { endpointId: true },
+    });
+    if (delivery) await requireEndpointPlan(tx, project.plan, { ...input, endpointId: delivery.endpointId });
     const result = await tx.integrationDelivery.updateMany({
       where: { id: input.deliveryId, projectId: input.projectId, state: "FAILED" },
       data: { state: "QUEUED", attempts: 0, availableAt: new Date(), lastError: null },

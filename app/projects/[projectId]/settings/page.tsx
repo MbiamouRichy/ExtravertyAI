@@ -6,6 +6,8 @@ import prisma from "@/lib/prisma";
 import { AGENT_DEFAULTS, type AgentConfig } from "@/lib/agent-config";
 import type { ProjectSettingsView } from "@/lib/settings-types";
 import { planAllows } from "@/lib/plan-features";
+import { storageUsage } from "@/lib/storage-quota";
+import { projectLogoUrl } from "@/lib/project-logo";
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "Paramètres du projet | ExtravertyAI",
@@ -30,7 +32,7 @@ export default async function SettingsPage({
   if (!["OWNER", "ADMIN"].includes(membership.role))
     redirect(`/projects/${projectId}/chat`);
   const p = membership.project;
-  const [stats, audit, period] = await Promise.all([
+  const [stats, audit, period, storage] = await Promise.all([
     prisma.$queryRaw<Array<{ week: number; month: number; year: number }>>`
       SELECT count(*) FILTER (WHERE "createdAt" >= CURRENT_TIMESTAMP - interval '7 days')::int AS week,
         count(*) FILTER (WHERE "createdAt" >= CURRENT_TIMESTAMP - interval '30 days')::int AS month,
@@ -46,6 +48,7 @@ export default async function SettingsPage({
       select: { id: true, action: true, createdAt: true },
     }),
     prisma.quotaPeriod.findFirst({ where: { projectId, isCurrent: true } }),
+    storageUsage(prisma, projectId, p.plan),
   ]);
   // Explicit safe projection: no provider token, subscription ID or other server secret is serialized.
   const view: ProjectSettingsView = {
@@ -80,6 +83,8 @@ export default async function SettingsPage({
       error: p.whatsappSettingsError,
     },
     stats: stats[0],
+    logoUrl: projectLogoUrl(p.id, p.logoKey),
+    storage,
     showWaitingTime: p.showWaitingTime,
     aiQuietEnabled: p.aiQuietEnabled,
     csat: {

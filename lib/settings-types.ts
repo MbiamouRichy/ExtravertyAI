@@ -25,6 +25,10 @@ export type ProjectSettingsView = {
     error: string | null;
   };
   stats: { week: number; month: number; year: number };
+  /** Adresse de l’icône de l’entreprise, ou null pour l’initiale. */
+  logoUrl: string | null;
+  /** Fichiers déposés (médias, PDF) et quota de l’offre, en octets. */
+  storage: { used: number; limit: number };
   csat: { enabled: boolean; message: string; available: boolean };
   showWaitingTime: boolean;
   aiQuietEnabled: boolean;

@@ -8,14 +8,30 @@ import Link from "next/link";
 
 export function ConditionalSidebarTrigger() {
     const isProjectContext = useIsProjectContext();
-    // Si on n'est pas dans un projet spécifique, on ne rend rien au DOM (opti UI/UX)
-    if (!isProjectContext) return (<Button variant="ghost" size="icon" asChild>
-        <Link href="/projects" title="Retour à la liste des projets">
-            <HomeIcon />
-        </Link>
-    </Button>)
+    const pathname = usePathname();
+    if (isProjectContext) return <CustomSidebarTrigger />;
 
-    return <CustomSidebarTrigger />
+    // Déjà sur la liste des projets : le bouton reste visible mais inactif.
+    if (pathname === "/projects")
+        return (
+            <Button
+                variant="ghost"
+                size="icon"
+                disabled
+                aria-current="page"
+                aria-label="Liste des projets (page actuelle)"
+            >
+                <HomeIcon />
+            </Button>
+        );
+
+    return (
+        <Button variant="ghost" size="icon" asChild>
+            <Link href="/projects" aria-label="Retour à la liste des projets" title="Retour à la liste des projets">
+                <HomeIcon />
+            </Link>
+        </Button>
+    );
 }
 
 export function useIsProjectContext() {

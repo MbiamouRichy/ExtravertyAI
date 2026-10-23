@@ -4,6 +4,7 @@ import { Loader2, RefreshCw, ArrowUpRight } from "lucide-react";
 import { toast } from "sonner";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { openProjectBillingPortal } from "@/app/actions/project-settings";
 export function BillingPlanButton({
   projectId,
@@ -11,6 +12,8 @@ export function BillingPlanButton({
   disabled = false,
   size = "default",
   label,
+  variant,
+  className,
 }: {
   projectId: string;
   intent: "renew" | "upgrade";
@@ -18,6 +21,8 @@ export function BillingPlanButton({
   size?: "default" | "sm" | "lg";
   /** Overrides the default label (e.g. a contextual upsell). */
   label?: string;
+  variant?: "default" | "outline";
+  className?: string;
 }) {
   const [busy, setBusy] = useState(false);
   async function open() {
@@ -39,8 +44,8 @@ export function BillingPlanButton({
   return (
     <Button
       size={size}
-      variant={intent === "renew" ? "default" : "outline"}
-      className="h-auto min-h-9 whitespace-normal text-center"
+      variant={variant ?? (intent === "renew" ? "default" : "outline")}
+      className={cn("h-auto min-h-9 whitespace-normal text-center", className)}
       disabled={disabled || busy}
       aria-busy={busy}
       onClick={() => void open()}

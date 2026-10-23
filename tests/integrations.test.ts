@@ -128,6 +128,16 @@ test("integrations", { timeout: 180000 }, async (t) => {
         await prisma.$transaction((tx) => emitIntegrationEvent(tx, starter.id, "csat.received", {})),
         0,
       );
+      // Starter : Google Sheets reste servi.
+      await prisma.integrationEndpoint.create({
+        data: { projectId: starter.id, kind: "GOOGLE_SHEETS", name: "Feuille", events: ["csat.received"] },
+      });
+      assert.equal(
+        await prisma.$transaction((tx) => emitIntegrationEvent(tx, starter.id, "csat.received", {})),
+        1,
+      );
+      // Ne pas laisser cet envoi à la file des tests suivants.
+      await prisma.integrationEndpoint.deleteMany({ where: { projectId: starter.id } });
     });
 
     await t.test("a delivery is signed and marked delivered", async () => {

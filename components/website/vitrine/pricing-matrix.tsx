@@ -1,13 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { Check, Minus } from "lucide-react";
+import { Check, CircleHelp, Minus } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { PRICING_PLANS, formatPlanPrice, type PlanId } from "@/lib/pricing";
 import { Button } from "@/components/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
-import { MATRIX_GROUPS, type MatrixCell } from "./data";
+import { MATRIX_GROUPS, MATRIX_HINTS, type MatrixCell } from "./data";
 import { Eyebrow } from "./primitives";
 
 function CellValue({ value }: { value: MatrixCell }) {
@@ -28,6 +29,29 @@ function CellValue({ value }: { value: MatrixCell }) {
     );
   }
   return <span className="font-mono text-xs">{value}</span>;
+}
+
+/** Icône d’aide : au clic ou au toucher, une phrase explique la fonctionnalité. */
+function FeatureHint({ label, hint }: { label: string; hint: string }) {
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-xs"
+          className="ml-1 shrink-0 align-middle text-muted-foreground hover:text-foreground"
+          aria-label={`En savoir plus : ${label}`}
+        >
+          <CircleHelp aria-hidden="true" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent side="top" align="start" className="w-64 p-3 text-xs leading-relaxed">
+        <p className="mb-1 font-medium text-foreground">{label}</p>
+        <p className="text-muted-foreground">{hint}</p>
+      </PopoverContent>
+    </Popover>
+  );
 }
 
 /** Full comparison. On phones a plan switcher keeps the table to two readable columns. */
@@ -101,6 +125,9 @@ export function FeatureMatrix() {
               <tr key={row.label} className="border-t transition-colors hover:bg-muted/40">
                 <th scope="row" className="py-3.5 pr-4 text-left font-normal">
                   {row.label}
+                  {MATRIX_HINTS[row.label] && (
+                    <FeatureHint label={row.label} hint={MATRIX_HINTS[row.label]} />
+                  )}
                 </th>
                 {PRICING_PLANS.map((plan) => (
                   <td
