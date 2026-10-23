@@ -1,16 +1,23 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useCallback, useTransition } from "react";
+import { useCallback, useState, useTransition } from "react";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useChatRealtime } from "@/hooks/use-chat-data";
+import type { AgentConfig } from "@/lib/agent-config";
+import { AgentEditor } from "../agent-editor";
+import { AiQuietSettings } from "../ai-quiet-settings";
 import { AgentSandbox } from "./agent-sandbox";
 import { Improvements, type ImprovementData } from "./improvements";
 import { KnowledgeDocuments } from "./knowledge-documents";
 import { KnowledgeEntries } from "./knowledge-entries";
 import { KnowledgeProducts } from "./knowledge-products";
-import type { KnowledgeEntryView, KnowledgeSourceView, KnowledgeUsage } from "./types";
+import type {
+  KnowledgeEntryView,
+  KnowledgeSourceView,
+  KnowledgeUsage,
+} from "./types";
 
 function UsageMeter({
   label,
@@ -73,8 +80,19 @@ function UsageMeter({
   );
 }
 
+export type AgentSettingsView = {
+  projectName: string;
+  config: AgentConfig;
+  version: number;
+  aiQuietEnabled: boolean;
+};
+
+/** Onglets qui consomment le quota : la jauge n’apparaît que pour eux. */
+const DATA_TABS = new Set(["entries", "products", "documents"]);
+
 export function KnowledgeWorkspace({
   projectId,
+  agent,
   currency,
   usage,
   entries,
@@ -84,6 +102,7 @@ export function KnowledgeWorkspace({
   improvements,
 }: {
   projectId: string;
+  agent: AgentSettingsView;
   currency: string;
   usage: KnowledgeUsage;
   entries: KnowledgeEntryView[];
@@ -92,68 +111,114 @@ export function KnowledgeWorkspace({
   sandboxRemaining: number;
   improvements: ImprovementData;
 }) {
-  const pendingImprovements = improvements.gaps.length + improvements.corrections.length;
+  const [tab, setTab] = useState("agent");
+  const pendingImprovements =
+    improvements.gaps.length + improvements.corrections.length;
   const router = useRouter();
   const [, startTransition] = useTransition();
-  const refresh = useCallback(() => startTransition(() => router.refresh()), [router]);
+  const refresh = useCallback(
+    () => startTransition(() => router.refresh()),
+    [router],
+  );
   // Import status changes are pushed by the worker on the project channel.
   useChatRealtime(projectId, refresh);
 
   return (
-    <div className="space-y-6">
-      <section
-        aria-label="Utilisation de la base de connaissances"
-        className="grid grid-cols-2 divide-x rounded-2xl border bg-card"
+    <Tabs value={tab} onValueChange={setTab} className="gap-6">
+      <div className="-mx-4 overflow-x-auto overflow-y-hidden px-4 sm:mx-0 sm:px-0">
+        <TabsList>
+          <TabsTrigger value="agent">Personnalité &amp; consignes</TabsTrigger>
+          <TabsTrigger value="entries">Questions et infos</TabsTrigger>
+          <TabsTrigger value="products">
+            Produits · {products.length}
+          </TabsTrigger>
+          <TabsTrigger value="documents">
+            Documents · {sources.length}
+          </TabsTrigger>
+          <TabsTrigger value="test">Tester l’agent</TabsTrigger>
+          <TabsTrigger value="improve">
+            À améliorer
+            {pendingImprovements > 0 && (
+              <span className="rounded-full bg-primary px-1.5 font-mono text-[10px] text-primary-foreground tabular-nums">
+                <span className="sr-only">, </span>
+                {pendingImprovements}
+                <span className="sr-only"> en attente</span>
+              </span>
+            )}
+          </TabsTrigger>
+        </TabsList>
+      </div>
+      {DATA_TABS.has(tab) && (
+        <section
+          aria-label="Utilisation de la base de connaissances"
+          className="grid grid-cols-2 divide-x rounded-2xl border bg-card"
+        >
+          <UsageMeter
+            label="Entrées utilisées"
+            short="Entrées"
+            used={usage.entries}
+            limit={usage.entryLimit}
+          />
+          <UsageMeter
+            label="Documents importés"
+            short="Documents"
+            hint="PDF et pages web"
+            used={usage.documents}
+            limit={usage.documentLimit}
+          />
+        </section>
+      )}
+      {/* Toujours monté : un enregistrement auto en attente survit au changement d’onglet. */}
+      <TabsContent
+        value="agent"
+        forceMount
+        className="space-y-6 data-[state=inactive]:hidden"
       >
-        <UsageMeter
-          label="Entrées utilisées"
-          short="Entrées"
-          used={usage.entries}
-          limit={usage.entryLimit}
+        <AgentEditor
+          projectId={projectId}
+          projectName={agent.projectName}
+          initial={agent.config}
+          version={agent.version}
         />
-        <UsageMeter
-          label="Documents importés"
-          short="Documents"
-          hint="PDF et pages web"
-          used={usage.documents}
-          limit={usage.documentLimit}
+        <AiQuietSettings projectId={projectId} initial={agent.aiQuietEnabled} />
+      </TabsContent>
+      <TabsContent value="entries">
+        <KnowledgeEntries
+          projectId={projectId}
+          currency={currency}
+          entries={entries}
+          onChanged={refresh}
         />
-      </section>
-      <Tabs defaultValue="entries">
-        <div className="-mx-4 overflow-x-auto overflow-y-hidden px-4 sm:mx-0 sm:px-0">
-          <TabsList>
-            <TabsTrigger value="entries">Questions et infos</TabsTrigger>
-            <TabsTrigger value="products">Produits · {products.length}</TabsTrigger>
-            <TabsTrigger value="documents">Documents · {sources.length}</TabsTrigger>
-            <TabsTrigger value="test">Tester l’agent</TabsTrigger>
-            <TabsTrigger value="improve">
-              À améliorer
-              {pendingImprovements > 0 && (
-                <span className="rounded-full bg-primary px-1.5 font-mono text-[10px] text-primary-foreground tabular-nums">
-                  <span className="sr-only">, </span>
-                  {pendingImprovements}
-                  <span className="sr-only"> en attente</span>
-                </span>
-              )}
-            </TabsTrigger>
-          </TabsList>
-        </div>
-        <TabsContent value="entries" className="mt-4">
-          <KnowledgeEntries projectId={projectId} currency={currency} entries={entries} onChanged={refresh} />
-        </TabsContent>
-        <TabsContent value="products" className="mt-4">
-          <KnowledgeProducts projectId={projectId} currency={currency} products={products} onChanged={refresh} />
-        </TabsContent>
-        <TabsContent value="documents" className="mt-4">
-          <KnowledgeDocuments projectId={projectId} usage={usage} sources={sources} onChanged={refresh} />
-        </TabsContent>
-        <TabsContent value="test" className="mt-4">
-          <AgentSandbox projectId={projectId} initialRemaining={sandboxRemaining} />
-        </TabsContent>
-        <TabsContent value="improve" className="mt-4">
-          <Improvements projectId={projectId} data={improvements} onChanged={refresh} />
-        </TabsContent>
-      </Tabs>
-    </div>
+      </TabsContent>
+      <TabsContent value="products">
+        <KnowledgeProducts
+          projectId={projectId}
+          currency={currency}
+          products={products}
+          onChanged={refresh}
+        />
+      </TabsContent>
+      <TabsContent value="documents">
+        <KnowledgeDocuments
+          projectId={projectId}
+          usage={usage}
+          sources={sources}
+          onChanged={refresh}
+        />
+      </TabsContent>
+      <TabsContent value="test">
+        <AgentSandbox
+          projectId={projectId}
+          initialRemaining={sandboxRemaining}
+        />
+      </TabsContent>
+      <TabsContent value="improve">
+        <Improvements
+          projectId={projectId}
+          data={improvements}
+          onChanged={refresh}
+        />
+      </TabsContent>
+    </Tabs>
   );
 }

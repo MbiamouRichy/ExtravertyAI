@@ -13,7 +13,7 @@ import {
   ContactIcon,
   Settings2Icon,
   SquareKanban,
-  LibraryBig,
+  BotIcon,
   PlugIcon,
 } from "lucide-react";
 
@@ -67,9 +67,9 @@ export const getNavGroups = (projectId: string): SidebarNavGroup[] => [
         icon: <SquareKanban />,
       },
       {
-        title: "Connaissances",
+        title: "Assistant IA",
         path: `/projects/${projectId}/knowledge`,
-        icon: <LibraryBig />,
+        icon: <BotIcon />,
       },
       {
         title: "setup",

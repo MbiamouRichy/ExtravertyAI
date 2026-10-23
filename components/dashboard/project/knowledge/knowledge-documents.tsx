@@ -204,6 +204,7 @@ export function KnowledgeDocuments({
             className="w-full lg:w-auto"
             disabled={full || uploading}
             onClick={() => fileInput.current?.click()}
+            title="PDF de 10 Mo et 200 pages maximum"
           >
             {uploading ? (
               <Loader2 data-icon="inline-start" className="animate-spin motion-reduce:animate-none" />
@@ -212,7 +213,6 @@ export function KnowledgeDocuments({
             )}
             {uploading ? "Envoi du PDF…" : "Importer un PDF"}
           </Button>
-          <p className="text-xs text-muted-foreground">10 Mo et 200 pages maximum.</p>
           <input
             ref={fileInput}
             type="file"

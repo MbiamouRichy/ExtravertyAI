@@ -5,13 +5,14 @@ import { ShieldCheck } from "lucide-react";
 import prisma from "@/lib/prisma";
 import { getSession } from "@/lib/auth-server";
 import { knowledgeOverview } from "@/lib/knowledge";
+import { AGENT_DEFAULTS, type AgentConfig } from "@/lib/agent-config";
 import { sandboxUsage } from "@/lib/agent-sandbox";
 import { improvementOverview } from "@/lib/ai-feedback";
 import { KnowledgeWorkspace } from "@/components/dashboard/project/knowledge/knowledge-workspace";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
-  title: "Base de connaissances | ExtravertyAI",
+  title: "Assistant IA | ExtravertyAI",
   robots: { index: false, follow: false },
 };
 
@@ -29,13 +30,13 @@ export default async function KnowledgePage({
   const header = (
     <header>
       <p className="font-mono text-xs uppercase tracking-wider text-muted-foreground">
-        Assistant IA
+        Votre agent
       </p>
-      <h1 className="mt-1 text-3xl md:text-4xl">Base de connaissances</h1>
+      <h1 className="mt-1 text-3xl md:text-4xl">Assistant IA</h1>
       <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-        Ce que l’assistant doit savoir de votre activité : questions fréquentes,
-        catalogue, pages de votre site et documents. Il s’en sert pour répondre
-        avec les bons prix et les bonnes conditions.
+        Sa personnalité et ses consignes d’un côté, ce qu’il doit savoir de
+        votre activité de l’autre : questions fréquentes, catalogue et
+        documents. Testez-le ensuite avant de le laisser répondre.
       </p>
     </header>
   );
@@ -64,10 +65,18 @@ export default async function KnowledgePage({
     );
   }
 
-  const [sandbox, improvements] = await Promise.all([
+  const [sandbox, improvements, project] = await Promise.all([
     sandboxUsage(prisma, projectId, overview.plan),
     improvementOverview(prisma, projectId),
+    prisma.project.findUniqueOrThrow({ where: { id: projectId } }),
   ]);
+  // Projection explicite : seuls les réglages de l’agent quittent le serveur.
+  const agentConfig = Object.fromEntries(
+    Object.keys(AGENT_DEFAULTS).map((key) => [
+      key,
+      project[key as keyof typeof AGENT_DEFAULTS],
+    ]),
+  ) as AgentConfig;
   const iso = (date: Date | null) => date?.toISOString() ?? null;
   const entryView = (entry: (typeof overview.entries)[number]) => ({
     ...entry,
@@ -79,6 +88,12 @@ export default async function KnowledgePage({
       {header}
       <KnowledgeWorkspace
         projectId={projectId}
+        agent={{
+          projectName: project.name,
+          config: agentConfig,
+          version: project.agentConfigVersion,
+          aiQuietEnabled: project.aiQuietEnabled,
+        }}
         currency={overview.currency}
         usage={overview.usage}
         entries={overview.entries.map(entryView)}

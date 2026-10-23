@@ -7,6 +7,8 @@ import { getSession } from "@/lib/auth-server";
 import prisma from "@/lib/prisma";
 import { AgentEditor } from "@/components/dashboard/project/agent-editor";
 import { AGENT_DEFAULTS, type AgentConfig } from "@/lib/agent-config";
+import { knowledgeOverview } from "@/lib/knowledge";
+import { SetupKnowledge } from "@/components/dashboard/project/knowledge/setup-knowledge";
 export const metadata: Metadata = {
   title: "Configurer votre agent IA | ExtravertyAI",
   robots: { index: false, follow: false },
@@ -62,10 +64,23 @@ export default async function AgentSetupPage({
       p[key as keyof typeof AGENT_DEFAULTS],
     ]),
   ) as AgentConfig;
+  // Réservé OWNER/ADMIN côté serveur ; null si l’accès a changé entre-temps.
+  const knowledge = await knowledgeOverview(prisma, projectId, session.user.id);
+  const entryView = (
+    entry: NonNullable<typeof knowledge>["entries"][number],
+  ) => ({
+    ...entry,
+    updatedAt: entry.updatedAt.toISOString(),
+  });
   return (
     <main className="mx-auto w-full max-w-6xl p-4 sm:p-6 xl:p-8">
       <div className="mb-6 flex items-center justify-between gap-3">
-        <Button asChild variant="ghost" size="sm" className="-ml-2 text-muted-foreground">
+        <Button
+          asChild
+          variant="ghost"
+          size="sm"
+          className="-ml-2 text-muted-foreground"
+        >
           <Link href="/projects">
             <ArrowLeft data-icon="inline-start" />
             Mes projets
@@ -84,21 +99,26 @@ export default async function AgentSetupPage({
           </p>
           <h1 className="mt-2 text-[2.4rem] leading-[1.05] sm:text-5xl">
             Votre entreprise.
-            <span className="block text-muted-foreground">La voix de votre agent.</span>
+            <span className="block text-muted-foreground">
+              La voix de votre agent.
+            </span>
           </h1>
           <p className="mt-4 text-pretty text-muted-foreground">
             Avant ses premières conversations, donnez-lui une identité, une
-            mission et une façon de répondre. Tout reste modifiable dans les
-            paramètres.
+            mission et une façon de répondre, puis, si vous le souhaitez, ce
+            qu’il doit savoir. Tout reste modifiable dans Assistant IA.
           </p>
         </div>
         <ul className="flex flex-wrap gap-2 text-xs lg:flex-col lg:items-end">
           {[
-            { icon: Clock3, text: "3 étapes · environ 3 minutes" },
+            { icon: Clock3, text: "3 étapes + 1 facultative" },
             { icon: Sparkles, text: "Aperçu en direct du style" },
             { icon: ShieldCheck, text: "Visible uniquement par votre équipe" },
           ].map(({ icon: Icon, text }) => (
-            <li key={text} className="inline-flex items-center gap-1.5 rounded-full border bg-card px-2.5 py-1">
+            <li
+              key={text}
+              className="inline-flex items-center gap-1.5 rounded-full border bg-card px-2.5 py-1"
+            >
               <Icon aria-hidden="true" className="size-3.5" />
               {text}
             </li>
@@ -113,6 +133,22 @@ export default async function AgentSetupPage({
         initial={initial}
         version={p.agentConfigVersion}
         onboarding
+        dataStep={
+          knowledge && (
+            <SetupKnowledge
+              projectId={p.id}
+              currency={knowledge.currency}
+              usage={knowledge.usage}
+              entries={knowledge.entries.map(entryView)}
+              products={knowledge.products.map(entryView)}
+              sources={knowledge.sources.map((source) => ({
+                ...source,
+                processedAt: source.processedAt?.toISOString() ?? null,
+                createdAt: source.createdAt.toISOString(),
+              }))}
+            />
+          )
+        }
       />
     </main>
   );

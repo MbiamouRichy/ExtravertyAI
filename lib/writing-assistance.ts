@@ -74,7 +74,8 @@ export async function generateWritingAssistance(input: {
       }),
     },
   );
-  if (!response.ok) throw new Error("ASSISTANCE_PROVIDER_ERROR");
+  // Le statut HTTP permet d’afficher une cause précise (clé, crédits, limite).
+  if (!response.ok) throw new Error(`ASSISTANCE_PROVIDER_${response.status}`);
   const payload = await response.json();
   const choice = payload?.choices?.[0];
   if (

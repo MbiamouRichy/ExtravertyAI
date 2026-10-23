@@ -206,10 +206,17 @@ export async function notificationFeed(
     })),
   );
   const receipts = await db.$queryRaw<
-    { key: string; version: string }[]
-  >`SELECT key, version FROM notification_receipt WHERE "userId" = ${userId}`;
+    { key: string; version: string; dismissedVersion: string | null }[]
+  >`SELECT key, version, "dismissedVersion" FROM notification_receipt WHERE "userId" = ${userId}`;
   const seen = new Map(receipts.map((r) => [r.key, r.version]));
+  const dismissed = new Map(receipts.map((r) => [r.key, r.dismissedVersion]));
   for (const item of items) item.read ||= seen.get(item.key) === item.version;
+  // Supprimée par l’utilisateur : masquée tant qu’aucun nouvel événement ne la change.
+  const kept = items.filter(
+    (item) => item.kind === "alert" || dismissed.get(item.key) !== item.version,
+  );
+  items.length = 0;
+  items.push(...kept);
   items.sort(
     (a, b) =>
       Number(a.read) - Number(b.read) ||
@@ -235,4 +242,30 @@ export async function readNotifications(
     await db.$executeRaw`INSERT INTO notification_receipt ("userId", key, version) VALUES (${userId}, ${item.key}, ${item.version})
       ON CONFLICT ("userId", key) DO UPDATE SET version = EXCLUDED.version, "readAt" = NOW()`;
   }
+}
+
+/**
+ * Supprime des notifications pour cet utilisateur (glissement latéral). Seules
+ * les versions présentes dans son flux autorisé sont acceptées ; les alertes
+ * en cours (WhatsApp à reconnecter…) restent jusqu’à leur résolution.
+ */
+export async function dismissNotifications(
+  db: PrismaClient,
+  userId: string,
+  requested: { key: string; version: string }[],
+) {
+  const feed = await notificationFeed(db, userId);
+  const accepted = requested.filter((r) =>
+    feed.items.some(
+      (item) =>
+        item.kind !== "alert" && item.key === r.key && item.version === r.version,
+    ),
+  );
+  for (const item of accepted) {
+    await db.$executeRaw`INSERT INTO notification_receipt ("userId", key, version, "dismissedVersion")
+      VALUES (${userId}, ${item.key}, ${item.version}, ${item.version})
+      ON CONFLICT ("userId", key) DO UPDATE SET version = EXCLUDED.version,
+        "dismissedVersion" = EXCLUDED."dismissedVersion", "readAt" = NOW()`;
+  }
+  return accepted.length;
 }

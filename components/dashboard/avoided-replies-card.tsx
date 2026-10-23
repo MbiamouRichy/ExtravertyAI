@@ -32,7 +32,7 @@ export function AvoidedRepliesCard({
           <>
             La mise en veille de fin de conversation est désactivée.{" "}
             <Link href={settingsHref} className="text-foreground underline-offset-4 hover:underline">
-              L’activer dans les paramètres
+              L’activer dans Assistant IA
             </Link>
           </>
         )

@@ -50,6 +50,7 @@ export async function setAiQuietModeAction(
   try {
     await setAiQuietMode(prisma, { ...parsed.data, userId: session.user.id });
     revalidatePath(`/projects/${parsed.data.projectId}/settings`);
+    revalidatePath(`/projects/${parsed.data.projectId}/knowledge`);
     // Les badges « IA en veille » de la messagerie ouverte se mettent à jour.
     await notifyChatChanged(parsed.data.projectId);
     return { success: true };

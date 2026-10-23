@@ -703,6 +703,8 @@ model NotificationReceipt {
   key String
   version String
   readAt DateTime @default(now()) @db.Timestamptz(3)
+  // Version supprimée par glissement : la notification revient si sa version change.
+  dismissedVersion String?
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   @@id([userId, key])
   @@map("notification_receipt")

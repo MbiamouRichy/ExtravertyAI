@@ -1,6 +1,7 @@
 import Link from "next/link";
 import {
   BarChart3,
+  Bot,
   ChevronRight,
   Download,
   MessagesSquare,
@@ -15,12 +16,13 @@ export function QuickActions({ projectId }: { projectId: string }) {
     { title: "Statistiques", description: "Analyser l’activité", href: `${base}/analytics`, icon: BarChart3 },
     { title: "Équipe", description: "Inviter et gérer les rôles", href: `${base}/team`, icon: Users },
     { title: "Contacts", description: "Consulter et exporter", href: `${base}/contacts`, icon: Download },
-    { title: "Paramètres", description: "Agent IA et WhatsApp", href: `${base}/settings`, icon: Settings },
+    { title: "Assistant IA", description: "Consignes et connaissances", href: `${base}/knowledge`, icon: Bot },
+    { title: "Paramètres", description: "WhatsApp et projet", href: `${base}/settings`, icon: Settings },
   ];
 
   return (
     <nav aria-labelledby="actions-title">
-      <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+      <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
         {actions.map(({ title, description, href, icon: Icon }) => (
           <li key={title}>
             <Link

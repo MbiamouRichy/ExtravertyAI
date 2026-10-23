@@ -8,6 +8,24 @@ import {
   generateWritingAssistance,
 } from "@/lib/writing-assistance";
 import { getBillingAccess } from "@/lib/billing-access";
+import { z } from "zod";
+
+/** Message clair selon la cause, sans exposer de détail technique sensible. */
+function assistanceErrorMessage(code: string) {
+  if (code === "ASSISTANCE_CONFIG_MISSING")
+    return "L’assistance IA n’est pas configurée sur le serveur.";
+  if (code === "ASSISTANCE_PROVIDER_401" || code === "ASSISTANCE_PROVIDER_403")
+    return "La clé du service IA est refusée. Vérifiez la configuration du serveur.";
+  if (code === "ASSISTANCE_PROVIDER_402")
+    return "Les crédits du service IA sont épuisés. Rechargez le compte du fournisseur IA.";
+  if (code === "ASSISTANCE_PROVIDER_429")
+    return "Le service IA reçoit trop de demandes. Réessayez dans une minute.";
+  if (code === "ASSISTANCE_TIMEOUT")
+    return "Le service IA a mis trop de temps à répondre. Réessayez.";
+  if (code === "ASSISTANCE_INVALID_RESPONSE")
+    return "Le service IA a renvoyé une réponse inutilisable. Réessayez.";
+  return "L’assistance IA est indisponible. Réessayez dans quelques instants.";
+}
 
 // Best-effort per-instance throttling, following the conversation summary action.
 const requests = new Map<string, number>();
@@ -134,12 +152,16 @@ export async function assistWriting(input: unknown) {
       return { success: false as const, error: currentAccess.message };
     return { success: true as const, replies };
   } catch (error) {
-    return {
-      success: false as const,
-      error:
-        error instanceof Error && error.message === "ASSISTANCE_CONFIG_MISSING"
-          ? "L’assistance IA n’est pas configurée sur le serveur."
-          : "L’assistance IA est indisponible. Réessayez dans quelques instants.",
-    };
+    // Code seul dans les journaux : jamais le contenu de la conversation ni la clé.
+    const code =
+      error instanceof Error && /^ASSISTANCE_[A-Z_0-9]+$/.test(error.message)
+        ? error.message
+        : error instanceof Error && error.name === "TimeoutError"
+          ? "ASSISTANCE_TIMEOUT"
+          : error instanceof SyntaxError || error instanceof z.ZodError
+            ? "ASSISTANCE_INVALID_RESPONSE"
+            : "ASSISTANCE_FAILED";
+    console.error("[assist] Échec de l’assistance IA", { code });
+    return { success: false as const, error: assistanceErrorMessage(code) };
   }
 }

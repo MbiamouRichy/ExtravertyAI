@@ -1,6 +1,7 @@
 "use client";
 import { LocalDate } from "@/components/local-date";
-import { useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { toast } from "sonner";
 import useSWR from "swr";
 import Link from "next/link";
 import {
@@ -10,6 +11,8 @@ import {
   TriangleAlert,
   Inbox,
   ArrowUpRight,
+  Trash2,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -22,6 +25,137 @@ import type {
   AppNotification,
   NotificationFeed,
 } from "@/lib/notification-types";
+
+const SWIPE_THRESHOLD = 0.35;
+
+/**
+ * Glisser à gauche ou à droite pour supprimer, comme Messages sur Android.
+ * Un défilement vertical n’est jamais pris pour un glissement, et un
+ * glissement n’ouvre pas la notification.
+ */
+function SwipeToDismiss({
+  children,
+  disabled,
+  onDismiss,
+}: {
+  children: ReactNode;
+  disabled?: boolean;
+  onDismiss: () => void;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const gesture = useRef<{
+    x: number;
+    y: number;
+    id: number;
+    locked: boolean | null;
+  } | null>(null);
+  const moved = useRef(false);
+  const [offset, setOffset] = useState(0);
+  // Largeur mesurée au début du geste : jamais lue sur la ref pendant le rendu.
+  const [width, setWidth] = useState(300);
+  const [dragging, setDragging] = useState(false);
+  const [leaving, setLeaving] = useState<-1 | 0 | 1>(0);
+
+  useEffect(() => {
+    if (!leaving) return;
+    const timer = window.setTimeout(onDismiss, 180);
+    return () => window.clearTimeout(timer);
+  }, [leaving, onDismiss]);
+
+  function end() {
+    if (dragging && Math.abs(offset) > width * SWIPE_THRESHOLD) {
+      setLeaving(offset > 0 ? 1 : -1);
+    } else {
+      setOffset(0);
+    }
+    setDragging(false);
+    gesture.current = null;
+  }
+
+  const progress = Math.min(1, Math.abs(offset) / (width * SWIPE_THRESHOLD));
+
+  return (
+    <div className="relative overflow-hidden rounded-xl">
+      {/* Zone révélée sous la notification pendant le glissement. */}
+      <div
+        aria-hidden="true"
+        style={{ opacity: leaving ? 1 : progress }}
+        className={cn(
+          "absolute inset-0 flex items-center gap-2 bg-destructive/10 px-5 text-xs font-medium text-destructive",
+          offset >= 0 && leaving !== -1 ? "justify-start" : "justify-end",
+        )}
+      >
+        <Trash2 className="size-4" />
+        Supprimer
+      </div>
+      <div
+        ref={ref}
+        className="relative touch-pan-y bg-popover"
+        style={{
+          transform: leaving
+            ? `translateX(${leaving * 110}%)`
+            : `translateX(${offset}px)`,
+          transition: dragging ? "none" : "transform 180ms ease-out",
+        }}
+        onPointerDown={(event) => {
+          if (disabled || event.button !== 0 || leaving) return;
+          setWidth(event.currentTarget.offsetWidth || 300);
+          moved.current = false;
+          gesture.current = {
+            x: event.clientX,
+            y: event.clientY,
+            id: event.pointerId,
+            locked: null,
+          };
+        }}
+        onPointerMove={(event) => {
+          const start = gesture.current;
+          if (!start || start.id !== event.pointerId) return;
+          const dx = event.clientX - start.x;
+          const dy = event.clientY - start.y;
+          if (start.locked === null) {
+            if (Math.abs(dx) > 8 && Math.abs(dx) > Math.abs(dy)) {
+              start.locked = true;
+              moved.current = true;
+              setDragging(true);
+              event.currentTarget.setPointerCapture(event.pointerId);
+            } else if (Math.abs(dy) > 8) {
+              gesture.current = null; // défilement vertical
+            }
+            return;
+          }
+          setOffset(dx);
+        }}
+        onPointerUp={end}
+        onPointerCancel={end}
+        // Un glissement ne doit pas ouvrir la conversation.
+        onClickCapture={(event) => {
+          if (moved.current) {
+            event.preventDefault();
+            event.stopPropagation();
+            moved.current = false;
+          }
+        }}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
+/** Compteur d’onglet sur deux chiffres (« 02 », « 15 »). */
+function TabCount({ value, active }: { value: number; active: boolean }) {
+  return (
+    <span
+      className={
+        "tabular-nums " + (active ? "text-foreground/70" : "text-muted-foreground")
+      }
+    >
+      {String(value).padStart(2, "0")}
+      <span className="sr-only"> notification{value > 1 ? "s" : ""}</span>
+    </span>
+  );
+}
 export function Notifications() {
   const [open, setOpen] = useState(false);
   const [unreadOnly, setUnreadOnly] = useState(false);
@@ -40,9 +174,55 @@ export function Notifications() {
       shouldRetryOnError: false,
     },
   );
-  const items = feed.data?.items ?? [];
+  // Suppressions en attente : masquées tout de suite, envoyées après 5 s sauf annulation.
+  const [hidden, setHidden] = useState<string[]>([]);
+  const timers = useRef(new Map<string, number>());
+  useEffect(() => {
+    const pending = timers.current;
+    return () => pending.forEach((timer) => window.clearTimeout(timer));
+  }, []);
+  const items = (feed.data?.items ?? []).filter(
+    (item) => !hidden.includes(item.key),
+  );
   const unread = items.filter((item) => !item.read);
   const visible = unreadOnly ? unread : items;
+  async function commitDismiss(item: AppNotification) {
+    timers.current.delete(item.key);
+    try {
+      const response = await fetch("/api/notifications", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        keepalive: true,
+        body: JSON.stringify({
+          items: [{ key: item.key, version: item.version }],
+        }),
+      });
+      if (!response.ok) throw new Error();
+      await feed.mutate();
+    } catch {
+      // Échec : la notification réapparaît (voir finally).
+      toast.error("La suppression n’a pas été enregistrée. Réessayez.");
+    } finally {
+      setHidden((current) => current.filter((key) => key !== item.key));
+    }
+  }
+  function dismiss(item: AppNotification) {
+    if (timers.current.has(item.key)) return;
+    setHidden((current) => [...current, item.key]);
+    const timer = window.setTimeout(() => void commitDismiss(item), 5000);
+    timers.current.set(item.key, timer);
+    toast("Notification supprimée", {
+      action: {
+        label: "Annuler",
+        onClick: () => {
+          window.clearTimeout(timers.current.get(item.key));
+          timers.current.delete(item.key);
+          setHidden((current) => current.filter((key) => key !== item.key));
+        },
+      },
+      duration: 5000,
+    });
+  }
   async function markRead(selected: AppNotification[]) {
     if (!selected.length || saving) return;
     setSaving(true);
@@ -94,12 +274,7 @@ export function Notifications() {
         className="w-[calc(100vw-2rem)] max-w-96 overflow-hidden p-0"
       >
         <div className="flex items-center justify-between gap-2 border-b p-4">
-          <div>
-            <h2 className="text-sm font-semibold">Notifications</h2>
-            <p className="mt-1 text-xs text-muted-foreground">
-              {unread.length} non lue{unread.length > 1 ? "s" : ""}
-            </p>
-          </div>
+          <h2 className="text-sm font-semibold">Notifications</h2>
           <Button
             size="icon"
             variant="ghost"
@@ -119,6 +294,7 @@ export function Notifications() {
             onClick={() => setUnreadOnly(false)}
           >
             Toutes
+            <TabCount value={items.length} active={!unreadOnly} />
           </Button>
           <Button
             size="sm"
@@ -127,6 +303,7 @@ export function Notifications() {
             onClick={() => setUnreadOnly(true)}
           >
             Non lues
+            <TabCount value={unread.length} active={unreadOnly} />
           </Button>
         </div>
         {saveError && (
@@ -172,7 +349,11 @@ export function Notifications() {
           ) : (
             <ul className="space-y-1 p-2">
               {visible.map((item) => (
-                <li key={item.key}>
+                <li key={item.key} className="group/item relative">
+                  <SwipeToDismiss
+                    disabled={item.kind === "alert"}
+                    onDismiss={() => dismiss(item)}
+                  >
                   <Link
                     href={item.href}
                     onClick={() => {
@@ -227,6 +408,20 @@ export function Notifications() {
                       </span>
                     )}
                   </Link>
+                  </SwipeToDismiss>
+                  {/* Alternative au glissement : souris et clavier. */}
+                  {item.kind !== "alert" && (
+                    <Button
+                      type="button"
+                      size="icon-xs"
+                      variant="ghost"
+                      aria-label={`Supprimer la notification « ${item.title} »`}
+                      onClick={() => dismiss(item)}
+                      className="absolute right-2 bottom-2 opacity-0 transition-opacity group-hover/item:opacity-100 focus-visible:opacity-100"
+                    >
+                      <X />
+                    </Button>
+                  )}
                 </li>
               ))}
             </ul>

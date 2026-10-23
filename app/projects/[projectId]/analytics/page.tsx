@@ -221,7 +221,7 @@ export default async function AnalyticsPage({
             <InstinctFunnelCard
               instinct={overview.instinct}
               rangeLabel={overview.rangeLabel}
-              settingsHref={`${projectPath}/settings`}
+              settingsHref={`${projectPath}/knowledge`}
             />
           </div>
 
@@ -229,7 +229,7 @@ export default async function AnalyticsPage({
             stats={avoided.stats}
             enabled={avoided.enabled}
             rangeLabel={overview.rangeLabel}
-            settingsHref={`${projectPath}/settings`}
+            settingsHref={`${projectPath}/knowledge`}
           />
 
           <ActivityHeatmapCard

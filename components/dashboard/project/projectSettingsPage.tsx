@@ -22,11 +22,9 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { WhatsAppPreferences } from "./whatsapp-preferences";
-import { AgentEditor } from "./agent-editor";
 import { ProjectNameForm } from "./project-name-form";
 import { CsatSettings } from "./csat-settings";
 import { WaitingTimeSettings } from "./waiting-time-settings";
-import { AiQuietSettings } from "./ai-quiet-settings";
 import type { ProjectSettingsView } from "@/lib/settings-types";
 import {
   setProjectPaused,
@@ -36,13 +34,6 @@ import { DeleteProjectDialog } from "./delete-project-dialog";
 import { ScrollFadeArea } from "./scroll-fade-area";
 
 const tabs = [
-  {
-    id: "agent",
-    label: "Agent IA",
-    short: "Agent IA",
-    hint: "Ton, objectifs, qualification",
-    icon: Bot,
-  },
   {
     id: "general",
     label: "Projet & utilisation",
@@ -79,8 +70,7 @@ export default function ProjectSettingsPage({
 }) {
   const router = useRouter();
   const deleteButton = useRef<HTMLButtonElement>(null);
-  const [tab, setTab] = useState<string>("agent");
-  const [agentSaving, setAgentSaving] = useState(false);
+  const [tab, setTab] = useState<string>("general");
   const [nameSaving, setNameSaving] = useState(false);
   const [paused, setPaused] = useState(p.automationPaused);
   const [settingsVersion, setSettingsVersion] = useState(p.settingsVersion);
@@ -187,12 +177,21 @@ export default function ProjectSettingsPage({
             </li>
           </ul>
         </div>
-        <Button asChild variant="outline" className="w-full sm:w-auto">
-          <Link href={`/projects/${p.id}/chat`}>
-            <MessageSquare data-icon="inline-start" />
-            Ouvrir la messagerie
-          </Link>
-        </Button>
+        {/* La personnalité de l’agent vit désormais dans « Assistant IA ». */}
+        <div className="grid grid-cols-2 gap-2 sm:flex">
+          <Button asChild variant="outline">
+            <Link href={`/projects/${p.id}/knowledge`}>
+              <Bot data-icon="inline-start" />
+              Assistant IA
+            </Link>
+          </Button>
+          <Button asChild variant="outline">
+            <Link href={`/projects/${p.id}/chat`}>
+              <MessageSquare data-icon="inline-start" />
+              Messagerie
+            </Link>
+          </Button>
+        </div>
       </header>
       {paused && (
         <div
@@ -224,7 +223,7 @@ export default function ProjectSettingsPage({
             <Button
               key={item.id}
               type="button"
-              disabled={agentSaving || nameSaving}
+              disabled={nameSaving}
               onClick={() => {
                 setTab(item.id);
                 setError("");
@@ -268,22 +267,6 @@ export default function ProjectSettingsPage({
               </Button>
             </div>
           )}
-          <div hidden={tab !== "agent"} className="space-y-6">
-            <AgentEditor
-              key={p.id}
-              projectId={p.id}
-              projectName={p.name}
-              initial={p.config}
-              version={p.agentConfigVersion}
-              onSavingChange={setAgentSaving}
-            />
-            <AiQuietSettings
-              key={`quiet-${p.id}`}
-              projectId={p.id}
-              initial={p.aiQuietEnabled}
-              disabled={!!pending || p.deletionPending}
-            />
-          </div>
           <div hidden={tab !== "csat"}>
             <CsatSettings key={p.id} projectId={p.id} initial={p.csat} />
           </div>

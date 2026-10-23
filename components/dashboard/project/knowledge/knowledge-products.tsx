@@ -83,13 +83,20 @@ export function KnowledgeProducts({
     });
   }
 
-  const actions = (
-    <div className="flex flex-wrap gap-2">
-      <Button asChild variant="ghost">
-        <a href={`data:text/csv;charset=utf-8,${encodeURIComponent("﻿" + TEMPLATE)}`} download="modele-catalogue.csv">
-          <Download data-icon="inline-start" />
-          Modèle CSV
-        </a>
+  // Action principale d’abord ; même hauteur pour les trois boutons.
+  // Catalogue vide : centrés (empilés pleine largeur sur mobile) ;
+  // sinon alignés à droite de la recherche.
+  const renderActions = (placement: "toolbar" | "empty") => (
+    <div
+      className={
+        placement === "empty"
+          ? "flex w-full flex-col items-stretch gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-center"
+          : "flex flex-wrap items-center gap-2 lg:justify-end"
+      }
+    >
+      <Button type="button" onClick={() => setEditing("new")}>
+        <Plus data-icon="inline-start" />
+        Ajouter un produit
       </Button>
       <Button type="button" variant="outline" disabled={importing} onClick={() => fileInput.current?.click()}>
         {importing ? (
@@ -99,9 +106,11 @@ export function KnowledgeProducts({
         )}
         {importing ? "Import en cours…" : "Importer un CSV"}
       </Button>
-      <Button type="button" onClick={() => setEditing("new")}>
-        <Plus data-icon="inline-start" />
-        Produit
+      <Button asChild variant="ghost">
+        <a href={`data:text/csv;charset=utf-8,${encodeURIComponent("﻿" + TEMPLATE)}`} download="modele-catalogue.csv">
+          <Download data-icon="inline-start" />
+          Modèle CSV
+        </a>
       </Button>
       <input
         ref={fileInput}
@@ -135,7 +144,7 @@ export function KnowledgeProducts({
               aria-label="Rechercher un produit"
             />
           </InputGroup>
-          {actions}
+          {renderActions("toolbar")}
         </div>
       )}
 
@@ -152,7 +161,7 @@ export function KnowledgeProducts({
               alors les bons prix et les stocks à jour.
             </EmptyDescription>
           </EmptyHeader>
-          <EmptyContent>{actions}</EmptyContent>
+          <EmptyContent className="max-w-xl">{renderActions("empty")}</EmptyContent>
         </Empty>
       ) : (
         <div className="overflow-x-auto rounded-2xl border bg-card">

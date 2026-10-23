@@ -6,6 +6,13 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { AiInsight, AudioPlayer, type AudioTranscript } from "./audio-player";
 
+const UNAVAILABLE_LABEL: Record<string, string> = {
+  IMAGE: "Image indisponible",
+  AUDIO: "Audio indisponible",
+  VIDEO: "Vidéo indisponible",
+  DOCUMENT: "Document indisponible",
+};
+
 /**
  * Bulle de média façon messagerie : le média, sa légende, l’analyse IA et
  * l’heure sont regroupés dans une même carte, alignée selon l’expéditeur.
@@ -59,24 +66,51 @@ export function ChatMedia({
       )}
     >
       {failed ? (
+        // Ligne compacte : icône, explication, action — sans grand cadre vide.
         <div
           role="status"
-          className="flex flex-col items-center gap-2 rounded-xl bg-muted px-4 py-6 text-center text-xs text-muted-foreground"
+          className={cn(
+            "flex items-center gap-3 rounded-xl px-2.5 py-2",
+            outgoing ? "bg-primary-foreground/10" : "bg-muted",
+          )}
         >
-          <ImageOff aria-hidden="true" className="size-5" />
-          <p>Média indisponible, expiré ou supérieur à 4 Mo.</p>
+          <span
+            className={cn(
+              "flex size-9 shrink-0 items-center justify-center rounded-lg",
+              outgoing
+                ? "bg-primary-foreground/10"
+                : "border bg-background text-muted-foreground",
+            )}
+          >
+            <ImageOff aria-hidden="true" className="size-4" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-sm font-medium leading-snug">
+              {UNAVAILABLE_LABEL[type] ?? "Média indisponible"}
+            </span>
+            <span
+              className={cn(
+                "block text-xs leading-snug",
+                outgoing ? "text-primary-foreground/70" : "text-muted-foreground",
+              )}
+            >
+              Expiré, supprimé ou plus de 4 Mo
+            </span>
+          </span>
           <Button
             type="button"
-            size="xs"
-            variant="outline"
+            size="icon-sm"
+            variant={outgoing ? "secondary" : "outline"}
+            className="shrink-0"
+            aria-label="Réessayer de charger le média"
+            title="Réessayer"
             onClick={() => {
               setFailed(false);
               setLoading(type === "IMAGE");
               setVersion((value) => value + 1);
             }}
           >
-            <RefreshCw data-icon="inline-start" />
-            Réessayer
+            <RefreshCw aria-hidden="true" />
           </Button>
         </div>
       ) : type === "IMAGE" ? (

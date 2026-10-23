@@ -4,7 +4,11 @@ import { readFile } from "node:fs/promises";
 import { PGlite } from "@electric-sql/pglite";
 import type { PrismaClient } from "../src/generated/prisma/client";
 import { heartbeat, projectPresence } from "../lib/presence";
-import { notificationFeed, readNotifications } from "../lib/notifications";
+import {
+  dismissNotifications,
+  notificationFeed,
+  readNotifications,
+} from "../lib/notifications";
 test("presence and notifications respect members, tabs, expiry and read versions", async () => {
   const db = await PGlite.create();
   try {
@@ -27,6 +31,15 @@ test("presence and notifications respect members, tabs, expiry and read versions
       await readFile(
         new URL(
           "../prisma/migrations/202610110002_presence_notifications/migration.sql",
+          import.meta.url,
+        ),
+        "utf8",
+      ),
+    );
+    await db.exec(
+      await readFile(
+        new URL(
+          "../prisma/migrations/202610230001_notification_dismiss/migration.sql",
           import.meta.url,
         ),
         "utf8",
@@ -157,6 +170,37 @@ test("presence and notifications respect members, tabs, expiry and read versions
         (n) => n.key === "billing:p",
       ),
       true,
+    );
+    // Glissement : la notification disparaît, sauf les alertes en cours ;
+    // un nouvel événement (nouvelle version) la fait revenir.
+    const before = await notificationFeed(client, "member");
+    const ownerKeys = (await notificationFeed(client, "owner")).items
+      .map((n) => n.key)
+      .sort();
+    const message = before.items.find((n) => n.key === "message:c");
+    const alert = before.items.find((n) => n.kind === "alert");
+    assert.ok(message && alert);
+    assert.equal(
+      await dismissNotifications(client, "member", [message, alert]),
+      1,
+    );
+    const after = await notificationFeed(client, "member");
+    assert.equal(after.items.some((n) => n.key === message.key), false);
+    assert.equal(after.items.some((n) => n.key === alert.key), true);
+    assert.deepEqual(
+      (await notificationFeed(client, "owner")).items.map((n) => n.key).sort(),
+      ownerKeys,
+      "only the member who swiped loses it",
+    );
+    await db.exec(
+      `INSERT INTO message (id,"projectId","contactId","createdAt") VALUES ('later','p','c', NOW() + INTERVAL '1 minute')`,
+    );
+    assert.equal(
+      (await notificationFeed(client, "member")).items.some(
+        (n) => n.key === message.key,
+      ),
+      true,
+      "a new message brings it back",
     );
     await db.exec("DELETE FROM project_membership WHERE id='m'");
     assert.deepEqual((await notificationFeed(client, "member")).items, []);
