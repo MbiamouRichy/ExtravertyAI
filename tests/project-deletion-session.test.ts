@@ -76,6 +76,7 @@ function setup({
       },
     },
     "@/lib/billing-access": {},
+    "@/lib/project-logo": { projectLogoUrl: () => null },
     "@/lib/contact-export": { contactExportSnapshot: async () => ({ hash: "snapshot" }), verifyExportReceipt: () => exported },
     "@/lib/recent-session": {
       isRecentSession: (created: unknown) => isRecentSession(created, now),

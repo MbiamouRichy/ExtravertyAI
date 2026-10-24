@@ -1,6 +1,7 @@
 import "server-only";
 import prisma from "./prisma";
 import { deleteProjectMedia } from "./chat-media-cleanup";
+import { forgetProjectNotifications } from "./notifications";
 import { stripe } from "./stripe";
 import { markProjectForDeletion, SettingsError } from "./project-settings";
 import { deleteEvolutionInstance } from "@/app/actions/evolutionAPI";
@@ -61,11 +62,18 @@ export async function deleteProjectResources(
     }
   }
   try {
-    await deleteProjectMedia(projectId);
+    // Pièces jointes, icône, PDF de connaissances et tout fichier compté dans
+    // le quota de stockage : supprimés de MinIO avant la base.
+    await deleteProjectMedia(projectId, { db: prisma });
   } catch {
     throw new SettingsError(
       "Suppression des médias impossible. Le projet reste en pause ; réessayez.",
     );
   }
-  await prisma.project.delete({ where: { id: projectId } });
+  // La base suit en cascade (messages, sources, registre des fichiers…) ; les
+  // lectures de notifications, sans clé étrangère, sont effacées avec elle.
+  await prisma.$transaction([
+    forgetProjectNotifications(prisma, projectId),
+    prisma.project.delete({ where: { id: projectId } }),
+  ]);
 }

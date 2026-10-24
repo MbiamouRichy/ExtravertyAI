@@ -269,3 +269,17 @@ export async function dismissNotifications(
   }
   return accepted.length;
 }
+
+/**
+ * Oublie les lectures et suppressions de notifications qui désignent ce projet
+ * ou l’un de ses contacts (« message:<contact> », « billing:<projet> »…) : sans
+ * clé étrangère, elles survivraient à la suppression du projet.
+ */
+export function forgetProjectNotifications(
+  db: Pick<PrismaClient, "$executeRaw">,
+  projectId: string,
+) {
+  return db.$executeRaw`DELETE FROM notification_receipt
+    WHERE split_part(key, ':', 2) = ${projectId}
+      OR split_part(key, ':', 2) IN (SELECT id FROM contact WHERE "projectId" = ${projectId})`;
+}
