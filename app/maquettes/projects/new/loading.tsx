@@ -2,7 +2,10 @@ import { cn } from "@/lib/utils";
 import { PageLoading } from "@/components/page-loading";
 import { Skeleton } from "@/components/ui/skeleton";
 import { WIZARD_STEPS } from "@/components/maquettes/project-new/data";
-import { PhoneFrame } from "@/components/maquettes/project-new/phone-frame";
+import {
+  PhoneChatSkeleton,
+  PhoneFrame,
+} from "@/components/maquettes/project-new/phone-frame";
 import {
   WIZARD_ASIDE,
   WIZARD_ASIDE_INNER,
@@ -111,36 +114,7 @@ export default function NewProjectLoading() {
             </div>
 
             <PhoneFrame>
-              <div className="flex shrink-0 items-center gap-2 border-b bg-card px-2.5 pt-1 pb-2.5">
-                <Skeleton className="size-5 rounded-sm" />
-                <Skeleton className="size-8 rounded-full" />
-                <div className="flex-1 space-y-1.5">
-                  <Skeleton className="h-3.5 w-28" />
-                  <Skeleton className="h-2.5 w-14" />
-                </div>
-                <Skeleton className="size-4.5 rounded-sm" />
-              </div>
-
-              <div className="flex min-h-0 flex-1 flex-col justify-end gap-2 bg-muted/50 p-3">
-                <div className="mx-auto mb-2 flex w-full max-w-56 flex-col items-center gap-2 rounded-xl border bg-card p-3">
-                  <Skeleton className="size-11 rounded-full" />
-                  <Skeleton className="h-3.5 w-28" />
-                  <Skeleton className="h-2.5 w-24" />
-                  <Skeleton className="h-2.5 w-full" />
-                  <Skeleton className="h-2.5 w-4/5" />
-                </div>
-                <Skeleton className="mx-auto mb-1 h-4 w-20" />
-                <Skeleton className="h-9 w-20 self-end rounded-2xl rounded-br-md" />
-                <Skeleton className="h-20 w-[84%] self-start rounded-2xl rounded-bl-md" />
-                <Skeleton className="h-9 w-40 self-end rounded-2xl rounded-br-md" />
-                <Skeleton className="h-14 w-3/4 self-start rounded-2xl rounded-bl-md" />
-              </div>
-
-              <div className="flex shrink-0 items-center gap-2 border-t bg-card px-2.5 pt-2 pb-4">
-                <Skeleton className="size-5 rounded-sm" />
-                <Skeleton className="h-8 flex-1 rounded-full" />
-                <Skeleton className="size-8 rounded-full" />
-              </div>
+              <PhoneChatSkeleton />
             </PhoneFrame>
 
             <div className="grid w-76 grid-cols-2 gap-px overflow-hidden rounded-lg border bg-border">
