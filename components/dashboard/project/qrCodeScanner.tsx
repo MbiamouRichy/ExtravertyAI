@@ -280,22 +280,20 @@ function ConnectionPanel({ projectId }: { projectId: string }) {
       className="mx-auto w-full max-w-4xl overflow-hidden rounded-3xl border bg-card shadow-xl shadow-foreground/5"
     >
       <header className="flex flex-col gap-4 border-b px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-7">
-        <div className="flex items-start gap-3">
-          <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground">
+        {/* Mobile : icône et titre sur une ligne, description sur toute la largeur. */}
+        <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-3 gap-y-2">
+          <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground sm:row-span-2 sm:self-start">
             <Smartphone aria-hidden="true" className="size-5" />
           </span>
-          <div>
-            <h2
-              id="whatsapp-connect-title"
-              className="font-heading text-lg font-semibold tracking-tight"
-            >
-              Associer votre compte WhatsApp
-            </h2>
-            <p className="mt-0.5 text-sm text-muted-foreground">
-              Validez la connexion depuis votre téléphone, en moins d’une
-              minute.
-            </p>
-          </div>
+          <h2
+            id="whatsapp-connect-title"
+            className="font-heading text-lg font-semibold tracking-tight"
+          >
+            Associer votre compte WhatsApp
+          </h2>
+          <p className="col-span-2 text-sm text-muted-foreground sm:col-span-1 sm:col-start-2 sm:-mt-1.5">
+            Validez la connexion depuis votre téléphone, en moins d’une minute.
+          </p>
         </div>
         <span
           role="status"
@@ -332,28 +330,48 @@ function ConnectionPanel({ projectId }: { projectId: string }) {
           <div
             role="group"
             aria-label="Méthode de connexion"
-            className="grid grid-cols-2 gap-1 rounded-xl border bg-background p-1"
+            // Sélecteur segmenté : deux moitiés égales qui ne débordent jamais.
+            className="grid grid-cols-2 gap-1 rounded-xl bg-muted p-1"
           >
             {[
-              { value: "qr" as const, label: "QR code", icon: QrCode },
-              { value: "phone" as const, label: "Code de liaison", icon: Hash },
-            ].map(({ value, label, icon: Icon }) => (
+              {
+                value: "qr" as const,
+                label: "QR code",
+                short: "QR code",
+                icon: QrCode,
+              },
+              {
+                value: "phone" as const,
+                label: "Code de liaison",
+                short: "Code",
+                icon: Hash,
+              },
+            ].map(({ value, label, short, icon: Icon }) => (
               <Button
                 key={value}
                 type="button"
-                variant={method === value ? "default" : "ghost"}
+                variant="ghost"
                 aria-pressed={method === value}
+                aria-label={label}
                 onClick={() => {
                   setMethod(value);
                   setActionError(null);
+                  // Comme le QR code : le code est demandé dès le choix de la méthode.
+                  if (value === "phone" && !pairingCode)
+                    void requestPairingCode();
                 }}
                 className={cn(
-                  "h-10 rounded-lg",
-                  method !== value && "text-muted-foreground",
+                  "h-10 min-w-0 rounded-lg px-2",
+                  method === value
+                    ? "bg-background text-foreground shadow-sm hover:bg-background"
+                    : "text-muted-foreground hover:bg-background/60",
                 )}
               >
                 <Icon data-icon="inline-start" />
-                {label}
+                <span className="truncate">
+                  <span className="sm:hidden">{short}</span>
+                  <span className="hidden sm:inline">{label}</span>
+                </span>
               </Button>
             ))}
           </div>
@@ -373,10 +391,6 @@ function ConnectionPanel({ projectId }: { projectId: string }) {
               </li>
             ))}
           </ol>
-
-          <p className="text-xs leading-relaxed text-muted-foreground">
-            Le nom des options peut varier selon votre version de WhatsApp.
-          </p>
         </div>
 
         <div className="flex min-h-[26rem] flex-col items-center justify-center p-5 sm:p-8">
@@ -499,12 +513,36 @@ function ConnectionPanel({ projectId }: { projectId: string }) {
             </>
           ) : (
             <div className="w-full max-w-sm">
-              <div className="mb-6 text-center">
+              <div className="mb-5 text-center">
                 <h3 className="text-base font-semibold">Connexion par code</h3>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Le code est lié au numéro WhatsApp configuré pour ce projet.
-                </p>
               </div>
+
+              {!pairingCode && !actionError && (
+                <div
+                  role="status"
+                  className="mb-5 rounded-2xl border bg-muted/30 p-5 text-center"
+                >
+                  <p className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">
+                    Génération du code…
+                  </p>
+                  <div
+                    aria-hidden="true"
+                    className="mt-4 flex items-center justify-center gap-1 sm:gap-1.5"
+                  >
+                    {Array.from({ length: 8 }, (_, index) => (
+                      <span key={index} className="contents">
+                        {index === 4 && (
+                          <span className="mx-0.5 h-px w-2 bg-muted-foreground/50" />
+                        )}
+                        <span
+                          className="h-10 w-6 rounded-lg sm:h-11 sm:w-8 border bg-background motion-safe:animate-pulse"
+                          style={{ animationDelay: `${index * 90}ms` }}
+                        />
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {pairingCode && (
                 <div className="mb-5 rounded-2xl border bg-muted/30 p-5 text-center">
@@ -516,14 +554,14 @@ function ConnectionPanel({ projectId }: { projectId: string }) {
                   </p>
                   <div
                     aria-hidden="true"
-                    className="mt-4 flex flex-wrap items-center justify-center gap-1.5"
+                    className="mt-4 flex items-center justify-center gap-1 sm:gap-1.5"
                   >
                     {pairingCode.split("").map((char, index) => (
                       <span key={index} className="contents">
                         {index > 0 && index % 4 === 0 && (
                           <span className="mx-0.5 h-px w-2 bg-muted-foreground/50" />
                         )}
-                        <span className="flex h-11 w-8 items-center justify-center rounded-lg border bg-background font-mono text-lg font-semibold shadow-xs">
+                        <span className="flex h-10 w-6 items-center justify-center rounded-lg border bg-background font-mono text-base font-semibold shadow-xs sm:h-11 sm:w-8 sm:text-lg">
                           {char}
                         </span>
                       </span>
@@ -555,26 +593,30 @@ function ConnectionPanel({ projectId }: { projectId: string }) {
                 </p>
               )}
 
-              <Button
-                type="button"
-                size="lg"
-                disabled={generating}
-                onClick={requestPairingCode}
-                className="w-full"
-                variant={pairingCode ? "outline" : "default"}
-              >
-                {generating && (
-                  <Loader2
-                    aria-hidden="true"
-                    className="animate-spin motion-reduce:animate-none"
-                  />
-                )}
-                {generating
-                  ? "Génération…"
-                  : pairingCode
-                    ? "Générer un nouveau code"
-                    : "Générer le code"}
-              </Button>
+              {/* Pas de bouton avant le premier code : seulement pour en
+                  obtenir un nouveau ou réessayer après une erreur. */}
+              {(pairingCode || actionError) && (
+                <Button
+                  type="button"
+                  size="lg"
+                  variant="outline"
+                  disabled={generating}
+                  onClick={requestPairingCode}
+                  className="w-full"
+                >
+                  {generating && (
+                    <Loader2
+                      aria-hidden="true"
+                      className="animate-spin motion-reduce:animate-none"
+                    />
+                  )}
+                  {generating
+                    ? "Génération…"
+                    : pairingCode
+                      ? "Générer un nouveau code"
+                      : "Réessayer"}
+                </Button>
+              )}
 
               {pairingCode && (
                 <p

@@ -84,6 +84,7 @@ export default async function SettingsPage({
     },
     stats: stats[0],
     logoUrl: projectLogoUrl(p.id, p.logoKey),
+    sessionCreatedAt: new Date(session.session.createdAt).toISOString(),
     storage,
     showWaitingTime: p.showWaitingTime,
     aiQuietEnabled: p.aiQuietEnabled,

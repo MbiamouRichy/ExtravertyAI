@@ -137,7 +137,7 @@ export default function HomeProjectsPage({ projects }: CustomProjectProps) {
             {[
               { label: "Projets", long: "Projets", value: number.format(projects.length) },
               { label: "Connectés", long: "WhatsApp connectés", value: `${connected}/${projects.length}` },
-              { label: "Messages", long: "Messages ce cycle", value: number.format(usedMessages) },
+              { label: "Envoyés", long: "Messages envoyés", value: number.format(usedMessages) },
             ].map((item) => (
               <div key={item.long} className="min-w-0 px-3 py-4 sm:px-6">
                 <dt className="truncate whitespace-nowrap text-xs text-muted-foreground">
@@ -162,7 +162,7 @@ export default function HomeProjectsPage({ projects }: CustomProjectProps) {
               return (
                 <li
                   key={project.id}
-                  className="group relative flex min-w-0 flex-col rounded-2xl border bg-card transition-shadow focus-within:ring-3 focus-within:ring-ring/50 hover:shadow-lg hover:shadow-foreground/5"
+                  className="group @container/card relative flex min-w-0 flex-col rounded-2xl border bg-card transition-shadow focus-within:ring-3 focus-within:ring-ring/50 hover:shadow-lg hover:shadow-foreground/5"
                 >
                   <div className="flex min-w-0 items-start justify-between gap-3 p-4 pb-4 sm:p-5">
                     <div className="flex min-w-0 items-center gap-3">
@@ -197,20 +197,19 @@ export default function HomeProjectsPage({ projects }: CustomProjectProps) {
                     <Quota used={project.messageCount || 0} limit={project.allMessagesCount || 0} />
                   </div>
 
-                  <div className="mt-auto flex min-w-0 items-center justify-between gap-2 border-t px-4 py-3 text-xs text-muted-foreground sm:px-5">
-                    <span className="flex min-w-0 flex-1 items-start gap-1.5 sm:items-center">
-                      <CreditCard aria-hidden="true" className="mt-0.5 size-3.5 shrink-0 sm:mt-0" />
-                      <span className="flex min-w-0 flex-col sm:flex-row sm:items-center sm:gap-1.5">
-                        <span className="truncate font-medium capitalize text-foreground">{project.plan}</span>
-                        {renewal && (
-                          <span className="truncate">
-                            <span aria-hidden="true" className="hidden sm:inline">· </span>
-                            jusqu’au <LocalBillingDate value={renewal} dateOnly />
-                          </span>
-                        )}
-                      </span>
+                  {/* Carte étroite : offre et échéance en haut, actions en dessous. */}
+                  <div className="mt-auto flex min-w-0 flex-col gap-3 border-t px-4 py-3 text-xs text-muted-foreground sm:px-5 @md/card:flex-row @md/card:items-center @md/card:justify-between @md/card:gap-2">
+                    <span className="flex min-w-0 items-center gap-1.5">
+                      <CreditCard aria-hidden="true" className="size-3.5 shrink-0" />
+                      <span className="shrink-0 font-medium capitalize text-foreground">{project.plan}</span>
+                      {renewal && (
+                        <span className="min-w-0 truncate">
+                          <span aria-hidden="true">· </span>
+                          jusqu’au <LocalBillingDate value={renewal} dateOnly />
+                        </span>
+                      )}
                     </span>
-                    <div className="relative z-10 flex shrink-0 items-center gap-1">
+                    <div className="relative z-10 flex shrink-0 items-center justify-end gap-1">
                       {/* Renouvellement visible : réservé au propriétaire (vérifié par le serveur). */}
                       {project.canManageBilling && (
                         <BillingPlanButton
@@ -219,7 +218,7 @@ export default function HomeProjectsPage({ projects }: CustomProjectProps) {
                           size="sm"
                           variant="outline"
                           label="Renouveler"
-                          className="mr-1 min-h-8 text-xs"
+                          className="mr-1 min-h-8 flex-1 text-xs @md/card:flex-none"
                         />
                       )}
                       <Button asChild variant="ghost" size="icon-sm">

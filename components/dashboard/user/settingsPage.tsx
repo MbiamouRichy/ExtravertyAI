@@ -105,7 +105,8 @@ export default function UserSettingsPage({
             <p className="text-sm font-medium">Supprimer le compte</p>
             <p className="mt-1 text-sm text-muted-foreground">
               Supprime votre profil et les projets dont vous êtes l’unique membre.
-              Les projets partagés doivent d’abord être transférés.
+              Les projets partagés doivent d’abord être transférés. Une
+              connexion de moins de 10 minutes est requise.
             </p>
           </div>
           <DeleteAccountDialog email={email} plan={deletionPlan} sessionCreatedAt={sessionCreatedAt} />

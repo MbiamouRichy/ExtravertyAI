@@ -30,6 +30,7 @@ import {
 } from "@/components/ui/field";
 import { authClient } from "@/lib/auth-client";
 import { isRecentSession } from "@/lib/recent-session";
+import { ReauthButton, useRecentSession } from "./recent-session";
 import { useHaptics } from "@/lib/webHaptics";
 import type { AccountDeletionPlan } from "@/lib/account-deletion";
 
@@ -50,6 +51,7 @@ export function DeleteAccountDialog({
   const [reconnecting, setReconnecting] = useState(false);
   const busy = isDeleting || reconnecting;
   const blocked = plan.blockers.length > 0;
+  const recentLogin = useRecentSession(sessionCreatedAt);
 
   const expected = email.trim().toLowerCase();
   const schema = z.object({
@@ -128,6 +130,17 @@ export function DeleteAccountDialog({
       setIsDeleting(false);
     }
   };
+
+  // Connexion trop ancienne : on propose de se reconnecter avant d’ouvrir
+  // quoi que ce soit (les projets à transférer restent consultables).
+  if (!blocked && !recentLogin && !open)
+    return (
+      <ReauthButton
+        callbackUrl="/projects/user"
+        label="Se reconnecter pour supprimer"
+        className="shrink-0 whitespace-nowrap"
+      />
+    );
 
   return (
     <AlertDialog open={open} onOpenChange={handleOpenChange}>

@@ -29,9 +29,12 @@ import {
 
 export function DeleteProjectDialog({
   project,
+  recentLogin,
   onClose,
 }: {
   project: { id: string; name: string };
+  /** Faux dès que la connexion dépasse 10 minutes, même dialogue ouvert. */
+  recentLogin: boolean;
   onClose: () => void;
 }) {
   const router = useRouter();
@@ -40,7 +43,9 @@ export function DeleteProjectDialog({
   >({});
   const [exporting, setExporting] = useState<"csv" | "xlsx" | null>(null);
   const [error, setError] = useState("");
-  const [reauthRequired, setReauthRequired] = useState(false);
+  const [serverReauth, setServerReauth] = useState(false);
+  // Le serveur reste juge : son refus compte même si l’horloge locale dit le contraire.
+  const reauthRequired = serverReauth || !recentLogin;
   const [reconnecting, setReconnecting] = useState(false);
   const schema = z.object({
     confirmationName: z
@@ -128,7 +133,7 @@ export function DeleteProjectDialog({
       });
       if (!result.success) {
         setError(result.error || "La suppression a échoué.");
-        setReauthRequired(result.code === "REAUTH_REQUIRED");
+        setServerReauth(result.code === "REAUTH_REQUIRED");
         if (result.code === "EXPORT_REQUIRED") setExports({});
         return;
       }
@@ -155,7 +160,7 @@ export function DeleteProjectDialog({
           <AlertDialogTitle>Supprimer {project.name} ?</AlertDialogTitle>
           <AlertDialogDescription>
             L’abonnement, l’instance WhatsApp et les données seront supprimés
-            définitivement. Une connexion de moins de 10 minutes est requise.
+            définitivement.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <form onSubmit={submit} className="space-y-5">
@@ -176,7 +181,7 @@ export function DeleteProjectDialog({
                   type="button"
                   variant="outline"
                   size="sm"
-                  disabled={busy}
+                  disabled={busy || reauthRequired}
                   onClick={() => void download(format)}
                 >
                   {exporting === format ? (
@@ -230,8 +235,9 @@ export function DeleteProjectDialog({
               role="status"
               className="rounded-lg border border-border bg-muted p-4 text-sm"
             >
-              Reconnectez-vous pour continuer. Vous reviendrez aux réglages du
-              projet et devrez confirmer à nouveau sa suppression.
+              Votre connexion date maintenant de plus de 10 minutes.
+              Reconnectez-vous : vous reviendrez aux réglages du projet pour
+              recommencer la suppression.
             </p>
           )}
           {error && (

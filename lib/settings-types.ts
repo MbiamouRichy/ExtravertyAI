@@ -25,6 +25,8 @@ export type ProjectSettingsView = {
     error: string | null;
   };
   stats: { week: number; month: number; year: number };
+  /** Heure de connexion : la suppression exige une connexion de moins de 10 minutes. */
+  sessionCreatedAt: string;
   /** Adresse de l’icône de l’entreprise, ou null pour l’initiale. */
   logoUrl: string | null;
   /** Fichiers déposés (médias, PDF) et quota de l’offre, en octets. */

@@ -33,6 +33,7 @@ import {
   openProjectBillingPortal,
 } from "@/app/actions/project-settings";
 import { DeleteProjectDialog } from "./delete-project-dialog";
+import { ReauthButton, useRecentSession } from "../user/recent-session";
 import { ScrollFadeArea } from "./scroll-fade-area";
 
 const tabs = [
@@ -79,6 +80,8 @@ export default function ProjectSettingsPage({
   const [pending, setPending] = useState("");
   const [error, setError] = useState("");
   const [deleting, setDeleting] = useState(false);
+  // Suppression : seulement après une connexion de moins de 10 minutes.
+  const recentLogin = useRecentSession(p.sessionCreatedAt);
   const owner = p.role === "OWNER";
   const canPause = owner || p.role === "ADMIN";
   useEffect(() => {
@@ -627,20 +630,35 @@ export default function ProjectSettingsPage({
                       Annule l’abonnement, supprime l’instance et les données du
                       projet. Cette action est définitive.
                     </p>
+                    {!recentLogin && (
+                      <p className="mt-2 max-w-lg text-xs leading-relaxed text-muted-foreground">
+                        Par sécurité, reconnectez-vous d’abord : la suppression
+                        reste possible pendant 10 minutes après la connexion.
+                      </p>
+                    )}
                   </div>
-                  <Button
-                    ref={deleteButton}
-                    onClick={() => setDeleting(true)}
-                    type="button"
-                    variant="destructive"
-                    size="lg"
-                    className="w-full shrink-0 sm:w-auto"
-                  >
-                    <Trash2 className="size-4" />{" "}
-                    {p.deletionPending
-                      ? "Terminer la suppression"
-                      : "Supprimer"}
-                  </Button>
+                  {recentLogin ? (
+                    <Button
+                      ref={deleteButton}
+                      onClick={() => setDeleting(true)}
+                      type="button"
+                      variant="destructive"
+                      size="lg"
+                      className="w-full shrink-0 sm:w-auto"
+                    >
+                      <Trash2 className="size-4" />{" "}
+                      {p.deletionPending
+                        ? "Terminer la suppression"
+                        : "Supprimer"}
+                    </Button>
+                  ) : (
+                    <ReauthButton
+                      callbackUrl={`/projects/${p.id}/settings`}
+                      label="Se reconnecter pour supprimer"
+                      size="lg"
+                      className="w-full shrink-0 sm:w-auto"
+                    />
+                  )}
                 </section>
               )}
             </>
@@ -650,6 +668,7 @@ export default function ProjectSettingsPage({
       {deleting && (
         <DeleteProjectDialog
           project={p}
+          recentLogin={recentLogin}
           onClose={() => {
             setDeleting(false);
             requestAnimationFrame(() => deleteButton.current?.focus());
