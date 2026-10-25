@@ -40,6 +40,12 @@ const pages: {
     text: "La page Rapports actuelle en offre Business, avec des rapports fictifs pour la tester.",
   },
   {
+    href: "/maquettes/projects/demo/reports-v2",
+    icon: CalendarClock,
+    title: "Rapport de décision (test)",
+    text: "Nouveau format : verdict, 3 constats avec leur action, 6 indicateurs dans leur plage habituelle, 8 états à tester.",
+  },
+  {
     href: "/maquettes/tarifs",
     icon: CreditCard,
     title: "Tarifs",
