@@ -55,7 +55,7 @@ export function ReportSparkline({
     <div role="img" aria-label={label}>
       <ChartContainer
         config={config}
-        className="aspect-auto h-16 w-full"
+        className="aspect-auto h-12 w-full"
         aria-hidden="true"
       >
         <LineChart
@@ -70,7 +70,7 @@ export function ReportSparkline({
               y1={band.low}
               y2={band.high}
               fill="var(--muted-foreground)"
-              fillOpacity={0.12}
+              fillOpacity={0.1}
               stroke="none"
               ifOverflow="hidden"
             />

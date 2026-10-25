@@ -6,12 +6,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
   ArrowUpRight,
-  CalendarClock,
   Check,
-  FlaskConical,
-  Lightbulb,
-  Mail,
-  ShieldCheck,
+  ChevronLeft,
+  ChevronRight,
   TriangleAlert,
 } from "lucide-react";
 
@@ -29,6 +26,7 @@ import {
   HistoryList,
   IndicatorGrid,
   LegacyCounters,
+  SectionHeader,
   VerdictPanel,
   WeekDetail,
 } from "@/components/maquettes/reports-v2/report-sections";
@@ -84,117 +82,99 @@ const roleLabel: Record<string, string> = {
   ADMIN: "Administrateur",
 };
 
-function TestBanner({ current, base }: { current: ScenarioId; base: string }) {
+function TestBar({ current, base }: { current: ScenarioId; base: string }) {
   return (
-    <div role="note" className="rounded-xl border border-dashed p-4 text-sm">
-      <p className="flex items-start gap-3">
-        <FlaskConical aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
-        <span>
-          <strong className="font-medium">Page de test UI/UX.</strong>{" "}
-          <span className="text-muted-foreground">
-            Nouveau format du rapport, données synthétiques. La page Rapports
-            actuelle n’est pas modifiée et rien n’est enregistré.
-          </span>
-        </span>
-      </p>
-      <nav aria-label="États à tester" className="mt-3">
-        <ul className="flex flex-wrap gap-1.5">
-          {scenarios.map((scenario) => (
-            <li key={scenario.id}>
-              <Link
-                href={`${base}/reports-v2?etat=${scenario.id}`}
-                aria-current={scenario.id === current ? "page" : undefined}
-                className={cn(
-                  "inline-flex rounded-full border px-2.5 py-1 text-xs outline-none transition-colors hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50",
-                  scenario.id === current &&
-                    "border-primary bg-primary text-primary-foreground hover:bg-primary/90",
-                )}
-              >
-                {scenario.label}
-              </Link>
-            </li>
-          ))}
-        </ul>
-      </nav>
-    </div>
+    <nav
+      aria-label="États à tester"
+      className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b pb-4 text-xs"
+    >
+      <span className="font-medium">Page de test · données synthétiques</span>
+      <ul className="flex flex-wrap gap-x-3 gap-y-1.5">
+        {scenarios.map((scenario) => (
+          <li key={scenario.id}>
+            <Link
+              href={`${base}/reports-v2?etat=${scenario.id}`}
+              aria-current={scenario.id === current ? "page" : undefined}
+              className={cn(
+                "rounded-sm text-muted-foreground underline-offset-4 outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50",
+                scenario.id === current && "text-foreground underline",
+              )}
+            >
+              {scenario.label}
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </nav>
   );
 }
 
 function UpsellPreview({ base }: { base: string }) {
   return (
-    <main className="mx-auto w-full max-w-6xl space-y-8 p-4 sm:p-8 lg:p-12">
-      <TestBanner current="offre" base={base} />
-      <div className="grid items-center gap-12 lg:grid-cols-2">
+    <main className="mx-auto w-full max-w-5xl space-y-16 px-4 py-6 sm:px-6 sm:py-10">
+      <TestBar current="offre" base={base} />
+      <div className="grid items-center gap-12 lg:grid-cols-[1fr_1.1fr]">
         <div>
-          <p className="inline-flex items-center gap-2 rounded-full border px-3 py-1 font-mono text-xs tracking-wider text-muted-foreground uppercase">
-            <CalendarClock aria-hidden="true" className="size-3.5" />
-            Offre Business
-          </p>
-          <h1 className="mt-5 text-4xl md:text-5xl">
-            Chaque lundi, quoi faire cette semaine.
+          <p className="text-sm text-muted-foreground">Offre Business</p>
+          <h1 className="mt-3 font-sans text-4xl font-semibold tracking-tight text-balance">
+            Chaque lundi, ce qui a changé et quoi faire.
           </h1>
-          <p className="mt-4 max-w-md text-muted-foreground">
-            Le rapport hebdomadaire dit si la semaine a été normale, où l’IA a
-            passé la main et quelle action mener en priorité.
-          </p>
-          <ul className="mt-6 space-y-2 text-sm">
+          <ul className="mt-6 space-y-2.5 text-sm text-muted-foreground">
             {[
               "Un verdict en une phrase",
-              "Trois constats au plus, avec leur preuve et l’action à mener",
-              "Six indicateurs situés dans leur plage habituelle",
-              "Données agrégées : aucun message client dans l’e-mail",
+              "Trois actions au plus, avec leur preuve",
+              "Six indicateurs comparés à leur habitude",
+              "Aucun message client dans l’e-mail",
             ].map((item) => (
-              <li key={item} className="flex items-center gap-2">
-                <Check aria-hidden="true" className="size-4 shrink-0" />
+              <li key={item} className="flex items-center gap-2.5">
+                <Check
+                  aria-hidden="true"
+                  className="size-4 shrink-0 text-foreground"
+                />
                 {item}
               </li>
             ))}
           </ul>
-          <div className="mt-8 flex flex-wrap items-center gap-3">
-            <Button asChild size="lg">
-              <Link href="/maquettes/tarifs">Passer à l’offre Business</Link>
-            </Button>
-          </div>
+          <Button asChild className="mt-8">
+            <Link href="/maquettes/tarifs">Passer à l’offre Business</Link>
+          </Button>
         </div>
         <figure
-          aria-label="Aperçu d’exemple d’un rapport hebdomadaire"
-          className="rounded-3xl border bg-card p-6 shadow-xl shadow-foreground/5"
+          aria-label="Exemple de rapport hebdomadaire"
+          className="rounded-2xl border p-6 sm:p-8"
         >
-          <figcaption className="mb-5 flex items-center justify-between text-xs text-muted-foreground">
-            <span className="font-mono tracking-wider uppercase">
-              Aperçu d’exemple
-            </span>
-            <span>Lundi · 08:00</span>
-          </figcaption>
           <div aria-hidden="true">
-            <p className="inline-flex items-center gap-1.5 rounded-full border border-destructive/40 px-2.5 py-1 text-xs font-medium text-destructive">
-              <TriangleAlert className="size-3.5" />À surveiller
+            <p className="flex items-center gap-2 text-xs font-medium text-destructive">
+              <span className="size-1.5 rounded-full bg-destructive" />À
+              surveiller
             </p>
-            <p className="mt-3 font-heading text-lg leading-snug font-semibold">
-              14 questions sont restées sans réponse, contre 3 d’habitude ; l’IA
-              a mené seule 52 % des 40 conversations (70 % d’habitude).
+            <p className="mt-3 text-xl leading-snug font-medium tracking-tight">
+              14 questions sont restées sans réponse, contre 3 d’habitude.
             </p>
-            <div className="mt-4 rounded-xl border p-3 text-xs">
-              <p className="font-medium">
-                1 · Répondre aux 14 questions sur la livraison
-              </p>
-              <p className="mt-1 text-muted-foreground">
-                Habitude : 3 par semaine, plage normale 0 à 7
-              </p>
+            <div className="mt-6 flex items-center justify-between gap-4 border-y py-4 text-sm">
+              <span>Traiter les questions sur la livraison</span>
+              <span className="rounded-md bg-primary px-2.5 py-1 text-xs text-primary-foreground">
+                Ouvrir
+              </span>
             </div>
-            <div className="mt-3 grid grid-cols-2 gap-3">
+            <div className="mt-6 grid grid-cols-2 gap-px overflow-hidden rounded-xl border bg-border">
               {[
-                ["Autonomie de l’IA", "52 %", "Plage normale 47–93 %"],
-                ["Questions sans réponse", "14", "Inhabituel"],
+                ["Autonomie de l’IA", "52 %", "Habitude 70 %"],
+                ["Questions sans réponse", "14", "Habitude 3"],
               ].map(([label, value, note]) => (
-                <div key={label} className="rounded-xl border p-3">
-                  <p className="text-[11px] text-muted-foreground">{label}</p>
-                  <p className="mt-1 font-heading text-xl font-bold">{value}</p>
-                  <p className="text-[11px] text-muted-foreground">{note}</p>
+                <div key={label} className="bg-background p-4">
+                  <p className="text-xs text-muted-foreground">{label}</p>
+                  <p className="mt-1 text-2xl font-semibold tracking-tight">
+                    {value}
+                  </p>
+                  <p className="text-xs text-muted-foreground">{note}</p>
                 </div>
               ))}
             </div>
           </div>
+          <figcaption className="mt-4 text-xs text-muted-foreground">
+            Exemple · lundi, 08:00
+          </figcaption>
         </figure>
       </div>
     </main>
@@ -244,288 +224,261 @@ export default async function ReportsDecisionPreview({
   const verified = recipients.filter((r) => r.verified).length;
   const hrefFor = (id: string) =>
     `${base}/reports-v2?etat=${scenarioId}&report=${id}`;
+  // Rapports du plus récent au plus ancien : « précédent » est plus loin dans la liste.
+  const position = scenario.reports.findIndex(
+    (report) => report.id === selected.id,
+  );
+  const older = scenario.reports[position + 1];
+  const newer = scenario.reports[position - 1];
 
   return (
-    <main className="mx-auto w-full max-w-7xl space-y-8 p-4 sm:p-6 xl:p-8">
-      <TestBanner current={scenarioId} base={base} />
+    <main className="mx-auto w-full max-w-5xl space-y-14 px-4 py-6 sm:px-6 sm:py-10">
+      <TestBar current={scenarioId} base={base} />
 
-      <header className="flex flex-wrap items-end justify-between gap-4">
+      <header className="flex flex-wrap items-end justify-between gap-6">
         <div>
-          <p className="font-mono text-xs tracking-wider text-muted-foreground uppercase">
-            Business · {project.name}
+          <p className="text-sm text-muted-foreground">
+            {project.name} · Rapport hebdomadaire
           </p>
-          <h1 className="mt-2 text-3xl md:text-4xl">Rapport de la semaine</h1>
-          <p className="mt-2 max-w-2xl text-muted-foreground">
-            Le verdict d’abord, puis les actions. Pour explorer les chiffres en
-            détail, ouvrez les statistiques.
+          <h1 className="mt-1 font-sans text-3xl font-semibold tracking-tight">
+            Semaine {selected.label.slice(1)}
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {selected.range} · heures UTC · comparée aux {BASELINE_WEEKS}{" "}
+            semaines précédentes
           </p>
         </div>
-        <Button asChild variant="outline">
-          <Link href={`${base}/analytics`}>
-            Explorer les statistiques <ArrowUpRight data-icon="inline-end" />
-          </Link>
-        </Button>
-      </header>
-
-      {!scenario.eligible && (
-        <div
-          role="status"
-          className="flex flex-wrap items-center gap-3 rounded-2xl border border-destructive/40 p-4 text-sm"
-        >
-          <TriangleAlert
-            aria-hidden="true"
-            className="size-4 shrink-0 text-destructive"
-          />
-          <p className="min-w-0 flex-1">
-            <strong className="font-medium">Abonnement à régulariser.</strong>{" "}
-            <span className="text-muted-foreground">
-              Les envois sont suspendus ; l’historique reste consultable.
-            </span>
-          </p>
-          <Button asChild size="sm" variant="outline">
-            <Link href={`${appBase}/billing`}>Gérer l’abonnement</Link>
+        <div className="flex items-center gap-2">
+          {older ? (
+            <Button asChild variant="outline" size="icon-sm">
+              <Link
+                href={hrefFor(older.id)}
+                aria-label={`Semaine précédente (${older.label})`}
+              >
+                <ChevronLeft />
+              </Link>
+            </Button>
+          ) : (
+            <Button
+              variant="outline"
+              size="icon-sm"
+              disabled
+              aria-label="Aucune semaine précédente"
+            >
+              <ChevronLeft />
+            </Button>
+          )}
+          {newer ? (
+            <Button asChild variant="outline" size="icon-sm">
+              <Link
+                href={hrefFor(newer.id)}
+                aria-label={`Semaine suivante (${newer.label})`}
+              >
+                <ChevronRight />
+              </Link>
+            </Button>
+          ) : (
+            <Button
+              variant="outline"
+              size="icon-sm"
+              disabled
+              aria-label="Aucune semaine suivante"
+            >
+              <ChevronRight />
+            </Button>
+          )}
+          <Button asChild variant="ghost" size="sm">
+            <Link href={`${base}/analytics`}>
+              Statistiques <ArrowUpRight data-icon="inline-end" />
+            </Link>
           </Button>
         </div>
-      )}
-      {selected.skipped && (
-        <p
-          role="status"
-          className="rounded-2xl border border-dashed p-4 text-sm text-muted-foreground"
-        >
-          Semaine sans activité : l’e-mail n’a pas été envoyé, comme prévu par
-          le réglage « Ignorer les semaines sans activité ».
-        </p>
+      </header>
+
+      {(!scenario.eligible || selected.skipped) && (
+        <div className="-mt-6 space-y-3">
+          {!scenario.eligible && (
+            <div
+              role="status"
+              className="flex flex-wrap items-center gap-3 rounded-xl border border-destructive/30 px-4 py-3 text-sm"
+            >
+              <TriangleAlert
+                aria-hidden="true"
+                className="size-4 shrink-0 text-destructive"
+              />
+              <p className="min-w-0 flex-1">
+                Abonnement à régulariser : les envois sont suspendus,
+                l’historique reste consultable.
+              </p>
+              <Button asChild size="sm" variant="outline">
+                <Link href={`${appBase}/billing`}>Gérer l’abonnement</Link>
+              </Button>
+            </div>
+          )}
+          {selected.skipped && (
+            <p
+              role="status"
+              className="rounded-xl border px-4 py-3 text-sm text-muted-foreground"
+            >
+              Semaine sans activité : l’e-mail n’a pas été envoyé, comme prévu
+              dans la programmation.
+            </p>
+          )}
+        </div>
       )}
 
       {legacy || !selected.verdict ? (
-        <section
-          aria-labelledby="legacy-title"
-          className="rounded-2xl border border-dashed bg-card p-5 sm:p-7"
-        >
-          <p className="inline-flex rounded-full border border-dashed px-2.5 py-1 text-xs font-medium text-muted-foreground">
-            Ancien format
-          </p>
+        <section aria-labelledby="legacy-title">
+          <p className="text-sm text-muted-foreground">Ancien format</p>
           <h2
             id="legacy-title"
-            className="mt-4 max-w-3xl font-heading text-xl leading-snug font-semibold sm:text-2xl"
+            className="mt-3 max-w-4xl font-sans text-2xl leading-tight font-medium tracking-tight text-balance sm:text-[2rem]"
           >
-            Ce rapport date d’avant le nouveau format : il ne contient que les 8
+            Ce rapport date d’avant le nouveau format : il ne contient que les
             compteurs d’activité.
           </h2>
-          <p className="mt-3 text-sm text-muted-foreground">
-            {selected.label} · {selected.range} (heures UTC). Les indicateurs
-            ci-dessous n’étaient pas mesurés à l’époque : ils ne sont pas
-            affichés à 0.
-          </p>
         </section>
       ) : (
-        <VerdictPanel
-          verdict={selected.verdict}
-          report={selected}
-          partial={partial}
-        />
+        <VerdictPanel verdict={selected.verdict} partial={partial} />
       )}
 
-      <div className="grid items-start gap-8 lg:grid-cols-3">
-        <div className="min-w-0 space-y-10 lg:col-span-2">
-          {legacy ? (
-            <LegacyCounters
-              current={week.legacy}
-              previous={previous?.legacy ?? null}
-              open
-            />
-          ) : (
-            <FindingsList findings={findings} />
-          )}
-          <IndicatorGrid
-            readings={readings}
-            weeks={scenario.weeks}
-            index={selected.index}
-            legacy={legacy}
+      {legacy ? (
+        <LegacyCounters
+          current={week.legacy}
+          previous={previous?.legacy ?? null}
+        />
+      ) : (
+        <FindingsList findings={findings} />
+      )}
+      <IndicatorGrid
+        readings={readings}
+        weeks={scenario.weeks}
+        index={selected.index}
+        legacy={legacy}
+      />
+      {!legacy && (
+        <>
+          <WeekDetail week={week} base={appBase} />
+          <LegacyCounters
+            current={week.legacy}
+            previous={previous?.legacy ?? null}
           />
-          {!legacy && (
+        </>
+      )}
+      <HistoryList
+        reports={scenario.reports}
+        selectedId={selected.id}
+        hrefFor={hrefFor}
+      />
+
+      <section
+        aria-labelledby="sending-title"
+        className="grid gap-10 border-t pt-10 md:grid-cols-2"
+      >
+        <div>
+          <SectionHeader
+            id="sending-title"
+            title="Programmation"
+            meta={scenario.eligible ? undefined : "Suspendue"}
+          />
+          {scenario.eligible ? (
             <>
-              <WeekDetail week={week} base={appBase} />
-              <LegacyCounters
-                current={week.legacy}
-                previous={previous?.legacy ?? null}
-              />
+              <p className="mb-5 text-sm text-muted-foreground">
+                Prochain envoi : <LocalDate value={nextScheduled} />
+              </p>
+              <fieldset disabled aria-describedby="preview-settings-note">
+                <ReportSettingsForm
+                  referenceDate={now.toISOString()}
+                  projectId={projectId}
+                  initial={{
+                    reportsEnabled: project.reportsEnabled,
+                    reportsSkipEmpty: project.reportsSkipEmpty,
+                    reportsIncludeTips: project.reportsIncludeTips,
+                    reportsHourUtc: project.reportsHourUtc,
+                  }}
+                  version={project.reportsVersion}
+                />
+              </fieldset>
+              <p
+                id="preview-settings-note"
+                className="mt-3 text-xs text-muted-foreground"
+              >
+                Aperçu : réglages désactivés, rien n’est enregistré.
+              </p>
             </>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              Les envois et les réglages reprendront avec un accès Business
+              valide.
+            </p>
           )}
-          <HistoryList
-            reports={scenario.reports}
-            selectedId={selected.id}
-            hrefFor={hrefFor}
-          />
-          <Definitions readings={readings} />
         </div>
-
-        <aside className="min-w-0 space-y-6 lg:sticky lg:top-6">
-          <section
-            aria-labelledby="sending-title"
-            className="rounded-2xl border bg-card p-5"
-          >
-            <h2 id="sending-title" className="text-lg">
-              Envoi
-            </h2>
-            <ul className="mt-4 space-y-4 text-sm">
-              <li className="flex gap-3">
-                <CalendarClock
-                  aria-hidden="true"
-                  className="mt-0.5 size-4 shrink-0"
-                />
-                <span>
-                  <span className="block font-medium">
-                    {scenario.eligible
-                      ? "Prochain envoi"
-                      : "Abonnement à régulariser"}
-                  </span>
-                  <span className="text-muted-foreground">
-                    {scenario.eligible ? (
-                      <LocalDate value={nextScheduled} />
-                    ) : (
-                      "Les envois reprendront avec un accès Business valide."
-                    )}
+        <div>
+          <SectionHeader
+            id="recipients-title"
+            title="Destinataires"
+            meta={`${verified} adresse${verified > 1 ? "s" : ""} vérifiée${verified > 1 ? "s" : ""}`}
+          />
+          <ul className="divide-y border-y">
+            {recipients.map((recipient) => (
+              <li
+                key={recipient.id}
+                className="flex min-w-0 items-center gap-3 py-3 text-sm"
+              >
+                <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-medium">
+                  {getInitials(recipient.name)}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate">{recipient.name}</span>
+                  <span className="block truncate text-xs text-muted-foreground">
+                    {recipient.email}
                   </span>
                 </span>
-              </li>
-              <li className="flex gap-3">
-                <Mail aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
-                <span>
-                  <span className="block font-medium">
-                    {verified} destinataire{verified > 1 ? "s" : ""} éligible
-                    {verified > 1 ? "s" : ""}
-                  </span>
-                  <span className="text-muted-foreground">
-                    Adresses vérifiées, envois individuels.
-                  </span>
-                </span>
-              </li>
-              <li className="flex gap-3">
-                <ShieldCheck
-                  aria-hidden="true"
-                  className="mt-0.5 size-4 shrink-0"
-                />
-                <span>
-                  <span className="block font-medium">
-                    Données agrégées uniquement
-                  </span>
-                  <span className="text-muted-foreground">
-                    Aucun message client, numéro ou question dans l’e-mail.
-                  </span>
-                </span>
-              </li>
-            </ul>
-          </section>
-
-          <section
-            aria-labelledby="programmation"
-            className="rounded-2xl border bg-card p-5"
-          >
-            <h2 id="programmation" className="mb-5 text-lg">
-              Programmation
-            </h2>
-            {scenario.eligible ? (
-              <>
-                <fieldset disabled aria-describedby="preview-settings-note">
-                  <ReportSettingsForm
-                    referenceDate={now.toISOString()}
-                    projectId={projectId}
-                    initial={{
-                      reportsEnabled: project.reportsEnabled,
-                      reportsSkipEmpty: project.reportsSkipEmpty,
-                      reportsIncludeTips: project.reportsIncludeTips,
-                      reportsHourUtc: project.reportsHourUtc,
-                    }}
-                    version={project.reportsVersion}
-                  />
-                </fieldset>
-                <p
-                  id="preview-settings-note"
-                  className="mt-3 text-xs text-muted-foreground"
+                <span
+                  className={cn(
+                    "shrink-0 text-xs",
+                    recipient.verified
+                      ? "text-muted-foreground"
+                      : "text-destructive",
+                  )}
                 >
-                  Aperçu : réglages désactivés, rien n’est enregistré.
-                </p>
-              </>
-            ) : (
-              <>
-                <p className="mb-4 text-sm text-muted-foreground">
-                  Les envois et les réglages reprendront avec un accès Business
-                  valide. Votre historique reste consultable.
-                </p>
-                <Button asChild>
-                  <Link href={`${appBase}/billing`}>Gérer l’abonnement</Link>
-                </Button>
-              </>
-            )}
-          </section>
+                  {recipient.verified
+                    ? roleLabel[recipient.role]
+                    : "À vérifier"}
+                </span>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-3 text-xs text-muted-foreground">
+            Propriétaires et administrateurs, envois individuels. Aucun message,
+            numéro ni question client dans l’e-mail.
+          </p>
+          <Button asChild variant="outline" size="sm" className="mt-4">
+            <Link href={`${appBase}/team`}>Gérer l’équipe</Link>
+          </Button>
+        </div>
+      </section>
 
-          <section
-            aria-labelledby="destinataires"
-            className="rounded-2xl border bg-card p-5"
-          >
-            <h2 id="destinataires" className="text-lg">
-              Destinataires
-            </h2>
-            <ul className="mt-4 space-y-3">
-              {recipients.map((recipient) => (
-                <li
-                  key={recipient.id}
-                  className="flex min-w-0 items-start gap-3 text-sm"
-                >
-                  <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted font-heading text-xs font-semibold">
-                    {getInitials(recipient.name)}
-                  </span>
-                  <span className="min-w-0">
-                    <span className="flex flex-wrap items-center gap-1.5">
-                      <span className="font-medium">{recipient.name}</span>
-                      <span className="rounded-full border px-1.5 text-[10px] text-muted-foreground">
-                        {roleLabel[recipient.role]}
-                      </span>
-                    </span>
-                    <span className="block text-xs break-all text-muted-foreground">
-                      {recipient.email}
-                    </span>
-                    {!recipient.verified && (
-                      <span className="mt-1 block text-xs text-destructive">
-                        Adresse à vérifier pour recevoir les rapports
-                      </span>
-                    )}
-                  </span>
-                </li>
-              ))}
-            </ul>
-            <Button asChild variant="outline" size="sm" className="mt-5">
-              <Link href={`${appBase}/team`}>Gérer l’équipe</Link>
-            </Button>
-          </section>
-
-          <section
-            aria-labelledby="lecture"
-            className="rounded-2xl border bg-card p-5"
-          >
-            <h2 id="lecture" className="flex items-center gap-2 text-lg">
-              <Lightbulb aria-hidden="true" className="size-4" />
-              Comment lire ce rapport
-            </h2>
-            <ul className="mt-3 space-y-2.5 text-sm text-muted-foreground">
-              <li>
-                L’habitude est la médiane des {BASELINE_WEEKS} semaines
-                précédentes ; la plage normale l’entoure de {BAND_K} écarts
-                robustes, élargie quand l’effectif est petit.
-              </li>
-              <li>
-                Une valeur n’est « inhabituelle » que hors de cette plage et
-                au-delà du seuil d’effectif.
-              </li>
-              <li>
-                Sous le seuil, seul l’écart absolu est donné (« 1 → 3 »), sans
-                pourcentage.
-              </li>
-              <li>Semaines du lundi 00:00 au dimanche 23:59, en heure UTC.</li>
-            </ul>
-          </section>
-        </aside>
+      <div className="grid gap-10 md:grid-cols-[1.4fr_1fr]">
+        <Definitions readings={readings} />
+        <section aria-labelledby="method-title">
+          <SectionHeader id="method-title" title="Méthode" />
+          <ul className="space-y-2.5 text-sm text-muted-foreground">
+            <li>
+              L’habitude est la médiane des {BASELINE_WEEKS} semaines
+              précédentes ; la plage normale l’entoure de {BAND_K} écarts
+              robustes.
+            </li>
+            <li>
+              « Inhabituel » seulement hors de cette plage et au-delà du seuil
+              d’effectif.
+            </li>
+            <li>
+              Sous le seuil, l’écart est donné en valeur absolue, sans
+              pourcentage.
+            </li>
+          </ul>
+        </section>
       </div>
     </main>
   );

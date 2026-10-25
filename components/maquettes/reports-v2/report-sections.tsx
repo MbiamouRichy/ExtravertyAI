@@ -1,18 +1,9 @@
 import Link from "next/link";
 import {
   ArrowRight,
-  Check,
+  ChevronDown,
   ChevronRight,
-  CircleCheck,
-  CircleDashed,
-  CircleSlash,
-  Clock,
-  Minus,
-  Sprout,
-  Table2,
-  TrendingUp,
   TriangleAlert,
-  type LucideIcon,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -45,64 +36,73 @@ const percent = new Intl.NumberFormat("fr-FR", {
 });
 const integer = new Intl.NumberFormat("fr-FR");
 
-const verdictTone: Record<
-  Verdict["tone"],
-  { icon: LucideIcon; className: string }
-> = {
-  watch: {
-    icon: TriangleAlert,
-    className: "border-destructive/40 text-destructive",
-  },
-  good: { icon: TrendingUp, className: "border-foreground/30" },
-  usual: { icon: CircleCheck, className: "text-muted-foreground" },
-  new: { icon: Sprout, className: "text-muted-foreground" },
-  empty: {
-    icon: CircleSlash,
-    className: "border-dashed text-muted-foreground",
-  },
-};
+/** Titre de section discret : la hiérarchie vient de l'espace, pas des cadres. */
+export function SectionHeader({
+  id,
+  title,
+  meta,
+}: {
+  id: string;
+  title: string;
+  meta?: string;
+}) {
+  return (
+    <div className="mb-4 flex items-baseline justify-between gap-4">
+      <h2 id={id} className="font-sans text-sm font-medium tracking-normal">
+        {title}
+      </h2>
+      {meta && (
+        <p className="text-right text-xs text-muted-foreground">{meta}</p>
+      )}
+    </div>
+  );
+}
+
+function Dot({ tone }: { tone: "bad" | "good" | "neutral" }) {
+  return (
+    <span
+      aria-hidden="true"
+      className={cn(
+        "inline-block size-1.5 shrink-0 rounded-full",
+        tone === "bad" && "bg-destructive",
+        tone === "good" && "bg-foreground",
+        tone === "neutral" && "bg-muted-foreground/50",
+      )}
+    />
+  );
+}
 
 export function VerdictPanel({
   verdict,
-  report,
   partial,
 }: {
   verdict: Verdict;
-  report: PreviewReport;
   partial: boolean;
 }) {
-  const tone = verdictTone[verdict.tone];
+  const watch = verdict.tone === "watch";
   return (
-    <section
-      aria-labelledby="verdict-title"
-      className={cn(
-        "rounded-2xl border bg-card p-5 sm:p-7",
-        verdict.tone === "watch" && "border-destructive/30",
-      )}
-    >
-      <h2 id="verdict-title" className="sr-only">
-        Verdict de la semaine
-      </h2>
+    <section aria-labelledby="verdict-title">
       <p
         className={cn(
-          "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium",
-          tone.className,
+          "flex items-center gap-2 text-sm",
+          watch ? "font-medium text-destructive" : "text-muted-foreground",
         )}
       >
-        <tone.icon aria-hidden="true" className="size-3.5" />
+        <Dot
+          tone={watch ? "bad" : verdict.tone === "good" ? "good" : "neutral"}
+        />
         {verdict.label}
       </p>
-      <p className="mt-4 max-w-3xl font-heading text-xl leading-snug font-semibold text-balance sm:text-2xl">
+      <h2
+        id="verdict-title"
+        className="mt-3 max-w-4xl font-sans text-2xl leading-tight font-medium tracking-tight text-balance sm:text-[2rem]"
+      >
         {verdict.sentence}
-      </p>
-      <p className="mt-3 text-sm text-muted-foreground">
-        {report.label} · {report.range} (heures UTC) · comparée aux 8 semaines
-        précédentes
-      </p>
+      </h2>
       {partial && (
-        <p className="mt-4 rounded-xl border border-dashed p-3 text-sm text-muted-foreground">
-          Projet récent : la première semaine a commencé après la création du
-          projet. Les volumes de cette semaine-là sont incomplets.
+        <p className="mt-4 text-sm text-muted-foreground">
+          Projet récent : la première semaine a commencé après sa création, ses
+          volumes sont incomplets.
         </p>
       )}
     </section>
@@ -112,118 +112,70 @@ export function VerdictPanel({
 export function FindingsList({ findings }: { findings: Finding[] }) {
   return (
     <section aria-labelledby="findings-title">
-      <h2 id="findings-title" className="text-2xl tracking-tight">
-        Ce qui demande votre attention
-      </h2>
-      <p className="mt-1 text-sm text-muted-foreground">
-        Trois constats au plus, classés par nombre de conversations concernées
-        et solidité de la preuve.
-      </p>
+      <SectionHeader
+        id="findings-title"
+        title="À faire cette semaine"
+        meta={
+          findings.length
+            ? `${findings.length} action${findings.length > 1 ? "s" : ""}, la plus utile en premier`
+            : undefined
+        }
+      />
       {findings.length ? (
-        <ol className="mt-5 space-y-3">
+        <ol className="divide-y border-y">
           {findings.map((finding, index) => (
-            <li key={finding.id} className="rounded-2xl border bg-card p-5">
-              <div className="flex gap-4">
-                <span
-                  aria-hidden="true"
-                  className="flex size-7 shrink-0 items-center justify-center rounded-full border font-mono text-xs"
-                >
-                  {index + 1}
-                </span>
-                <div className="min-w-0 flex-1">
-                  <h3 className="font-sans text-base font-medium tracking-normal">
-                    {finding.title}
-                  </h3>
-                  <ul className="mt-2 space-y-1 text-sm text-muted-foreground">
-                    {finding.evidence.map((line) => (
-                      <li key={line} className="flex gap-2">
-                        <span
-                          aria-hidden="true"
-                          className="mt-2 size-1 shrink-0 rounded-full bg-muted-foreground"
-                        />
-                        <span>{line}</span>
-                      </li>
-                    ))}
-                  </ul>
-                  <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-                    <p className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                      <span
-                        className={cn(
-                          "rounded-full border px-2 py-0.5",
-                          finding.confidence === "high" &&
-                            "border-foreground/30 text-foreground",
-                          finding.confidence === "low" && "border-dashed",
-                        )}
-                      >
-                        {confidenceLabel[finding.confidence]}
-                      </span>
-                      <span>
-                        ≈ {integer.format(Math.round(finding.impact))}{" "}
-                        conversation
-                        {Math.round(finding.impact) > 1 ? "s" : ""} concernée
-                        {Math.round(finding.impact) > 1 ? "s" : ""}
-                      </span>
-                    </p>
-                    <Button
-                      asChild
-                      size="sm"
-                      variant={index === 0 ? "default" : "outline"}
-                    >
-                      <Link href={finding.action.href}>
-                        {finding.action.label}
-                        <ArrowRight data-icon="inline-end" />
-                      </Link>
-                    </Button>
-                  </div>
-                </div>
+            <li
+              key={finding.id}
+              className="grid gap-4 py-5 sm:grid-cols-[2.5rem_1fr_auto] sm:items-start"
+            >
+              <span
+                aria-hidden="true"
+                className="hidden pt-0.5 font-mono text-xs text-muted-foreground sm:block"
+              >
+                {String(index + 1).padStart(2, "0")}
+              </span>
+              <div className="min-w-0">
+                <h3 className="font-sans text-base font-medium tracking-normal">
+                  {finding.title}
+                </h3>
+                <p className="mt-1.5 text-sm text-muted-foreground">
+                  {finding.evidence.join(" · ")}
+                </p>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  {confidenceLabel[finding.confidence]} · ≈{" "}
+                  {integer.format(Math.round(finding.impact))} conversation
+                  {Math.round(finding.impact) > 1 ? "s" : ""} concernée
+                  {Math.round(finding.impact) > 1 ? "s" : ""}
+                </p>
               </div>
+              <Button
+                asChild
+                size="sm"
+                variant={index === 0 ? "default" : "outline"}
+                className="justify-self-start"
+              >
+                <Link href={finding.action.href}>
+                  {finding.action.label}
+                  <ArrowRight data-icon="inline-end" />
+                </Link>
+              </Button>
             </li>
           ))}
         </ol>
       ) : (
-        <p className="mt-5 rounded-2xl border border-dashed p-5 text-sm text-muted-foreground">
-          Rien d’urgent cette semaine. Profitez-en pour relire deux ou trois
-          conversations menées par l’IA et préciser une consigne.
+        <p className="border-y py-5 text-sm text-muted-foreground">
+          Rien d’urgent. Relisez deux ou trois conversations menées par l’IA et
+          précisez une consigne.
         </p>
       )}
     </section>
   );
 }
 
-const statusChip: Record<
-  SignalStatus,
-  { label: string; icon: LucideIcon; className: string }
-> = {
-  "unusual-bad": {
-    label: "Inhabituel",
-    icon: TriangleAlert,
-    className: "border-destructive/40 text-destructive",
-  },
-  "unusual-good": {
-    label: "Inhabituel, favorable",
-    icon: TrendingUp,
-    className: "border-foreground/30",
-  },
-  usual: {
-    label: "Dans l’habitude",
-    icon: Check,
-    className: "text-muted-foreground",
-  },
-  "low-sample": {
-    label: "Effectif faible",
-    icon: CircleDashed,
-    className: "border-dashed text-muted-foreground",
-  },
-  "insufficient-history": {
-    label: "Historique court",
-    icon: Clock,
-    className: "text-muted-foreground",
-  },
-  "not-measured": {
-    label: "Non mesuré à l’époque",
-    icon: Minus,
-    className: "border-dashed text-muted-foreground",
-  },
+const statusText: Partial<Record<SignalStatus, string>> = {
+  "low-sample": "Effectif faible",
+  "insufficient-history": "Historique court",
+  "not-measured": "Non mesuré à l’époque",
 };
 
 const statusSentence: Record<SignalStatus, string> = {
@@ -235,91 +187,52 @@ const statusSentence: Record<SignalStatus, string> = {
   "not-measured": "non mesuré à l’époque",
 };
 
-function StatusChip({ status }: { status: SignalStatus }) {
-  const chip = statusChip[status];
-  return (
-    <span
-      className={cn(
-        "inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium",
-        chip.className,
-      )}
-    >
-      <chip.icon aria-hidden="true" className="size-3" />
-      {chip.label}
-    </span>
-  );
-}
-
 function ci(successes: number, n: number) {
   const { low, high } = wilson(successes, n);
   return `IC 95 % ${percent.format(low)}–${percent.format(high)}`;
 }
 
-function tileDetails(
-  key: IndicatorKey,
-  week: WeekAggregate,
-): { primary: string; secondary?: string } {
-  const { outcome, conversations: n, handoverReasons: reasons } = week;
+function tileDetail(key: IndicatorKey, week: WeekAggregate) {
+  const { outcome, conversations: n } = week;
   switch (key) {
     case "autonomy":
-      return {
-        primary: n
-          ? `${outcome.autonomous} sur ${n} conversations · ${ci(outcome.autonomous, n)}`
-          : "Aucune conversation",
-      };
+      return n
+        ? `${outcome.autonomous} sur ${n} · ${ci(outcome.autonomous, n)}`
+        : "Aucune conversation";
     case "handover":
-      return {
-        primary: n
-          ? `${outcome.handover} sur ${n} · ${ci(outcome.handover, n)}`
-          : "Aucune conversation",
-        secondary: `Application ${reasons.app} · téléphone ${reasons.phone} · pause ${reasons.manual} · déjà en pause ${reasons.alreadyPaused}`,
-      };
+      return n
+        ? `${outcome.handover} sur ${n} · ${ci(outcome.handover, n)}`
+        : "Aucune conversation";
     case "gaps":
-      return {
-        primary: `${integer.format(week.gapsOpenAtClose)} encore ouvertes à la clôture`,
-      };
+      return `${integer.format(week.gapsOpenAtClose)} encore ouvertes à la clôture`;
     case "aiReply":
-      return {
-        primary: week.aiReply.n
-          ? `9 sur 10 en moins de ${formatDuration(week.aiReply.p90)} · ${week.aiReply.n} conversations`
-          : "Aucune réponse de l’IA",
-        secondary: week.teamReply.n
-          ? `Équipe : médiane ${formatDuration(week.teamReply.median)} sur ${week.teamReply.n} réponses${week.teamReply.n < 10 ? " (trop peu pour comparer)" : `, 9 sur 10 en moins de ${formatDuration(week.teamReply.p90)}`}`
-          : "Équipe : aucune première réponse",
-      };
+      return week.aiReply.n
+        ? `9 sur 10 en moins de ${formatDuration(week.aiReply.p90)} · équipe : ${week.teamReply.n ? formatDuration(week.teamReply.median) : "—"}`
+        : "Aucune réponse de l’IA";
     case "csat":
-      return {
-        primary: `${week.csat.responses} réponses sur ${week.csat.sent} questionnaires`,
-        secondary: week.csat.sent
-          ? `Taux de réponse ${percent.format(week.csat.responses / week.csat.sent)} · ${ci(week.csat.responses, week.csat.sent)}`
-          : undefined,
-      };
+      return `${week.csat.responses} réponses sur ${week.csat.sent} questionnaires`;
     case "failures":
-      return {
-        primary: `${week.sends.failed} messages sur ${integer.format(week.sends.attempted)} envois · ${week.aiJobsFailed} réponses IA`,
-      };
+      return `${week.sends.failed} envois · ${week.aiJobsFailed} réponses IA`;
   }
 }
 
 function habitLine(reading: IndicatorReading) {
   const { status, band } = reading.signal;
   const { kind, minSample } = reading.definition;
-  if (status === "not-measured")
-    return "Cet indicateur n’existait pas lors de ce rapport.";
   if (status === "insufficient-history")
-    return "Moins de 4 semaines comparables : pas encore de plage normale.";
+    return "Pas encore de plage normale (moins de 4 semaines)";
   if (status === "low-sample") {
     if (
       kind === "count" &&
       reading.previous?.value != null &&
       reading.current.value != null
     )
-      return `Semaine précédente → cette semaine : ${formatValue(kind, reading.previous.value)} → ${formatValue(kind, reading.current.value)}`;
-    return `Effectif ${reading.current.n} sous le seuil de ${minSample} : aucune comparaison.`;
+      return `${formatValue(kind, reading.previous.value)} → ${formatValue(kind, reading.current.value)} vs semaine précédente`;
+    return `n = ${reading.current.n}, sous le seuil de ${minSample}`;
   }
   if (!band) return "";
   const median = kind === "count" ? Math.round(band.median) : band.median;
-  return `Habitude ${formatValue(kind, median)} · plage normale ${formatBand(kind, band)}`;
+  return `Habitude ${formatValue(kind, median)} · plage ${formatBand(kind, band)}`;
 }
 
 function sparkPoints(
@@ -327,25 +240,27 @@ function sparkPoints(
   weeks: WeekAggregate[],
   offset: number,
 ): SparkPoint[] {
-  return reading.series.map((point, i) => {
-    const week = weeks[offset + i];
-    return {
-      label: `S${isoWeek(point.weekStart)}`,
-      range: `sem. du ${new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "short", timeZone: "UTC" }).format(point.weekStart)}`,
-      value: point.value,
-      display:
-        point.value === null
-          ? "Non mesuré"
-          : formatValue(reading.definition.kind, point.value),
-      flagged:
-        point.status === "unusual-bad"
-          ? "bad"
-          : point.status === "unusual-good"
-            ? "good"
-            : null,
-      note: weekNote(week),
-    };
+  const day = new Intl.DateTimeFormat("fr-FR", {
+    day: "numeric",
+    month: "short",
+    timeZone: "UTC",
   });
+  return reading.series.map((point, i) => ({
+    label: `S${isoWeek(point.weekStart)}`,
+    range: `sem. du ${day.format(point.weekStart)}`,
+    value: point.value,
+    display:
+      point.value === null
+        ? "Non mesuré"
+        : formatValue(reading.definition.kind, point.value),
+    flagged:
+      point.status === "unusual-bad"
+        ? "bad"
+        : point.status === "unusual-good"
+          ? "good"
+          : null,
+    note: weekNote(weeks[offset + i]),
+  }));
 }
 
 export function IndicatorGrid({
@@ -370,29 +285,26 @@ export function IndicatorGrid({
           note: weekNote(weeks[offset + i]),
         }))
         .filter((item) => item.note);
-  const notMeasured = legacy;
 
   return (
     <section aria-labelledby="indicators-title">
-      <h2 id="indicators-title" className="text-2xl tracking-tight">
-        Six indicateurs, situés dans leur habitude
-      </h2>
-      <p className="mt-1 text-sm text-muted-foreground">
-        12 semaines par indicateur. La bande grisée est la plage normale des 8
-        semaines précédentes ; seule une valeur hors bande est signalée.
-      </p>
-      <ul className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+      <SectionHeader
+        id="indicators-title"
+        title="Indicateurs"
+        meta="12 semaines · bande grisée = plage normale des 8 semaines précédentes"
+      />
+      <ul className="grid gap-px overflow-hidden rounded-xl border bg-border sm:grid-cols-2 lg:grid-cols-3">
         {readings.map((reading) => {
           const { definition, current } = reading;
-          const status: SignalStatus = notMeasured
+          const status: SignalStatus = legacy
             ? "not-measured"
             : reading.signal.status;
-          const details = tileDetails(definition.key, week);
+          const unusual = status === "unusual-bad" || status === "unusual-good";
           const values = reading.series.flatMap((p) =>
             p.value === null ? [] : [p.value],
           );
           const value =
-            current.value === null || notMeasured
+            current.value === null || legacy
               ? "—"
               : formatValue(definition.kind, current.value);
           const summary = values.length
@@ -401,30 +313,55 @@ export function IndicatorGrid({
           return (
             <li
               key={definition.key}
-              className={cn(
-                "flex flex-col rounded-2xl border bg-card p-4",
-                status === "unusual-bad" && "border-destructive/40",
-              )}
+              className="flex flex-col bg-background p-5"
             >
-              <div className="flex items-start justify-between gap-2">
+              <div className="flex items-center justify-between gap-2">
                 <h3 className="font-sans text-sm font-normal tracking-normal text-muted-foreground">
                   {definition.label}
                 </h3>
-                <StatusChip status={status} />
+                {unusual ? (
+                  <span
+                    className={cn(
+                      "inline-flex items-center gap-1 text-xs font-medium",
+                      status === "unusual-bad"
+                        ? "text-destructive"
+                        : "text-foreground",
+                    )}
+                  >
+                    {status === "unusual-bad" && (
+                      <TriangleAlert aria-hidden="true" className="size-3" />
+                    )}
+                    {status === "unusual-bad"
+                      ? "Inhabituel"
+                      : "Mieux que d’habitude"}
+                  </span>
+                ) : (
+                  statusText[status] && (
+                    <span className="text-xs text-muted-foreground">
+                      {statusText[status]}
+                    </span>
+                  )
+                )}
               </div>
-              <p className="mt-2 font-heading text-3xl font-semibold tracking-tight">
+              <p
+                className={cn(
+                  "mt-2 font-sans text-3xl font-semibold tracking-tight",
+                  status === "unusual-bad" && "text-destructive",
+                  legacy && "text-muted-foreground",
+                )}
+              >
                 {value}
               </p>
-              {!notMeasured && (
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {details.primary}
-                </p>
-              )}
-              <div className="mt-3">
-                {notMeasured ? (
+              <p className="mt-1 text-xs text-muted-foreground">
+                {legacy
+                  ? "Indicateur absent de ce rapport"
+                  : habitLine(reading)}
+              </p>
+              <div className="mt-auto pt-4">
+                {legacy ? (
                   <div
                     aria-hidden="true"
-                    className="h-16 rounded-lg border border-dashed"
+                    className="h-12 border-b border-dashed"
                   />
                 ) : (
                   <ReportSparkline
@@ -434,12 +371,9 @@ export function IndicatorGrid({
                   />
                 )}
               </div>
-              <p className="mt-2 text-xs text-muted-foreground">
-                {notMeasured ? "Non mesuré à l’époque" : habitLine(reading)}
-              </p>
-              {details.secondary && !notMeasured && (
-                <p className="mt-2 border-t pt-2 text-xs text-muted-foreground">
-                  {details.secondary}
+              {!legacy && (
+                <p className="mt-2 text-xs text-muted-foreground">
+                  {tileDetail(definition.key, week)}
                 </p>
               )}
             </li>
@@ -448,33 +382,30 @@ export function IndicatorGrid({
       </ul>
       {notes.length > 0 && (
         <p className="mt-3 text-xs text-muted-foreground">
-          Repères (traits pointillés) :{" "}
+          Repères en pointillés :{" "}
           {notes.map((item, i) => (
             <span key={item.label}>
               {i > 0 && " · "}
-              <span className="font-medium text-foreground">
-                {item.label}
-              </span>{" "}
-              {item.note}
+              <span className="text-foreground">{item.label}</span>{" "}
+              {item.note?.toLowerCase()}
             </span>
           ))}
         </p>
       )}
-      {!notMeasured && (
-        <details className="group mt-4 rounded-xl border bg-card">
-          <summary className="flex cursor-pointer list-none items-center gap-2 rounded-xl px-4 py-3 text-sm font-medium outline-none focus-visible:ring-3 focus-visible:ring-ring/50 [&::-webkit-details-marker]:hidden">
-            <Table2 aria-hidden="true" className="size-4" />
-            Voir les valeurs des 12 semaines
-            <ChevronRight
+      {!legacy && (
+        <details className="group mt-3">
+          <summary className="inline-flex cursor-pointer list-none items-center gap-1 rounded-md text-xs text-muted-foreground outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 [&::-webkit-details-marker]:hidden">
+            <ChevronDown
               aria-hidden="true"
-              className="ml-auto size-4 transition-transform group-open:rotate-90"
+              className="size-3.5 transition-transform group-open:rotate-180"
             />
+            Afficher les valeurs en tableau
           </summary>
           <div
             role="region"
             aria-label="Valeurs des 12 semaines"
             tabIndex={0}
-            className="overflow-x-auto border-t outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+            className="mt-3 overflow-x-auto rounded-xl border outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
           >
             <table className="w-full min-w-[40rem] text-sm">
               <caption className="sr-only">
@@ -501,7 +432,7 @@ export function IndicatorGrid({
                   <tr key={point.weekStart.toISOString()} className="border-t">
                     <th
                       scope="row"
-                      className="px-3 py-1.5 text-left font-normal"
+                      className="px-3 py-1.5 text-left font-normal text-muted-foreground"
                     >
                       S{isoWeek(point.weekStart)}
                     </th>
@@ -522,11 +453,9 @@ export function IndicatorGrid({
                             ? "—"
                             : formatValue(r.definition.kind, cell.value)}
                           {flagged && (
-                            <>
-                              <span aria-hidden="true"> ◆</span>
-                              <span className="sr-only"> (inhabituel)</span>
-                            </>
+                            <span className="sr-only"> (inhabituel)</span>
                           )}
+                          {flagged && <span aria-hidden="true"> •</span>}
                         </td>
                       );
                     })}
@@ -534,10 +463,10 @@ export function IndicatorGrid({
                 ))}
               </tbody>
             </table>
-            <p className="border-t px-3 py-2 text-xs text-muted-foreground">
-              ◆ valeur inhabituelle par rapport aux 8 semaines qui la précèdent.
-            </p>
           </div>
+          <p className="mt-2 text-xs text-muted-foreground">
+            • inhabituel par rapport aux 8 semaines qui précèdent.
+          </p>
         </details>
       )}
     </section>
@@ -557,166 +486,157 @@ export function WeekDetail({
       key: "autonomous",
       label: "Menées seules par l’IA",
       count: week.outcome.autonomous,
+      className: "bg-foreground",
     },
     {
       key: "handover",
       label: "Reprises par l’équipe",
       count: week.outcome.handover,
+      className: "bg-muted-foreground",
     },
     {
       key: "gap",
-      label: "Question restée sans réponse de l’IA",
+      label: "Question sans réponse",
       count: week.outcome.gap,
+      className: "bg-muted-foreground/60",
     },
     {
       key: "unanswered",
-      label: "Restées sans aucune réponse",
+      label: "Sans aucune réponse",
       count: week.outcome.unanswered,
+      className: "bg-muted-foreground/35",
     },
     {
       key: "failed",
-      label: "Échec d’envoi ou de génération",
+      label: "Échec technique",
       count: week.outcome.failed,
+      className: "bg-destructive",
     },
   ];
   const maxTopic = Math.max(1, ...week.gapTopics.map((topic) => topic.count));
   return (
-    <section aria-labelledby="detail-title" className="space-y-4">
+    <section aria-labelledby="detail-title" className="space-y-10">
       <div>
-        <h2 id="detail-title" className="text-2xl tracking-tight">
-          Où l’IA a passé la main
-        </h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Chaque conversation est comptée une fois, dans la première catégorie
-          qui la concerne (échec, puis reprise, puis question sans réponse).
-        </p>
-      </div>
-      <div className="rounded-2xl border bg-card p-5">
-        <h3 className="font-sans text-sm font-medium tracking-normal">
-          Les {n} conversations de la semaine
-        </h3>
+        <SectionHeader
+          id="detail-title"
+          title={`Les ${n} conversations de la semaine`}
+          meta="Chacune comptée une fois"
+        />
         {n ? (
-          <ul className="mt-4 space-y-3">
-            {rows.map((row) => (
-              <li key={row.key}>
-                <div className="flex items-baseline justify-between gap-3 text-sm">
-                  <span>{row.label}</span>
-                  <span className="shrink-0 tabular-nums text-muted-foreground">
-                    <span className="font-medium text-foreground">
-                      {row.count}
-                    </span>{" "}
-                    · {percent.format(row.count / n)}
-                  </span>
-                </div>
-                <div
-                  aria-hidden="true"
-                  className="mt-1.5 h-1.5 rounded-full bg-muted"
-                >
-                  <div
-                    className={cn(
-                      "h-full rounded-full",
-                      row.key === "autonomous"
-                        ? "bg-foreground"
-                        : "bg-muted-foreground",
-                    )}
+          <>
+            <div
+              aria-hidden="true"
+              className="flex h-2 gap-0.5 overflow-hidden rounded-full"
+            >
+              {rows
+                .filter((row) => row.count > 0)
+                .map((row) => (
+                  <span
+                    key={row.key}
+                    className={row.className}
                     style={{ width: `${(row.count / n) * 100}%` }}
                   />
+                ))}
+            </div>
+            <dl className="mt-5 grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-5">
+              {rows.map((row) => (
+                <div key={row.key}>
+                  <dt className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <span
+                      aria-hidden="true"
+                      className={cn("size-2 rounded-[2px]", row.className)}
+                    />
+                    {row.label}
+                  </dt>
+                  <dd className="mt-1 text-lg font-semibold tracking-tight">
+                    {row.count}
+                    <span className="ml-1.5 text-xs font-normal text-muted-foreground">
+                      {percent.format(row.count / n)}
+                    </span>
+                  </dd>
                 </div>
-              </li>
-            ))}
-          </ul>
+              ))}
+            </dl>
+          </>
         ) : (
-          <p className="mt-3 text-sm text-muted-foreground">
+          <p className="text-sm text-muted-foreground">
             Aucune conversation cette semaine.
           </p>
         )}
       </div>
-      <div className="grid gap-4 md:grid-cols-2">
-        <div className="flex flex-col rounded-2xl border bg-card p-5">
-          <h3 className="font-sans text-sm font-medium tracking-normal">
-            Questions sans réponse, regroupées
-          </h3>
-          <p className="mt-1 text-xs text-muted-foreground">
-            {week.gapsNew} nouvelles cette semaine · {week.gapsOpenAtClose}{" "}
-            ouvertes à la clôture
-          </p>
+
+      <div className="grid gap-10 md:grid-cols-2">
+        <div>
+          <SectionHeader
+            id="gaps-title"
+            title="Questions sans réponse"
+            meta={`${week.gapsNew} nouvelles · ${week.gapsOpenAtClose} ouvertes`}
+          />
           {week.gapTopics.length ? (
-            <ul className="mt-4 space-y-2.5">
+            <ul className="space-y-2.5">
               {week.gapTopics.map((topic) => (
                 <li
                   key={topic.label}
-                  className="grid grid-cols-[7rem_1fr_auto] items-center gap-3 text-sm"
+                  className="grid grid-cols-[6.5rem_1fr_1.5rem] items-center gap-3 text-sm"
                 >
                   <span className="truncate">{topic.label}</span>
                   <span
                     aria-hidden="true"
-                    className="h-1.5 rounded-full bg-muted"
+                    className="h-1 rounded-full bg-muted"
                   >
                     <span
-                      className="block h-full rounded-full bg-muted-foreground"
+                      className="block h-full rounded-full bg-foreground"
                       style={{ width: `${(topic.count / maxTopic) * 100}%` }}
                     />
                   </span>
-                  <span className="tabular-nums text-muted-foreground">
+                  <span className="text-right tabular-nums text-muted-foreground">
                     {topic.count}
                   </span>
                 </li>
               ))}
             </ul>
           ) : (
-            <p className="mt-4 text-sm text-muted-foreground">
-              Aucune nouvelle question cette semaine.
+            <p className="text-sm text-muted-foreground">
+              Aucune nouvelle question.
             </p>
           )}
           <p className="mt-4 text-xs text-muted-foreground">
-            Regroupement par thème. Le texte des questions reste dans l’onglet «
-            À améliorer », jamais dans l’e-mail.
+            Regroupées par thème ; le texte des questions reste dans
+            l’application.
           </p>
-          <Button
-            asChild
-            variant="outline"
-            size="sm"
-            className="mt-4 self-start"
-          >
+          <Button asChild variant="outline" size="sm" className="mt-4">
             <Link href={`${base}/knowledge?tab=improve`}>
-              Ouvrir les questions à traiter{" "}
-              <ArrowRight data-icon="inline-end" />
+              Traiter les questions <ArrowRight data-icon="inline-end" />
             </Link>
           </Button>
         </div>
-        <div className="flex flex-col rounded-2xl border bg-card p-5">
-          <h3 className="font-sans text-sm font-medium tracking-normal">
-            En attente à la clôture
-          </h3>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Dimanche minuit (UTC), dernier message client sans réponse depuis
-            plus d’une heure
-          </p>
-          <dl className="mt-4 grid grid-cols-3 gap-2 text-center">
-            {[
-              ["En attente", week.waiting.total],
-              ["Depuis plus de 24 h", week.waiting.over24h],
-              ["En mode manuel", week.waiting.manual],
-            ].map(([label, value]) => (
-              <div key={label} className="rounded-xl border p-3">
-                <dt className="text-[11px] leading-tight text-muted-foreground">
-                  {label}
-                </dt>
-                <dd className="mt-1 font-heading text-2xl font-semibold">
+        <div>
+          <SectionHeader
+            id="waiting-title"
+            title="En attente à la clôture"
+            meta="Dimanche minuit, UTC"
+          />
+          <dl className="grid grid-cols-3 divide-x rounded-xl border">
+            {(
+              [
+                ["Clients", week.waiting.total],
+                ["Plus de 24 h", week.waiting.over24h],
+                ["Mode manuel", week.waiting.manual],
+              ] as const
+            ).map(([label, value]) => (
+              <div key={label} className="p-4">
+                <dt className="text-xs text-muted-foreground">{label}</dt>
+                <dd className="mt-1 text-2xl font-semibold tracking-tight">
                   {value}
                 </dd>
               </div>
             ))}
           </dl>
           <p className="mt-4 text-xs text-muted-foreground">
-            Une conversation marquée « traitée » par l’équipe n’est pas comptée.
+            Dernier message client sans réponse depuis plus d’une heure ;
+            conversations « traitées » exclues.
           </p>
-          <Button
-            asChild
-            variant="outline"
-            size="sm"
-            className="mt-4 self-start"
-          >
+          <Button asChild variant="outline" size="sm" className="mt-4">
             <Link href={`${base}/chat?filter=manual`}>
               Ouvrir la messagerie <ArrowRight data-icon="inline-end" />
             </Link>
@@ -733,64 +653,44 @@ const legacyKeys = Object.keys(reportMetricLabels) as (keyof ReportMetrics)[];
 export function LegacyCounters({
   current,
   previous,
-  open = false,
 }: {
   current: WeekAggregate["legacy"];
   previous: WeekAggregate["legacy"] | null;
-  open?: boolean;
 }) {
   return (
-    <details open={open} className="group rounded-2xl border bg-card">
-      <summary className="flex cursor-pointer list-none items-center gap-2 rounded-2xl px-5 py-4 text-sm font-medium outline-none focus-visible:ring-3 focus-visible:ring-ring/50 [&::-webkit-details-marker]:hidden">
-        Compteurs d’activité de la semaine
-        <span className="font-normal text-muted-foreground">
-          · 8 compteurs historiques
-        </span>
-        <ChevronRight
-          aria-hidden="true"
-          className="ml-auto size-4 shrink-0 transition-transform group-open:rotate-90"
-        />
-      </summary>
-      <table className="w-full border-t text-sm">
-        <caption className="sr-only">
-          Compteurs d’activité, semaine précédente et semaine affichée
-        </caption>
-        <thead className="text-xs text-muted-foreground">
-          <tr>
-            <th scope="col" className="px-5 py-2 text-left font-normal">
-              Compteur
-            </th>
-            <th scope="col" className="px-5 py-2 text-right font-normal">
-              Avant → semaine
-            </th>
-          </tr>
-        </thead>
-        <tbody className="tabular-nums">
-          {legacyKeys.map((key) => (
-            <tr key={key} className="border-t">
-              <th scope="row" className="px-5 py-2 text-left font-normal">
-                {reportMetricLabels[key]}
-              </th>
-              <td className="px-5 py-2 text-right">
-                {previous ? `${integer.format(previous[key])} → ` : ""}
-                <span className="font-medium">
-                  {integer.format(current[key])}
+    <section aria-labelledby="counters-title">
+      <SectionHeader
+        id="counters-title"
+        title="Compteurs d’activité"
+        meta="Semaine précédente → cette semaine"
+      />
+      <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border bg-border sm:grid-cols-4">
+        {legacyKeys.map((key) => (
+          <div key={key} className="bg-background p-4">
+            <dt className="text-xs text-muted-foreground">
+              {reportMetricLabels[key]}
+            </dt>
+            <dd className="mt-1 text-lg font-semibold tracking-tight">
+              {integer.format(current[key])}
+              {previous && (
+                <span className="ml-1.5 text-xs font-normal text-muted-foreground">
+                  avant {integer.format(previous[key])}
                 </span>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </details>
+              )}
+            </dd>
+          </div>
+        ))}
+      </dl>
+    </section>
   );
 }
 
 const emailStates: Record<string, string> = {
   PENDING: "en attente",
   SENDING: "en cours",
-  SENT: "accepté par le service e-mail",
+  SENT: "envoyé",
   CANCELLED: "annulé",
-  REVIEW_REQUIRED: "à vérifier par le support",
+  REVIEW_REQUIRED: "à vérifier",
 };
 
 export function HistoryList({
@@ -804,109 +704,84 @@ export function HistoryList({
 }) {
   return (
     <section aria-labelledby="history-title">
-      <h2 id="history-title" className="mb-4 text-2xl tracking-tight">
-        Historique
-      </h2>
-      <ol className="divide-y overflow-hidden rounded-2xl border bg-card">
+      <SectionHeader
+        id="history-title"
+        title="Historique"
+        meta="12 dernières semaines, figées au calcul"
+      />
+      <ol className="divide-y border-y">
         {reports.map((report) => {
           const current = report.id === selectedId;
-          const deliveries = Object.entries(emailStates)
-            .map(([state, label]) => ({
-              state,
-              label,
-              count: report.emails.filter((e) => e.state === state).length,
-            }))
-            .filter((item) => item.count > 0);
+          const sent = report.emails.filter((e) => e.state === "SENT").length;
+          const other = report.emails.find((e) => e.state !== "SENT");
+          const status = report.skipped
+            ? "Sans activité · e-mail non envoyé"
+            : (report.verdict?.label ?? "Ancien format");
           return (
             <li key={report.id}>
               <Link
                 href={hrefFor(report.id)}
                 aria-current={current ? "page" : undefined}
                 className={cn(
-                  "relative flex items-center gap-4 px-4 py-3.5 outline-none transition-colors hover:bg-muted/50 focus-visible:bg-muted/50 focus-visible:ring-3 focus-visible:ring-inset focus-visible:ring-ring/50",
+                  "-mx-2 grid grid-cols-[3rem_1fr_auto] items-center gap-3 rounded-lg px-2 py-3 text-sm outline-none transition-colors hover:bg-muted/50 focus-visible:ring-3 focus-visible:ring-ring/50 sm:grid-cols-[3rem_1fr_12rem_auto]",
                   current && "bg-muted/60",
                 )}
               >
-                {current && (
-                  <span
-                    aria-hidden="true"
-                    className="absolute inset-y-2 left-0 w-0.5 rounded-full bg-foreground"
-                  />
-                )}
                 <span
-                  aria-hidden="true"
                   className={cn(
-                    "flex size-11 shrink-0 flex-col items-center justify-center rounded-xl border leading-none",
-                    current
-                      ? "border-primary bg-primary text-primary-foreground"
-                      : "bg-background",
+                    "font-mono text-xs",
+                    current ? "text-foreground" : "text-muted-foreground",
                   )}
                 >
-                  <span className="text-[9px] tracking-wider uppercase opacity-70">
-                    Sem.
-                  </span>
-                  <span className="mt-0.5 font-heading text-base font-bold tabular-nums">
-                    {report.label.slice(1)}
-                  </span>
+                  {report.label}
                 </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block text-sm font-medium">
+                <span className="min-w-0">
+                  <span
+                    className={cn("block truncate", current && "font-medium")}
+                  >
                     {report.range}
                   </span>
-                  <span className="mt-1 flex flex-wrap gap-1.5 text-[11px] text-muted-foreground">
-                    {report.skipped ? (
-                      <span className="rounded-full border border-dashed px-2 py-px">
-                        Sans activité · e-mail ignoré
-                      </span>
-                    ) : (
-                      <>
-                        {report.verdict ? (
-                          <span
-                            className={cn(
-                              "rounded-full border px-2 py-px",
-                              report.verdict.tone === "watch" &&
-                                "border-destructive/40 text-destructive",
-                            )}
-                          >
-                            {report.verdict.label}
-                          </span>
-                        ) : (
-                          <span className="rounded-full border border-dashed px-2 py-px">
-                            Ancien format
-                          </span>
-                        )}
-                        {deliveries.map((item) => (
-                          <span
-                            key={item.state}
-                            className="rounded-full border bg-background px-2 py-px tabular-nums"
-                          >
-                            {item.count} {item.label}
-                          </span>
-                        ))}
-                      </>
+                  <span
+                    className={cn(
+                      "mt-0.5 flex items-center gap-1.5 text-xs sm:hidden",
+                      report.verdict?.tone === "watch"
+                        ? "text-destructive"
+                        : "text-muted-foreground",
                     )}
+                  >
+                    {status}
                   </span>
                 </span>
-                {current ? (
-                  <span className="hidden shrink-0 rounded-full bg-foreground px-2 py-0.5 text-[11px] text-background sm:inline">
-                    Affiché
-                  </span>
-                ) : (
-                  <ChevronRight
-                    aria-hidden="true"
-                    className="size-4 shrink-0 text-muted-foreground"
+                <span
+                  className={cn(
+                    "hidden items-center gap-1.5 text-xs sm:flex",
+                    report.verdict?.tone === "watch"
+                      ? "text-destructive"
+                      : "text-muted-foreground",
+                  )}
+                >
+                  <Dot
+                    tone={report.verdict?.tone === "watch" ? "bad" : "neutral"}
                   />
-                )}
+                  {status}
+                </span>
+                <span className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <span className="hidden md:inline">
+                    {report.skipped
+                      ? ""
+                      : `${sent} ${emailStates.SENT}${other ? ` · 1 ${emailStates[other.state]}` : ""}`}
+                  </span>
+                  {current ? (
+                    <span className="text-foreground">Affiché</span>
+                  ) : (
+                    <ChevronRight aria-hidden="true" className="size-4" />
+                  )}
+                </span>
               </Link>
             </li>
           );
         })}
       </ol>
-      <p className="mt-3 text-xs text-muted-foreground">
-        Les 12 dernières semaines. Chaque rapport est figé au moment du calcul :
-        un ancien rapport garde ses chiffres d’origine. « Accepté » confirme la
-        prise en charge par le service e-mail, pas l’ouverture.
-      </p>
     </section>
   );
 }
@@ -956,35 +831,31 @@ const definitions: Record<
 export function Definitions({ readings }: { readings: IndicatorReading[] }) {
   return (
     <section aria-labelledby="definitions-title">
-      <h2 id="definitions-title" className="mb-2 text-2xl tracking-tight">
-        Comprendre vos indicateurs
-      </h2>
-      <Accordion type="multiple" className="w-full">
+      <SectionHeader
+        id="definitions-title"
+        title="Comprendre les indicateurs"
+      />
+      <Accordion type="multiple" className="w-full border-t">
         {readings.map(({ definition }) => (
           <AccordionItem key={definition.key} value={definition.key}>
-            <AccordionTrigger className="text-left">
+            <AccordionTrigger className="text-left text-sm font-normal">
               {definition.label}
             </AccordionTrigger>
-            <AccordionContent className="space-y-2 text-muted-foreground">
+            <AccordionContent className="space-y-2 text-sm text-muted-foreground">
+              <p>{definition.question}</p>
               <p>
-                <span className="font-medium text-foreground">Question : </span>
-                {definition.question}
-              </p>
-              <p>
-                <span className="font-medium text-foreground">Calcul : </span>
+                <span className="text-foreground">Calcul. </span>
                 {definitions[definition.key].computed}
               </p>
               <p>
-                <span className="font-medium text-foreground">
-                  Ne prouve pas :{" "}
-                </span>
+                <span className="text-foreground">Ne prouve pas. </span>
                 {definitions[definition.key].notProven}
               </p>
               <p>
-                <span className="font-medium text-foreground">Seuil : </span>
+                <span className="text-foreground">Seuil. </span>
                 {definition.kind === "count"
-                  ? `valeur comparée à partir de ${definition.minSample} événements ; en dessous, écart absolu.`
-                  : `comparaison à partir de ${definition.minSample} ${definition.key === "csat" ? "réponses" : "conversations"} dans la semaine.`}
+                  ? `Comparé à partir de ${definition.minSample} événements ; en dessous, écart absolu.`
+                  : `Comparé à partir de ${definition.minSample} ${definition.key === "csat" ? "réponses" : "conversations"} dans la semaine.`}
               </p>
             </AccordionContent>
           </AccordionItem>
