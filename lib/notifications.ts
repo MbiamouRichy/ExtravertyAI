@@ -136,10 +136,11 @@ export async function notificationFeed(
       pushName: string | null;
       assignedAt: Date;
       assignerName: string | null;
+      automatic: boolean;
     }[]
   >`
     SELECT c.id AS "contactId", p.id AS "projectId", p.name AS "projectName", c.name, c."pushName",
-      c."assignedAt", u.name AS "assignerName"
+      c."assignedAt", u.name AS "assignerName", c."assignedById" IS NULL AS automatic
     FROM contact c
     JOIN project p ON p.id = c."projectId" AND NOT p."deletionPending"
     JOIN project_membership pm ON pm."projectId" = p.id AND pm."userId" = ${userId}
@@ -154,9 +155,11 @@ export async function notificationFeed(
       version: a.assignedAt.toISOString(),
       projectName: a.projectName,
       title: "Conversation assignée : " + chatContactName(a),
-      description:
-        (a.assignerName?.trim().split(/\s+/)[0] || "Un membre") +
-        " vous a confié cette conversation.",
+      // Sans auteur : répartition automatique de l’offre Business.
+      description: a.automatic
+        ? "Attribuée automatiquement : vous étiez disponible."
+        : (a.assignerName?.trim().split(/\s+/)[0] || "Un membre") +
+          " vous a confié cette conversation.",
       href:
         "/projects/" +
         a.projectId +
