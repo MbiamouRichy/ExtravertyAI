@@ -6,6 +6,7 @@ import { ArrowRight, Plug, ShieldCheck } from "lucide-react";
 import prisma from "@/lib/prisma";
 import { getSession } from "@/lib/auth-server";
 import { planAllows, planUpgradeMessage } from "@/lib/plan-features";
+import { integrationEventsForPlan } from "@/lib/integration-events";
 import { integrationsOverview } from "@/lib/integrations";
 import { googleConfigured } from "@/lib/google-sheets";
 import { integrationsEncryptionConfigured } from "@/lib/secret-box";
@@ -104,6 +105,7 @@ export default async function IntegrationsPage({
         projectId={projectId}
         googleAvailable={googleConfigured() && encryption}
         webhooksAvailable={planAllows(membership.project.plan, "webhooks")}
+        availableEvents={integrationEventsForPlan(membership.project.plan).map((event) => event.id)}
         googleOutcome={outcome}
         endpoints={overview.endpoints.map((endpoint) => ({
           ...endpoint,

@@ -1,7 +1,11 @@
 import { createHmac, randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
 import { z } from "zod";
 import type { Prisma, PrismaClient } from "../src/generated/prisma/client";
-import { INTEGRATION_EVENT_IDS, emitIntegrationEvent } from "./integration-events";
+import {
+  INTEGRATION_EVENT_IDS,
+  emitIntegrationEvent,
+  isIntegrationEventAllowed,
+} from "./integration-events";
 import { planAllows, requirePlanFeature } from "./plan-features";
 import { requireProjectAdmin } from "./project-settings";
 import { SafeFetchError, parsePublicUrl, safeRequest, type SafeRequestInit } from "./safe-fetch";
@@ -44,6 +48,13 @@ async function requireEndpointPlan(
     select: { kind: true },
   });
   if (endpoint?.kind === "WEBHOOK") requirePlanFeature(plan, "webhooks");
+}
+
+/** Pipeline and CSAT events only exist on the plans that include those features. */
+function requireEventsForPlan(plan: unknown, events: readonly string[]) {
+  if (events.some((event) => !isIntegrationEventAllowed(plan, event))) {
+    throw new IntegrationError("Certains événements ne sont pas disponibles avec votre offre.");
+  }
 }
 
 function newSecret() {
@@ -100,6 +111,7 @@ export async function createWebhook(
   return db.$transaction(async (tx) => {
     const project = await lockIntegrationsAdmin(tx, input);
     requirePlanFeature(project.plan, "webhooks");
+    requireEventsForPlan(project.plan, data.events);
     const count = await tx.integrationEndpoint.count({ where: { projectId: input.projectId } });
     if (count >= MAX_ENDPOINTS) {
       throw new IntegrationError(`${MAX_ENDPOINTS} intégrations au maximum par projet.`);
@@ -132,6 +144,7 @@ export async function updateEndpoint(
     const project = await lockIntegrationsAdmin(tx, input);
     // Un webhook reste désactivable après un passage en Starter.
     if (input.enabled !== false || events) await requireEndpointPlan(tx, project.plan, input);
+    if (events) requireEventsForPlan(project.plan, events);
     const result = await tx.integrationEndpoint.updateMany({
       where: { id: input.endpointId, projectId: input.projectId },
       data: {

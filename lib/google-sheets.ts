@@ -1,6 +1,6 @@
 import { createHmac, randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
 import type { PrismaClient } from "../src/generated/prisma/client";
-import { INTEGRATION_EVENTS } from "./integration-events";
+import { INTEGRATION_EVENTS, integrationEventsForPlan } from "./integration-events";
 import { IntegrationError, MAX_ENDPOINTS, type DeliveryJob } from "./integrations";
 import { requirePlanFeature } from "./plan-features";
 import { requireProjectAdmin } from "./project-settings";
@@ -16,7 +16,17 @@ const SCOPES = ["openid", "email", "https://www.googleapis.com/auth/drive.file"]
 export const GOOGLE_NONCE_COOKIE = "eai_google_sheets_nonce";
 const STATE_TTL_MS = 10 * 60_000;
 export const SHEET_NAME = "Événements";
-const HEADER = ["Date (UTC)", "Événement", "Contact", "Téléphone", "Détail"];
+const HEADER = [
+  "Date",
+  "Événement",
+  "Prospect",
+  "Téléphone",
+  "Première interaction",
+  "Dernière interaction",
+  "Instinct IA",
+  "Sources des messages",
+  "Détail",
+];
 
 function appOrigin() {
   const origin = process.env.BETTER_AUTH_URL || process.env.NEXT_PUBLIC_APP_URL;
@@ -172,11 +182,60 @@ const EVENT_LABELS: Record<string, string> = Object.fromEntries([
   ["test.ping", "Test"],
 ]);
 
+const INSTINCT_LABELS: Record<string, string> = {
+  interesting: "Prospect intéressant",
+  follow_up: "À suivre",
+  none: "Aucun signal",
+};
+
+// Same wording as the message sources chart (lib/message-sources).
+const SOURCE_LABELS: Record<string, string> = {
+  android: "Android",
+  ios: "iOS",
+  ai: "Assistant IA",
+  whatsapp: "WhatsApp",
+  web_dashboard: "Tableau de bord",
+  broadcast: "Diffusion",
+};
+
+const localFormats = new Map<string, Intl.DateTimeFormat>();
+
+/** « 2026-10-19 15:05 » in the spreadsheet's time zone: sortable, never UTC. */
+function localDateTime(iso: unknown, timeZone: string): string {
+  if (typeof iso !== "string" || !iso) return "";
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "";
+  let format = localFormats.get(timeZone);
+  if (!format) {
+    try {
+      format = new Intl.DateTimeFormat("sv-SE", {
+        timeZone,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    } catch {
+      return localDateTime(iso, "UTC");
+    }
+    localFormats.set(timeZone, format);
+  }
+  return format.format(date);
+}
+
 /** One spreadsheet row per event, readable without any formula. */
-export function sheetRow(job: Pick<DeliveryJob, "event" | "payload">): string[] {
+export function sheetRow(job: Pick<DeliveryJob, "event" | "payload">, timeZone = "UTC"): string[] {
   const payload = (job.payload ?? {}) as { occurredAt?: string; data?: Record<string, unknown> };
   const data = payload.data ?? {};
-  const contact = (data.contact ?? {}) as { name?: string; phone?: string };
+  const contact = (data.contact ?? {}) as {
+    name?: string;
+    phone?: string;
+    firstInteractionAt?: string | null;
+    lastInteractionAt?: string | null;
+    instinct?: string | null;
+    sources?: string[];
+  };
   const detail =
     job.event === "pipeline.stage_changed"
       ? `${data.fromLabel ?? ""} → ${data.toLabel ?? ""}${data.dealValue != null ? ` · ${data.dealValueLabel ?? data.dealValue}` : ""}`
@@ -190,12 +249,59 @@ export function sheetRow(job: Pick<DeliveryJob, "event" | "payload">): string[] 
               ? String(data.message ?? "")
               : "";
   return [
-    (payload.occurredAt ?? new Date().toISOString()).replace("T", " ").slice(0, 19),
+    localDateTime(payload.occurredAt ?? new Date().toISOString(), timeZone),
     EVENT_LABELS[job.event] ?? job.event,
     contact.name ?? "",
     contact.phone ?? "",
+    localDateTime(contact.firstInteractionAt, timeZone),
+    localDateTime(contact.lastInteractionAt, timeZone),
+    contact.instinct ? (INSTINCT_LABELS[contact.instinct] ?? contact.instinct) : "",
+    Array.isArray(contact.sources)
+      ? contact.sources.map((source) => SOURCE_LABELS[source] ?? source).join(", ")
+      : "",
     detail,
   ];
+}
+
+const sheetSettings = new Map<string, { timeZone: string; checkedAt: number }>();
+const SETTINGS_TTL_MS = 60 * 60_000;
+
+/**
+ * Reads the spreadsheet's time zone (File › Settings, initially the Google
+ * account's) and brings an older header row up to date. Cached for an hour.
+ */
+async function sheetTimeZone(
+  endpointId: string,
+  accessToken: string,
+  spreadsheetId: string,
+  sheetName: string,
+) {
+  const cached = sheetSettings.get(endpointId);
+  if (cached && Date.now() - cached.checkedAt < SETTINGS_TTL_MS) return cached.timeZone;
+  const id = encodeURIComponent(spreadsheetId);
+  const [{ payload: meta }, { payload: header }] = await Promise.all([
+    googleJson(`https://sheets.googleapis.com/v4/spreadsheets/${id}?fields=properties.timeZone`, {
+      headers: { authorization: `Bearer ${accessToken}` },
+    }),
+    googleJson(`https://sheets.googleapis.com/v4/spreadsheets/${id}/values/${range(sheetName)}`, {
+      headers: { authorization: `Bearer ${accessToken}` },
+    }),
+  ]);
+  const properties = meta.properties as { timeZone?: unknown } | undefined;
+  const timeZone = typeof properties?.timeZone === "string" ? properties.timeZone : "UTC";
+  const firstRow = (header.values as unknown[][] | undefined)?.[0];
+  if (Array.isArray(firstRow) && firstRow[0] === "Date (UTC)") {
+    await googleJson(
+      `https://sheets.googleapis.com/v4/spreadsheets/${id}/values/${range(sheetName)}?valueInputOption=RAW`,
+      {
+        method: "PUT",
+        headers: { authorization: `Bearer ${accessToken}`, "content-type": "application/json" },
+        body: JSON.stringify({ values: [HEADER] }),
+      },
+    );
+  }
+  sheetSettings.set(endpointId, { timeZone, checkedAt: Date.now() });
+  return timeZone;
 }
 
 export async function appendEventRow(
@@ -204,7 +310,10 @@ export async function appendEventRow(
 ) {
   const access = await accessTokenFor(endpoint.id, endpoint.refreshTokenCiphertext);
   if (!access.token) return { status: access.status };
-  const status = await appendValues(access.token, endpoint.spreadsheetId, endpoint.sheetName, [sheetRow(job)]);
+  const timeZone = await sheetTimeZone(endpoint.id, access.token, endpoint.spreadsheetId, endpoint.sheetName);
+  const status = await appendValues(access.token, endpoint.spreadsheetId, endpoint.sheetName, [
+    sheetRow(job, timeZone),
+  ]);
   if (status === 401) accessTokens.delete(endpoint.id);
   return { status };
 }
@@ -234,7 +343,7 @@ export async function connectGoogleSheets(
   const sheet = await google.createSpreadsheet(tokens.accessToken, `ExtravertyAI · ${project.name}`);
   return db.$transaction(async (tx) => {
     await tx.$queryRaw`SELECT id FROM project WHERE id = ${input.projectId} FOR UPDATE`;
-    await requireProjectAdmin(tx, input.projectId, input.userId);
+    const { project: locked } = await requireProjectAdmin(tx, input.projectId, input.userId);
     const count = await tx.integrationEndpoint.count({ where: { projectId: input.projectId } });
     if (count >= MAX_ENDPOINTS) {
       throw new IntegrationError(`${MAX_ENDPOINTS} intégrations au maximum par projet.`);
@@ -247,7 +356,7 @@ export async function connectGoogleSheets(
         kind: "GOOGLE_SHEETS",
         name: "Google Sheets",
         refreshTokenCiphertext: sealSecret(tokens.refreshToken, id),
-        events: INTEGRATION_EVENTS.map((event) => event.id),
+        events: integrationEventsForPlan(locked.plan).map((event) => event.id),
         spreadsheetId: sheet.spreadsheetId,
         spreadsheetUrl: sheet.spreadsheetUrl,
         sheetName: sheet.sheetName,

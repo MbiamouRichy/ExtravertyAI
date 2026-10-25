@@ -30,6 +30,12 @@ export type Teammate = {
   image?: string | null;
 };
 
+const ROLE_ORDER: Record<string, number> = { OWNER: 0, ADMIN: 1 };
+
+function roleRank(role: string) {
+  return ROLE_ORDER[role] ?? 2;
+}
+
 // On ajoute les props pour recevoir les données du serveur
 interface TeamOnDutyProps extends ComponentProps<typeof Card> {
   initialTeammates: Teammate[];
@@ -42,8 +48,10 @@ export function TeamOnDuty({
   className,
   ...props
 }: TeamOnDutyProps) {
-  // Le state est maintenant initialisé avec les données de la DB
-  const teammates = initialTeammates;
+  // Propriétaire, puis administrateurs, puis membres ; l’ordre reçu est gardé à rôle égal.
+  const teammates = [...initialTeammates].sort(
+    (a, b) => roleRank(a.role) - roleRank(b.role),
+  );
   const presence = useProjectPresence(projectId);
 
   return (

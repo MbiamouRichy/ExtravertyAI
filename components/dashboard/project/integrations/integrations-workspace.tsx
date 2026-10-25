@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useId, useState, useTransition } from "react";
+import { useEffect, useId, useState, useTransition, type ReactNode } from "react";
 import { toast } from "sonner";
 import {
   CircleAlert,
@@ -41,6 +41,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   deleteEndpointAction,
   redeliverAction,
@@ -92,15 +93,29 @@ const GOOGLE_OUTCOMES: Record<string, { type: "success" | "error"; text: string 
   unavailable: { type: "error", text: "Google Sheets n’est pas disponible pour ce projet." },
 };
 
+/** Explains an icon or compact action on hover and keyboard focus. */
+function ActionTip({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>{children}</TooltipTrigger>
+      <TooltipContent side="top" className="max-w-60 text-balance">
+        {label}
+      </TooltipContent>
+    </Tooltip>
+  );
+}
+
 function EndpointRow({
   projectId,
   endpoint,
+  availableEvents,
   onChanged,
   onEditEvents,
   onSecret,
 }: {
   projectId: string;
   endpoint: EndpointView;
+  availableEvents: readonly string[];
   onChanged: () => void;
   onEditEvents: () => void;
   onSecret: (secret: string) => void;
@@ -160,7 +175,9 @@ function EndpointRow({
           </p>
         )}
         <ul aria-label="Événements envoyés" className="flex flex-wrap gap-1.5 pt-1">
-          {endpoint.events.map((event) => (
+          {endpoint.events
+            .filter((event) => availableEvents.includes(event))
+            .map((event) => (
             <li key={event} className="rounded-md border px-1.5 py-0.5 text-[11px]">
               {EVENT_LABEL[event] ?? event}
             </li>
@@ -171,54 +188,82 @@ function EndpointRow({
         <Label htmlFor={switchId} className="sr-only">
           Activer « {endpoint.name} »
         </Label>
-        <Switch
-          id={switchId}
-          checked={endpoint.enabled}
-          disabled={pending}
-          onCheckedChange={(enabled) =>
-            act(() => updateEndpointAction({ projectId, endpointId: endpoint.id, enabled }))
-          }
-          className="mr-2"
-        />
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          disabled={pending || !endpoint.enabled}
-          onClick={() =>
-            act(() => sendTestEventAction({ projectId, endpointId: endpoint.id }), "Événement de test mis en file")
+        <ActionTip
+          label={
+            endpoint.enabled
+              ? "Suspendre les envois vers cette intégration"
+              : "Reprendre les envois vers cette intégration"
           }
         >
-          <Send data-icon="inline-start" />
-          Tester
-        </Button>
-        <Button type="button" variant="ghost" size="icon-sm" aria-label={`Choisir les événements de « ${endpoint.name} »`} onClick={onEditEvents}>
-          <ListChecks aria-hidden="true" />
-        </Button>
-        {endpoint.kind === "WEBHOOK" && (
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
+          <Switch
+            id={switchId}
+            checked={endpoint.enabled}
             disabled={pending}
-            aria-label={`Régénérer le secret de « ${endpoint.name} »`}
-            onClick={() =>
-              startTransition(async () => {
-                const result = await rotateWebhookSecretAction({ projectId, endpointId: endpoint.id });
-                if (!result.success) toast.error(result.error);
-                else onSecret(result.secret);
-              })
+            onCheckedChange={(enabled) =>
+              act(() => updateEndpointAction({ projectId, endpointId: endpoint.id, enabled }))
             }
+            className="mr-2"
+          />
+        </ActionTip>
+        <ActionTip
+          label={
+            endpoint.enabled
+              ? "Envoyer un événement fictif pour vérifier que la connexion fonctionne"
+              : "Activez l’intégration pour pouvoir la tester"
+          }
+        >
+          {/* A disabled button gets no pointer events: the wrapper keeps the tip reachable. */}
+          <span
+            tabIndex={endpoint.enabled ? undefined : 0}
+            className="inline-flex rounded-md outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
           >
-            <KeyRound aria-hidden="true" />
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={pending || !endpoint.enabled}
+              onClick={() =>
+                act(() => sendTestEventAction({ projectId, endpointId: endpoint.id }), "Événement de test mis en file")
+              }
+            >
+              <Send data-icon="inline-start" />
+              Tester
+            </Button>
+          </span>
+        </ActionTip>
+        <ActionTip label="Choisir les événements envoyés">
+          <Button type="button" variant="ghost" size="icon-sm" aria-label={`Choisir les événements de « ${endpoint.name} »`} onClick={onEditEvents}>
+            <ListChecks aria-hidden="true" />
           </Button>
+        </ActionTip>
+        {endpoint.kind === "WEBHOOK" && (
+          <ActionTip label="Générer un nouveau secret de signature : l’ancien cesse aussitôt de fonctionner">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              disabled={pending}
+              aria-label={`Régénérer le secret de « ${endpoint.name} »`}
+              onClick={() =>
+                startTransition(async () => {
+                  const result = await rotateWebhookSecretAction({ projectId, endpointId: endpoint.id });
+                  if (!result.success) toast.error(result.error);
+                  else onSecret(result.secret);
+                })
+              }
+            >
+              <KeyRound aria-hidden="true" />
+            </Button>
+          </ActionTip>
         )}
         <AlertDialog>
-          <AlertDialogTrigger asChild>
-            <Button type="button" variant="ghost" size="icon-sm" aria-label={`Supprimer « ${endpoint.name} »`}>
-              <Trash2 aria-hidden="true" />
-            </Button>
-          </AlertDialogTrigger>
+          <ActionTip label="Supprimer cette intégration">
+            <AlertDialogTrigger asChild>
+              <Button type="button" variant="ghost" size="icon-sm" aria-label={`Supprimer « ${endpoint.name} »`}>
+                <Trash2 aria-hidden="true" />
+              </Button>
+            </AlertDialogTrigger>
+          </ActionTip>
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle>Supprimer « {endpoint.name} » ?</AlertDialogTitle>
@@ -252,6 +297,7 @@ export function IntegrationsWorkspace({
   deliveries,
   googleAvailable,
   webhooksAvailable,
+  availableEvents,
   googleOutcome,
 }: {
   projectId: string;
@@ -260,6 +306,8 @@ export function IntegrationsWorkspace({
   googleAvailable: boolean;
   /** Webhooks : offres Pro et Business (vérifié aussi côté serveur). */
   webhooksAvailable: boolean;
+  /** Événements que l’offre peut produire (pipeline et satisfaction dès Pro). */
+  availableEvents: EventId[];
   googleOutcome: string | null;
 }) {
   const router = useRouter();
@@ -320,6 +368,7 @@ export function IntegrationsWorkspace({
             <EndpointRow
               projectId={projectId}
               endpoint={sheets}
+              availableEvents={availableEvents}
               onChanged={refresh}
               onEditEvents={() => setEditing(sheets)}
               onSecret={setSecret}
@@ -359,6 +408,7 @@ export function IntegrationsWorkspace({
                   key={endpoint.id}
                   projectId={projectId}
                   endpoint={endpoint}
+                  availableEvents={availableEvents}
                   onChanged={refresh}
                   onEditEvents={() => setEditing(endpoint)}
                   onSecret={setSecret}
@@ -486,7 +536,7 @@ export function IntegrationsWorkspace({
         )}
       </section>
 
-      <CreateWebhookDialog projectId={projectId} open={creating} onOpenChange={setCreating} onCreated={(value) => { setSecret(value); refresh(); }} />
+      <CreateWebhookDialog projectId={projectId} availableEvents={availableEvents} open={creating} onOpenChange={setCreating} onCreated={(value) => { setSecret(value); refresh(); }} />
       {secret && <SecretDialog secret={secret} onClose={() => setSecret(null)} />}
       {editing && (
         <EditEventsDialog
@@ -495,6 +545,7 @@ export function IntegrationsWorkspace({
           endpointId={editing.id}
           name={editing.name}
           events={editing.events as EventId[]}
+          availableEvents={availableEvents}
           onClose={() => setEditing(null)}
           onSaved={refresh}
         />

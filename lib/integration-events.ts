@@ -1,5 +1,5 @@
 import type { Prisma } from "../src/generated/prisma/client";
-import { planAllows } from "./plan-features";
+import { planAllows, type GatedFeature } from "./plan-features";
 
 export const INTEGRATION_EVENTS = [
   {
@@ -9,6 +9,7 @@ export const INTEGRATION_EVENTS = [
   },
   {
     id: "pipeline.stage_changed",
+    feature: "pipeline",
     label: "Étape du pipeline modifiée",
     hint: "Un prospect change d’étape (devis, gagné, perdu…).",
   },
@@ -24,6 +25,7 @@ export const INTEGRATION_EVENTS = [
   },
   {
     id: "csat.received",
+    feature: "csat",
     label: "Note de satisfaction reçue",
     hint: "Un client répond au questionnaire.",
   },
@@ -39,7 +41,36 @@ export const INTEGRATION_EVENT_IDS = INTEGRATION_EVENTS.map(
   ...(typeof INTEGRATION_EVENTS)[number]["id"][],
 ];
 
-export type IntegrationContact = { id: string; name: string; phone: string };
+type IntegrationEvent = (typeof INTEGRATION_EVENTS)[number];
+
+function eventFeature(event: IntegrationEvent): GatedFeature | null {
+  return "feature" in event ? event.feature : null;
+}
+
+/** Events the plan can actually produce: no pipeline or CSAT event on Starter. */
+export function integrationEventsForPlan(plan: unknown): IntegrationEvent[] {
+  return INTEGRATION_EVENTS.filter((event) => {
+    const feature = eventFeature(event);
+    return feature === null || planAllows(plan, feature);
+  });
+}
+
+export function isIntegrationEventAllowed(plan: unknown, eventId: string): boolean {
+  return integrationEventsForPlan(plan).some((event) => event.id === eventId);
+}
+
+export type IntegrationContact = {
+  id: string;
+  name: string;
+  phone: string;
+  /** ISO dates of the first and latest message of the conversation. */
+  firstInteractionAt: string | null;
+  lastInteractionAt: string | null;
+  /** Instinct IA: "interesting", "follow_up", "none", or null before analysis. */
+  instinct: string | null;
+  /** Devices or channels the prospect wrote from (android, ios, whatsapp…). */
+  sources: string[];
+};
 
 /** Contact fields shared by every event: the receiving tool usually keys on the phone. */
 export async function integrationContact(
@@ -48,13 +79,40 @@ export async function integrationContact(
 ): Promise<IntegrationContact | null> {
   const contact = await tx.contact.findUnique({
     where: { id: contactId },
-    select: { id: true, name: true, pushName: true, phone: true },
+    select: {
+      id: true,
+      name: true,
+      pushName: true,
+      phone: true,
+      createdAt: true,
+      lastMessageAt: true,
+      instinctClassification: true,
+    },
   });
   if (!contact) return null;
+  const [first, sources] = await Promise.all([
+    tx.message.findFirst({
+      where: { contactId },
+      orderBy: { createdAt: "asc" },
+      select: { createdAt: true },
+    }),
+    tx.message.findMany({
+      where: { contactId, fromMe: false },
+      distinct: ["source"],
+      select: { source: true },
+      take: 10,
+    }),
+  ]);
   return {
     id: contact.id,
     name: contact.name?.trim() || contact.pushName?.trim() || "Client",
     phone: contact.phone,
+    firstInteractionAt: (first?.createdAt ?? contact.createdAt).toISOString(),
+    lastInteractionAt: contact.lastMessageAt?.toISOString() ?? null,
+    instinct: contact.instinctClassification ?? null,
+    sources: sources
+      .map((message) => message.source)
+      .filter((source): source is string => !!source && source !== "unknown"),
   };
 }
 
@@ -77,7 +135,8 @@ export async function emitIntegrationEvent(
   if (
     !project ||
     project.deletionPending ||
-    !planAllows(project.plan, "integrations")
+    !planAllows(project.plan, "integrations") ||
+    (event !== "test.ping" && !isIntegrationEventAllowed(project.plan, event))
   )
     return 0;
   const endpoints = await tx.integrationEndpoint.findMany({

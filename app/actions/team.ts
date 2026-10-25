@@ -50,7 +50,8 @@ export async function getTeamMembers(projectId: string) {
         },
       },
     },
-    orderBy: { role: "asc" },
+    // Enum order is USER, ADMIN, OWNER: descending lists the owner first.
+    orderBy: [{ role: "desc" }, { createdAt: "asc" }],
   });
 
   // 2. Récupérer les conversations actives des dernières 24h

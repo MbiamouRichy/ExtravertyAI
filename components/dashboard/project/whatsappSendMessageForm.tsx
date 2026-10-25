@@ -1147,10 +1147,8 @@ export default function WhatsappWorkspace({
         requestAnimationFrame(() => textareaRef.current?.focus());
       }}
       hint={
-        aiActive && composerMode === "reply"
-          ? canManageAi
-            ? "Cliquer sur « Répondre » met l’IA en pause"
-            : "L’IA peut aussi répondre à ce contact"
+        aiActive && composerMode === "reply" && !canManageAi
+          ? "L’IA peut aussi répondre à ce contact"
           : undefined
       }
     />

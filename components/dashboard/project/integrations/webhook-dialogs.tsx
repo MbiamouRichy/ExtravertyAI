@@ -36,12 +36,15 @@ const EventsSchema = z.array(z.enum(INTEGRATION_EVENT_IDS)).min(1, "Choisissez a
 
 function EventChoices({
   id,
+  available,
   value,
   onChange,
   invalid,
   disabled,
 }: {
   id: string;
+  /** Events the project's plan can produce; the others are hidden. */
+  available: readonly EventId[];
   value: EventId[];
   onChange: (next: EventId[]) => void;
   invalid: boolean;
@@ -49,7 +52,7 @@ function EventChoices({
 }) {
   return (
     <div className="space-y-3">
-      {INTEGRATION_EVENTS.map((event) => {
+      {INTEGRATION_EVENTS.filter((event) => available.includes(event.id)).map((event) => {
         const checked = value.includes(event.id);
         return (
           <Field key={event.id} orientation="horizontal" className="items-start gap-3">
@@ -97,11 +100,13 @@ const CreateSchema = z.object({
 
 export function CreateWebhookDialog({
   projectId,
+  availableEvents,
   open,
   onOpenChange,
   onCreated,
 }: {
   projectId: string;
+  availableEvents: readonly EventId[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onCreated: (secret: string) => void;
@@ -109,7 +114,10 @@ export function CreateWebhookDialog({
   const id = useId();
   const form = useForm<z.input<typeof CreateSchema>, unknown, z.output<typeof CreateSchema>>({
     resolver: zodResolver(CreateSchema),
-    defaultValues: { name: "", url: "", events: ["contact.qualified", "pipeline.stage_changed"] },
+    defaultValues: { name: "", url: "", events: (["contact.qualified", "pipeline.stage_changed"] as const).filter((event) =>
+        availableEvents.includes(event),
+      ),
+    },
   });
   const [saving, setSaving] = useState(false);
 
@@ -182,6 +190,7 @@ export function CreateWebhookDialog({
                   <FieldLegend variant="label">Événements envoyés</FieldLegend>
                   <EventChoices
                     id={`${id}-events`}
+                    available={availableEvents}
                     value={field.value as EventId[]}
                     onChange={field.onChange}
                     invalid={fieldState.invalid}
@@ -214,6 +223,7 @@ export function EditEventsDialog({
   endpointId,
   name,
   events,
+  availableEvents,
   onClose,
   onSaved,
 }: {
@@ -221,13 +231,14 @@ export function EditEventsDialog({
   endpointId: string;
   name: string;
   events: EventId[];
+  availableEvents: readonly EventId[];
   onClose: () => void;
   onSaved: () => void;
 }) {
   const id = useId();
   const form = useForm<z.input<typeof EditSchema>, unknown, z.output<typeof EditSchema>>({
     resolver: zodResolver(EditSchema),
-    defaultValues: { events },
+    defaultValues: { events: events.filter((event) => availableEvents.includes(event)) },
   });
   const [saving, setSaving] = useState(false);
   return (
@@ -261,6 +272,7 @@ export function EditEventsDialog({
                 <FieldLegend className="sr-only">Événements envoyés</FieldLegend>
                 <EventChoices
                   id={`${id}-events`}
+                  available={availableEvents}
                   value={field.value as EventId[]}
                   onChange={field.onChange}
                   invalid={fieldState.invalid}

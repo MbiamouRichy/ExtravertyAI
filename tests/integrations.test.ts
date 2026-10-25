@@ -54,15 +54,32 @@ test("spreadsheet rows are plain readable values", () => {
       payload: {
         occurredAt: "2026-10-19T14:05:00.000Z",
         data: {
-          contact: { name: "=HYPERLINK(\"x\")", phone: "24101000001" },
+          contact: {
+            name: "=HYPERLINK(\"x\")",
+            phone: "24101000001",
+            firstInteractionAt: "2026-10-01T08:30:00.000Z",
+            lastInteractionAt: "2026-10-19T13:59:00.000Z",
+            instinct: "interesting",
+            sources: ["android", "whatsapp"],
+          },
           fromLabel: "Devis envoyé",
           toLabel: "Gagné",
           dealValue: 45000,
           dealValueLabel: "45 000 FCFA",
         },
       },
-    }),
-    ["2026-10-19 14:05:00", "Étape du pipeline modifiée", "=HYPERLINK(\"x\")", "24101000001", "Devis envoyé → Gagné · 45 000 FCFA"],
+    }, "Africa/Libreville"),
+    [
+      "2026-10-19 15:05",
+      "Étape du pipeline modifiée",
+      "=HYPERLINK(\"x\")",
+      "24101000001",
+      "2026-10-01 09:30",
+      "2026-10-19 14:59",
+      "Prospect intéressant",
+      "Android, WhatsApp",
+      "Devis envoyé → Gagné · 45 000 FCFA",
+    ],
   );
 });
 
@@ -128,12 +145,21 @@ test("integrations", { timeout: 180000 }, async (t) => {
         await prisma.$transaction((tx) => emitIntegrationEvent(tx, starter.id, "csat.received", {})),
         0,
       );
-      // Starter : Google Sheets reste servi.
+      // Starter : Google Sheets reste servi, mais seulement pour les événements de l’offre.
       await prisma.integrationEndpoint.create({
-        data: { projectId: starter.id, kind: "GOOGLE_SHEETS", name: "Feuille", events: ["csat.received"] },
+        data: {
+          projectId: starter.id,
+          kind: "GOOGLE_SHEETS",
+          name: "Feuille",
+          events: ["csat.received", "conversation.resolved"],
+        },
       });
       assert.equal(
         await prisma.$transaction((tx) => emitIntegrationEvent(tx, starter.id, "csat.received", {})),
+        0,
+      );
+      assert.equal(
+        await prisma.$transaction((tx) => emitIntegrationEvent(tx, starter.id, "conversation.resolved", {})),
         1,
       );
       // Ne pas laisser cet envoi à la file des tests suivants.
