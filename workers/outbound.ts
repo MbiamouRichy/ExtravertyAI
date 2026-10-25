@@ -5,6 +5,7 @@ import { reconcileProviderReceipts } from "../lib/provider-reconciliation";
 import { createOutboundProcessor } from "../lib/outbound-jobs";
 import { claimDelivery, defaultTransport, runDelivery } from "../lib/integrations";
 import { appendEventRow } from "../lib/google-sheets";
+import { runBroadcastTick } from "../lib/broadcasts";
 import { PRESENCE_REFRESH_MS, refreshOnlinePresence } from "../lib/whatsapp-presence";
 const prisma = workerDatabase();
 const { claimNextJob, dispatch, recoverInterruptedDispatches } =
@@ -54,6 +55,20 @@ async function integrationsLoop() {
     }
   }
 }
+// Diffusions : un message à la fois, au rythme de chaque diffusion. Chaque
+// message rejoint la file d’envoi normale, sans retarder les conversations.
+async function broadcastLoop() {
+  while (!stopping) {
+    try {
+      const tick = await runBroadcastTick(prisma);
+      if (tick) await notifyProject(tick.projectId);
+      else await sleep(2000);
+    } catch {
+      console.error("[broadcast] Cycle interrompu.");
+      await sleep(5000);
+    }
+  }
+}
 // « Afficher le statut en ligne » : présence renvoyée chaque minute.
 async function presenceLoop() {
   while (!stopping) {
@@ -67,7 +82,7 @@ async function presenceLoop() {
       await sleep(1000);
   }
 }
-Promise.all([main(), integrationsLoop(), presenceLoop()])
+Promise.all([main(), integrationsLoop(), broadcastLoop(), presenceLoop()])
   .catch(() => {
     console.error("[outbound-worker] Arrêt sur erreur.");
     process.exitCode = 1;

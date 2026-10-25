@@ -4,6 +4,8 @@ import type {
   MessageType,
   Prisma,
 } from "../src/generated/prisma/client";
+import { broadcastKeyword } from "./broadcast-shared";
+import { applyBroadcastKeyword } from "./broadcasts";
 import { isAcknowledgment } from "./conversation-end";
 import { openCsatSurvey, parseCsatScore } from "./csat";
 import { emitIntegrationEvent, integrationContact } from "./integration-events";
@@ -252,7 +254,13 @@ export async function ingestMessage(
         : {}),
     },
   });
-  if (canReply && !quietAck) {
+  // STOP / START answer broadcasts: recorded in the conversation, never
+  // answered by the AI (START only when it changes something).
+  const keyword = type === "TEXT" ? broadcastKeyword(text) : null;
+  const keywordHandled = keyword
+    ? (await applyBroadcastKeyword(tx, contact, keyword)) || keyword === "OPT_OUT"
+    : false;
+  if (canReply && !quietAck && !keywordHandled) {
     if (contact.aiQuietSince) {
       await tx.contact.update({
         where: { id: contact.id },

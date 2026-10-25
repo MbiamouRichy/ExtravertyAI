@@ -90,14 +90,18 @@ export async function deleteProjectMedia(
  * prefix was covered. Unknown prefixes are never reported.
  */
 export async function isOrphanedProjectObject(
-  db: Pick<PrismaClient, "message" | "knowledgeSource" | "project">,
+  db: Pick<PrismaClient, "message" | "knowledgeSource" | "project" | "broadcast">,
   key: string,
 ) {
   const [root, projectId] = key.split("/");
   if (!projectId || key.includes("..")) return false;
   switch (root) {
     case "chat-media":
-      return !(await db.message.findFirst({ where: { mediaUrl: key }, select: { id: true } }));
+      // A scheduled broadcast holds its image before any message uses it.
+      return (
+        !(await db.message.findFirst({ where: { mediaUrl: key }, select: { id: true } })) &&
+        !(await db.broadcast.findFirst({ where: { mediaUrl: key }, select: { id: true } }))
+      );
     case "knowledge":
       return !(await db.knowledgeSource.findFirst({ where: { storageKey: key }, select: { id: true } }));
     case "project-logos":

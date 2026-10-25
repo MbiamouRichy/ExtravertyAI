@@ -22,6 +22,7 @@ export function visibleMessageSources(
     ai: "Assistant IA",
     whatsapp: "WhatsApp",
     web_dashboard: "Tableau de bord",
+    broadcast: "Diffusion",
     unknown: "Origine non renseignée",
   };
   return [...totals]

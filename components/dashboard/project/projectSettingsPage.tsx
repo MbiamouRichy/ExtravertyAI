@@ -24,7 +24,6 @@ import { cn } from "@/lib/utils";
 import { WhatsAppPreferences } from "./whatsapp-preferences";
 import { ProjectNameForm } from "./project-name-form";
 import { ProjectLogoSettings } from "./project-logo-settings";
-import { TeamAutoAssignSettings } from "./team-auto-assign-settings";
 import { CsatSettings } from "./csat-settings";
 import { WaitingTimeSettings } from "./waiting-time-settings";
 import type { ProjectSettingsView } from "@/lib/settings-types";
@@ -299,13 +298,6 @@ export default function ProjectSettingsPage({
               initial={p.showWaitingTime}
               disabled={!!pending || p.deletionPending}
             />
-            <TeamAutoAssignSettings
-              key={`auto-assign-${p.id}`}
-              projectId={p.id}
-              initial={p.autoAssign.enabled}
-              available={p.autoAssign.available}
-              disabled={!canPause || !!pending || p.deletionPending}
-            />
             <section className="rounded-2xl border bg-card p-4 sm:p-6">
               <div className="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
                 <div>
@@ -525,10 +517,6 @@ export default function ProjectSettingsPage({
                                 ? "Temps d’attente des clients affiché"
                                 : item.action === "waiting.disabled"
                                   ? "Temps d’attente des clients masqué"
-                              : item.action === "auto_assign.enabled"
-                                ? "Répartition automatique activée"
-                                : item.action === "auto_assign.disabled"
-                                  ? "Répartition automatique désactivée"
                               : item.action === "ai_quiet.enabled"
                                 ? "Mise en veille de l’IA activée"
                                 : item.action === "ai_quiet.disabled"

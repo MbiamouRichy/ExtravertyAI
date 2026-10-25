@@ -178,8 +178,6 @@ model Project {
   showWaitingTime Boolean @default(true)
   // L'IA se met en veille quand une conversation est terminée (réglable par les admins).
   aiQuietEnabled Boolean @default(true)
-  // Offre Business : nouvelles conversations réparties entre les membres en ligne (réglable).
-  autoAssignTeam Boolean @default(true)
   csatMessage String @default("Merci pour votre échange avec nous ! Comment évaluez-vous notre service ? Répondez par un chiffre de 1 (pas satisfait) à 5 (très satisfait).") @db.Text
   agentName String @default("Assistant")
   agentSystemMessage String @default("") @db.Text
@@ -222,6 +220,7 @@ model Project {
   messages             Message[]      // Tous les messages liés à ce projet
   knowledgeSources     KnowledgeSource[]
   storedFiles          StoredFile[]
+  broadcasts           Broadcast[]
   // Icône de l'entreprise (clé du fichier dans le stockage), servie par /api/projects/[id]/logo.
   logoKey              String?
   // Version des événements demandés au webhook Evolution (2 : présence des contacts).
@@ -272,6 +271,9 @@ model Contact {
   // Fin de conversation détectée : l'IA ignore les simples accusés de réception
   // (« merci », « d'accord »…) jusqu'au prochain vrai message du client.
   aiQuietSince DateTime?
+  // A répondu STOP : n'est plus jamais inclus dans une diffusion (START l'annule).
+  broadcastOptOutAt DateTime?
+  broadcastRecipients BroadcastRecipient[]
   
   // --- Relations ---
   projectId   String
@@ -347,6 +349,7 @@ model Message {
   mediaUrl     String?       // URL du fichier si c'est un média
   // Message client resté volontairement sans réponse de l'IA (compté dans l'analytique).
   aiSkip       AiSkipReason?
+  broadcastRecipient BroadcastRecipient?
   
   // Durable media extraction, reused by every AI consumer.
   extractedText String? @db.Text
@@ -433,6 +436,8 @@ model User {
   messagesSent  Message[] // Historique des messages envoyés manuellement par cet utilisateur
   resolvedContacts Contact[] @relation("ContactResolvedBy")
   assignedContacts Contact[] @relation("ContactAssignee")
+  broadcasts       Broadcast[] @relation("BroadcastAuthor")
+  broadcastEvents  BroadcastEvent[]
   contactsAssignedBy Contact[] @relation("ContactAssignedBy")
   contactsStageChanged Contact[] @relation("ContactStageChangedBy")
   knowledgeSources KnowledgeSource[]
@@ -809,6 +814,8 @@ enum ContactEventType {
   STAGE_CHANGED
   AI_QUIET
   AI_WOKEN
+  BROADCAST_OPT_OUT
+  BROADCAST_OPT_IN
 }
 
 enum PipelineStage {
@@ -1075,4 +1082,96 @@ model IntegrationDelivery {
   @@index([endpointId, createdAt])
   @@index([projectId, createdAt])
   @@map("integration_delivery")
+}
+
+// ------------------------------------------------------
+// 📣 DIFFUSION : un message envoyé à des contacts existants
+// ------------------------------------------------------
+enum BroadcastStatus {
+  SCHEDULED
+  SENDING
+  PAUSED
+  COMPLETED
+  CANCELLED
+}
+
+enum BroadcastRecipientState {
+  PENDING // en attente de son tour
+  QUEUED  // message créé et confié à la file d'envoi
+  SKIPPED // désinscrit, supprimé ou injoignable au moment de l'envoi
+}
+
+model Broadcast {
+  id             String          @id @default(cuid())
+  projectId      String
+  project        Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  // Les messages partent au nom de cette personne ; reprise par un admin si elle quitte le projet.
+  createdById    String?
+  createdBy      User?           @relation("BroadcastAuthor", fields: [createdById], references: [id], onDelete: SetNull)
+  requestId      String          @unique @db.Uuid
+  name           String
+  // Texte avec la variable {prénom} ; la mention STOP est ajoutée à l'envoi.
+  content        String          @db.Text
+  nameFallback   String          @default("")
+  mediaUrl       String?
+  mediaType      MessageType?
+  // Critères de ciblage, conservés pour l'historique (la liste figée est dans les destinataires).
+  audience       Json
+  status         BroadcastStatus @default(SCHEDULED)
+  pauseReason    String?
+  scheduledAt    DateTime
+  nextSendAt     DateTime
+  startedAt      DateTime?
+  finishedAt     DateTime?
+  recipientCount Int
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  recipients     BroadcastRecipient[]
+  events         BroadcastEvent[]
+
+  @@index([status, nextSendAt])
+  @@index([projectId, createdAt])
+  @@map("broadcast")
+}
+
+model BroadcastRecipient {
+  id          String                  @id @default(cuid())
+  broadcastId String
+  broadcast   Broadcast               @relation(fields: [broadcastId], references: [id], onDelete: Cascade)
+  contactId   String
+  contact     Contact                 @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  state       BroadcastRecipientState @default(PENDING)
+  skipReason  String?
+  messageId   String?                 @unique
+  message     Message?                @relation(fields: [messageId], references: [id], onDelete: SetNull)
+  queuedAt    DateTime?
+
+  @@unique([broadcastId, contactId])
+  @@index([broadcastId, state, id])
+  @@map("broadcast_recipient")
+}
+
+enum BroadcastEventType {
+  CREATED
+  STARTED
+  PAUSED
+  RESUMED
+  CANCELLED
+  COMPLETED
+}
+
+// Journal d'audit d'une diffusion : actions de l'équipe et arrêts automatiques.
+model BroadcastEvent {
+  id          String             @id @default(cuid())
+  broadcastId String
+  broadcast   Broadcast          @relation(fields: [broadcastId], references: [id], onDelete: Cascade)
+  // Null : décision automatique (quota, limite, auteur parti…).
+  actorId     String?
+  actor       User?              @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  type        BroadcastEventType
+  detail      String?
+  createdAt   DateTime           @default(now())
+
+  @@index([broadcastId, createdAt, id])
+  @@map("broadcast_event")
 }

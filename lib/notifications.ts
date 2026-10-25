@@ -1,6 +1,7 @@
 import type { PrismaClient } from "../src/generated/prisma/client";
 import { chatContactName } from "./chat-privacy";
 import type { AppNotification, NotificationFeed } from "./notification-types";
+import { BROADCAST_REASON_LABEL } from "./broadcast-shared";
 
 export async function notificationFeed(
   db: PrismaClient,
@@ -136,11 +137,10 @@ export async function notificationFeed(
       pushName: string | null;
       assignedAt: Date;
       assignerName: string | null;
-      automatic: boolean;
     }[]
   >`
     SELECT c.id AS "contactId", p.id AS "projectId", p.name AS "projectName", c.name, c."pushName",
-      c."assignedAt", u.name AS "assignerName", c."assignedById" IS NULL AS automatic
+      c."assignedAt", u.name AS "assignerName"
     FROM contact c
     JOIN project p ON p.id = c."projectId" AND NOT p."deletionPending"
     JOIN project_membership pm ON pm."projectId" = p.id AND pm."userId" = ${userId}
@@ -155,11 +155,9 @@ export async function notificationFeed(
       version: a.assignedAt.toISOString(),
       projectName: a.projectName,
       title: "Conversation assignée : " + chatContactName(a),
-      // Sans auteur : répartition automatique de l’offre Business.
-      description: a.automatic
-        ? "Attribuée automatiquement : vous étiez disponible."
-        : (a.assignerName?.trim().split(/\s+/)[0] || "Un membre") +
-          " vous a confié cette conversation.",
+      description:
+        (a.assignerName?.trim().split(/\s+/)[0] || "Un membre") +
+        " vous a confié cette conversation.",
       href:
         "/projects/" +
         a.projectId +
@@ -167,6 +165,41 @@ export async function notificationFeed(
         encodeURIComponent(a.contactId),
       kind: "message" as const,
       date: a.assignedAt.toISOString(),
+      read: false,
+    })),
+  );
+  // Diffusions arrêtées d’elles-mêmes (quota, limite, auteur parti) : un
+  // administrateur doit la reprendre ou l’annuler.
+  const stalled = await db.$queryRaw<
+    {
+      id: string;
+      projectId: string;
+      projectName: string;
+      name: string;
+      pauseReason: string | null;
+      updatedAt: Date;
+    }[]
+  >`
+    SELECT b.id, p.id AS "projectId", p.name AS "projectName", b.name, b."pauseReason", b."updatedAt"
+    FROM broadcast b
+    JOIN project p ON p.id = b."projectId" AND NOT p."deletionPending"
+    JOIN project_membership pm ON pm."projectId" = p.id AND pm."userId" = ${userId}
+      AND pm.role::text IN ('OWNER', 'ADMIN')
+    WHERE b.status = 'PAUSED' AND b."pauseReason" IS DISTINCT FROM 'MANUAL'
+    ORDER BY b."updatedAt" DESC LIMIT 10
+  `;
+  items.push(
+    ...stalled.map((broadcast) => ({
+      key: "broadcast:" + broadcast.id,
+      version: broadcast.pauseReason ?? "",
+      projectName: broadcast.projectName,
+      title: "Diffusion en pause : " + broadcast.name,
+      description:
+        BROADCAST_REASON_LABEL[broadcast.pauseReason ?? ""] ??
+        "Elle attend l’intervention d’un administrateur.",
+      href: "/projects/" + broadcast.projectId + "/broadcasts/" + encodeURIComponent(broadcast.id),
+      kind: "alert" as const,
+      date: broadcast.updatedAt.toISOString(),
       read: false,
     })),
   );
@@ -284,5 +317,6 @@ export function forgetProjectNotifications(
 ) {
   return db.$executeRaw`DELETE FROM notification_receipt
     WHERE split_part(key, ':', 2) = ${projectId}
-      OR split_part(key, ':', 2) IN (SELECT id FROM contact WHERE "projectId" = ${projectId})`;
+      OR split_part(key, ':', 2) IN (SELECT id FROM contact WHERE "projectId" = ${projectId})
+      OR split_part(key, ':', 2) IN (SELECT id FROM broadcast WHERE "projectId" = ${projectId})`;
 }

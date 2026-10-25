@@ -88,7 +88,6 @@ export default async function SettingsPage({
     storage,
     showWaitingTime: p.showWaitingTime,
     aiQuietEnabled: p.aiQuietEnabled,
-    autoAssign: { enabled: p.autoAssignTeam, available: p.plan === "business" },
     csat: {
       enabled: p.csatEnabled,
       message: p.csatMessage,

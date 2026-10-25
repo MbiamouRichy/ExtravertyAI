@@ -38,7 +38,9 @@ export type ContactEventKind =
   | "UNASSIGNED"
   | "STAGE_CHANGED"
   | "AI_QUIET"
-  | "AI_WOKEN";
+  | "AI_WOKEN"
+  | "BROADCAST_OPT_OUT"
+  | "BROADCAST_OPT_IN";
 
 /** Libellé de l’événement affiché au centre de la conversation. */
 export function contactEventLabel(
@@ -68,6 +70,10 @@ export function contactEventLabel(
       return detail === "REPEATED"
         ? "Réponse de l’IA retenue : elle répétait un message déjà envoyé"
         : "Fin de conversation · IA en veille jusqu’au prochain vrai message du client";
+    case "BROADCAST_OPT_OUT":
+      return "Désinscrit des diffusions (STOP)";
+    case "BROADCAST_OPT_IN":
+      return "Réinscrit aux diffusions (START)";
     case "AI_WOKEN":
       return actorName
         ? `${actor} a réveillé l’IA`

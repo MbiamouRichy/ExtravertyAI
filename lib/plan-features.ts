@@ -17,6 +17,14 @@ export type PlanFeatures = {
   integrations: boolean;
   /** Webhooks signés (Make, Zapier, CRM). */
   webhooks: boolean;
+  /** Diffusion d’un message à des contacts existants. */
+  broadcast: boolean;
+  /** Contacts au plus par diffusion. */
+  broadcastRecipients: number;
+  /** Messages de diffusion par période de facturation (aussi décomptés du quota). */
+  broadcastMonthly: number;
+  /** Messages de diffusion par jour : rythme sûr pour le numéro WhatsApp. */
+  broadcastDaily: number;
 };
 
 export const PLAN_FEATURES: Record<PlanId, PlanFeatures> = {
@@ -31,6 +39,10 @@ export const PLAN_FEATURES: Record<PlanId, PlanFeatures> = {
     csat: false,
     integrations: true,
     webhooks: false,
+    broadcast: false,
+    broadcastRecipients: 0,
+    broadcastMonthly: 0,
+    broadcastDaily: 0,
   },
   pro: {
     knowledgeEntries: 1000,
@@ -43,6 +55,10 @@ export const PLAN_FEATURES: Record<PlanId, PlanFeatures> = {
     csat: true,
     integrations: true,
     webhooks: true,
+    broadcast: true,
+    broadcastRecipients: 500,
+    broadcastMonthly: 2000,
+    broadcastDaily: 300,
   },
   business: {
     knowledgeEntries: 10000,
@@ -55,16 +71,21 @@ export const PLAN_FEATURES: Record<PlanId, PlanFeatures> = {
     csat: true,
     integrations: true,
     webhooks: true,
+    broadcast: true,
+    broadcastRecipients: 2000,
+    broadcastMonthly: 10000,
+    broadcastDaily: 1000,
   },
 };
 
-export type GatedFeature = "pipeline" | "csat" | "integrations" | "webhooks";
+export type GatedFeature = "pipeline" | "csat" | "integrations" | "webhooks" | "broadcast";
 
 const REQUIRED_PLAN_LABEL: Record<GatedFeature, string> = {
   pipeline: "Pro ou Business",
   csat: "Pro ou Business",
   integrations: "Starter, Pro ou Business",
   webhooks: "Pro ou Business",
+  broadcast: "Pro ou Business",
 };
 
 const FEATURE_LABEL: Record<GatedFeature, string> = {
@@ -72,6 +93,7 @@ const FEATURE_LABEL: Record<GatedFeature, string> = {
   csat: "Le questionnaire de satisfaction",
   integrations: "Les intégrations",
   webhooks: "Les webhooks",
+  broadcast: "La diffusion de messages",
 };
 
 // Safe to show as is to the user.

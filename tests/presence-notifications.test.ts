@@ -26,6 +26,8 @@ test("presence and notifications respect members, tabs, expiry and read versions
       CREATE TABLE conversation_read_state ("membershipId" TEXT, "contactId" TEXT, "lastReadAt" TIMESTAMPTZ, "lastReadId" TEXT);
       CREATE TABLE quota_period (id TEXT PRIMARY KEY, "projectId" TEXT, used INT, "limit" INT, "startsAt" TIMESTAMPTZ DEFAULT NOW(), "endsAt" TIMESTAMPTZ DEFAULT NOW() + INTERVAL '1 month', "isCurrent" BOOLEAN DEFAULT true);
       INSERT INTO quota_period (id,"projectId",used,"limit") VALUES ('q','p',90,100), ('sq','secret',0,100);
+      CREATE TABLE broadcast (id TEXT PRIMARY KEY, "projectId" TEXT, name TEXT, status TEXT, "pauseReason" TEXT, "updatedAt" TIMESTAMPTZ DEFAULT NOW());
+      INSERT INTO broadcast (id,"projectId",name,status,"pauseReason") VALUES ('b','p','Soldes','PAUSED','QUOTA_EXCEEDED'), ('manual','p','Pause volontaire','PAUSED','MANUAL'), ('sb','secret','Secret','PAUSED','PLAN');
     `);
     await db.exec(
       await readFile(

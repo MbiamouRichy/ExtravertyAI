@@ -12,6 +12,7 @@ import {
   UserCogIcon,
   ContactIcon,
   Settings2Icon,
+  MegaphoneIcon,
   SquareKanban,
   BotIcon,
   PlugIcon,
@@ -60,6 +61,11 @@ export const getNavGroups = (projectId: string): SidebarNavGroup[] => [
         title: "Contacts",
         path: `/projects/${projectId}/contacts`,
         icon: <ContactIcon />,
+      },
+      {
+        title: "Diffusions",
+        path: `/projects/${projectId}/broadcasts`,
+        icon: <MegaphoneIcon />,
       },
       {
         title: "Pipeline",

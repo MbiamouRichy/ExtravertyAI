@@ -606,7 +606,7 @@ export const MATRIX_GROUPS: readonly MatrixGroup[] = [
       { label: "Reprise en main en un clic", values: all },
       { label: "Notifications en temps réel", values: all },
       { label: "Export des conversations (.txt, .csv)", values: all },
-      { label: "Répartition automatique des conversations", values: { starter: false, pro: false, business: true } },
+      { label: "Assignation automatique des conversations", values: { starter: false, pro: false, business: true } },
       {
         label: "Accompagnement",
         values: { starter: "Standard", pro: "Prioritaire", business: "Prioritaire" },
@@ -646,7 +646,6 @@ export const MATRIX_HINTS: Readonly<Record<string, string>> = {
   "Reprise en main en un clic": "Un interrupteur met l’IA en pause pour répondre vous-même.",
   "Notifications en temps réel": "Nouveaux messages, conversations assignées et alertes, sans recharger la page.",
   "Export des conversations (.txt, .csv)": "Téléchargez une conversation complète, sans numéro ni notes internes.",
-  "Répartition automatique des conversations":
-    "Chaque nouvelle conversation va au membre en ligne qui en a le moins en cours, à tour de rôle. Seul dans l’équipe, elle vous revient directement.",
+  "Assignation automatique des conversations": "Seul dans l’équipe, chaque nouvelle conversation vous est assignée automatiquement.",
   Accompagnement: "Le niveau de priorité de notre support quand vous avez besoin d’aide.",
 };

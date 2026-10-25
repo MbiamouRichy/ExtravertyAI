@@ -49,7 +49,7 @@ const comparison: { group: string; rows: { label: string; values: Cell[] }[] }[]
       { label: "Pipeline de prospects", values: [false, true, true] },
       { label: "Google Sheets", values: [true, true, true] },
       { label: "Webhooks (Make, Zapier, CRM)", values: [false, true, true] },
-      { label: "Répartition automatique des conversations", values: [false, false, true] },
+      { label: "Assignation automatique", values: [false, false, true] },
       { label: "Export CSV des contacts", values: [true, true, true] },
       { label: "Rapports programmés", values: [false, false, true] },
       { label: "Support", values: ["Standard", "Prioritaire", "Prioritaire"] },
