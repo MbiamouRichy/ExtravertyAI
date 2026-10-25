@@ -178,6 +178,8 @@ model Project {
   showWaitingTime Boolean @default(true)
   // L'IA se met en veille quand une conversation est terminée (réglable par les admins).
   aiQuietEnabled Boolean @default(true)
+  // Offre Business : nouvelles conversations réparties entre les membres en ligne (réglable).
+  autoAssignTeam Boolean @default(true)
   csatMessage String @default("Merci pour votre échange avec nous ! Comment évaluez-vous notre service ? Répondez par un chiffre de 1 (pas satisfait) à 5 (très satisfait).") @db.Text
   agentName String @default("Assistant")
   agentSystemMessage String @default("") @db.Text

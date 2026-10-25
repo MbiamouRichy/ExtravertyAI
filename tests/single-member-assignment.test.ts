@@ -29,8 +29,11 @@ test(
       await addMember(prisma, starter.id, alone.id, "OWNER");
       const unassigned = await ingestText(prisma, starter.id, "Salut");
       assert.equal(
-        (await prisma.contact.findUniqueOrThrow({ where: { id: unassigned.id } }))
-          .assigneeId,
+        (
+          await prisma.contact.findUniqueOrThrow({
+            where: { id: unassigned.id },
+          })
+        ).assigneeId,
         null,
       );
 
@@ -46,6 +49,66 @@ test(
           .assigneeId,
         null,
       );
+    });
+  },
+);
+
+test(
+  "a Business team spreads new conversations across online members",
+  { timeout: 600000 },
+  async () => {
+    await withTestDatabase(async (prisma) => {
+      const project = await createProject(prisma, { plan: "business" });
+      const owner = await createUser(prisma, "Clara Mba");
+      const ines = await createUser(prisma, "Inès Obame");
+      const paul = await createUser(prisma, "Paul Ekang");
+      const away = await createUser(prisma, "Absent");
+      await addMember(prisma, project.id, owner.id, "OWNER");
+      await addMember(prisma, project.id, ines.id, "USER");
+      await addMember(prisma, project.id, paul.id, "ADMIN");
+      await addMember(prisma, project.id, away.id, "USER");
+      // En ligne : le propriétaire, Inès et Paul ; « Absent » n'a pas d'onglet ouvert.
+      for (const user of [owner, ines, paul])
+        await prisma.$executeRaw`INSERT INTO user_presence ("userId", "tabId", "lastSeenAt", "lastActiveAt")
+          VALUES (${user.id}, 'tab', NOW(), NOW())`;
+
+      const assigneeOf = async (phone: string, text: string) => {
+        const contact = await ingestText(
+          prisma,
+          project.id,
+          text,
+          `${phone}@s.whatsapp.net`,
+        );
+        return (
+          await prisma.contact.findUniqueOrThrow({ where: { id: contact.id } })
+        ).assigneeId;
+      };
+      const first = await assigneeOf("24111111111", "Bonjour");
+      const second = await assigneeOf("24122222222", "Bonsoir");
+      // Jamais le propriétaire ni un membre hors ligne ; à tour de rôle.
+      assert.deepEqual(new Set([first, second]), new Set([ines.id, paul.id]));
+
+      // Le moins chargé passe devant : Paul résout sa conversation.
+      await prisma.contact.updateMany({
+        where: { projectId: project.id, assigneeId: paul.id },
+        data: { resolvedAt: new Date() },
+      });
+      assert.equal(await assigneeOf("24133333333", "Salut"), paul.id);
+
+      // Réglage coupé : plus de répartition.
+      await prisma.project.update({
+        where: { id: project.id },
+        data: { autoAssignTeam: false },
+      });
+      assert.equal(await assigneeOf("24144444444", "Allô"), null);
+
+      // Personne en ligne : la conversation reste non assignée.
+      await prisma.project.update({
+        where: { id: project.id },
+        data: { autoAssignTeam: true },
+      });
+      await prisma.$executeRaw`DELETE FROM user_presence`;
+      assert.equal(await assigneeOf("24155555555", "Hello"), null);
     });
   },
 );
