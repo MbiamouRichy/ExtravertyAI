@@ -6,7 +6,7 @@ import { Crosshair, Eyebrow, Serif } from "@/components/website/vitrine/primitiv
 
 import { BeforeAfterThread } from "./before-after-thread";
 
-/** Headline and manifesto, shared with loading.tsx so the title never shifts. */
+/** Headline and manifesto of the À propos page. */
 export function AboutHeroCopy({ titleAs: Title = "h1" }: { titleAs?: "h1" | "p" }) {
   return (
     <div className="grid gap-10 px-4 pt-14 pb-16 sm:px-8 md:pt-20 lg:grid-cols-12 lg:items-end lg:gap-8 lg:px-12 lg:pb-24">
@@ -69,7 +69,7 @@ export function AboutHero() {
               </p>
             </div>
             <Button asChild variant="outline" size="lg" className="group w-fit">
-              <Link href="/maquettes/contact">
+              <Link href="/contact">
                 Faisons connaissance
                 <ArrowUpRight
                   aria-hidden="true"

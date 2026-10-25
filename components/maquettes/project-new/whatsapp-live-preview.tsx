@@ -17,7 +17,7 @@ import { cn } from "@/lib/utils";
 import { EASE_OUT, SPRING } from "@/components/website/vitrine/motion";
 
 import { LANGUAGE_OPTIONS, TONE_OPTIONS } from "./data";
-import { PhoneFrame } from "./phone-frame";
+import { PhoneFrame } from "@/components/phone-frame";
 import {
   buildPreviewConversation,
   initialsOf,

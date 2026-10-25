@@ -408,10 +408,10 @@ export function PricingSection() {
         description="10 jours d’essai gratuit, puis un abonnement mensuel. Changez d’offre ou arrêtez quand vous le souhaitez."
         aside={
           <Link
-            href="/tarifs"
+            href="/contact"
             className="group inline-flex items-center gap-1.5 rounded-sm text-sm underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50"
           >
-            Toutes les questions de facturation
+            Une question sur les offres ? Parlons-en
             <ArrowUpRight
               aria-hidden="true"
               className="size-4 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5"

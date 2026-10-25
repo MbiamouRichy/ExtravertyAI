@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-// Same public contact details and form rules as the live page (components/website/contact).
+// Public contact details and form rules of the /contact page.
 export const WHATSAPP_NUMBER = "24176205629";
 export const PHONE_DISPLAY = "+241 76 20 56 29";
 export const PHONE_HREF = "tel:+24176205629";
@@ -70,5 +70,5 @@ export const NEXT_STEPS = [
 export const SHORTCUTS = [
   { label: "Déjà client ?", title: "Accéder à mon espace", href: "/projects" },
   { label: "Avant de nous écrire", title: "Voir la démo en direct", href: "/#demo" },
-  { label: "Budget", title: "Comparer les offres", href: "/tarifs" },
+  { label: "Budget", title: "Comparer les offres", href: "/#tarifs" },
 ] as const;

@@ -10,7 +10,7 @@ const columns = [
     links: [
       { label: "Fonctionnalités", href: "/#produit" },
       { label: "Cas d’usage", href: "/#cas-usage" },
-      { label: "Tarifs", href: "/tarifs" },
+      { label: "Tarifs", href: "/#tarifs" },
       { label: "Questions fréquentes", href: "/#faq" },
     ],
   },

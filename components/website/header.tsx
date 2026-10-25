@@ -21,7 +21,7 @@ import {
 export const navLinks = [
   { label: "Produit", href: "/#produit" },
   { label: "Cas d’usage", href: "/#cas-usage" },
-  { label: "Tarifs", href: "/tarifs" },
+  { label: "Tarifs", href: "/#tarifs" },
   { label: "FAQ", href: "/#faq" },
   { label: "Contact", href: "/contact" },
 ];

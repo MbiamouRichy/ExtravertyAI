@@ -14,7 +14,7 @@ import {
 
 import { cn } from "@/lib/utils";
 import { SPRING } from "@/components/website/vitrine/motion";
-import { PhoneFrame } from "@/components/maquettes/project-new/phone-frame";
+import { PhoneFrame } from "@/components/phone-frame";
 
 import { needLabel, type ContactFormValues } from "./data";
 

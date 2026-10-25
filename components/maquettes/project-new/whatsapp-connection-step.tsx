@@ -193,7 +193,7 @@ export function WhatsAppConnectionStep({
                       ref={checked ? field.ref : undefined}
                       id={`connection-${option.value}`}
                       value={option.value}
-                      className="peer sr-only"
+                      className="peer absolute! sr-only"
                     />
                     <FieldLabel
                       htmlFor={`connection-${option.value}`}

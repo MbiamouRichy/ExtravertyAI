@@ -555,7 +555,7 @@ function LaunchSuccess({
         </p>
         <div className="mt-8 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
           <Button asChild size="lg">
-            <Link href="/maquettes/tarifs">
+            <Link href="/#tarifs">
               <CreditCard data-icon="inline-start" />
               Choisir mon forfait
             </Link>

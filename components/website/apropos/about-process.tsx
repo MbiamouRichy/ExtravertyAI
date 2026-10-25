@@ -28,7 +28,7 @@ export function AboutProcess() {
               De votre besoin à vos <Serif>premiers échanges.</Serif>
             </h2>
             <Button asChild variant="link" className="mt-6 h-11 px-0">
-              <Link href="/maquettes/tarifs">
+              <Link href="/#tarifs">
                 Découvrir nos offres
                 <ArrowRight aria-hidden="true" data-icon="inline-end" />
               </Link>
@@ -80,7 +80,7 @@ export function AboutCta() {
         </h2>
         <div className="mt-12 flex flex-col gap-3 sm:flex-row">
           <Button asChild size="lg" variant="secondary" className="group h-11 px-5">
-            <Link href="/maquettes/contact">
+            <Link href="/contact">
               Parlons de votre projet
               <ArrowUpRight
                 aria-hidden="true"
@@ -95,7 +95,7 @@ export function AboutCta() {
             variant="ghost"
             className="h-11 px-5 text-primary-foreground hover:bg-primary-foreground/10 hover:text-primary-foreground dark:hover:bg-primary-foreground/10"
           >
-            <Link href="/maquettes/tarifs">Voir les offres</Link>
+            <Link href="/#tarifs">Voir les offres</Link>
           </Button>
         </div>
       </div>

@@ -410,7 +410,7 @@ export function LandingPage() {
               </p>
             </div>
             <Button asChild size="lg" variant="outline" className="shrink-0">
-              <Link href="/tarifs">
+              <Link href="/#tarifs">
                 Comparer les offres
                 <ArrowRight data-icon="inline-end" />
               </Link>

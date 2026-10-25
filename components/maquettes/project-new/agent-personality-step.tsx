@@ -110,7 +110,7 @@ export function AgentPersonalityStep() {
                         ref={checked ? field.ref : undefined}
                         id={`tone-${tone.value}`}
                         value={tone.value}
-                        className="peer sr-only"
+                        className="peer absolute! sr-only"
                       />
                       <FieldLabel
                         htmlFor={`tone-${tone.value}`}

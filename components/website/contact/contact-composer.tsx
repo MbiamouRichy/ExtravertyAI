@@ -1,11 +1,10 @@
 "use client";
 
-import Link from "next/link";
 import { useState } from "react";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { m } from "motion/react";
-import { ArrowRight, Building2, ShieldCheck, UserRound } from "lucide-react";
+import { ArrowRight, Building2, Check, UserRound } from "lucide-react";
 import { toast } from "sonner";
 
 import { cn } from "@/lib/utils";
@@ -114,34 +113,44 @@ export function ContactComposer() {
                     {NEEDS.map((option) => {
                       const checked = field.value === option.value;
                       return (
-                        <div key={option.value} className="relative rounded-full">
+                        <FieldLabel
+                          key={option.value}
+                          htmlFor={`need-${option.value}`}
+                          className={cn(
+                            "relative isolate inline-flex h-10 w-auto! cursor-pointer items-center gap-1.5 rounded-full border px-4 text-sm font-normal select-none",
+                            "transition-[color,border-color,background-color,transform] duration-200 active:scale-[0.97] motion-reduce:active:scale-100",
+                            "has-focus-visible:ring-3 has-focus-visible:ring-ring/50",
+                            checked
+                              ? "border-transparent text-primary-foreground"
+                              : "bg-background text-muted-foreground hover:border-foreground/30 hover:text-foreground",
+                          )}
+                        >
                           {checked && (
                             <m.span
                               layoutId="contact-need-pill"
                               transition={SPRING}
                               aria-hidden="true"
-                              className="absolute inset-0 rounded-full bg-primary"
+                              className="absolute inset-0 -z-10 rounded-full bg-primary shadow-sm shadow-foreground/20"
                             />
                           )}
+                          {/* Visually hidden but out of the flow, so the pill matches the label exactly. */}
                           <RadioGroupItem
                             ref={checked ? field.ref : undefined}
                             id={`need-${option.value}`}
                             value={option.value}
-                            className="peer sr-only"
+                            className="absolute! sr-only"
                           />
-                          <FieldLabel
-                            htmlFor={`need-${option.value}`}
-                            className={cn(
-                              "relative w-auto! cursor-pointer rounded-full border px-4 py-2 text-sm font-normal transition-colors",
-                              "peer-focus-visible:ring-3 peer-focus-visible:ring-ring/50",
-                              checked
-                                ? "border-transparent text-primary-foreground"
-                                : "bg-background hover:bg-muted",
-                            )}
+                          <m.span
+                            aria-hidden="true"
+                            initial={false}
+                            animate={checked ? { width: "auto", opacity: 1 } : { width: 0, opacity: 0 }}
+                            transition={{ duration: 0.2 }}
+                            className="-mr-0.5 flex overflow-hidden"
                           >
-                            {option.label}
-                          </FieldLabel>
-                        </div>
+                            <Check className="size-3.5 shrink-0" strokeWidth={2.75} />
+                          </m.span>
+                          {option.label}
+                        </FieldLabel>
                       );
                     })}
                   </RadioGroup>
@@ -258,7 +267,7 @@ export function ContactComposer() {
               </div>
             </div>
 
-            <div className="space-y-3">
+            <div>
               <Button type="submit" size="lg" className="group h-12 w-full text-base sm:w-auto sm:px-5">
                 <WhatsAppIcon aria-hidden="true" data-icon="inline-start" />
                 Ouvrir mon message dans WhatsApp
@@ -268,15 +277,6 @@ export function ContactComposer() {
                   className="transition-transform group-hover:translate-x-0.5"
                 />
               </Button>
-              <p className="flex items-start gap-2 text-xs text-muted-foreground">
-                <ShieldCheck aria-hidden="true" className="mt-0.5 size-3.5 shrink-0" />
-                <span>
-                  Ce formulaire n’enregistre rien : il prépare seulement votre message.{" "}
-                  <Link href="/donneesEtConfidentialite" className="underline underline-offset-4">
-                    Confidentialité
-                  </Link>
-                </span>
-              </p>
             </div>
           </FieldGroup>
         </form>

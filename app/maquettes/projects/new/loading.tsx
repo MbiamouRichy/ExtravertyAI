@@ -5,7 +5,7 @@ import { WIZARD_STEPS } from "@/components/maquettes/project-new/data";
 import {
   PhoneChatSkeleton,
   PhoneFrame,
-} from "@/components/maquettes/project-new/phone-frame";
+} from "@/components/phone-frame";
 import {
   WIZARD_ASIDE,
   WIZARD_ASIDE_INNER,

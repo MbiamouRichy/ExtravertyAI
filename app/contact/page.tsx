@@ -1,7 +1,8 @@
-import { Contact } from "@/components/website/contact";
-import { SiteNav } from "@/components/website/vitrine/site-nav";
-import { SiteFooter } from "@/components/website/vitrine/site-footer";
 import type { Metadata } from "next";
+
+import { ContactPage } from "@/components/website/contact/contact-page";
+import { SiteShell } from "@/components/website/site-shell";
+
 export const metadata: Metadata = {
   title: "Contact — Parlons de votre projet | ExtravertyAI",
   description:
@@ -9,12 +10,11 @@ export const metadata: Metadata = {
   alternates: { canonical: "/contact" },
 };
 export const dynamic = "force-static";
+
 export default function Page() {
   return (
-    <>
-      <SiteNav />
-      <Contact />
-      <SiteFooter />
-    </>
+    <SiteShell>
+      <ContactPage />
+    </SiteShell>
   );
 }
