@@ -21,6 +21,8 @@ export type ContactTableType = {
   instinct: ProspectClassification | null;
 };
 export function ContactsTableColumns(options: {
+  /** Colonne « Numéro » masquée : le numéro s'affiche sous le nom. */
+  phoneUnderName: boolean;
   renderActions: (contact: ContactTableType) => ReactNode;
   renderStatus: (contact: ContactTableType) => ReactNode;
 }): ColumnDef<ContactTableType>[] {
@@ -38,9 +40,13 @@ export function ContactsTableColumns(options: {
             <p className="whitespace-normal wrap-anywhere font-medium md:max-w-48 md:truncate">
               {contact.displayName}
             </p>
-            <p className="wrap-anywhere text-xs text-muted-foreground md:hidden">
-              {contact.phone}
-            </p>
+            {options.phoneUnderName && (
+              <p className="wrap-anywhere font-mono text-xs text-muted-foreground">
+                {contact.phone.startsWith("+")
+                  ? contact.phone
+                  : `+${contact.phone}`}
+              </p>
+            )}
             {!contact.name && contact.displayName !== contact.phone && (
               <p className="text-[10px] text-muted-foreground">
                 Nom public WhatsApp
@@ -72,7 +78,9 @@ export function ContactsTableColumns(options: {
     {
       accessorKey: "instinct",
       header: "Instinct IA",
-      cell: ({ row }) => <InstinctCell classification={row.original.instinct} />,
+      cell: ({ row }) => (
+        <InstinctCell classification={row.original.instinct} />
+      ),
     },
     {
       accessorKey: "createdAt",

@@ -42,13 +42,27 @@ import {
 } from "lucide-react";
 import { ContactsTableColumns, type ContactTableType } from "./contacts-column";
 
+// Trois largeurs : cartes (mobile), tableau resserré (tablette, petit écran
+// avec barre latérale) et tableau complet. Chacune garde ses propres choix de colonnes.
+type ViewportTier = "mobile" | "compact" | "wide";
+const MOBILE_QUERY = "(max-width: 767px)";
+const COMPACT_QUERY = "(max-width: 1279px)";
+
 function subscribeToViewport(callback: () => void) {
-  const media = window.matchMedia("(max-width: 767px)");
-  media.addEventListener("change", callback);
-  return () => media.removeEventListener("change", callback);
+  const queries = [MOBILE_QUERY, COMPACT_QUERY].map((query) =>
+    window.matchMedia(query),
+  );
+  queries.forEach((media) => media.addEventListener("change", callback));
+  return () =>
+    queries.forEach((media) => media.removeEventListener("change", callback));
 }
-const mobileSnapshot = () => window.matchMedia("(max-width: 767px)").matches;
-const serverSnapshot = () => false;
+const tierSnapshot = (): ViewportTier =>
+  window.matchMedia(MOBILE_QUERY).matches
+    ? "mobile"
+    : window.matchMedia(COMPACT_QUERY).matches
+      ? "compact"
+      : "wide";
+const serverSnapshot = (): ViewportTier => "wide";
 
 type Props = {
   data: ContactTableType[];
@@ -68,20 +82,22 @@ type Props = {
 };
 
 export function ContactsTable(p: Props) {
-  const isMobile = useSyncExternalStore(
+  const tier = useSyncExternalStore(
     subscribeToViewport,
-    mobileSnapshot,
+    tierSnapshot,
     serverSnapshot,
   );
-  const [desktopVisibility, setDesktopVisibility] = useState<VisibilityState>(
-    {},
-  );
-  const [mobileVisibility, setMobileVisibility] = useState<VisibilityState>({
-    phone: false,
-    aiActive: false,
-    createdAt: false,
+  const [visibility, setVisibility] = useState<
+    Record<ViewportTier, VisibilityState>
+  >({
+    mobile: { phone: false, aiActive: false, createdAt: false },
+    // Identité (avec le numéro dessous), prise en charge et actions tiennent sans défilement.
+    compact: { phone: false, instinct: false, createdAt: false },
+    wide: {},
   });
+  const columnVisibility = visibility[tier];
   const columns = ContactsTableColumns({
+    phoneUnderName: columnVisibility.phone === false,
     renderStatus: p.renderStatus,
     renderActions: (contact) => (
       <div className="flex items-center justify-end gap-1">
@@ -134,11 +150,14 @@ export function ContactsTable(p: Props) {
     manualFiltering: true,
     manualSorting: true,
     pageCount: p.pageCount,
-    onColumnVisibilityChange: isMobile
-      ? setMobileVisibility
-      : setDesktopVisibility,
+    onColumnVisibilityChange: (updater) =>
+      setVisibility((previous) => ({
+        ...previous,
+        [tier]:
+          typeof updater === "function" ? updater(previous[tier]) : updater,
+      })),
     state: {
-      columnVisibility: isMobile ? mobileVisibility : desktopVisibility,
+      columnVisibility,
       pagination: { pageIndex: p.page - 1, pageSize: 20 },
     },
   });
