@@ -11,8 +11,11 @@ import {
   reportDelta,
   reportEmail,
   ReportSettingsSchema,
+  ReportSnapshotSchema,
   WEEK_MS,
+  type ReportSnapshotV2,
 } from "../lib/weekly-report";
+import { emptyWeek } from "../lib/report-week";
 import {
   collectReportMetrics,
   queueNextWeeklyReport,
@@ -43,21 +46,29 @@ test("weekly boundaries are UTC, including year rollover and exact due time", ()
 });
 
 test("email escapes untrusted values, rejects unsafe links and has a text version", () => {
-  const metrics = {
-    received: 0,
-    sent: 0,
-    aiSent: 0,
-    failed: 0,
-    activeContacts: 0,
-    newContacts: 0,
-    changes: 0,
-    csatResponses: 0,
-  };
-  const snapshot = {
-    current: metrics,
-    previous: metrics,
+  const week = emptyWeek({
+    weekStart: new Date("2026-01-01Z"),
+    weekEnd: new Date("2026-01-08Z"),
+  });
+  const snapshot: ReportSnapshotV2 = {
+    version: 2,
+    weeks: [week],
     partial: false,
-    tips: ["<script>alert(1)</script>"],
+    verdict: {
+      tone: "watch",
+      label: "À surveiller",
+      sentence: "<script>alert(1)</script>",
+    },
+    findings: [
+      {
+        id: "gaps",
+        title: "<img src=y>",
+        evidence: ["<b>preuve</b>"],
+        impact: 3,
+        confidence: "high",
+        action: { label: "Répondre", href: "/knowledge?tab=improve" },
+      },
+    ],
   };
   const result = reportEmail(
     "<img src=x>\r\nBcc: evil",
@@ -69,7 +80,19 @@ test("email escapes untrusted values, rejects unsafe links and has a text versio
   assert.ok(!result.html.includes("<script>"));
   assert.ok(!result.html.includes("<img src=x"));
   assert.ok(!result.subject.includes("\n"));
-  assert.match(result.text, /Messages reçus/);
+  assert.ok(!result.html.includes("<b>preuve"));
+  assert.match(result.text, /Autonomie de l’IA/);
+  assert.ok(result.text.includes("https://example.test/knowledge?tab=improve"));
+  assert.ok(
+    !reportEmail(
+      "t",
+      snapshot,
+      new Date(),
+      new Date(),
+      "https://example.test/reports",
+      false,
+    ).text.includes("<img"),
+  );
   assert.throws(() =>
     reportEmail(
       "test",
@@ -280,6 +303,25 @@ test(
         where: { projectId: "business" },
       });
       assert.ok(!JSON.stringify(report.snapshot).includes("SECRET"));
+      const stored = ReportSnapshotSchema.parse(report.snapshot);
+      assert.equal(stored.version, 2);
+      if (stored.version !== 2) throw new Error("unreachable");
+      // Projet créé une semaine avant : deux semaines, jamais avant sa création.
+      assert.equal(stored.weeks.length, 2);
+      const last = stored.weeks[1];
+      assert.equal(last.weekStart.getTime(), window.start.getTime());
+      assert.equal(last.conversations, 1);
+      // Un envoi en échec prime sur la réponse de l’IA.
+      assert.deepEqual(last.outcome, {
+        failed: 1,
+        handover: 0,
+        gap: 0,
+        unanswered: 0,
+        autonomous: 0,
+      });
+      assert.equal(last.legacy.received, 1);
+      assert.ok(last.aiReply.median <= last.aiReply.p90);
+      assert.equal(stored.verdict.tone, "new");
       assert.equal(
         (
           await db.weeklyReport.findFirstOrThrow({
@@ -377,3 +419,25 @@ test(
     }
   },
 );
+
+test("an old snapshot without version stays readable and never shows 0 for unmeasured values", () => {
+  const legacy = {
+    received: 3,
+    sent: 2,
+    aiSent: 1,
+    failed: 0,
+    activeContacts: 1,
+    newContacts: 1,
+    changes: 0,
+  };
+  const parsed = ReportSnapshotSchema.parse({
+    current: legacy,
+    previous: legacy,
+    partial: false,
+    tips: [],
+  });
+  assert.equal(parsed.version, 1);
+  if (parsed.version !== 1) throw new Error("unreachable");
+  assert.equal(parsed.current.csatResponses, undefined);
+  assert.equal(ReportSnapshotSchema.safeParse({ version: 3 }).success, false);
+});

@@ -5,49 +5,8 @@
 export const DAY_MS = 86_400_000;
 export const WEEK_MS = 7 * DAY_MS;
 
-/** Conversations de la semaine, réparties sans recouvrement (priorité de haut en bas). */
-export type Outcome = {
-  failed: number;
-  handover: number;
-  gap: number;
-  unanswered: number;
-  autonomous: number;
-};
-
-export type WeekAggregate = {
-  weekStart: Date;
-  weekEnd: Date;
-  conversations: number;
-  outcome: Outcome;
-  handoverReasons: {
-    app: number;
-    phone: number;
-    manual: number;
-    alreadyPaused: number;
-  };
-  gapsNew: number;
-  gapsOpenAtClose: number;
-  gapTopics: { label: string; count: number }[];
-  aiReply: { n: number; median: number; p90: number };
-  teamReply: { n: number; median: number; p90: number };
-  csat: { sent: number; responses: number; mean: number | null; low: number };
-  feedback: { votes: number; down: number };
-  sends: { attempted: number; failed: number; broadcastFailed: number };
-  aiJobsFailed: number;
-  waiting: { total: number; over24h: number; manual: number };
-  annotations: { agentUpdates: number; broadcastRecipients: number };
-  /** Les 8 compteurs historiques, toujours lisibles dans l'historique. */
-  legacy: {
-    received: number;
-    sent: number;
-    aiSent: number;
-    failed: number;
-    activeContacts: number;
-    newContacts: number;
-    changes: number;
-    csatResponses: number;
-  };
-};
+export { emptyWeek, type WeekAggregate } from "@/lib/report-week";
+import type { WeekAggregate } from "@/lib/report-week";
 
 export type WeekEvent =
   "quiet" | "broadcast" | "agent-change" | "disconnection" | "knowledge-gap";
@@ -94,36 +53,6 @@ export function mondayUtc(date: Date) {
 }
 
 const TOPICS = ["Livraison", "Tarifs", "Horaires", "Paiement", "Retours"];
-
-/** Même semaine, sans aucune activité (état « semaine vide »). */
-export function emptyWeek(week: WeekAggregate): WeekAggregate {
-  return {
-    ...week,
-    conversations: 0,
-    outcome: { failed: 0, handover: 0, gap: 0, unanswered: 0, autonomous: 0 },
-    handoverReasons: { app: 0, phone: 0, manual: 0, alreadyPaused: 0 },
-    gapsNew: 0,
-    gapTopics: [],
-    aiReply: { n: 0, median: 0, p90: 0 },
-    teamReply: { n: 0, median: 0, p90: 0 },
-    csat: { sent: 0, responses: 0, mean: null, low: 0 },
-    feedback: { votes: 0, down: 0 },
-    sends: { attempted: 0, failed: 0, broadcastFailed: 0 },
-    aiJobsFailed: 0,
-    waiting: { total: 0, over24h: 0, manual: 0 },
-    annotations: { agentUpdates: 0, broadcastRecipients: 0 },
-    legacy: {
-      received: 0,
-      sent: 0,
-      aiSent: 0,
-      failed: 0,
-      activeContacts: 0,
-      newContacts: 0,
-      changes: 0,
-      csatResponses: 0,
-    },
-  };
-}
 
 export function simulateProject({
   seed,

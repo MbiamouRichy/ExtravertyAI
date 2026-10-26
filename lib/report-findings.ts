@@ -1,9 +1,9 @@
 // Verdict et constats : règles déterministes classées par impact × confiance.
 // Aucun texte n'est rédigé par un modèle de langage ; chaque phrase cite sa preuve.
-import type { WeekAggregate } from "./data";
-import type { IndicatorKey, IndicatorReading } from "./indicators";
-import type { Band, IndicatorKind, SignalStatus } from "./signal";
-import { wilson } from "./signal";
+import type { WeekAggregate } from "./report-week";
+import type { IndicatorKey, IndicatorReading } from "./report-indicators";
+import type { Band, IndicatorKind, SignalStatus } from "./report-signal";
+import { wilson } from "./report-signal";
 
 const percent = new Intl.NumberFormat("fr-FR", {
   style: "percent",

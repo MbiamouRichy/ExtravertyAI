@@ -1,11 +1,11 @@
-import type { WeekAggregate } from "./data";
+import type { WeekAggregate } from "./report-week";
 import {
   classify,
   type Direction,
   type IndicatorKind,
   type Signal,
   type WeekPoint,
-} from "./signal";
+} from "./report-signal";
 
 export type IndicatorKey =
   "autonomy" | "handover" | "gaps" | "aiReply" | "csat" | "failures";

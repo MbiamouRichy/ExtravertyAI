@@ -1,9 +1,11 @@
 # Rapport hebdomadaire : dictionnaire des indicateurs
 
-> **Statut : proposition à valider (étape 1, point d’arrêt).** Aucun code de
-> production n’est modifié. La page Rapports réelle et son aperçu actuel restent
-> intacts. Le nouveau format se teste sur une page séparée, avec des données
-> synthétiques : `/maquettes/projects/demo/reports-v2`.
+> **Statut : en production sur la page Rapports**, avec les choix par défaut
+> de ce document (autonomie stricte, k = 3, seuils 20 / 10 / 5). Restent à faire :
+> thèmes des questions (§ 2.3), `aiSkip = 'KEYWORD'` (STOP/START), liens
+> profonds `?filter=` / `?tab=`, fuseau du projet. La maquette
+> `/maquettes/projects/demo/reports-v2` utilise le même code, avec des données
+> synthétiques.
 
 Le rapport sert à décider, Analytics sert à explorer. En 30 secondes, un
 propriétaire doit savoir : ce qui a réellement changé, où l’IA a échoué ou passé

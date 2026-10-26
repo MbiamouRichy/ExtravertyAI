@@ -7,8 +7,11 @@ import {
   type WeekAggregate,
   type WeekEvent,
 } from "./data";
-import { buildVerdict, type Verdict } from "./findings";
-import { readIndicators } from "./indicators";
+import { buildVerdict, type Verdict } from "@/lib/report-findings";
+import { readIndicators } from "@/lib/report-indicators";
+import { isoWeek, weekNote } from "@/lib/report-week";
+
+export { isoWeek, weekNote };
 
 export const scenarios = [
   { id: "incident", label: "Semaine d’incident" },
@@ -36,24 +39,6 @@ const EVENTS: Record<number, WeekEvent[]> = {
   19: ["knowledge-gap"],
 };
 
-/** Numéro de semaine ISO 8601 (la semaine du jeudi donne l’année). */
-export function isoWeek(date: Date) {
-  const day = new Date(
-    Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()),
-  );
-  day.setUTCDate(day.getUTCDate() + 3 - ((day.getUTCDay() + 6) % 7));
-  const firstThursday = new Date(Date.UTC(day.getUTCFullYear(), 0, 4));
-  return (
-    1 +
-    Math.round(
-      ((day.getTime() - firstThursday.getTime()) / 86_400_000 -
-        3 +
-        ((firstThursday.getUTCDay() + 6) % 7)) /
-        7,
-    )
-  );
-}
-
 export type PreviewReport = {
   id: string;
   index: number;
@@ -66,16 +51,6 @@ export type PreviewReport = {
   range: string;
   verdict: Verdict | null;
 };
-
-export function weekNote(week: WeekAggregate) {
-  const notes = [
-    week.annotations.agentUpdates ? "Consignes de l’agent modifiées" : null,
-    week.annotations.broadcastRecipients
-      ? `Diffusion envoyée à ${week.annotations.broadcastRecipients} contacts`
-      : null,
-  ].filter(Boolean);
-  return notes.length ? notes.join(" · ") : undefined;
-}
 
 export function buildScenario(id: ScenarioId, now: Date) {
   const lastWeekEnd = reportWindow(now, 7).end;

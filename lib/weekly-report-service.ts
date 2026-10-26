@@ -5,13 +5,21 @@ import type {
   ReportEmail,
 } from "../src/generated/prisma/client";
 import { getBillingAccess } from "./billing-access";
+import { collectWeekAggregate } from "./report-aggregates";
+import { buildFindings, buildVerdict } from "./report-findings";
+import { readIndicators } from "./report-indicators";
+import type { WeekAggregate } from "./report-week";
 import {
   reportEmail,
-  reportTips,
+  reportRange,
   reportWindow,
   WEEK_MS,
   type ReportMetrics,
+  type ReportSnapshotV2,
 } from "./weekly-report";
+
+/** Semaines comparées : 8 pour la plage normale, plus 12 pour les courbes. */
+const SERIES_WEEKS = 20;
 
 export async function collectReportMetrics(
   db: Prisma.TransactionClient,
@@ -86,24 +94,39 @@ export async function queueNextWeeklyReport(
         })
       )
         return true;
-      const current = await collectReportMetrics(
-        tx,
-        project.id,
-        window.start,
-        window.end,
+      // Les semaines antérieures à la création du projet sont exclues de la série.
+      const firstWeek = Math.max(
+        window.start.getTime() - (SERIES_WEEKS - 1) * WEEK_MS,
+        reportWindow(project.createdAt, 0).end.getTime(),
       );
-      const previousStart = new Date(window.start.getTime() - WEEK_MS);
-      const previous = await collectReportMetrics(
-        tx,
-        project.id,
-        previousStart,
-        window.start,
-      );
-      const snapshot = {
-        current,
-        previous,
-        partial: project.createdAt > previousStart,
-        tips: project.reportsIncludeTips ? reportTips(current, previous) : [],
+      const weeks: WeekAggregate[] = [];
+      for (
+        let time = firstWeek;
+        time <= window.start.getTime();
+        time += WEEK_MS
+      ) {
+        const start = new Date(time);
+        const end = new Date(time + WEEK_MS);
+        const legacy = await collectReportMetrics(tx, project.id, start, end);
+        weeks.push(
+          await collectWeekAggregate(tx, project.id, start, end, legacy),
+        );
+      }
+      const week = weeks[weeks.length - 1];
+      const current = week.legacy;
+      const readings = readIndicators(weeks, weeks.length - 1);
+      const snapshot: ReportSnapshotV2 = {
+        version: 2,
+        weeks,
+        partial: project.createdAt > window.start,
+        verdict: buildVerdict(readings, week),
+        // Chemins relatifs au projet : page et e-mail reconstruisent le lien.
+        findings: buildFindings(
+          readings,
+          week,
+          reportRange(window.start, window.end),
+          "",
+        ),
       };
       const skipped =
         project.reportsSkipEmpty &&
@@ -115,7 +138,8 @@ export async function queueNextWeeklyReport(
           projectId: project.id,
           weekStart: window.start,
           weekEnd: window.end,
-          snapshot,
+          // Les dates deviennent des chaînes ISO, relues par ReportSnapshotSchema.
+          snapshot: snapshot as unknown as Prisma.InputJsonObject,
           skipped,
         },
       });
@@ -134,6 +158,7 @@ export async function queueNextWeeklyReport(
         window.start,
         window.end,
         `${config.origin}/projects/${encodeURIComponent(project.id)}/reports?report=${report.id}`,
+        project.reportsIncludeTips,
       );
       await tx.reportEmail.createMany({
         data: recipients.map((member) => ({

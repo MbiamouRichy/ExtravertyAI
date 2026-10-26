@@ -1,97 +1,57 @@
-import { getUserTimeZone } from "@/lib/server-time-zone";
-import { LocalDate } from "@/components/local-date";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import {
-  ArrowDownRight,
   ArrowUpRight,
-  CalendarClock,
   Check,
+  ChevronLeft,
   ChevronRight,
-  Lightbulb,
-  Mail,
-  Minus,
-  ShieldCheck,
+  TriangleAlert,
 } from "lucide-react";
+
+import { LocalDate } from "@/components/local-date";
 import { getSession } from "@/lib/auth-server";
 import prisma from "@/lib/prisma";
 import { getBillingAccess } from "@/lib/billing-access";
+import { readIndicators } from "@/lib/report-indicators";
+import { BASELINE_WEEKS, BAND_K } from "@/lib/report-signal";
+import { emptyWeek, isoWeek } from "@/lib/report-week";
 import {
   ReportSnapshotSchema,
-  reportMetricLabels,
-  reportDelta,
   reportRange,
   reportWindow,
   WEEK_MS,
-  type ReportMetrics,
+  type ReportSnapshot,
 } from "@/lib/weekly-report";
 import { cn } from "@/lib/utils";
 import { getInitials } from "@/components/getInitials";
 import { Button } from "@/components/ui/button";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
 import { ReportSettingsForm } from "@/components/dashboard/project/report-settings";
 import { BillingPlanButton } from "@/components/dashboard/project/billing-plan-button";
+import {
+  Definitions,
+  FindingsList,
+  HistoryList,
+  IndicatorGrid,
+  LegacyCounters,
+  SectionHeader,
+  VerdictPanel,
+  WeekDetail,
+  type ReportListItem,
+} from "@/components/dashboard/project/reports/report-sections";
 
 export const metadata: Metadata = {
   title: "Rapports programmés | ExtravertyAI",
   robots: { index: false, follow: false },
-};
-const explanations: Record<keyof ReportMetrics, string> = {
-  received: "Messages entrants de vos clients durant la semaine.",
-  sent: "Messages sortants confirmés envoyés, distribués ou lus. Les envois en attente et en échec sont exclus.",
-  aiSent:
-    "Messages envoyés par le bot parmi les messages sortants confirmés. Ce chiffre ne mesure pas la qualité des réponses.",
-  failed:
-    "Messages sortants créés sur la période et en échec au moment du calcul. Une baisse est généralement souhaitable.",
-  activeContacts:
-    "Contacts distincts ayant au moins un message sur la période, quel que soit son statut.",
-  newContacts:
-    "Contacts créés sur la période. Il ne s’agit pas de ventes ni de conversions.",
-  changes:
-    "Enregistrements de configuration de l’agent durant la semaine. Ils ne prouvent pas une amélioration de performance.",
-  csatResponses:
-    "Réponses au questionnaire de satisfaction reçues durant la semaine (offres Pro et Business, si le questionnaire est activé).",
-};
-const states = {
-  PENDING: "En attente",
-  SENDING: "En cours",
-  SENT: "Accepté par le service e-mail",
-  CANCELLED: "Annulé",
-  REVIEW_REQUIRED: "À vérifier par le support",
 };
 const roleLabel: Record<string, string> = {
   OWNER: "Propriétaire",
   ADMIN: "Administrateur",
 };
 
-/** Numéro de semaine ISO 8601 (la semaine du jeudi donne l’année). */
-function isoWeek(date: Date) {
-  const day = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
-  day.setUTCDate(day.getUTCDate() + 3 - ((day.getUTCDay() + 6) % 7));
-  const firstThursday = new Date(Date.UTC(day.getUTCFullYear(), 0, 4));
-  return 1 + Math.round(((day.getTime() - firstThursday.getTime()) / 86_400_000 - 3 + ((firstThursday.getUTCDay() + 6) % 7)) / 7);
-}
-
-function Trend({ current, previous }: { current: number; previous: number }) {
-  const label = reportDelta(current, previous);
-  const Icon =
-    previous === 0 || current === previous
-      ? Minus
-      : current > previous
-        ? ArrowUpRight
-        : ArrowDownRight;
-  return (
-    <span className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs tabular-nums">
-      <Icon aria-hidden="true" className="size-3" />
-      {label}
-    </span>
-  );
+function parseSnapshot(value: unknown): ReportSnapshot | null {
+  const parsed = ReportSnapshotSchema.safeParse(value);
+  return parsed.success ? parsed.data : null;
 }
 
 export default async function ReportsPage({
@@ -101,7 +61,6 @@ export default async function ReportsPage({
   params: Promise<{ projectId: string }>;
   searchParams: Promise<{ report?: string | string[] }>;
 }) {
-  const timeZone = await getUserTimeZone();
   const { projectId } = await params;
   const session = await getSession();
   const base = `/projects/${encodeURIComponent(projectId)}`;
@@ -122,26 +81,24 @@ export default async function ReportsPage({
 
   if (project.plan !== "business")
     return (
-      <main className="mx-auto grid w-full max-w-6xl items-center gap-12 p-4 sm:p-8 lg:grid-cols-2 lg:p-12">
+      <main className="mx-auto grid w-full max-w-5xl items-center gap-12 px-4 py-10 sm:px-6 lg:grid-cols-[1fr_1.1fr] lg:py-16">
         <div>
-          <p className="inline-flex items-center gap-2 rounded-full border px-3 py-1 font-mono text-xs uppercase tracking-wider text-muted-foreground">
-            <CalendarClock aria-hidden="true" className="size-3.5" />
-            Offre Business
-          </p>
-          <h1 className="mt-5 text-4xl md:text-5xl">Votre semaine, en un rapport.</h1>
-          <p className="mt-4 max-w-md text-muted-foreground">
-            Chaque semaine, vos indicateurs, leur évolution et des pistes
-            d’amélioration arrivent dans la boîte mail des propriétaires et
-            administrateurs.
-          </p>
-          <ul className="mt-6 space-y-2 text-sm">
+          <p className="text-sm text-muted-foreground">Offre Business</p>
+          <h1 className="mt-3 font-sans text-4xl font-semibold tracking-tight text-balance">
+            Chaque lundi, ce qui a changé et quoi faire.
+          </h1>
+          <ul className="mt-6 space-y-2.5 text-sm text-muted-foreground">
             {[
-              "7 indicateurs comparés à la semaine précédente",
-              "Pistes d’amélioration concrètes",
-              "Données agrégées : aucun message client dans l’e-mail",
+              "Un verdict en une phrase",
+              "Trois actions au plus, avec leur preuve",
+              "Six indicateurs comparés à leur habitude",
+              "Aucun message client dans l’e-mail",
             ].map((item) => (
-              <li key={item} className="flex items-center gap-2">
-                <Check aria-hidden="true" className="size-4 shrink-0" />
+              <li key={item} className="flex items-center gap-2.5">
+                <Check
+                  aria-hidden="true"
+                  className="size-4 shrink-0 text-foreground"
+                />
                 {item}
               </li>
             ))}
@@ -151,48 +108,56 @@ export default async function ReportsPage({
               <BillingPlanButton
                 projectId={projectId}
                 intent="upgrade"
-                size="lg"
                 label="Passer à l’offre Business"
               />
             ) : (
-              <Button asChild size="lg">
-                <Link href={`${base}/billing`}>Voir l’offre Business</Link>
-              </Button>
-            )}
-            {member.role !== "OWNER" && (
-              <p className="text-xs text-muted-foreground">
-                Seul le propriétaire du projet peut changer d’offre.
-              </p>
+              <>
+                <Button asChild>
+                  <Link href={`${base}/billing`}>Voir l’offre Business</Link>
+                </Button>
+                <p className="text-xs text-muted-foreground">
+                  Seul le propriétaire du projet peut changer d’offre.
+                </p>
+              </>
             )}
           </div>
         </div>
         <figure
-          aria-label="Aperçu d’exemple d’un rapport hebdomadaire"
-          className="relative rounded-3xl border bg-card p-6 shadow-xl shadow-foreground/5"
+          aria-label="Exemple de rapport hebdomadaire"
+          className="rounded-2xl border p-6 sm:p-8"
         >
-          <figcaption className="mb-5 flex items-center justify-between text-xs text-muted-foreground">
-            <span className="font-mono uppercase tracking-wider">Aperçu d’exemple</span>
-            <span>Lundi · 08:00</span>
+          <div aria-hidden="true">
+            <p className="flex items-center gap-2 text-xs font-medium text-destructive">
+              <span className="size-1.5 rounded-full bg-destructive" />À
+              surveiller
+            </p>
+            <p className="mt-3 text-xl leading-snug font-medium tracking-tight">
+              14 questions sont restées sans réponse, contre 3 d’habitude.
+            </p>
+            <div className="mt-6 flex items-center justify-between gap-4 border-y py-4 text-sm">
+              <span>Traiter les questions sur la livraison</span>
+              <span className="rounded-md bg-primary px-2.5 py-1 text-xs text-primary-foreground">
+                Ouvrir
+              </span>
+            </div>
+            <div className="mt-6 grid grid-cols-2 gap-px overflow-hidden rounded-xl border bg-border">
+              {[
+                ["Autonomie de l’IA", "52 %", "Habitude 70 %"],
+                ["Questions sans réponse", "14", "Habitude 3"],
+              ].map(([label, value, note]) => (
+                <div key={label} className="bg-background p-4">
+                  <p className="text-xs text-muted-foreground">{label}</p>
+                  <p className="mt-1 text-2xl font-semibold tracking-tight">
+                    {value}
+                  </p>
+                  <p className="text-xs text-muted-foreground">{note}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+          <figcaption className="mt-4 text-xs text-muted-foreground">
+            Aperçu d’exemple · lundi, 08:00
           </figcaption>
-          <p className="font-heading text-lg font-semibold">Bilan de la semaine</p>
-          <div aria-hidden="true" className="mt-4 grid grid-cols-2 gap-3">
-            {[
-              ["Messages reçus", "1 284", "+12 %"],
-              ["Réponses IA", "962", "+8 %"],
-              ["Contacts actifs", "214", "+5 %"],
-              ["Échecs d’envoi", "3", "−40 %"],
-            ].map(([label, value, delta]) => (
-              <div key={label} className="rounded-xl border p-3">
-                <p className="text-[11px] text-muted-foreground">{label}</p>
-                <p className="mt-1 font-heading text-xl font-bold tabular-nums">{value}</p>
-                <p className="text-[11px] text-muted-foreground">{delta}</p>
-              </div>
-            ))}
-          </div>
-          <div aria-hidden="true" className="mt-4 flex items-start gap-2 rounded-xl bg-muted/50 p-3 text-xs leading-relaxed text-muted-foreground">
-            <Lightbulb className="mt-px size-3.5 shrink-0 text-foreground" />
-            <span>Relisez les conversations transmises par l’IA pour enrichir ses consignes.</span>
-          </div>
         </figure>
       </main>
     );
@@ -203,7 +168,7 @@ export default async function ReportsPage({
       where: { projectId },
       orderBy: { weekStart: "desc" },
       take: 12,
-      include: { emails: { select: { id: true, state: true, sentAt: true } } },
+      include: { emails: { select: { id: true, state: true } } },
     }),
     prisma.projectMembership.findMany({
       where: { projectId, role: { in: ["OWNER", "ADMIN"] } },
@@ -218,295 +183,253 @@ export default async function ReportsPage({
     typeof requested === "string"
       ? await prisma.weeklyReport.findFirst({
           where: { id: requested, projectId },
-          include: {
-            emails: { select: { id: true, state: true, sentAt: true } },
-          },
+          include: { emails: { select: { id: true, state: true } } },
         })
       : reports[0];
   if (typeof requested === "string" && !selected) notFound();
-  const snapshot = selected
-    ? ReportSnapshotSchema.parse(selected.snapshot)
-    : null;
+
+  const history: ReportListItem[] = reports.map((report) => {
+    const snapshot = parseSnapshot(report.snapshot);
+    return {
+      id: report.id,
+      label: `S${isoWeek(report.weekStart)}`,
+      range: reportRange(report.weekStart, report.weekEnd),
+      skipped: report.skipped,
+      emails: report.emails,
+      verdict: snapshot?.version === 2 ? snapshot.verdict : null,
+    };
+  });
+  const hrefFor = (id: string) =>
+    `${base}/reports?report=${encodeURIComponent(id)}`;
+
   const now = new Date();
   const window = reportWindow(now, project.reportsHourUtc);
   const nextScheduled =
     project.createdAt >= window.end && now < window.due
       ? new Date(window.due.getTime() + WEEK_MS)
       : window.next;
-  const thisWeekGenerated = reports.some(
-    (report) => report.weekStart.getTime() === window.start.getTime(),
-  );
   const catchingUp =
-    !thisWeekGenerated && now >= window.due && project.createdAt < window.end;
-  const verifiedRecipients = recipients.filter((r) => r.user.emailVerified).length;
-  const metricKeys = Object.keys(reportMetricLabels) as (keyof ReportMetrics)[];
+    !reports.some(
+      (report) => report.weekStart.getTime() === window.start.getTime(),
+    ) &&
+    now >= window.due &&
+    project.createdAt < window.end;
+  const verified = recipients.filter((r) => r.user.emailVerified).length;
 
-  const status = [
-    {
-      icon: CalendarClock,
-      title: !eligible
-        ? "Abonnement à régulariser"
-        : !project.reportsEnabled
-          ? "Envois suspendus"
-          : catchingUp
-            ? "Rapport à préparer"
-            : "Prochain envoi",
-      text: !eligible ? (
-        access.message
-      ) : !project.reportsEnabled ? (
-        "Réactivez les rapports dans la programmation."
-      ) : catchingUp ? (
-        "La dernière semaine complète sera traitée au prochain passage du service."
-      ) : (
-        <LocalDate value={nextScheduled} />
-      ),
-    },
-    {
-      icon: Mail,
-      title: `${verifiedRecipients} destinataire${verifiedRecipients > 1 ? "s" : ""} éligible${verifiedRecipients > 1 ? "s" : ""}`,
-      text: "Propriétaires et administrateurs aux adresses vérifiées, envois individuels.",
-    },
-    {
-      icon: ShieldCheck,
-      title: "Données agrégées uniquement",
-      text: "Aucun message client, numéro ou pièce jointe dans les e-mails.",
-    },
-  ];
+  const snapshot = selected ? parseSnapshot(selected.snapshot) : null;
+  const v2 = snapshot?.version === 2 ? snapshot : null;
+  // Un ancien instantané n'a que ses 8 compteurs : la grille l'indique sans rien mettre à 0.
+  const weeks = v2 ? v2.weeks : selected ? [emptyWeek(selected)] : [];
+  const index = weeks.length - 1;
+  const readings = weeks.length ? readIndicators(weeks, index) : [];
+  const week = weeks[index];
+  const findings = (v2?.findings ?? []).map((finding) => ({
+    ...finding,
+    action: { ...finding.action, href: `${base}${finding.action.href}` },
+  }));
+  const position = selected
+    ? history.findIndex((item) => item.id === selected.id)
+    : -1;
+  const older = position >= 0 ? history[position + 1] : undefined;
+  const newer = position > 0 ? history[position - 1] : undefined;
 
   return (
-    <main className="mx-auto w-full max-w-7xl space-y-8 p-4 sm:p-6 xl:p-8">
-      <header className="flex flex-wrap items-end justify-between gap-4">
+    <main className="mx-auto w-full max-w-5xl space-y-14 px-4 py-6 sm:px-6 sm:py-10">
+      <header className="flex flex-wrap items-end justify-between gap-6">
         <div>
-          <p className="font-mono text-xs uppercase tracking-wider text-muted-foreground">
-            Business · {project.name}
+          <p className="text-sm text-muted-foreground">
+            {project.name} · Rapport hebdomadaire
           </p>
-          <h1 className="mt-2 text-3xl md:text-4xl">Rapports programmés</h1>
-          <p className="mt-2 max-w-2xl text-muted-foreground">
-            Chaque semaine, les chiffres utiles et les prochaines actions
-            arrivent dans votre boîte mail.
+          <h1 className="mt-1 font-sans text-3xl font-semibold tracking-tight">
+            {selected
+              ? `Semaine ${isoWeek(selected.weekStart)}`
+              : "Rapports programmés"}
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {selected
+              ? `${reportRange(selected.weekStart, selected.weekEnd)} · heures UTC · comparée aux ${BASELINE_WEEKS} semaines précédentes`
+              : "Chaque lundi : ce qui a changé, où l’IA a passé la main et quoi faire."}
           </p>
         </div>
-        <Button asChild variant="outline">
-          <Link href={`${base}/analytics`}>
-            Explorer les statistiques <ArrowUpRight data-icon="inline-end" />
-          </Link>
-        </Button>
+        <div className="flex items-center gap-2">
+          {selected && (
+            <>
+              {older ? (
+                <Button asChild variant="outline" size="icon-sm">
+                  <Link
+                    href={hrefFor(older.id)}
+                    aria-label={`Semaine précédente (${older.label})`}
+                  >
+                    <ChevronLeft />
+                  </Link>
+                </Button>
+              ) : (
+                <Button
+                  variant="outline"
+                  size="icon-sm"
+                  disabled
+                  aria-label="Aucune semaine précédente"
+                >
+                  <ChevronLeft />
+                </Button>
+              )}
+              {newer ? (
+                <Button asChild variant="outline" size="icon-sm">
+                  <Link
+                    href={hrefFor(newer.id)}
+                    aria-label={`Semaine suivante (${newer.label})`}
+                  >
+                    <ChevronRight />
+                  </Link>
+                </Button>
+              ) : (
+                <Button
+                  variant="outline"
+                  size="icon-sm"
+                  disabled
+                  aria-label="Aucune semaine suivante"
+                >
+                  <ChevronRight />
+                </Button>
+              )}
+            </>
+          )}
+          <Button asChild variant="ghost" size="sm">
+            <Link href={`${base}/analytics`}>
+              Statistiques <ArrowUpRight data-icon="inline-end" />
+            </Link>
+          </Button>
+        </div>
       </header>
 
-      <section
-        aria-label="État des envois"
-        className="grid divide-y rounded-2xl border bg-card sm:grid-cols-3 sm:divide-x sm:divide-y-0"
-      >
-        {status.map(({ icon: Icon, title, text }) => (
-          <div key={title} className="flex gap-3 p-5">
-            <span className="flex size-9 shrink-0 items-center justify-center rounded-lg border bg-background">
-              <Icon aria-hidden="true" className="size-4" />
-            </span>
-            <div className="min-w-0">
-              <p className="text-sm font-medium">{title}</p>
-              <p className="mt-0.5 text-sm text-muted-foreground">{text}</p>
-            </div>
-          </div>
-        ))}
-      </section>
-
-      <div className="grid items-start gap-8 lg:grid-cols-3">
-        <div className="space-y-10 lg:col-span-2">
-          <section aria-labelledby="report-preview">
-            <div className="mb-5 flex flex-wrap items-end justify-between gap-2">
-              <div>
-                <h2 id="report-preview" className="text-2xl tracking-tight">
-                  {selected ? "Bilan de la semaine" : "Votre premier rapport arrive bientôt"}
-                </h2>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {selected
-                    ? `${reportRange(selected.weekStart, selected.weekEnd, timeZone)} · comparé aux 7 jours précédents`
-                    : "Les rapports couvrent une semaine complète. Les données apparaîtront ici dès le premier calcul."}
-                </p>
-              </div>
-            </div>
-
-            {snapshot ? (
-              <>
-                <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                  {metricKeys.map((key, index) => (
-                    <li
-                      key={key}
-                      className={cn(
-                        "rounded-2xl border bg-card p-5",
-                        index === 0 && "bg-primary text-primary-foreground sm:col-span-2 xl:col-span-1",
-                      )}
-                    >
-                      <h3
-                        className={cn(
-                          "font-sans text-sm font-normal tracking-normal",
-                          index === 0 ? "opacity-75" : "text-muted-foreground",
-                        )}
-                      >
-                        {reportMetricLabels[key]}
-                      </h3>
-                      <p className="mt-2 font-heading text-4xl font-bold tracking-tight tabular-nums">
-                        {snapshot.current[key].toLocaleString("fr-FR")}
-                      </p>
-                      <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
-                        <Trend current={snapshot.current[key]} previous={snapshot.previous[key]} />
-                        <span className={index === 0 ? "opacity-75" : "text-muted-foreground"}>
-                          avant : {snapshot.previous[key].toLocaleString("fr-FR")}
-                        </span>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-                {snapshot.partial && (
-                  <p className="mt-4 rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
-                    Projet récent : une partie des périodes comparées précède sa
-                    création. Interprétez les variations avec prudence.
-                  </p>
-                )}
-                {snapshot.tips.length > 0 && (
-                  <div className="mt-6 rounded-2xl border bg-muted/40 p-6">
-                    <h3 className="flex items-center gap-2 text-lg">
-                      <Lightbulb aria-hidden="true" className="size-4" />
-                      Pistes d’amélioration
-                    </h3>
-                    <ol className="mt-4 space-y-3">
-                      {snapshot.tips.map((tip, index) => (
-                        <li key={tip} className="flex gap-3 text-sm">
-                          <span className="flex size-6 shrink-0 items-center justify-center rounded-full border bg-background font-mono text-xs">
-                            {index + 1}
-                          </span>
-                          <span className="text-muted-foreground">{tip}</span>
-                        </li>
-                      ))}
-                    </ol>
-                  </div>
-                )}
-              </>
-            ) : (
-              <div className="grid gap-3 sm:grid-cols-3" aria-hidden="true">
-                {metricKeys.slice(0, 3).map((key) => (
-                  <div key={key} className="rounded-2xl border border-dashed p-5">
-                    <p className="text-sm text-muted-foreground">{reportMetricLabels[key]}</p>
-                    <p className="mt-2 font-heading text-4xl font-bold text-muted-foreground/40">—</p>
-                  </div>
-                ))}
-              </div>
-            )}
-          </section>
-
-          <section aria-labelledby="history">
-            <h2 id="history" className="mb-4 text-2xl tracking-tight">
-              Historique
-            </h2>
-            {reports.length ? (
-              <ol className="divide-y overflow-hidden rounded-2xl border bg-card">
-                {reports.map((report) => {
-                  const current = report.id === selected?.id;
-                  const deliveries = Object.entries(states)
-                    .map(([state, label]) => ({
-                      state,
-                      label: label.toLowerCase(),
-                      count: report.emails.filter((email) => email.state === state).length,
-                    }))
-                    .filter((item) => item.count > 0);
-                  return (
-                    <li key={report.id}>
-                      <Link
-                        href={`${base}/reports?report=${report.id}`}
-                        aria-current={current ? "page" : undefined}
-                        className={cn(
-                          "relative flex items-center gap-4 px-4 py-3.5 outline-none transition-colors hover:bg-muted/50 focus-visible:bg-muted/50 focus-visible:ring-3 focus-visible:ring-inset focus-visible:ring-ring/50",
-                          current && "bg-muted/60",
-                        )}
-                      >
-                        {current && (
-                          <span aria-hidden="true" className="absolute inset-y-2 left-0 w-0.5 rounded-full bg-foreground" />
-                        )}
-                        <span
-                          aria-hidden="true"
-                          className={cn(
-                            "flex size-11 shrink-0 flex-col items-center justify-center rounded-xl border leading-none",
-                            current ? "border-primary bg-primary text-primary-foreground" : "bg-background",
-                          )}
-                        >
-                          <span className="text-[9px] uppercase tracking-wider opacity-70">Sem.</span>
-                          <span className="mt-0.5 font-heading text-base font-bold tabular-nums">
-                            {isoWeek(new Date((report.weekStart.getTime() + report.weekEnd.getTime()) / 2))}
-                          </span>
-                        </span>
-                        <span className="min-w-0 flex-1">
-                          <span className="block text-sm font-medium">
-                            {reportRange(report.weekStart, report.weekEnd, timeZone)}
-                          </span>
-                          <span className="mt-1 flex flex-wrap gap-1.5 text-[11px] text-muted-foreground">
-                            {report.skipped ? (
-                              <span className="rounded-full border border-dashed px-2 py-px">
-                                Sans activité · e-mail ignoré
-                              </span>
-                            ) : !deliveries.length ? (
-                              <span className="rounded-full border px-2 py-px">Aucun destinataire vérifié</span>
-                            ) : (
-                              deliveries.map((item) => (
-                                <span key={item.state} className="rounded-full border bg-background px-2 py-px tabular-nums">
-                                  {item.count} {item.label}
-                                </span>
-                              ))
-                            )}
-                          </span>
-                        </span>
-                        {current ? (
-                          <span className="hidden shrink-0 rounded-full bg-foreground px-2 py-0.5 text-[11px] text-background sm:inline">
-                            Affiché
-                          </span>
-                        ) : (
-                          <ChevronRight aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
-                        )}
-                      </Link>
-                    </li>
-                  );
-                })}
-              </ol>
-            ) : (
-              <p className="rounded-2xl border border-dashed p-6 text-sm text-muted-foreground">
-                Aucun rapport généré pour le moment. Les semaines sans activité
-                sont aussi couvertes, sauf si vous choisissez de les ignorer par
-                e-mail.
+      {(!eligible || selected?.skipped) && (
+        <div className="-mt-6 space-y-3">
+          {!eligible && (
+            <div
+              role="status"
+              className="flex flex-wrap items-center gap-3 rounded-xl border border-destructive/30 px-4 py-3 text-sm"
+            >
+              <TriangleAlert
+                aria-hidden="true"
+                className="size-4 shrink-0 text-destructive"
+              />
+              <p className="min-w-0 flex-1">
+                Abonnement à régulariser : les envois sont suspendus,
+                l’historique reste consultable.
               </p>
-            )}
-            <p className="mt-3 text-xs text-muted-foreground">
-              Les 12 dernières semaines générées. « Accepté » confirme la prise
-              en charge par le service e-mail, pas la réception ni l’ouverture.
-              Les rapports sont figés au moment du calcul.
+              <Button asChild size="sm" variant="outline">
+                <Link href={`${base}/billing`}>Gérer l’abonnement</Link>
+              </Button>
+            </div>
+          )}
+          {selected?.skipped && (
+            <p
+              role="status"
+              className="rounded-xl border px-4 py-3 text-sm text-muted-foreground"
+            >
+              Semaine sans activité : l’e-mail n’a pas été envoyé, comme prévu
+              dans la programmation.
             </p>
-          </section>
-
-          <section aria-labelledby="definitions">
-            <h2 id="definitions" className="mb-2 text-2xl tracking-tight">
-              Comprendre vos indicateurs
-            </h2>
-            <Accordion type="multiple" className="w-full">
-              {(Object.keys(explanations) as (keyof ReportMetrics)[]).map((key) => (
-                <AccordionItem key={key} value={key}>
-                  <AccordionTrigger className="text-left">{reportMetricLabels[key]}</AccordionTrigger>
-                  <AccordionContent className="text-muted-foreground">{explanations[key]}</AccordionContent>
-                </AccordionItem>
-              ))}
-            </Accordion>
-            <p className="mt-5 text-sm text-muted-foreground">
-              Les pourcentages comparent deux semaines consécutives. Sans valeur
-              de référence, aucun pourcentage n’est calculé. Une hausse du
-              volume ou du nombre de réponses IA ne prouve ni une meilleure
-              satisfaction ni une hausse du chiffre d’affaires.
-            </p>
-          </section>
+          )}
         </div>
+      )}
 
-        <aside className="space-y-6 lg:sticky lg:top-6">
-          <section aria-labelledby="programmation" className="rounded-2xl border bg-card p-5">
-            <h2 id="programmation" className="mb-5 text-lg">
-              Programmation
-            </h2>
-            {eligible ? (
+      {!selected || !week ? (
+        <section aria-labelledby="first-title">
+          <p className="text-sm text-muted-foreground">
+            Aucun rapport pour le moment
+          </p>
+          <h2
+            id="first-title"
+            className="mt-3 max-w-3xl font-sans text-2xl leading-tight font-medium tracking-tight text-balance sm:text-[2rem]"
+          >
+            Votre premier rapport arrivera après la première semaine complète.
+          </h2>
+          <p className="mt-4 max-w-2xl text-sm text-muted-foreground">
+            Les comparaisons à l’habitude commencent après 4 semaines. Les
+            semaines sans activité sont aussi couvertes, sauf si vous choisissez
+            de ne pas les envoyer.
+          </p>
+        </section>
+      ) : (
+        <>
+          {v2 ? (
+            <VerdictPanel verdict={v2.verdict} partial={v2.partial} />
+          ) : (
+            <section aria-labelledby="legacy-title">
+              <p className="text-sm text-muted-foreground">Ancien format</p>
+              <h2
+                id="legacy-title"
+                className="mt-3 max-w-4xl font-sans text-2xl leading-tight font-medium tracking-tight text-balance sm:text-[2rem]"
+              >
+                Ce rapport date d’avant le nouveau format : il ne contient que
+                les compteurs d’activité.
+              </h2>
+            </section>
+          )}
+          {v2 ? (
+            <FindingsList findings={findings} />
+          ) : snapshot?.version === 1 ? (
+            <LegacyCounters
+              current={snapshot.current}
+              previous={snapshot.previous}
+            />
+          ) : null}
+          <IndicatorGrid
+            readings={readings}
+            weeks={weeks}
+            index={index}
+            legacy={!v2}
+          />
+          {v2 && (
+            <>
+              <WeekDetail week={week} base={base} />
+              <LegacyCounters
+                current={week.legacy}
+                previous={weeks[index - 1]?.legacy ?? null}
+              />
+            </>
+          )}
+        </>
+      )}
+
+      {history.length > 0 && (
+        <HistoryList
+          reports={history}
+          selectedId={selected?.id ?? ""}
+          hrefFor={hrefFor}
+        />
+      )}
+
+      <section
+        aria-labelledby="sending-title"
+        className="grid gap-10 border-t pt-10 md:grid-cols-2"
+      >
+        <div>
+          <SectionHeader
+            id="sending-title"
+            title="Programmation"
+            meta={
+              !eligible
+                ? "Suspendue"
+                : !project.reportsEnabled
+                  ? "Envois suspendus"
+                  : undefined
+            }
+          />
+          {eligible ? (
+            <>
+              <p className="mb-5 text-sm text-muted-foreground">
+                {!project.reportsEnabled ? (
+                  "Réactivez les rapports pour reprendre les envois."
+                ) : catchingUp ? (
+                  "La dernière semaine complète sera traitée au prochain passage du service."
+                ) : (
+                  <>
+                    Prochain envoi : <LocalDate value={nextScheduled} />
+                  </>
+                )}
+              </p>
               <ReportSettingsForm
                 referenceDate={now.toISOString()}
                 projectId={projectId}
@@ -518,77 +441,89 @@ export default async function ReportsPage({
                 }}
                 version={project.reportsVersion}
               />
-            ) : (
-              <>
-                <p className="mb-4 text-sm text-muted-foreground">
-                  Les envois et les réglages reprendront avec un accès Business
-                  valide. Votre historique reste consultable.
-                </p>
-                <Button asChild>
-                  <Link href={`${base}/billing`}>Gérer l’abonnement</Link>
-                </Button>
-              </>
-            )}
-          </section>
+            </>
+          ) : (
+            <>
+              <p className="mb-4 text-sm text-muted-foreground">
+                {access.message}
+              </p>
+              <Button asChild variant="outline" size="sm">
+                <Link href={`${base}/billing`}>Gérer l’abonnement</Link>
+              </Button>
+            </>
+          )}
+        </div>
+        <div>
+          <SectionHeader
+            id="recipients-title"
+            title="Destinataires"
+            meta={`${verified} adresse${verified > 1 ? "s" : ""} vérifiée${verified > 1 ? "s" : ""}`}
+          />
+          <ul className="divide-y border-y">
+            {recipients.map((recipient) => (
+              <li
+                key={recipient.id}
+                className="flex min-w-0 items-center gap-3 py-3 text-sm"
+              >
+                <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-medium">
+                  {getInitials(recipient.user.name || recipient.user.email)}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate">{recipient.user.name}</span>
+                  <span className="block truncate text-xs text-muted-foreground">
+                    {recipient.user.email}
+                  </span>
+                </span>
+                <span
+                  className={cn(
+                    "shrink-0 text-xs",
+                    recipient.user.emailVerified
+                      ? "text-muted-foreground"
+                      : "text-destructive",
+                  )}
+                >
+                  {recipient.user.emailVerified
+                    ? (roleLabel[recipient.role] ?? recipient.role)
+                    : "Adresse à vérifier"}
+                </span>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-3 text-xs text-muted-foreground">
+            Propriétaires et administrateurs, envois individuels, rôles vérifiés
+            avant chaque envoi. Aucun message, numéro ni question client dans
+            l’e-mail.
+          </p>
+          <Button asChild variant="outline" size="sm" className="mt-4">
+            <Link href={`${base}/team`}>Gérer l’équipe</Link>
+          </Button>
+        </div>
+      </section>
 
-          <section aria-labelledby="destinataires" className="rounded-2xl border bg-card p-5">
-            <h2 id="destinataires" className="text-lg">
-              Destinataires
-            </h2>
-            <ul className="mt-4 space-y-3">
-              {recipients.map((recipient) => (
-                <li key={recipient.id} className="flex min-w-0 items-start gap-3 text-sm">
-                  <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted font-heading text-xs font-semibold">
-                    {getInitials(recipient.user.name || recipient.user.email)}
-                  </span>
-                  <span className="min-w-0">
-                    <span className="flex flex-wrap items-center gap-1.5">
-                      <span className="font-medium">{recipient.user.name}</span>
-                      <span className="rounded-full border px-1.5 text-[10px] text-muted-foreground">
-                        {roleLabel[recipient.role] ?? recipient.role}
-                      </span>
-                    </span>
-                    <span className="block break-all text-xs text-muted-foreground">
-                      {recipient.user.email}
-                    </span>
-                    {!recipient.user.emailVerified && (
-                      <span className="mt-1 block text-xs text-destructive">
-                        Adresse à vérifier pour recevoir les rapports
-                      </span>
-                    )}
-                  </span>
-                </li>
-              ))}
+      {readings.length > 0 && (
+        <div className="grid gap-10 md:grid-cols-[1.4fr_1fr]">
+          <Definitions readings={readings} />
+          <section aria-labelledby="method-title">
+            <SectionHeader id="method-title" title="Méthode" />
+            <ul className="space-y-2.5 text-sm text-muted-foreground">
+              <li>
+                L’habitude est la médiane des {BASELINE_WEEKS} semaines
+                précédentes ; la plage normale l’entoure de {BAND_K} écarts
+                robustes.
+              </li>
+              <li>
+                « Inhabituel » seulement hors de cette plage et au-delà du seuil
+                d’effectif.
+              </li>
+              <li>
+                Sous le seuil, l’écart est donné en valeur absolue, sans
+                pourcentage.
+              </li>
+              <li>Chaque rapport est figé au moment du calcul.</li>
             </ul>
-            <Button asChild variant="outline" size="sm" className="mt-5">
-              <Link href={`${base}/team`}>Gérer l’équipe</Link>
-            </Button>
-            <p className="mt-3 text-xs text-muted-foreground">
-              La liste suit les rôles du projet ; ils sont vérifiés avant chaque
-              envoi.
-            </p>
           </section>
-
-          <section aria-labelledby="rituel" className="rounded-2xl bg-muted/40 p-5">
-            <h2 id="rituel" className="text-lg">
-              Un rituel de 10 minutes
-            </h2>
-            <ol className="mt-3 space-y-2.5 text-sm text-muted-foreground">
-              {[
-                "Repérez les échecs et les variations inhabituelles.",
-                "Relisez quelques conversations avec votre équipe.",
-                "Choisissez une seule amélioration de consigne à tester.",
-                "Comparez plusieurs semaines avant de conclure.",
-              ].map((step, index) => (
-                <li key={step} className="flex gap-2.5">
-                  <span className="font-mono text-xs text-foreground">0{index + 1}</span>
-                  {step}
-                </li>
-              ))}
-            </ol>
-          </section>
-        </aside>
-      </div>
+        </div>
+      )}
     </main>
   );
 }

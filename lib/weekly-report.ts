@@ -5,6 +5,14 @@ import {
   renderEmail,
 } from "../components/emailTemplate/emailLayout";
 import { z } from "zod";
+import {
+  formatBand,
+  formatValue,
+  type Finding,
+  type Verdict,
+} from "./report-findings";
+import { readIndicators, type IndicatorReading } from "./report-indicators";
+import { WeekAggregateSchema } from "./report-week";
 
 export const ReportSettingsSchema = z.object({
   reportsEnabled: z.boolean(),
@@ -37,17 +45,61 @@ export const ReportMetricsSchema = z.object({
   activeContacts: z.number(),
   newContacts: z.number(),
   changes: z.number(),
-  // Absent from snapshots stored before the satisfaction survey existed.
-  csatResponses: z.number().default(0),
+  csatResponses: z.number(),
 });
-export const ReportSnapshotSchema = z.object({
-  current: ReportMetricsSchema,
-  previous: ReportMetricsSchema,
+export type ReportMetrics = z.infer<typeof ReportMetricsSchema>;
+
+// Version 1 : 8 compteurs comparés à la semaine précédente. `csatResponses` est
+// absent des plus anciens : il reste absent (« non mesuré »), jamais 0.
+const LegacyMetricsSchema = ReportMetricsSchema.extend({
+  csatResponses: z.number().optional(),
+});
+const ReportSnapshotV1Schema = z.object({
+  version: z.literal(1),
+  current: LegacyMetricsSchema,
+  previous: LegacyMetricsSchema,
   partial: z.boolean(),
   tips: z.array(z.string()),
 });
-export type ReportMetrics = z.infer<typeof ReportMetricsSchema>;
+
+const FindingSchema = z.object({
+  id: z.string().max(40),
+  title: z.string().max(300),
+  evidence: z.array(z.string().max(400)).max(4),
+  impact: z.number().min(0),
+  confidence: z.enum(["high", "medium", "low"]),
+  // Chemin relatif au projet, jamais une URL : le lien est reconstruit à l'affichage.
+  action: z.object({
+    label: z.string().max(60),
+    href: z.string().regex(/^\/[a-z/?=&_-]*$/),
+  }),
+});
+const ReportSnapshotV2Schema = z.object({
+  version: z.literal(2),
+  /** Jusqu'à 20 semaines, la semaine du rapport en dernier, recalculées au moment du rapport. */
+  weeks: z.array(WeekAggregateSchema).min(1).max(20),
+  partial: z.boolean(),
+  verdict: z.object({
+    tone: z.enum(["watch", "good", "usual", "new", "empty"]),
+    label: z.string().max(60),
+    sentence: z.string().max(400),
+  }),
+  findings: z.array(FindingSchema).max(3),
+});
+
+export const ReportSnapshotSchema = z.preprocess(
+  (value) =>
+    value && typeof value === "object" && !("version" in value)
+      ? { ...value, version: 1 }
+      : value,
+  z.discriminatedUnion("version", [
+    ReportSnapshotV1Schema,
+    ReportSnapshotV2Schema,
+  ]),
+);
 export type ReportSnapshot = z.infer<typeof ReportSnapshotSchema>;
+export type ReportSnapshotV2 = z.infer<typeof ReportSnapshotV2Schema>;
+
 export const reportMetricLabels: Record<keyof ReportMetrics, string> = {
   received: "Messages reçus",
   sent: "Messages envoyés",
@@ -64,33 +116,6 @@ export function reportDelta(current: number, previous: number) {
   const delta = ((current - previous) / previous) * 100;
   return `${delta > 0 ? "+" : ""}${new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 1 }).format(delta)} %`;
 }
-export function reportTips(
-  current: ReportMetrics,
-  previous: ReportMetrics,
-): string[] {
-  const tips: string[] = [];
-  if (!current.activeContacts)
-    tips.push(
-      "Aucun échange cette semaine : vérifiez la connexion WhatsApp et la visibilité de votre numéro auprès de vos clients.",
-    );
-  if (current.failed)
-    tips.push(
-      `${current.failed} échec(s) d’envoi : contrôlez la connexion WhatsApp et les messages en échec avant toute relance.`,
-    );
-  if (current.received > previous.received && previous.received > 0)
-    tips.push(
-      "Le volume entrant progresse : vérifiez que votre équipe peut prendre le relais sur les demandes complexes.",
-    );
-  if (current.changes)
-    tips.push(
-      "Des réglages de l’agent ont changé. Relisez un échantillon de réponses avant d’attribuer une évolution à ces changements.",
-    );
-  if (!tips.length)
-    tips.push(
-      "Relisez quelques conversations et précisez les consignes de l’agent sur les questions récurrentes. Comparez les résultats sur plusieurs semaines.",
-    );
-  return tips;
-}
 export function reportRange(start: Date, end: Date, timeZone = "UTC") {
   const fmt = new Intl.DateTimeFormat("fr-FR", {
     day: "numeric",
@@ -100,12 +125,42 @@ export function reportRange(start: Date, end: Date, timeZone = "UTC") {
   });
   return `${fmt.format(start)} – ${fmt.format(new Date(end.getTime() - 1))}`;
 }
+
+/** Lecture courte d'un indicateur, partagée par l'e-mail (texte et HTML). */
+export function indicatorLine(reading: IndicatorReading) {
+  const { definition, current, signal } = reading;
+  const value =
+    current.value === null ? "—" : formatValue(definition.kind, current.value);
+  const status =
+    signal.status === "unusual-bad"
+      ? "inhabituel"
+      : signal.status === "unusual-good"
+        ? "mieux que d’habitude"
+        : signal.status === "low-sample"
+          ? "effectif faible"
+          : signal.status === "insufficient-history"
+            ? "historique court"
+            : null;
+  const habit =
+    signal.band &&
+    !["low-sample", "insufficient-history"].includes(signal.status)
+      ? `habitude ${formatValue(definition.kind, definition.kind === "count" ? Math.round(signal.band.median) : signal.band.median)}, plage ${formatBand(definition.kind, signal.band)}`
+      : null;
+  return {
+    label: definition.label,
+    value,
+    note: [status, habit].filter(Boolean).join(" · "),
+    bad: signal.status === "unusual-bad",
+  };
+}
+
 export function reportEmail(
   name: string,
-  snapshot: ReportSnapshot,
+  snapshot: ReportSnapshotV2,
   start: Date,
   end: Date,
   url: string,
+  includeFindings = true,
 ) {
   const parsed = new URL(url);
   if (
@@ -114,81 +169,90 @@ export function reportEmail(
     parsed.password
   )
     throw new Error("INVALID_REPORT_URL");
-  const lines = (
-    Object.keys(reportMetricLabels) as (keyof ReportMetrics)[]
-  ).map(
-    (key) =>
-      `${reportMetricLabels[key]} : ${snapshot.current[key]} (${reportDelta(snapshot.current[key], snapshot.previous[key])})`,
+  // Les actions pointent vers les pages du projet, à côté de la page Rapports.
+  const projectBase = `${parsed.origin}${parsed.pathname.replace(/\/reports\/?$/, "")}`;
+  const verdict: Verdict = snapshot.verdict;
+  const findings: Finding[] = includeFindings ? snapshot.findings : [];
+  const lines = readIndicators(snapshot.weeks, snapshot.weeks.length - 1).map(
+    indicatorLine,
   );
-  const subject = `Votre rapport hebdomadaire · ${name.replace(/[\r\n]/g, " ")} · ${reportRange(start, end)}`;
+  const range = reportRange(start, end);
+  const subject = `Votre rapport hebdomadaire · ${name.replace(/[\r\n]/g, " ")} · ${range}`;
   const text = [
     subject,
-    "Comparaison avec la semaine précédente · périodes UTC",
-    ...lines,
-    ...(snapshot.partial
-      ? ["Projet récent : les périodes peuvent être incomplètes."]
+    `${verdict.label}. ${verdict.sentence}`,
+    `${range} · heures UTC · comparée aux 8 semaines précédentes`,
+    ...(findings.length
+      ? [
+          "À faire cette semaine :",
+          ...findings.map(
+            (finding, index) =>
+              `${index + 1}. ${finding.title}\n   ${finding.evidence.join(" · ")}\n   ${finding.action.label} : ${projectBase}${finding.action.href}`,
+          ),
+        ]
       : []),
-    "Les variations décrivent l’activité ; elles ne prouvent pas un gain de performance. Les échecs reflètent le statut au moment du calcul.",
-    ...snapshot.tips,
-    `Consulter le rapport et gérer les envois : ${url}`,
+    "Indicateurs :",
+    ...lines.map(
+      (line) =>
+        `- ${line.label} : ${line.value}${line.note ? ` (${line.note})` : ""}`,
+    ),
+    ...(snapshot.partial ? ["Projet récent : la semaine est incomplète."] : []),
+    "Données agrégées uniquement : aucun message, numéro ni question client.",
+    `Ouvrir le rapport : ${url}`,
   ].join("\n\n");
+
   // Literal neutral fallbacks match the configured shadcn palette, as in billing
   // emails: email clients cannot resolve the app's CSS variables or OKLCH tokens.
-  const fmt = new Intl.NumberFormat("fr-FR");
   const safeName = escapeHtml(name);
-  const range = escapeHtml(reportRange(start, end));
-  const trend = (key: keyof ReportMetrics) => {
-    const current = snapshot.current[key];
-    const previous = snapshot.previous[key];
-    const arrow =
-      current > previous ? "&#9650;" : current < previous ? "&#9660;" : "&#8212;";
-    return `<span class="pill" style="display:inline-block;padding:3px 9px;border-radius:999px;background:#f5f5f5;color:#525252;font-size:12px;font-weight:bold;white-space:nowrap">${arrow}&nbsp;${escapeHtml(reportDelta(current, previous))}</span>`;
-  };
-  const tile = (key: keyof ReportMetrics, side: "left" | "right") =>
-    `<td class="tile-cell" width="50%" valign="top" style="padding:${side === "left" ? "0 6px 12px 0" : "0 0 12px 6px"}"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" class="tile" style="background:#fafafa;border:1px solid #e5e5e5;border-radius:12px"><tr><td style="padding:18px">
-    <p class="muted" style="margin:0 0 8px;font-size:13px;line-height:1.4;color:#737373">${escapeHtml(reportMetricLabels[key])}</p>
-    <p class="main heading" style="margin:0 0 10px;font-family:${EMAIL_HEADING_FONT};font-size:32px;line-height:1.1;font-weight:bold;letter-spacing:-0.5px;color:#0a0a0a">${fmt.format(snapshot.current[key])}</p>
-    ${trend(key)}
-    </td></tr></table></td>`;
-  const secondary = (["failed", "newContacts", "changes"] as const)
+  const findingRows = findings
     .map(
-      (key) =>
-        `<tr><th scope="row" align="left" class="main divider" style="padding:14px 8px 14px 0;border-top:1px solid #e5e5e5;font-weight:normal;font-size:14px;color:#0a0a0a">${escapeHtml(reportMetricLabels[key])}</th><td align="right" class="main divider" style="padding:14px 0;border-top:1px solid #e5e5e5;font-weight:bold;font-size:15px;color:${key === "failed" && snapshot.current.failed ? "#b91c1c" : "#0a0a0a"}">${fmt.format(snapshot.current[key])}</td><td align="right" class="divider" style="padding:14px 0 14px 12px;border-top:1px solid #e5e5e5">${trend(key)}</td></tr>`,
+      (finding, index) =>
+        `<tr><td valign="top" style="padding:16px 12px 16px 0;width:26px;border-top:1px solid #e5e5e5" class="divider"><span class="badge" style="display:inline-block;width:24px;height:24px;line-height:24px;border-radius:999px;background:#171717;color:#fafafa;font-size:12px;font-weight:bold;text-align:center">${index + 1}</span></td><td valign="top" class="divider" style="padding:16px 0;border-top:1px solid #e5e5e5">
+        <p class="main" style="margin:0 0 4px;font-size:15px;line-height:1.5;font-weight:bold;color:#0a0a0a">${escapeHtml(finding.title)}</p>
+        <p class="muted" style="margin:0 0 8px;font-size:13px;line-height:1.6;color:#737373">${escapeHtml(finding.evidence.join(" · "))}</p>
+        <a class="link" href="${escapeHtml(`${projectBase}${finding.action.href}`)}" target="_blank" style="font-size:14px;font-weight:bold;color:#171717">${escapeHtml(finding.action.label)} &rarr;</a></td></tr>`,
     )
     .join("");
-  const tips = snapshot.tips
+  const indicatorRows = lines
     .map(
-      (tip, index) =>
-        `<tr><td valign="top" style="padding:0 12px 14px 0;width:26px"><span class="badge" style="display:inline-block;width:24px;height:24px;line-height:24px;border-radius:999px;background:#171717;color:#fafafa;font-size:12px;font-weight:bold;text-align:center">${index + 1}</span></td><td class="main" valign="top" style="padding:2px 0 14px;font-size:14px;line-height:1.6;color:#0a0a0a">${escapeHtml(tip)}</td></tr>`,
+      (line) =>
+        `<tr><th scope="row" align="left" class="main divider" style="padding:12px 8px 12px 0;border-top:1px solid #e5e5e5;font-weight:normal;font-size:14px;color:#0a0a0a">${escapeHtml(line.label)}<br><span class="muted" style="font-size:12px;color:#737373">${escapeHtml(line.note)}</span></th><td align="right" valign="top" class="main divider" style="padding:12px 0;border-top:1px solid #e5e5e5;font-family:${EMAIL_HEADING_FONT};font-weight:bold;font-size:18px;color:${line.bad ? "#b91c1c" : "#0a0a0a"};white-space:nowrap">${escapeHtml(line.value)}</td></tr>`,
     )
     .join("");
   const html = renderEmail({
     title: escapeHtml(subject),
-    preheader: `${safeName} · ${range} : ${fmt.format(snapshot.current.received)} messages reçus, ${fmt.format(snapshot.current.aiSent)} réponses IA envoyées.`,
+    preheader: escapeHtml(verdict.sentence.slice(0, 140)),
     badge: "BUSINESS",
     maxWidth: 600,
     reason:
       "Envoyé aux Owner et Admin du projet. Aucune conversation ni coordonnée client n’est incluse.",
     content: [
-      ui.pill("neutral", "Rapport hebdomadaire"),
-      ui.h1("Votre semaine en chiffres"),
+      ui.pill(
+        verdict.tone === "watch" ? "danger" : "neutral",
+        escapeHtml(verdict.label),
+      ),
+      ui.h1(escapeHtml(verdict.sentence)),
       ui.p(ui.strong(safeName), { margin: "0 0 4px" }),
-      ui.p(`${range} · UTC · comparé à la semaine précédente`, {
-        muted: true,
-        small: true,
-        margin: "0 0 28px",
-      }),
-      `<table role="presentation" width="100%" cellspacing="0" cellpadding="0"><tr>${tile("received", "left")}${tile("sent", "right")}</tr><tr>${tile("aiSent", "left")}${tile("activeContacts", "right")}</tr></table>`,
-      `<table width="100%" cellspacing="0" cellpadding="0" style="margin-top:24px;border-collapse:collapse"><caption class="main" style="text-align:left;padding:0 0 4px;font-family:${EMAIL_HEADING_FONT};font-size:16px;font-weight:700;color:#0a0a0a">Autres indicateurs</caption><tbody>${secondary}</tbody></table>`,
+      ui.p(
+        `${escapeHtml(range)} · heures UTC · comparée aux 8 semaines précédentes`,
+        {
+          muted: true,
+          small: true,
+          margin: "0 0 8px",
+        },
+      ),
+      findingRows
+        ? `${ui.h2("À faire cette semaine")}<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-top:8px;border-collapse:collapse">${findingRows}</table>`
+        : "",
+      `${ui.h2("Indicateurs")}<table width="100%" cellspacing="0" cellpadding="0" style="margin-top:8px;border-collapse:collapse"><caption class="sr-only" style="display:none">Indicateurs de la semaine</caption><tbody>${indicatorRows}</tbody></table>`,
       snapshot.partial
-        ? `<div style="height:20px"></div>${ui.callout("info", "<strong>Projet récent&nbsp;:</strong> les périodes peuvent être incomplètes.")}`
+        ? `<div style="height:20px"></div>${ui.callout("info", "<strong>Projet récent&nbsp;:</strong> la semaine est incomplète.")}`
         : "",
       ui.note(
-        "Les variations décrivent l’activité ; elles ne prouvent pas un gain de performance. Les échecs reflètent le statut au moment du calcul.",
+        "Une valeur n’est « inhabituelle » que hors de la plage normale des 8 semaines précédentes et au-delà d’un effectif minimal. Données agrégées uniquement.",
       ),
-      tips ? `${ui.h2("Pistes d’amélioration")}<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-top:12px">${tips}</table>` : "",
-      `<div style="height:12px"></div>`,
-      ui.button(escapeHtml(parsed.href), "Consulter le rapport"),
+      `<div style="height:20px"></div>`,
+      ui.button(escapeHtml(parsed.href), "Ouvrir le rapport"),
       ui.p("Vous pouvez aussi y gérer l’envoi des rapports.", {
         muted: true,
         small: true,

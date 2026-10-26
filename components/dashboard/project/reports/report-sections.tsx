@@ -16,7 +16,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 
-import type { WeekAggregate } from "./data";
+import type { WeekAggregate } from "@/lib/report-week";
 import {
   confidenceLabel,
   formatBand,
@@ -24,10 +24,10 @@ import {
   formatValue,
   type Finding,
   type Verdict,
-} from "./findings";
-import type { IndicatorKey, IndicatorReading } from "./indicators";
-import { isoWeek, weekNote, type PreviewReport } from "./scenario";
-import { wilson, type SignalStatus } from "./signal";
+} from "@/lib/report-findings";
+import type { IndicatorKey, IndicatorReading } from "@/lib/report-indicators";
+import { isoWeek, weekNote } from "@/lib/report-week";
+import { wilson, type SignalStatus } from "@/lib/report-signal";
 import { ReportSparkline, type SparkPoint } from "./sparkline";
 
 const percent = new Intl.NumberFormat("fr-FR", {
@@ -654,8 +654,9 @@ export function LegacyCounters({
   current,
   previous,
 }: {
-  current: WeekAggregate["legacy"];
-  previous: WeekAggregate["legacy"] | null;
+  /** Absent d’un ancien rapport : « non mesuré », jamais 0. */
+  current: { [K in keyof ReportMetrics]?: number };
+  previous: { [K in keyof ReportMetrics]?: number } | null;
 }) {
   return (
     <section aria-labelledby="counters-title">
@@ -671,10 +672,16 @@ export function LegacyCounters({
               {reportMetricLabels[key]}
             </dt>
             <dd className="mt-1 text-lg font-semibold tracking-tight">
-              {integer.format(current[key])}
-              {previous && (
+              {current[key] === undefined ? (
+                <span className="text-sm font-normal text-muted-foreground">
+                  Non mesuré à l’époque
+                </span>
+              ) : (
+                integer.format(current[key])
+              )}
+              {previous && previous[key] !== undefined && (
                 <span className="ml-1.5 text-xs font-normal text-muted-foreground">
-                  avant {integer.format(previous[key])}
+                  avant {integer.format(previous[key] ?? 0)}
                 </span>
               )}
             </dd>
@@ -684,6 +691,16 @@ export function LegacyCounters({
     </section>
   );
 }
+
+/** Ligne d’historique : seulement ce que la liste affiche. */
+export type ReportListItem = {
+  id: string;
+  label: string;
+  range: string;
+  skipped: boolean;
+  emails: { state: string }[];
+  verdict: Pick<Verdict, "tone" | "label"> | null;
+};
 
 const emailStates: Record<string, string> = {
   PENDING: "en attente",
@@ -698,7 +715,7 @@ export function HistoryList({
   selectedId,
   hrefFor,
 }: {
-  reports: PreviewReport[];
+  reports: ReportListItem[];
   selectedId: string;
   hrefFor: (id: string) => string;
 }) {

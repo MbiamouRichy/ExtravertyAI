@@ -18,8 +18,8 @@ import { Button } from "@/components/ui/button";
 import { ReportSettingsForm } from "@/components/dashboard/project/report-settings";
 import { reportWindow, WEEK_MS } from "@/lib/weekly-report";
 import { cn } from "@/lib/utils";
-import { buildFindings } from "@/components/maquettes/reports-v2/findings";
-import { readIndicators } from "@/components/maquettes/reports-v2/indicators";
+import { buildFindings } from "@/lib/report-findings";
+import { readIndicators } from "@/lib/report-indicators";
 import {
   Definitions,
   FindingsList,
@@ -29,17 +29,14 @@ import {
   SectionHeader,
   VerdictPanel,
   WeekDetail,
-} from "@/components/maquettes/reports-v2/report-sections";
+} from "@/components/dashboard/project/reports/report-sections";
 import {
   buildScenario,
   parseScenario,
   scenarios,
   type ScenarioId,
 } from "@/components/maquettes/reports-v2/scenario";
-import {
-  BAND_K,
-  BASELINE_WEEKS,
-} from "@/components/maquettes/reports-v2/signal";
+import { BAND_K, BASELINE_WEEKS } from "@/lib/report-signal";
 
 export const metadata: Metadata = {
   title: "Rapport de décision (test)",
