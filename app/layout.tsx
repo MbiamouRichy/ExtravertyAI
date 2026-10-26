@@ -9,6 +9,7 @@ import {
 import { Analytics } from "@vercel/analytics/next";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { SiteAnalyticsBeacon } from "@/components/site-analytics-beacon";
 
 const robotoMonoRobotoMono = Roboto_Mono({
   subsets: [
@@ -66,6 +67,7 @@ export default async function RootLayout({
           <Toaster />
         </ThemeProvider>
         <Analytics />
+        <SiteAnalyticsBeacon />
       </body>
     </html>
   );

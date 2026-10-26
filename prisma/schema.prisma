@@ -222,6 +222,7 @@ model Project {
   messages             Message[]      // Tous les messages liés à ce projet
   knowledgeSources     KnowledgeSource[]
   storedFiles          StoredFile[]
+  productFeedback      ProductFeedback[]
   broadcasts           Broadcast[]
   // Icône de l'entreprise (clé du fichier dans le stockage), servie par /api/projects/[id]/logo.
   logoKey              String?
@@ -424,6 +425,8 @@ model ProjectMembership {
 // ------------------------------------------------------
 model User {
   presence UserPresence[]
+  productFeedback ProductFeedback[]
+  handledProductFeedback ProductFeedback[] @relation("ProductFeedbackHandledBy")
   notificationReceipts NotificationReceipt[]
   id            String    @id
   name          String
@@ -862,6 +865,82 @@ enum KnowledgeSourceStatus {
   PROCESSING
   READY
   FAILED
+}
+
+// Retours envoyés depuis l'application (bouton « Votre avis » de l'en-tête).
+enum ProductFeedbackKind {
+  BUG
+  IDEA
+  PRAISE
+}
+
+model ProductFeedback {
+  id         String              @id @default(cuid())
+  kind       ProductFeedbackKind
+  message    String              @db.Text
+  // Page d'où le retour a été envoyé (chemin seul, sans paramètres).
+  pagePath   String?
+  // L'utilisateur accepte d'être recontacté au sujet de ce retour.
+  contactOk  Boolean             @default(true)
+  userId     String?
+  user       User?               @relation(fields: [userId], references: [id], onDelete: SetNull)
+  projectId  String?
+  project    Project?            @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  createdAt  DateTime            @default(now())
+  // Suivi par l'équipe dans le back-office (/admin/feedback).
+  status       ProductFeedbackStatus @default(NEW)
+  handledAt    DateTime?
+  handledById  String?
+  handledBy    User?             @relation("ProductFeedbackHandledBy", fields: [handledById], references: [id], onDelete: SetNull)
+  // Note interne, jamais montrée à l'auteur du retour.
+  internalNote String?           @db.Text
+
+  @@index([userId, createdAt])
+  @@index([createdAt])
+  @@index([status, createdAt])
+  @@map("product_feedback")
+}
+
+enum ProductFeedbackStatus {
+  NEW
+  IN_PROGRESS
+  DONE
+  ARCHIVED
+}
+
+// Journal des actions de l'équipe dans le back-office : qui, quoi, quand.
+// Sans clé étrangère : l'historique survit à la suppression d'un compte.
+model AdminAuditLog {
+  id         String   @id @default(cuid())
+  actorId    String
+  actorEmail String
+  action     String
+  targetType String
+  targetId   String
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([targetType, targetId, createdAt])
+  @@map("admin_audit_log")
+}
+
+// Mesure d'audience interne, sans cookie : ni IP ni identifiant durable.
+// visitorHash change chaque jour (HMAC du jour, de l'IP et du navigateur).
+model PageView {
+  id           String   @id @default(cuid())
+  visitorHash  String
+  // Chemin normalisé : les identifiants deviennent « :id ».
+  path         String
+  country      String?
+  browser      String
+  device       String
+  referrerHost String?
+  createdAt    DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([createdAt, visitorHash])
+  @@map("page_view")
 }
 
 // Fichiers déposés par l'équipe (médias du chat, PDF) : base du quota de stockage par offre.
