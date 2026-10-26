@@ -9,6 +9,7 @@ export const SILENCE_MARKER = "[[SILENCE]]";
 /** Always sent: keeps the agent from looping on the same questions. */
 export const CONVERSATION_FLOW_INSTRUCTION = `
 Déroulement de la conversation :
+- Réponds au dernier message du client. Si plusieurs de ses messages sont restés sans réponse (par exemple après une reprise par l’équipe), traite-les en une seule réponse en commençant par sa question la plus récente, et ignore les salutations déjà dépassées.
 - Ne repose jamais une question déjà posée dans cette conversation, même reformulée. Si le client n’y a pas répondu, avance sans elle ou conclus.
 - Si la demande ne correspond pas à l’activité décrite dans tes instructions, dis-le clairement en une phrase, propose au besoin de transmettre à l’équipe, et ne pose pas d’autre question.
 - Ne décris jamais l’offre ou l’activité de l’entreprise en termes vagues ou inventés : si tu ne la connais pas précisément, dis que tu vérifies auprès de l’équipe.`;
