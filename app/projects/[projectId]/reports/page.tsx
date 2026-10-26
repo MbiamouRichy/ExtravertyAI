@@ -489,11 +489,6 @@ export default async function ReportsPage({
               </li>
             ))}
           </ul>
-          <p className="mt-3 text-xs text-muted-foreground">
-            Propriétaires et administrateurs, envois individuels, rôles vérifiés
-            avant chaque envoi. Aucun message, numéro ni question client dans
-            l’e-mail.
-          </p>
           <Button asChild variant="outline" size="sm" className="mt-4">
             <Link href={`${base}/team`}>Gérer l’équipe</Link>
           </Button>

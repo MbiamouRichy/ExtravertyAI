@@ -140,7 +140,6 @@ export function ReportSettingsForm({
                   ref={field.ref}
                   onBlur={field.onBlur}
                   aria-invalid={fieldState.invalid}
-                  aria-describedby="reports-hour-description"
                 >
                   <SelectValue />
                 </SelectTrigger>
@@ -161,10 +160,6 @@ export function ReportSettingsForm({
                   ))}
                 </SelectContent>
               </Select>
-              <FieldDescription id="reports-hour-description">
-                Horaire affiché dans votre fuseau ({timeZone || "…"}) pour le
-                prochain envoi. Il peut évoluer lors d’un changement d’heure.
-              </FieldDescription>
               <FieldError errors={[fieldState.error]} />
             </Field>
           )}

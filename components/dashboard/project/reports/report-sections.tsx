@@ -455,39 +455,59 @@ export function IndicatorGrid({
                 </tr>
               </thead>
               <tbody className="tabular-nums">
-                {readings[0].series.map((point, i) => (
-                  <tr key={point.weekStart.toISOString()} className="border-t">
-                    <th
-                      scope="row"
-                      className="px-3 py-1.5 text-left font-normal text-muted-foreground"
+                {readings[0].series.map((point, i, series) => {
+                  // La dernière ligne est la semaine du rapport affiché.
+                  const shown = i === series.length - 1;
+                  return (
+                    <tr
+                      key={point.weekStart.toISOString()}
+                      aria-current={shown ? "true" : undefined}
+                      className={cn(
+                        "border-t",
+                        shown && "bg-muted font-medium",
+                      )}
                     >
-                      S{isoWeek(point.weekStart)}
-                    </th>
-                    {readings.map((r) => {
-                      const cell = r.series[i];
-                      const flagged =
-                        cell.status === "unusual-bad" ||
-                        cell.status === "unusual-good";
-                      return (
-                        <td
-                          key={r.definition.key}
-                          className={cn(
-                            "px-3 py-1.5 text-right",
-                            cell.status === "unusual-bad" && "text-destructive",
-                          )}
-                        >
-                          {cell.value === null
-                            ? "—"
-                            : formatValue(r.definition.kind, cell.value)}
-                          {flagged && (
-                            <span className="sr-only"> (inhabituel)</span>
-                          )}
-                          {flagged && <span aria-hidden="true"> •</span>}
-                        </td>
-                      );
-                    })}
-                  </tr>
-                ))}
+                      <th
+                        scope="row"
+                        className={cn(
+                          "px-3 py-1.5 text-left font-normal",
+                          shown
+                            ? "font-medium text-foreground"
+                            : "text-muted-foreground",
+                        )}
+                      >
+                        S{isoWeek(point.weekStart)}
+                        {shown && (
+                          <span className="sr-only"> (semaine affichée)</span>
+                        )}
+                      </th>
+                      {readings.map((r) => {
+                        const cell = r.series[i];
+                        const flagged =
+                          cell.status === "unusual-bad" ||
+                          cell.status === "unusual-good";
+                        return (
+                          <td
+                            key={r.definition.key}
+                            className={cn(
+                              "px-3 py-1.5 text-right",
+                              cell.status === "unusual-bad" &&
+                                "text-destructive",
+                            )}
+                          >
+                            {cell.value === null
+                              ? "—"
+                              : formatValue(r.definition.kind, cell.value)}
+                            {flagged && (
+                              <span className="sr-only"> (inhabituel)</span>
+                            )}
+                            {flagged && <span aria-hidden="true"> •</span>}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -705,9 +725,16 @@ export function WeekDetail({
                 ["Mode manuel", week.waiting.manual],
               ] as const
             ).map(([label, value]) => (
-              <div key={label} className="p-4">
-                <dt className="text-xs text-muted-foreground">{label}</dt>
-                <dd className="mt-1 text-2xl font-semibold tracking-tight">
+              // Libellé en haut, chiffre en bas : les chiffres restent alignés
+              // même quand un libellé passe sur deux lignes (mobile).
+              <div
+                key={label}
+                className="flex flex-col justify-between gap-1 p-4"
+              >
+                <dt className="text-xs leading-tight text-muted-foreground">
+                  {label}
+                </dt>
+                <dd className="text-2xl font-semibold tracking-tight">
                   {value}
                 </dd>
               </div>

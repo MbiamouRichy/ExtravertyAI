@@ -446,10 +446,6 @@ export default async function ReportsDecisionPreview({
               </li>
             ))}
           </ul>
-          <p className="mt-3 text-xs text-muted-foreground">
-            Propriétaires et administrateurs, envois individuels. Aucun message,
-            numéro ni question client dans l’e-mail.
-          </p>
           <Button asChild variant="outline" size="sm" className="mt-4">
             <Link href={`${appBase}/team`}>Gérer l’équipe</Link>
           </Button>
