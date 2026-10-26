@@ -533,42 +533,79 @@ function byPlan(pick: (plan: PricingPlan) => MatrixCell): Record<PlanId, MatrixC
   return { starter: pick(starter), pro: pick(pro), business: pick(business) };
 }
 
+/** Inclus dans toutes les offres : affiché une fois, au-dessus du comparatif. */
+export const INCLUDED_EVERYWHERE: readonly string[] = [
+  "Assistant WhatsApp 24 h/24, 7 j/7",
+  "Votre numéro WhatsApp habituel",
+  "Messagerie partagée",
+  "Reprise en main en un clic",
+  "Suggestions et reformulation IA",
+  "Notes internes et étiquettes",
+  "Notifications en temps réel",
+  "Mise en veille en fin de conversation",
+  "Google Sheets",
+  "Export des contacts et des conversations",
+];
+
+/** Ce qui change d’une offre à l’autre : la raison de monter en gamme. */
 export const MATRIX_GROUPS: readonly MatrixGroup[] = [
   {
     title: "Capacité",
     rows: [
-      { label: "Utilisateurs", values: byPlan((plan) => String(plan.users)) },
-      { label: "Numéro WhatsApp", values: byPlan(() => "1") },
       { label: "Messages par mois", values: byPlan((plan) => formatMessageLimit(plan.messageLimit)) },
+      { label: "Utilisateurs", values: byPlan((plan) => String(plan.users)) },
       { label: "Stockage des fichiers", values: byPlan((plan) => plan.storage) },
     ],
   },
   {
-    title: "Assistant IA",
+    title: "Intelligence artificielle",
     rows: [
-      { label: "Assistant WhatsApp 24 h/24, 7 j/7", values: all },
-      { label: "Réponses textuelles", values: all },
       { label: "Compréhension des notes vocales", values: fromPro },
       { label: "Compréhension des images", values: { starter: false, pro: false, business: true } },
       {
-        label: "Mémoire de contexte",
-        values: byPlan((plan) => `${PLAN_FEATURES[plan.id].contextMessages} messages`),
-      },
-      { label: "Suggestions et reformulation IA", values: all },
-      { label: "Mise en veille en fin de conversation", values: all },
-    ],
-  },
-  {
-    title: "Base de connaissances",
-    rows: [
-      {
-        label: "Questions, infos et produits",
-        values: byPlan((plan) => count(PLAN_FEATURES[plan.id].knowledgeEntries)),
+        label: "Base de connaissances",
+        values: byPlan((plan) => `${count(PLAN_FEATURES[plan.id].knowledgeEntries)} entrées`),
       },
       {
         label: "Documents PDF et pages web",
         values: byPlan((plan) => count(PLAN_FEATURES[plan.id].knowledgeSources)),
       },
+    ],
+  },
+  {
+    title: "Ventes",
+    rows: [
+      { label: "Instinct IA : prospects repérés", values: fromPro },
+      { label: "Pipeline de prospects", values: fromPro },
+      { label: "Résumé IA des conversations", values: fromPro },
+      { label: "Questionnaire de satisfaction", values: fromPro },
+    ],
+  },
+  {
+    title: "Équipe et outils",
+    rows: [
+      { label: "Répartition automatique des conversations", values: { starter: false, pro: false, business: true } },
+      { label: "Connexion à vos outils (Make, Zapier, CRM)", values: fromPro },
+    ],
+  },
+  {
+    title: "Pilotage et support",
+    rows: [
+      { label: "Rapports hebdomadaires programmés", values: { starter: false, pro: false, business: true } },
+      { label: "Historique des statistiques", values: { starter: "30 jours", pro: "90 jours", business: "12 mois" } },
+      {
+        label: "Accompagnement",
+        values: { starter: "Standard", pro: "Prioritaire", business: "Prioritaire" },
+      },
+    ],
+  },
+];
+
+/** Détails affichés à la demande (« Voir toutes les fonctionnalités »). */
+export const MATRIX_DETAIL_GROUPS: readonly MatrixGroup[] = [
+  {
+    title: "Limites techniques",
+    rows: [
       {
         label: "Taille maximale d’un PDF",
         values: byPlan((plan) => `${PLAN_FEATURES[plan.id].pdfMaxMb} Mo`),
@@ -580,43 +617,17 @@ export const MATRIX_GROUPS: readonly MatrixGroup[] = [
     ],
   },
   {
-    title: "Pilotage commercial",
-    rows: [
-      { label: "Instinct IA : prospects repérés", values: fromPro },
-      { label: "Pipeline de prospects", values: fromPro },
-      { label: "Résumé IA des conversations", values: fromPro },
-      { label: "Questionnaire de satisfaction", values: fromPro },
-      { label: "Export CSV des contacts", values: all },
-      { label: "Rapports hebdomadaires programmés", values: { starter: false, pro: false, business: true } },
-      { label: "Historique des statistiques", values: { starter: "30 jours", pro: "90 jours", business: "12 mois" } },
-    ],
-  },
-  {
-    title: "Intégrations",
-    rows: [
-      { label: "Webhooks signés (Make, Zapier, CRM)", values: fromPro },
-      { label: "Google Sheets", values: all },
-    ],
-  },
-  {
-    title: "Équipe et support",
-    rows: [
-      { label: "Messagerie partagée", values: all },
-      { label: "Notes internes et étiquettes", values: all },
-      { label: "Reprise en main en un clic", values: all },
-      { label: "Notifications en temps réel", values: all },
-      { label: "Export des conversations (.txt, .csv)", values: all },
-      { label: "Répartition automatique des conversations", values: { starter: false, pro: false, business: true } },
-      {
-        label: "Accompagnement",
-        values: { starter: "Standard", pro: "Prioritaire", business: "Prioritaire" },
-      },
-    ],
+    title: "Inclus dans toutes les offres",
+    rows: INCLUDED_EVERYWHERE.map((label) => ({ label, values: all })),
   },
 ];
 
 /** Explication courte de chaque ligne, affichée par l’icône d’aide de la matrice. */
 export const MATRIX_HINTS: Readonly<Record<string, string>> = {
+  "Base de connaissances":
+    "Questions fréquentes, informations et produits que l’IA utilise pour répondre juste.",
+  "Connexion à vos outils (Make, Zapier, CRM)":
+    "Chaque événement (prospect qualifié, vente, note de satisfaction) part automatiquement vers vos outils.",
   Utilisateurs: "Membres de votre équipe qui accèdent à la messagerie et aux réglages.",
   "Numéro WhatsApp": "Votre numéro habituel, connecté en scannant un QR code.",
   "Messages par mois": "Messages envoyés depuis votre numéro, par l’IA ou par l’équipe. Les messages reçus ne sont pas comptés.",
@@ -625,7 +636,6 @@ export const MATRIX_HINTS: Readonly<Record<string, string>> = {
   "Réponses textuelles": "L’IA lit et rédige les messages écrits de vos clients.",
   "Compréhension des notes vocales": "Les notes vocales sont retranscrites puis traitées comme un message.",
   "Compréhension des images": "Photos et captures sont analysées pour adapter la réponse.",
-  "Mémoire de contexte": "Nombre de derniers messages de la conversation que l’IA relit avant de répondre.",
   "Suggestions et reformulation IA": "Quand vous répondez vous-même, l’IA propose des réponses ou améliore votre brouillon.",
   "Mise en veille en fin de conversation": "L’IA se tait quand l’échange est terminé, sans relancer le client inutilement.",
   "Questions, infos et produits": "Entrées de la base de connaissances : questions fréquentes, informations et catalogue.",

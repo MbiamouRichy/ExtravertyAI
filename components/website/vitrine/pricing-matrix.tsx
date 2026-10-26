@@ -1,14 +1,24 @@
 "use client";
 
 import { useState } from "react";
-import { Check, CircleHelp, Minus } from "lucide-react";
+import { Check, ChevronDown, CircleHelp, Minus } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { PRICING_PLANS, formatPlanPrice, type PlanId } from "@/lib/pricing";
 import { Button } from "@/components/ui/button";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
-import { MATRIX_GROUPS, MATRIX_HINTS, type MatrixCell } from "./data";
+import {
+  INCLUDED_EVERYWHERE,
+  MATRIX_DETAIL_GROUPS,
+  MATRIX_GROUPS,
+  MATRIX_HINTS,
+  type MatrixCell,
+} from "./data";
 import { Eyebrow } from "./primitives";
 
 function CellValue({ value }: { value: MatrixCell }) {
@@ -23,7 +33,10 @@ function CellValue({ value }: { value: MatrixCell }) {
   if (value === false) {
     return (
       <>
-        <Minus aria-hidden="true" className="mx-auto size-4 text-muted-foreground/50" />
+        <Minus
+          aria-hidden="true"
+          className="mx-auto size-4 text-muted-foreground/50"
+        />
         <span className="sr-only">Non inclus</span>
       </>
     );
@@ -46,7 +59,11 @@ function FeatureHint({ label, hint }: { label: string; hint: string }) {
           <CircleHelp aria-hidden="true" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent side="top" align="start" className="w-64 p-3 text-xs leading-relaxed">
+      <PopoverContent
+        side="top"
+        align="start"
+        className="w-64 p-3 text-xs leading-relaxed"
+      >
         <p className="mb-1 font-medium text-foreground">{label}</p>
         <p className="text-muted-foreground">{hint}</p>
       </PopoverContent>
@@ -57,6 +74,11 @@ function FeatureHint({ label, hint }: { label: string; hint: string }) {
 /** Full comparison. On phones a plan switcher keeps the table to two readable columns. */
 export function FeatureMatrix() {
   const [mobilePlan, setMobilePlan] = useState<PlanId>("pro");
+  // Comparatif court par défaut ; le détail complet se déplie à la demande.
+  const [showAll, setShowAll] = useState(false);
+  const groups = showAll
+    ? [...MATRIX_GROUPS, ...MATRIX_DETAIL_GROUPS]
+    : MATRIX_GROUPS;
 
   return (
     <div className="border-t px-4 py-16 sm:px-8 lg:px-12">
@@ -87,10 +109,38 @@ export function FeatureMatrix() {
         </div>
       </div>
 
-      <table aria-labelledby="matrice-titre" className="mt-10 w-full border-collapse text-sm">
+      {/* Ce qui est identique partout : dit une fois, sans encombrer le tableau. */}
+      <section
+        aria-labelledby="inclus-titre"
+        className="mt-8 rounded-2xl border bg-muted/30 p-4 sm:p-5"
+      >
+        <h4
+          id="inclus-titre"
+          className="font-mono text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground"
+        >
+          Inclus dans toutes les offres
+        </h4>
+        <ul className="mt-3 grid gap-x-6 gap-y-2 text-sm sm:grid-cols-2 lg:grid-cols-3">
+          {INCLUDED_EVERYWHERE.map((item) => (
+            <li key={item} className="flex items-start gap-2">
+              <Check aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+              {item}
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <table
+        id="matrice-tableau"
+        aria-labelledby="matrice-titre"
+        className="mt-10 w-full border-collapse text-sm"
+      >
         <thead>
           <tr>
-            <th scope="col" className="sticky top-16 z-10 w-3/5 bg-background/95 py-4 text-left backdrop-blur sm:w-2/5">
+            <th
+              scope="col"
+              className="sticky top-16 z-10 w-3/5 bg-background/95 py-4 text-left backdrop-blur sm:w-2/5"
+            >
               <span className="sr-only">Fonctionnalité</span>
             </th>
             {PRICING_PLANS.map((plan) => (
@@ -102,6 +152,11 @@ export function FeatureMatrix() {
                   plan.id !== mobilePlan && "hidden sm:table-cell",
                 )}
               >
+                {plan.highlighted && (
+                  <span className="mx-auto mb-1.5 block w-fit rounded-full bg-primary px-2 py-0.5 font-mono text-[10px] font-medium uppercase tracking-wider text-primary-foreground">
+                    Le plus choisi
+                  </span>
+                )}
                 {plan.name}
                 <span className="block font-mono text-[11px] font-normal text-muted-foreground">
                   {formatPlanPrice(plan.priceCents)} / mois
@@ -110,7 +165,7 @@ export function FeatureMatrix() {
             ))}
           </tr>
         </thead>
-        {MATRIX_GROUPS.map((group) => (
+        {groups.map((group) => (
           <tbody key={group.title}>
             <tr>
               <th
@@ -122,11 +177,17 @@ export function FeatureMatrix() {
               </th>
             </tr>
             {group.rows.map((row) => (
-              <tr key={row.label} className="border-t transition-colors hover:bg-muted/40">
+              <tr
+                key={row.label}
+                className="border-t transition-colors hover:bg-muted/40"
+              >
                 <th scope="row" className="py-3.5 pr-4 text-left font-normal">
                   {row.label}
                   {MATRIX_HINTS[row.label] && (
-                    <FeatureHint label={row.label} hint={MATRIX_HINTS[row.label]} />
+                    <FeatureHint
+                      label={row.label}
+                      hint={MATRIX_HINTS[row.label]}
+                    />
                   )}
                 </th>
                 {PRICING_PLANS.map((plan) => (
@@ -146,6 +207,25 @@ export function FeatureMatrix() {
           </tbody>
         ))}
       </table>
+
+      <div className="mt-8 flex justify-center">
+        <Button
+          type="button"
+          variant="outline"
+          aria-expanded={showAll}
+          aria-controls="matrice-tableau"
+          onClick={() => setShowAll((value) => !value)}
+        >
+          {showAll ? "Masquer le détail" : "Voir toutes les fonctionnalités"}
+          <ChevronDown
+            data-icon="inline-end"
+            className={cn(
+              "transition-transform motion-reduce:transition-none",
+              showAll && "rotate-180",
+            )}
+          />
+        </Button>
+      </div>
     </div>
   );
 }
