@@ -1,32 +1,74 @@
-import { cn } from "@/lib/utils";
-import { HeroSection } from "@/components/hero";
-import AvantApres from "@/components/avantApres";
-import Footer from "@/components/footer";
-import { Faq } from "@/components/faq";
-import { Tarifs } from "@/components/pricing-section";
-import Demo from "@/components/demo";
+import { VitrinePage } from "@/components/website/vitrine/vitrine-page";
+import type { Metadata } from "next";
+export const metadata: Metadata = {
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
+  ),
+  title: {
+    default: "ExtravertyAI - Automatisation WhatsApp & Support Client IA",
+    template: "%s | ExtravertyAI",
+  },
+  description:
+    "Automatisez votre support client WhatsApp avec ExtravertyAI. Réponses instantanées, augmentation des ventes et expérience client améliorée.",
 
+  keywords: [
+    "ExtravertyAI",
+    "extravertyia",
+    "extraverty ia",
+    "assistant IA pour entreprise",
+    "WhatsApp automation",
+    "bot WhatsApp",
+    "automatisation WhatsApp",
+    "marketing WhatsApp",
+    "tunnel de vente automatisé",
+    "extraverty",
+    "automatisation WhatsApp",
+    "chatbot IA whatsapp",
+    "support client automatisé",
+    "automation business",
+    "intelligence artificielle entreprise",
+    "service client IA",
+    "automatisation marketing",
+    "automatisation sans code",
+  ],
+
+  authors: [{ name: "ExtravertyAI" }],
+
+  icons: {
+    icon: "/favicon.ico",
+    apple: "/apple-touch-icon.png",
+  },
+  alternates: {
+    canonical: "/",
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
+
+  twitter: {
+    card: "summary_large_image",
+    images: ["/og-image.png"],
+  },
+
+  openGraph: {
+    title: "ExtravertyAI",
+    description: "Automatisez votre support client sur whatsapp avec l'IA",
+    url: "https://extravertyai.com",
+    siteName: "ExtravertyAI",
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+      },
+    ],
+    locale: "fr_FR",
+    type: "website",
+  },
+};
 export const dynamic = "force-static";
 
 export default function page() {
-  return (
-    <div className="relative h-full overflow-hidden">
-      <main
-        className={cn(
-          "relative md:mx-auto max-w-7xl h-full grow",
-          // X Borders
-          "before:absolute before:-inset-y-14 before:-left-px before:w-px before:bg-border",
-          "after:absolute after:-inset-y-14 after:-right-px after:w-px after:bg-border",
-        )}
-      >
-        <HeroSection />
-        {/* <LogosSection /> */}
-        <Demo />
-        <AvantApres />
-        <Tarifs />
-        <Faq />
-        <Footer />
-      </main>
-    </div>
-  );
+  return <VitrinePage />;
 }

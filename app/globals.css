@@ -4,6 +4,130 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* Soft edges overlap only the message viewport, never its interactive controls. */
+.chat-floating-header::after,
+.chat-floating-composer::before {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  height: calc(var(--spacing) * 6);
+  pointer-events: none;
+  background: var(--background);
+  backdrop-filter: blur(var(--blur-sm));
+}
+
+.chat-floating-header::after {
+  top: 100%;
+  mask-image: linear-gradient(to bottom, black, transparent);
+}
+
+.chat-floating-composer::before {
+  bottom: 100%;
+  mask-image: linear-gradient(to top, black, transparent);
+}
+
+@media (forced-colors: active) {
+  .chat-floating-header::after,
+  .chat-floating-composer::before {
+    display: none;
+  }
+}
+
+/* shadcn's text-shimmer pattern, using the application's semantic palette.
+   The installed shadcn stylesheet predates its shimmer utility. */
+@keyframes ai-thinking-shimmer {
+  from { background-position: 100% 0; }
+  to { background-position: -100% 0; }
+}
+
+/* Balayage décoratif du QR code de connexion WhatsApp. */
+@keyframes qr-scan {
+  0%, 100% { transform: translateY(-10%); }
+  50% { transform: translateY(210%); }
+}
+
+/* Squelettes « premium » : balayage lumineux et barre de progression indéterminée. */
+@keyframes skeleton-shimmer {
+  from { background-position: 150% 0; }
+  to { background-position: -50% 0; }
+}
+
+@keyframes loading-bar {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(300%); }
+}
+
+.skeleton-shimmer [data-slot="skeleton"] {
+  background-image: linear-gradient(
+    100deg,
+    transparent 30%,
+    color-mix(in oklch, var(--background) 65%, transparent) 50%,
+    transparent 70%
+  );
+  background-size: 200% 100%;
+  background-repeat: no-repeat;
+  animation: skeleton-shimmer 1.6s ease-in-out infinite;
+}
+
+.loading-bar {
+  animation: loading-bar 1.4s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+}
+
+/* Coche « enregistré » : apparaît, reste un instant, puis s'efface. */
+@keyframes save-check {
+  0% { opacity: 0; transform: scale(0.5); }
+  18% { opacity: 1; transform: scale(1.1); }
+  28% { transform: scale(1); }
+  75% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+.save-check {
+  animation: save-check 1.8s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* Champ en cours d'enregistrement : bordure marquée et halo qui respire. */
+@keyframes field-saving {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in oklch, var(--foreground) 0%, transparent); }
+  50% { box-shadow: 0 0 0 3px color-mix(in oklch, var(--foreground) 12%, transparent); }
+}
+
+.field-saving {
+  border-color: color-mix(in oklch, var(--foreground) 40%, transparent);
+  animation: field-saving 1.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-shimmer [data-slot="skeleton"] { animation: none; background-image: none; }
+  .loading-bar { animation: none; transform: none; width: 100%; opacity: 0.4; }
+  .save-check { animation: none; }
+  .field-saving { animation: none; }
+}
+
+@keyframes ai-word-appear {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.ai-thinking-shimmer {
+  color: transparent;
+  background-image: linear-gradient(110deg, var(--muted-foreground) 35%, var(--foreground) 50%, var(--muted-foreground) 65%);
+  background-size: 200% 100%;
+  background-clip: text;
+  animation: ai-thinking-shimmer 2s linear infinite;
+}
+
+.ai-response-word { animation: ai-word-appear 180ms ease-out both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .ai-thinking-shimmer { animation: none; background: none; color: var(--muted-foreground); }
+  .ai-response-word { animation: none; }
+}
+
+@media (forced-colors: active) {
+  .ai-thinking-shimmer { background: none; color: CanvasText; }
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -35,6 +159,7 @@
   --color-secondary: var(--secondary);
   --color-primary-foreground: var(--primary-foreground);
   --color-primary: var(--primary);
+  --color-info: var(--info);
   --color-popover-foreground: var(--popover-foreground);
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
@@ -53,6 +178,13 @@
 }
 
 :root {
+  --info: var(--color-blue-600);
+  --font-bricolage-grotesque:
+    "Arial Narrow", "Helvetica Neue", Arial, sans-serif;
+  --font-crimson-text: Georgia, "Times New Roman", serif;
+  --font-roboto-mono:
+    "Cascadia Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  --font-sans: var(--font-roboto-mono);
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
@@ -71,11 +203,13 @@
   --border: oklch(0.922 0 0);
   --input: oklch(0.922 0 0);
   --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
+  /* Graphiques : couleurs du thème, de la plus marquée à la plus discrète
+     (série principale = texte, comme « Qui répond ») ; suit le mode sombre. */
+  --chart-1: var(--foreground);
+  --chart-2: color-mix(in oklch, var(--foreground) 65%, var(--background));
+  --chart-3: var(--muted-foreground);
+  --chart-4: color-mix(in oklch, var(--muted-foreground) 45%, var(--background));
+  --chart-5: color-mix(in oklch, var(--muted-foreground) 25%, var(--background));
   --radius: 0.625rem;
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
@@ -88,6 +222,7 @@
 }
 
 .dark {
+  --info: var(--color-blue-400);
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);
   --card: oklch(0.205 0 0);
@@ -106,11 +241,13 @@
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
+  /* Graphiques : couleurs du thème, de la plus marquée à la plus discrète
+     (série principale = texte, comme « Qui répond ») ; suit le mode sombre. */
+  --chart-1: var(--foreground);
+  --chart-2: color-mix(in oklch, var(--foreground) 65%, var(--background));
+  --chart-3: var(--muted-foreground);
+  --chart-4: color-mix(in oklch, var(--muted-foreground) 45%, var(--background));
+  --chart-5: color-mix(in oklch, var(--muted-foreground) 25%, var(--background));
   --sidebar: oklch(0.205 0 0);
   --sidebar-foreground: oklch(0.985 0 0);
   --sidebar-primary: oklch(0.488 0.243 264.376);
@@ -126,46 +263,46 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground relative;
   }
   html {
     @apply font-sans;
   }
   h1 {
-    @apply text-4xl md:text-[2.75rem] tracking-tight;
+    @apply text-5xl md:text-6xl leading-[1.06]! tracking-[-0.055em]!;
     font-family: var(--font-heading);
-    line-height: 1.05;
-    letter-spacing: -0.035em;
     font-weight: 800;
   }
   h2 {
-    @apply text-2xl md:text-3xl tracking-tight;
+    @apply text-2xl md:text-3xl tracking-wider;
     font-family: var(--font-heading);
     line-height: 1.1;
-    letter-spacing: -0.025em;
     font-weight: 700;
   }
   h3 {
+    @apply tracking-wide;
     font-family: var(--font-heading);
     font-size: 1.75rem;
     line-height: 1.2;
-    letter-spacing: -0.02em;
     font-weight: 700;
   }
   h4,
   h5,
   h6 {
-    @apply tracking-tight;
+    @apply tracking-tighter;
     font-family: var(--font-heading);
-    letter-spacing: -0.01em;
   }
   body,
   p {
-    @apply leading-relaxed;
+    @apply leading-relaxed tracking-tight;
     font-family: var(--font-mono);
   }
   code,
   pre {
     font-family: var(--font-mono);
+  }
+  [data-radix-scroll-area-viewport] > div {
+    display: block !important;
+    min-width: 100%;
   }
 }

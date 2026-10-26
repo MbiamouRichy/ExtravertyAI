@@ -18,7 +18,7 @@ export function ModeToggle({ screen }: { screen: "mobile" | "desktop" }) {
   return screen === "desktop" ? (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="icon">
+        <Button variant="ghost" size="icon">
           <Sun className="scale-100 rotate-0 transition-all dark:scale-0 dark:-rotate-90" />
           <Moon className="absolute scale-0 rotate-90 transition-all dark:scale-100 dark:rotate-0" />
           <span className="sr-only">Changer de mode</span>
@@ -41,6 +41,8 @@ export function ModeToggle({ screen }: { screen: "mobile" | "desktop" }) {
       <p>Mode :</p>
       <div className="flex flex-row gap-1">
         <Button
+          aria-label="Activer le thème clair"
+          aria-pressed={theme === "light"}
           variant={theme === "light" ? "default" : "outline"}
           size="icon"
           onClick={() => setTheme("light")}
@@ -48,6 +50,8 @@ export function ModeToggle({ screen }: { screen: "mobile" | "desktop" }) {
           <Sun />
         </Button>
         <Button
+          aria-label="Activer le thème sombre"
+          aria-pressed={theme === "dark"}
           variant={theme === "dark" ? "default" : "outline"}
           size="icon"
           onClick={() => setTheme("dark")}
@@ -55,6 +59,8 @@ export function ModeToggle({ screen }: { screen: "mobile" | "desktop" }) {
           <Moon />
         </Button>
         <Button
+          aria-label="Utiliser le thème du système"
+          aria-pressed={theme === "system"}
           variant={theme === "system" ? "default" : "outline"}
           size="icon"
           onClick={() => setTheme("system")}

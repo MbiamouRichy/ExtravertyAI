@@ -1,0 +1,21 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "next-dev",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "port": 3000
+    },
+    {
+      "name": "next-dev-3001",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["next", "dev", "-p", "3001"],
+      "env": {
+        "BETTER_AUTH_URL": "http://localhost:3001",
+        "NEXT_PUBLIC_APP_URL": "http://localhost:3001"
+      },
+      "port": 3001
+    }
+  ]
+}

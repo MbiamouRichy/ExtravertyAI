@@ -1,0 +1,1270 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ------------------------------------------------------
+// 📦 ENUMS EXISTANTS ET NOUVEAUX
+// ------------------------------------------------------
+
+enum InstinctClassification {
+  interesting
+  follow_up
+  none
+}
+
+enum InstanceStatus {
+  disconnected
+  connecting
+  qr_ready     // NOUVEAU: En attente de scan du QR Code
+  connected
+}
+
+enum ProjectStatus {
+  trialing   // Phase de test par le client (Statut par défaut)
+  active     // Abonnement payé, en production
+  paused     // Mis en pause temporairement
+  inactive   // Abonnement annulé / non payé
+}
+
+// Rôle d’un membre dans un projet, du plus restreint au plus large : un tri
+// « desc » liste le propriétaire d’abord. Droits : lib/project-permissions.ts.
+enum Role {
+  BILLING
+  VIEWER
+  AGENT
+  SUPERVISOR
+  ADMIN
+  OWNER
+}
+
+// Rôle global d’un compte, distinct des rôles de projet (non utilisé pour les droits).
+enum GlobalRole {
+  USER
+  ADMIN
+  OWNER
+}
+
+enum Theme {
+  light
+  dark
+  system
+}
+
+enum Plan {
+  starter
+  business
+  pro
+}
+
+// --- NOUVEAUX ENUMS (CRM & WHATSAPP) ---
+
+enum SenderType {
+  CLIENT
+  BOT
+  AGENT
+}
+
+enum MessageStatus {
+  PENDING
+  SENT
+  DELIVERED
+  READ
+  FAILED
+}
+
+enum ExtractionStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum MessageType {
+  TEXT
+  IMAGE
+  AUDIO
+  VIDEO
+  DOCUMENT
+  TEMPLATE
+  OTHER
+}
+enum OutboundState {
+  QUEUED
+  DISPATCHING
+  ACCEPTED
+  UNCERTAIN
+  CANCELLED
+}
+
+model QuotaPeriod {
+  id         String        @id @default(cuid())
+  projectId  String
+  project    Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  // Identité stable de la période :
+  // bootstrap:<projectId>, trial:<id>, invoice:<stripeInvoiceId>...
+  key        String
+  kind       ProjectStatus
+
+  startsAt   DateTime
+  endsAt     DateTime
+  limit      Int
+  used       Int           @default(0)
+  isCurrent  Boolean       @default(true)
+
+  jobs       OutboundJob[]
+
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+
+  @@unique([projectId, key])
+  @@index([projectId, isCurrent])
+  @@map("quota_period")
+}
+
+model OutboundJob {
+  id                 String        @id @default(cuid())
+
+  projectId          String
+  project            Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  messageId          String        @unique
+  message            Message       @relation("MessageOutboundJob", fields: [messageId], references: [id], onDelete: Cascade)
+
+  // Fourni par le client et réutilisé pour une même intention d'envoi.
+  requestId          String        @db.Uuid
+
+  quotaPeriodId      String
+  quotaPeriod        QuotaPeriod   @relation(fields: [quotaPeriodId], references: [id])
+
+  state              OutboundState @default(QUEUED)
+  startedAt          DateTime?
+  finishedAt         DateTime?
+
+  // Conservé même si le rapprochement avec Message échoue.
+  providerMessageId  String?
+
+  errorCode          String?
+  aiVersion          Int?
+  agentConfigVersion Int?
+
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+
+  @@unique([projectId, requestId])
+  @@index([state, createdAt])
+  @@index([state, startedAt])
+  @@map("outbound_job")
+}
+// ------------------------------------------------------
+// 🏢 MODÈLE PROJET (Le cœur de la facturation & Configuration)
+// ------------------------------------------------------
+model Project {
+  id                   String         @id @default(cuid())
+  name                 String
+  numero               String        
+  status               ProjectStatus  @default(trialing)
+  
+  // --- Instances API WhatsApp (Evolution API) ---
+  instanceName         String         @unique
+  instanceToken        String?        @unique // SÉCURITÉ: Authentifie les webhooks provenant d'Evolution API
+  instanceStatus       InstanceStatus @default(disconnected)
+  
+  plan                 Plan           @default(starter)
+  messageCount         Int            @default(0)
+  allMessagesCount     Int            @default(0)
+
+  pairingCodeRequestedAt  DateTime?
+  // --- 💳 FACTURATION STRIPE ---
+  currency String @default("XAF")
+  csatEnabled Boolean @default(false)
+  // Badge « client en attente » dans la messagerie (réglable par les admins).
+  showWaitingTime Boolean @default(true)
+  // L'IA se met en veille quand une conversation est terminée (réglable par les admins).
+  aiQuietEnabled Boolean @default(true)
+  // Offre Business : nouvelles conversations réparties entre les membres en ligne (réglable).
+  autoAssignTeam Boolean @default(true)
+  csatMessage String @default("Merci pour votre échange avec nous ! Comment évaluez-vous notre service ? Répondez par un chiffre de 1 (pas satisfait) à 5 (très satisfait).") @db.Text
+  agentName String @default("Assistant")
+  agentSystemMessage String @default("") @db.Text
+  agentTone String @default("warm")
+  agentResponseLength String @default("concise")
+  agentLanguage String @default("auto")
+  agentUseEmojis Boolean @default(false)
+  agentQualifyLeads Boolean @default(true)
+  agentAskOneQuestion Boolean @default(true)
+  agentHumanHandover Boolean @default(true)
+  agentSetupCompletedAt DateTime?
+  agentConfigVersion Int @default(0)
+  automationPaused Boolean @default(false)
+  statusBeforePause ProjectStatus?
+  deletionPending Boolean @default(false)
+  whatsappAlwaysOnline Boolean @default(false)
+  whatsappReadMessages Boolean @default(false)
+  whatsappTyping Boolean @default(true)
+  whatsappRejectCalls Boolean @default(false)
+  whatsappSettingsPending Boolean @default(false)
+  whatsappSettingsError String?
+  whatsappSyncAfter DateTime @default(now())
+  settingsVersion Int @default(0)
+  settingsAudit SettingsAudit[]
+  billingEventCreated Int @default(0)
+  billingRevision Int @default(0)
+  stripeStatus String?
+  billingNextCheckAt DateTime @default(now())
+  stripeCustomerId     String?        @unique
+  stripeSubscriptionId String?        @unique
+  stripePriceId        String?
+  stripeCurrentPeriodEnd DateTime?
+
+  // --- 👥 RELATIONS CRM ---
+  members              ProjectMembership[]
+  contacts             Contact[]      // Les prospects WhatsApp du projet
+  tags                 Tag[]
+  internalNotes        InternalNote[]
+  contactEvents        ContactEvent[]
+  messages             Message[]      // Tous les messages liés à ce projet
+  knowledgeSources     KnowledgeSource[]
+  storedFiles          StoredFile[]
+  productFeedback      ProductFeedback[]
+  broadcasts           Broadcast[]
+  // Icône de l'entreprise (clé du fichier dans le stockage), servie par /api/projects/[id]/logo.
+  logoKey              String?
+  // Version des événements demandés au webhook Evolution (2 : présence des contacts).
+  webhookEventsVersion Int            @default(1)
+  knowledgeEntries     KnowledgeEntry[]
+  agentTestRuns        AgentTestRun[]
+  aiFeedback           AiFeedback[]
+  knowledgeGaps        KnowledgeGap[]
+  csatSurveys          CsatSurvey[]
+  integrationEndpoints IntegrationEndpoint[]
+  integrationDeliveries IntegrationDelivery[]
+  invitations          Invitation[]   // Les invitations au projet
+  // Dates
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
+  expiredAt            DateTime?    
+  
+  @@map("project")
+  outboundJobs OutboundJob[]
+  quotaPeriods QuotaPeriod[]
+  aiJobs AiJob[]
+  receipts ProviderReceipt[]
+  billingEmails BillingEmail[]
+  weeklyReports WeeklyReport[]
+  reportsEnabled Boolean @default(true)
+  reportsSkipEmpty Boolean @default(false)
+  reportsIncludeTips Boolean @default(true)
+  reportsHourUtc Int @default(8)
+  reportsVersion Int @default(0)
+  reportsCheckAt DateTime @default(now())
+  @@index([reportsCheckAt])
+  @@index([billingNextCheckAt])
+}
+
+// ------------------------------------------------------
+// 📞 CRM : CONTACTS (Les prospects WhatsApp)
+// ------------------------------------------------------
+model Contact {
+  id          String    @id @default(cuid())
+  phone       String    // Numéro classique (ex: 24107123456)
+  
+  // --- Identifiants Evolution API ---
+  remoteJid   String    // Identifiant exact WhatsApp (ex: 24107123456@s.whatsapp.net)
+  pushName    String?   // Pseudo public WhatsApp du prospect
+  
+  name        String?   // Nom assigné par l'agent ou l'IA dans l'interface
+  aiActive    Boolean   @default(true) // Handover: False si un agent a pris le relais
+  // Fin de conversation détectée : l'IA ignore les simples accusés de réception
+  // (« merci », « d'accord »…) jusqu'au prochain vrai message du client.
+  aiQuietSince DateTime?
+  // A répondu STOP : n'est plus jamais inclus dans une diffusion (START l'annule).
+  broadcastOptOutAt DateTime?
+  broadcastRecipients BroadcastRecipient[]
+  
+  // --- Relations ---
+  projectId   String
+  project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  summaryCache ConversationSummaryCache?
+  readStates  ConversationReadState[]
+  messages    Message[]
+  aiJobs      AiJob[]
+  tags        ContactTag[]
+  notes       InternalNote[]
+  events      ContactEvent[]
+  knowledgeGaps KnowledgeGap[]
+  csatSurveys CsatSurvey[]
+
+  // Conversation traitée par l'équipe ; effacée dès qu'un message client arrive.
+  resolvedAt   DateTime?
+  resolvedById String?
+  resolvedBy   User?     @relation("ContactResolvedBy", fields: [resolvedById], references: [id], onDelete: SetNull)
+
+  assigneeId   String?
+  assignee     User?     @relation("ContactAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  assignedAt   DateTime?
+  assignedById String?
+  assignedBy   User?     @relation("ContactAssignedBy", fields: [assignedById], references: [id], onDelete: SetNull)
+
+  pipelineStage    PipelineStage @default(NEW)
+  // Montant dans l'unité mineure de la devise du projet.
+  dealValue        Int?
+  stageChangedAt   DateTime?
+  // Uniquement pour un déplacement manuel : Instinct IA ne le contredit jamais.
+  stageChangedById String?
+  stageChangedBy   User?     @relation("ContactStageChangedBy", fields: [stageChangedById], references: [id], onDelete: SetNull)
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+// Date métier : dernière activité de conversation.
+lastMessageAt DateTime?
+
+// Incrémentée lors d'un changement de réglage IA.
+// Servira à invalider les générations devenues obsolètes.
+  aiVersion Int @default(0)
+  instinctInteresting Boolean @default(false)
+  instinctClassification InstinctClassification?
+  instinctSourceId String?
+  instinctConfigVersion Int @default(-1)
+  instinctLeaseToken String?
+  instinctLeaseUntil DateTime?
+
+  @@index([projectId, lastMessageAt, id])
+  // SÉCURITÉ & PERF: Un contact (JID) est unique par projet. Indexé pour recherche rapide.
+  @@unique([projectId, remoteJid])
+  @@index([projectId])
+  @@index([projectId, updatedAt, id])
+  @@index([projectId, resolvedAt])
+  @@index([projectId, assigneeId])
+  @@index([projectId, pipelineStage])
+  @@map("contact")
+}
+
+// ------------------------------------------------------
+// 💬 CRM : MESSAGES (Historique des conversations)
+// ------------------------------------------------------
+model Message {
+  id           String        @id @default(cuid())
+  
+  // --- Traçabilité Evolution API ---
+  evolutionId  String?
+  fromMe       Boolean       @default(false)
+  
+  // --- Contenu ---
+  content      String        @db.Text
+  type         MessageType   @default(TEXT)
+  mediaUrl     String?       // URL du fichier si c'est un média
+  // Message client resté volontairement sans réponse de l'IA (compté dans l'analytique).
+  aiSkip       AiSkipReason?
+  broadcastRecipient BroadcastRecipient?
+  
+  // Durable media extraction, reused by every AI consumer.
+  extractedText String? @db.Text
+  extractionStatus ExtractionStatus?
+  extractionModel String?
+  extractionVersion Int?
+  extractedAt DateTime?
+  extractionAttempts Int @default(0)
+  extractionAvailableAt DateTime?
+  extractionLeaseToken String? @db.Uuid
+  extractionLeaseUntil DateTime?
+  extractionErrorCode String?
+
+  senderType   SenderType
+  status       MessageStatus @default(PENDING)
+  errorMessage String?       @db.Text // Stocke le log d'erreur si status == FAILED
+  source      String?  @default("unknown") // "android", "ios", "ai"
+  // --- Relations ---
+  contactId    String
+  contact      Contact       @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  projectId    String
+  project      Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  // SÉCURITÉ: Si l'agent est supprimé, on garde le message (SetNull)
+  agentId      String?
+  agent        User?         @relation(fields: [agentId], references: [id], onDelete: SetNull)
+  outboundJob  OutboundJob?  @relation("MessageOutboundJob")
+  aiJob        AiJob?
+  feedback     AiFeedback[]
+  knowledgeGap KnowledgeGap?
+  csatSurvey   CsatSurvey?   @relation("CsatSurveyMessage")
+  csatResponse CsatSurvey?   @relation("CsatResponseMessage")
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  // INDEXATION PRO-GRADE : Vitale pour charger le chat sans latence
+  @@index([projectId])
+  @@unique([projectId, evolutionId])
+  @@index([contactId, createdAt(sort: Desc)])
+  @@index([evolutionId])
+  @@index([projectId, contactId, createdAt, id])
+  @@index([projectId, createdAt])
+  @@index([extractionStatus, extractionAvailableAt])
+  @@map("message")
+}
+
+// ------------------------------------------------------
+// 🔗 TABLE DE LIAISON (Gestion des accès et de l'équipe)
+// ------------------------------------------------------
+model ProjectMembership {
+  readStates ConversationReadState[]
+  id        String   @id @default(cuid())
+  userId    String
+  projectId String
+  role      Role     @default(OWNER)
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, projectId])
+  @@index([userId])
+  @@index([projectId])
+  @@map("project_membership")
+}
+
+// ------------------------------------------------------
+// 👤 UTILISATEURS & AUTHENTIFICATION (Better Auth)
+// ------------------------------------------------------
+model User {
+  presence UserPresence[]
+  productFeedback ProductFeedback[]
+  handledProductFeedback ProductFeedback[] @relation("ProductFeedbackHandledBy")
+  notificationReceipts NotificationReceipt[]
+  id            String    @id
+  name          String
+  email         String
+  emailVerified Boolean   @default(false)
+  image         String?
+  theme         Theme     @default(system)
+  
+  globalRole    GlobalRole @default(USER)
+
+  memberships   ProjectMembership[]
+  messagesSent  Message[] // Historique des messages envoyés manuellement par cet utilisateur
+  resolvedContacts Contact[] @relation("ContactResolvedBy")
+  assignedContacts Contact[] @relation("ContactAssignee")
+  broadcasts       Broadcast[] @relation("BroadcastAuthor")
+  broadcastEvents  BroadcastEvent[]
+  contactsAssignedBy Contact[] @relation("ContactAssignedBy")
+  contactsStageChanged Contact[] @relation("ContactStageChangedBy")
+  knowledgeSources KnowledgeSource[]
+  knowledgeEntries KnowledgeEntry[]
+  agentTestRuns AgentTestRun[]
+  aiFeedback AiFeedback[]
+  resolvedKnowledgeGaps KnowledgeGap[]
+  csatSurveysResolved CsatSurvey[]
+  integrationEndpoints IntegrationEndpoint[]
+  internalNotes InternalNote[]
+  contactEvents ContactEvent[]
+  lastActiveAt  DateTime  @default(now())
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  invitations Invitation[]
+  sessions      Session[]
+  accounts      Account[]
+
+  @@unique([email])
+  @@map("user")
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([token])
+  @@index([userId])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([userId])
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+  @@map("verification")
+}
+
+model Invitation {
+  id        String   @id @default(cuid())
+  email     String
+  projectId String
+  role      Role     @default(AGENT)
+  token     String   @unique
+  
+  inviterId String
+  inviter   User     @relation(fields: [inviterId], references: [id], onDelete: Cascade)
+  
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  // Un email ne peut avoir qu'une seule invitation active par projet
+  @@unique([email, projectId]) 
+  @@index([token])
+  @@map("invitation")
+}
+
+// Proof that an account erasure was carried out, holding no personal data: the
+// e-mail is only stored as a keyed HMAC so a later request can be matched.
+model AccountDeletionRecord {
+  id              String   @id @default(cuid())
+  emailHash       String
+  projectsDeleted Int
+  projectsLeft    Int
+  deletedAt       DateTime @default(now())
+
+  @@index([emailHash])
+  @@map("account_deletion_record")
+}
+
+// Anonymous exit survey. Deliberately unlinked from AccountDeletionRecord:
+// random UUID, no creation timestamp, expiry rounded to the hour.
+model AccountDeletionFeedback {
+  id          String    @id @default(uuid())
+  tokenHash   String    @unique
+  expiresAt   DateTime
+  reason      String?
+  comment     String?
+  submittedAt DateTime?
+
+  @@index([expiresAt])
+  @@map("account_deletion_feedback")
+}
+
+// Pourquoi l'IA n'a pas répondu à un message client.
+enum AiSkipReason {
+  QUIET_ACK // simple accusé de réception pendant la veille
+  SILENCE   // l'IA a jugé qu'aucune réponse n'était attendue
+  REPEATED  // la réponse répétait un message déjà envoyé
+  MERGED    // regroupé avec un message plus récent du même client
+}
+
+enum AiJobState {
+  QUEUED
+  GENERATING
+  COMPLETED
+  CANCELLED
+  FAILED
+}
+
+model AiJob {
+  id String @id @default(cuid())
+  projectId String
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  contactId String
+  contact Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  messageId String @unique
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  requestId String @unique @default(uuid()) @db.Uuid
+  aiVersion Int
+  agentConfigVersion Int @default(0)
+  state AiJobState @default(QUEUED)
+  attempts Int @default(0)
+  availableAt DateTime @default(now())
+  leaseUntil DateTime?
+  leaseToken String? @db.Uuid
+  errorCode String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([state, availableAt])
+  @@index([contactId, state, createdAt])
+  @@map("ai_job")
+}
+
+// Exact provider identity, including receipts that precede the HTTP send response.
+model ProviderReceipt {
+  id String @id @default(cuid())
+  projectId String
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  providerId String
+  status MessageStatus @default(SENT)
+  remoteJid String?
+  content String? @db.Text
+  type MessageType @default(TEXT)
+  resolved Boolean @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@unique([projectId, providerId])
+  @@index([resolved, createdAt])
+  @@map("provider_receipt")
+}
+
+model SettingsAudit {
+  id String @id @default(cuid())
+  projectId String
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  actorId String
+  action String
+  version Int
+  createdAt DateTime @default(now())
+  @@index([projectId, createdAt])
+  @@map("settings_audit")
+}
+
+// Short-lived spending ledger, independent of project deletion so a user cannot
+// reset the daily limit by recreating a project. Contains no prompt or output.
+model AiEditorRequest {
+  id String @id
+  projectId String
+  actorId String
+  state String
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  @@index([projectId, createdAt])
+  @@index([actorId, createdAt])
+  @@index([createdAt])
+  @@map("ai_editor_request")
+}
+
+// A member's read position is independent of WhatsApp delivery receipts.
+model ConversationReadState {
+  membershipId String
+  contactId String
+  lastReadAt DateTime
+  lastReadId String
+  membership ProjectMembership @relation(fields: [membershipId], references: [id], onDelete: Cascade, map: "conversation_read_state_membership_fkey")
+  contact Contact @relation(fields: [contactId], references: [id], onDelete: Cascade, map: "conversation_read_state_contact_fkey")
+  @@id([membershipId, contactId])
+  @@index([contactId])
+  @@map("conversation_read_state")
+}
+
+enum BillingEmailState {
+  PENDING
+  SENDING
+  SENT
+  CANCELLED
+  REVIEW_REQUIRED
+}
+
+model BillingEmail {
+  id String @id @default(cuid())
+  projectId String
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  key String @unique
+  kind String
+  periodId String
+  recipientId String
+  recipient String
+  from String
+  subject String
+  text String @db.Text
+  html String? @db.Text
+  state BillingEmailState @default(PENDING)
+  attempts Int @default(0)
+  availableAt DateTime @default(now())
+  firstAttemptAt DateTime?
+  leaseToken String?
+  leaseUntil DateTime?
+  sentAt DateTime?
+  providerId String?
+  createdAt DateTime @default(now())
+  @@index([state, availableAt])
+  @@map("billing_email")
+}
+
+model ConversationSummaryCache {
+  contactId String @id
+  contact Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  fingerprint String?
+  summary Json?
+  partial Boolean @default(false)
+  generatedAt DateTime? @db.Timestamptz(3)
+  leaseToken String?
+  leaseUntil DateTime? @db.Timestamptz(3)
+  @@map("conversation_summary")
+}
+
+model UserPresence {
+  userId String
+  tabId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lastSeenAt DateTime @db.Timestamptz(3)
+  lastActiveAt DateTime? @db.Timestamptz(3)
+  @@id([userId, tabId])
+  @@index([lastSeenAt])
+  @@map("user_presence")
+}
+
+model NotificationReceipt {
+  userId String
+  key String
+  version String
+  readAt DateTime @default(now()) @db.Timestamptz(3)
+  // Version supprimée par glissement : la notification revient si sa version change.
+  dismissedVersion String?
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@id([userId, key])
+  @@map("notification_receipt")
+}
+
+model WeeklyReport {
+  id String @id @default(cuid())
+  projectId String
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  weekStart DateTime
+  weekEnd DateTime
+  snapshot Json
+  skipped Boolean @default(false)
+  createdAt DateTime @default(now())
+  emails ReportEmail[]
+  @@unique([projectId, weekStart])
+  @@map("weekly_report")
+}
+
+model ReportEmail {
+  id String @id @default(cuid())
+  reportId String
+  report WeeklyReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  recipientId String
+  recipient String
+  from String
+  subject String
+  text String @db.Text
+  html String @db.Text
+  state BillingEmailState @default(PENDING)
+  attempts Int @default(0)
+  availableAt DateTime @default(now())
+  firstAttemptAt DateTime?
+  leaseToken String?
+  leaseUntil DateTime?
+  sentAt DateTime?
+  providerId String?
+  @@unique([reportId, recipientId])
+  @@index([state, availableAt])
+  @@map("report_email")
+}
+
+// Étiquettes manuelles propres à chaque projet ; nameKey garantit l'unicité sans casse.
+model Tag {
+  id        String       @id @default(cuid())
+  projectId String
+  project   Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name      String
+  nameKey   String
+  contacts  ContactTag[]
+  createdAt DateTime     @default(now())
+
+  @@unique([projectId, nameKey])
+  @@index([projectId, name])
+  @@map("tag")
+}
+
+model ContactTag {
+  contactId String
+  contact   Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  tagId     String
+  tag       Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@id([contactId, tagId])
+  @@index([tagId])
+  @@map("contact_tag")
+}
+
+// Notes d'équipe : table distincte de Message pour qu'aucun envoi WhatsApp,
+// quota, statistique ou contexte IA ne puisse les lire par erreur.
+model InternalNote {
+  id        String   @id @default(cuid())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  contactId String
+  contact   Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  authorId  String?
+  author    User?    @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  content   String   @db.Text
+  createdAt DateTime @default(now())
+
+  @@index([projectId, contactId, createdAt, id])
+  @@map("internal_note")
+}
+
+// Journal des changements d’état de l’assistant IA, affiché dans la conversation.
+enum ContactEventType {
+  AI_ENABLED
+  AI_PAUSED
+  AI_PAUSED_BY_REPLY
+  AI_PAUSED_FROM_PHONE
+  ASSIGNED
+  UNASSIGNED
+  STAGE_CHANGED
+  AI_QUIET
+  AI_WOKEN
+  BROADCAST_OPT_OUT
+  BROADCAST_OPT_IN
+}
+
+enum PipelineStage {
+  NEW
+  INTERESTED
+  QUOTE_SENT
+  WON
+  LOST
+}
+
+model ContactEvent {
+  id        String           @id @default(cuid())
+  projectId String
+  project   Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  contactId String
+  contact   Contact          @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  actorId   String?
+  actor     User?            @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  type      ContactEventType
+  detail    String?
+  createdAt DateTime         @default(now())
+
+  @@index([projectId, contactId, createdAt, id])
+  @@map("contact_event")
+}
+
+enum KnowledgeKind {
+  FAQ
+  TEXT
+  PRODUCT
+  CHUNK
+}
+
+enum KnowledgeSourceType {
+  PDF
+  URL
+  CSV
+}
+
+enum KnowledgeSourceStatus {
+  QUEUED
+  PROCESSING
+  READY
+  FAILED
+}
+
+// Retours envoyés depuis l'application (bouton « Votre avis » de l'en-tête).
+enum ProductFeedbackKind {
+  BUG
+  IDEA
+  PRAISE
+}
+
+model ProductFeedback {
+  id         String              @id @default(cuid())
+  kind       ProductFeedbackKind
+  message    String              @db.Text
+  // Page d'où le retour a été envoyé (chemin seul, sans paramètres).
+  pagePath   String?
+  // L'utilisateur accepte d'être recontacté au sujet de ce retour.
+  contactOk  Boolean             @default(true)
+  userId     String?
+  user       User?               @relation(fields: [userId], references: [id], onDelete: SetNull)
+  projectId  String?
+  project    Project?            @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  createdAt  DateTime            @default(now())
+  // Suivi par l'équipe dans le back-office (/admin/feedback).
+  status       ProductFeedbackStatus @default(NEW)
+  handledAt    DateTime?
+  handledById  String?
+  handledBy    User?             @relation("ProductFeedbackHandledBy", fields: [handledById], references: [id], onDelete: SetNull)
+  // Note interne, jamais montrée à l'auteur du retour.
+  internalNote String?           @db.Text
+
+  @@index([userId, createdAt])
+  @@index([createdAt])
+  @@index([status, createdAt])
+  @@map("product_feedback")
+}
+
+enum ProductFeedbackStatus {
+  NEW
+  IN_PROGRESS
+  DONE
+  ARCHIVED
+}
+
+// Journal des actions de l'équipe dans le back-office : qui, quoi, quand.
+// Sans clé étrangère : l'historique survit à la suppression d'un compte.
+model AdminAuditLog {
+  id         String   @id @default(cuid())
+  actorId    String
+  actorEmail String
+  action     String
+  targetType String
+  targetId   String
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([targetType, targetId, createdAt])
+  @@map("admin_audit_log")
+}
+
+// Mesure d'audience interne, sans cookie : ni IP ni identifiant durable.
+// visitorHash change chaque jour (HMAC du jour, de l'IP et du navigateur).
+model PageView {
+  id           String   @id @default(cuid())
+  visitorHash  String
+  // Chemin normalisé : les identifiants deviennent « :id ».
+  path         String
+  country      String?
+  browser      String
+  device       String
+  referrerHost String?
+  createdAt    DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([createdAt, visitorHash])
+  @@map("page_view")
+}
+
+// Fichiers déposés par l'équipe (médias du chat, PDF) : base du quota de stockage par offre.
+model StoredFile {
+  key       String   @id
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  bytes     Int
+  createdAt DateTime @default(now())
+
+  @@index([projectId])
+  @@map("stored_file")
+}
+
+model KnowledgeSource {
+  id          String                @id @default(cuid())
+  projectId   String
+  project     Project               @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  type        KnowledgeSourceType
+  name        String
+  url         String?
+  storageKey  String?
+  status      KnowledgeSourceStatus @default(QUEUED)
+  errorCode   String?
+  attempts    Int                   @default(0)
+  availableAt DateTime              @default(now())
+  leaseToken  String?               @db.Uuid
+  leaseUntil  DateTime?
+  entryCount  Int                   @default(0)
+  // Import arrêté à la limite d'entrées de l'offre.
+  truncated   Boolean               @default(false)
+  createdById String?
+  createdBy   User?                 @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  processedAt DateTime?
+  entries     KnowledgeEntry[]
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+
+  @@index([projectId, createdAt])
+  @@index([status, availableAt])
+  @@map("knowledge_source")
+}
+
+model KnowledgeEntry {
+  id          String                   @id @default(cuid())
+  projectId   String
+  project     Project                  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  sourceId    String?
+  source      KnowledgeSource?         @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  kind        KnowledgeKind
+  title       String
+  content     String                   @db.Text
+  // Prix dans l'unité mineure de la devise du projet.
+  price       Int?
+  stock       Int?
+  enabled     Boolean                  @default(true)
+  // Minuscules sans accents ; la colonne tsvector est générée par la base.
+  searchText  String                   @db.Text
+  search      Unsupported("tsvector")?
+  createdById String?
+  createdBy   User?                    @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  feedback    AiFeedback[]
+  gaps        KnowledgeGap[]
+  createdAt   DateTime                 @default(now())
+  updatedAt   DateTime                 @updatedAt
+
+  @@index([projectId, kind, createdAt])
+  @@index([sourceId])
+  @@map("knowledge_entry")
+}
+
+model AgentTestRun {
+  id          String   @id @default(cuid())
+  projectId   String
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  actorId     String?
+  actor       User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  missingInfo Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  @@index([projectId, createdAt])
+  @@map("agent_test_run")
+}
+
+enum AiFeedbackRating {
+  UP
+  DOWN
+}
+
+model AiFeedback {
+  id         String           @id @default(cuid())
+  projectId  String
+  project    Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  messageId  String
+  message    Message          @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  authorId   String
+  author     User             @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  rating     AiFeedbackRating
+  correction String?          @db.Text
+  entryId    String?
+  entry      KnowledgeEntry?  @relation(fields: [entryId], references: [id], onDelete: SetNull)
+  reviewedAt DateTime?
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+
+  @@unique([messageId, authorId])
+  @@index([projectId, createdAt])
+  @@map("ai_feedback")
+}
+
+enum KnowledgeGapStatus {
+  OPEN
+  ANSWERED
+  DISMISSED
+}
+
+model KnowledgeGap {
+  id           String             @id @default(cuid())
+  projectId    String
+  project      Project            @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  contactId    String?
+  contact      Contact?           @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  messageId    String?            @unique
+  message      Message?           @relation(fields: [messageId], references: [id], onDelete: SetNull)
+  question     String             @db.Text
+  status       KnowledgeGapStatus @default(OPEN)
+  entryId      String?
+  entry        KnowledgeEntry?    @relation(fields: [entryId], references: [id], onDelete: SetNull)
+  resolvedById String?
+  resolvedBy   User?              @relation(fields: [resolvedById], references: [id], onDelete: SetNull)
+  resolvedAt   DateTime?
+  createdAt    DateTime           @default(now())
+
+  @@index([projectId, status, createdAt])
+  @@map("knowledge_gap")
+}
+
+model CsatSurvey {
+  id                String    @id @default(cuid())
+  projectId         String
+  project           Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  contactId         String
+  contact           Contact   @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  messageId         String?   @unique
+  message           Message?  @relation("CsatSurveyMessage", fields: [messageId], references: [id], onDelete: SetNull)
+  resolvedById      String?
+  resolvedBy        User?     @relation(fields: [resolvedById], references: [id], onDelete: SetNull)
+  sentAt            DateTime  @default(now())
+  expiresAt         DateTime
+  score             Int?
+  respondedAt       DateTime?
+  responseMessageId String?   @unique
+  responseMessage   Message?  @relation("CsatResponseMessage", fields: [responseMessageId], references: [id], onDelete: SetNull)
+
+  @@index([contactId, expiresAt])
+  @@index([projectId, sentAt])
+  @@map("csat_survey")
+}
+
+enum IntegrationKind {
+  WEBHOOK
+  GOOGLE_SHEETS
+}
+
+enum IntegrationDeliveryState {
+  QUEUED
+  DELIVERING
+  DELIVERED
+  FAILED
+}
+
+model IntegrationEndpoint {
+  id                     String                @id @default(cuid())
+  projectId              String
+  project                Project               @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  kind                   IntegrationKind
+  name                   String
+  url                    String?
+  // Chiffrés (AES-256-GCM) et liés à l'identifiant de l'endpoint.
+  secretCiphertext       String?
+  refreshTokenCiphertext String?
+  events                 String[]              @default([])
+  enabled                Boolean               @default(true)
+  consecutiveFailures    Int                   @default(0)
+  disabledReason         String?
+  spreadsheetId          String?
+  spreadsheetUrl         String?
+  sheetName              String?
+  googleEmail            String?
+  createdById            String?
+  createdBy              User?                 @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  lastDeliveryAt         DateTime?
+  deliveries             IntegrationDelivery[]
+  createdAt              DateTime              @default(now())
+  updatedAt              DateTime              @updatedAt
+
+  @@index([projectId])
+  @@map("integration_endpoint")
+}
+
+model IntegrationDelivery {
+  id          String                   @id @default(cuid())
+  projectId   String
+  project     Project                  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  endpointId  String
+  endpoint    IntegrationEndpoint      @relation(fields: [endpointId], references: [id], onDelete: Cascade)
+  event       String
+  payload     Json
+  state       IntegrationDeliveryState @default(QUEUED)
+  attempts    Int                      @default(0)
+  availableAt DateTime                 @default(now())
+  leaseToken  String?                  @db.Uuid
+  leaseUntil  DateTime?
+  lastStatus  Int?
+  lastError   String?
+  deliveredAt DateTime?
+  createdAt   DateTime                 @default(now())
+
+  @@index([state, availableAt])
+  @@index([endpointId, createdAt])
+  @@index([projectId, createdAt])
+  @@map("integration_delivery")
+}
+
+// ------------------------------------------------------
+// 📣 DIFFUSION : un message envoyé à des contacts existants
+// ------------------------------------------------------
+enum BroadcastStatus {
+  SCHEDULED
+  SENDING
+  PAUSED
+  COMPLETED
+  CANCELLED
+}
+
+enum BroadcastRecipientState {
+  PENDING // en attente de son tour
+  QUEUED  // message créé et confié à la file d'envoi
+  SKIPPED // désinscrit, supprimé ou injoignable au moment de l'envoi
+}
+
+model Broadcast {
+  id             String          @id @default(cuid())
+  projectId      String
+  project        Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  // Les messages partent au nom de cette personne ; reprise par un admin si elle quitte le projet.
+  createdById    String?
+  createdBy      User?           @relation("BroadcastAuthor", fields: [createdById], references: [id], onDelete: SetNull)
+  requestId      String          @unique @db.Uuid
+  name           String
+  // Texte avec la variable {prénom} ; la mention STOP est ajoutée à l'envoi.
+  content        String          @db.Text
+  nameFallback   String          @default("")
+  mediaUrl       String?
+  mediaType      MessageType?
+  // Critères de ciblage, conservés pour l'historique (la liste figée est dans les destinataires).
+  audience       Json
+  status         BroadcastStatus @default(SCHEDULED)
+  pauseReason    String?
+  scheduledAt    DateTime
+  nextSendAt     DateTime
+  startedAt      DateTime?
+  finishedAt     DateTime?
+  recipientCount Int
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  recipients     BroadcastRecipient[]
+  events         BroadcastEvent[]
+
+  @@index([status, nextSendAt])
+  @@index([projectId, createdAt])
+  @@map("broadcast")
+}
+
+model BroadcastRecipient {
+  id          String                  @id @default(cuid())
+  broadcastId String
+  broadcast   Broadcast               @relation(fields: [broadcastId], references: [id], onDelete: Cascade)
+  contactId   String
+  contact     Contact                 @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  state       BroadcastRecipientState @default(PENDING)
+  skipReason  String?
+  messageId   String?                 @unique
+  message     Message?                @relation(fields: [messageId], references: [id], onDelete: SetNull)
+  queuedAt    DateTime?
+
+  @@unique([broadcastId, contactId])
+  @@index([broadcastId, state, id])
+  @@map("broadcast_recipient")
+}
+
+enum BroadcastEventType {
+  CREATED
+  STARTED
+  PAUSED
+  RESUMED
+  CANCELLED
+  COMPLETED
+}
+
+// Journal d'audit d'une diffusion : actions de l'équipe et arrêts automatiques.
+model BroadcastEvent {
+  id          String             @id @default(cuid())
+  broadcastId String
+  broadcast   Broadcast          @relation(fields: [broadcastId], references: [id], onDelete: Cascade)
+  // Null : décision automatique (quota, limite, auteur parti…).
+  actorId     String?
+  actor       User?              @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  type        BroadcastEventType
+  detail      String?
+  createdAt   DateTime           @default(now())
+
+  @@index([broadcastId, createdAt, id])
+  @@map("broadcast_event")
+}

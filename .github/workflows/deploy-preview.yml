@@ -1,0 +1,70 @@
+name: Deploy preview workers
+
+on:
+  push:
+    branches: [codex/preproduction]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: extravertyai-preview-workers
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: github.ref == 'refs/heads/codex/preproduction'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: preview
+    steps:
+      - name: Configure dedicated SSH identity
+        env:
+          DEPLOY_KEY: ${{ secrets.PREVIEW_VPS_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.PREVIEW_VPS_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          test -n "$DEPLOY_KEY"
+          test -n "$KNOWN_HOSTS"
+          umask 077
+          mkdir -p "$HOME/.ssh"
+          printf '%s\n' "$DEPLOY_KEY" > "$HOME/.ssh/preview_deploy"
+          printf '%s\n' "$KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
+      - name: Build, migrate and restart preview workers
+        env:
+          DEPLOY_HOST: ${{ secrets.PREVIEW_VPS_HOST }}
+          DEPLOY_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          [[ "$DEPLOY_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$DEPLOY_HOST" =~ ^[a-zA-Z0-9.-]+$ ]]
+          ssh -T -i "$HOME/.ssh/preview_deploy" \
+            -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes \
+            -o ConnectTimeout=20 -o ServerAliveInterval=30 -o ServerAliveCountMax=5 \
+            "root@$DEPLOY_HOST" "deploy $DEPLOY_SHA"
+      - name: Check public database endpoint used by Vercel
+        if: always()
+        env:
+          DB_HOST: ${{ secrets.PREVIEW_DB_PUBLIC_HOST }}
+          DB_PORT: ${{ secrets.PREVIEW_DB_PUBLIC_PORT }}
+        run: |
+          set -euo pipefail
+          if [[ -z "$DB_HOST" || -z "$DB_PORT" ]]; then
+            echo "::warning::PREVIEW_DB_PUBLIC_HOST / PREVIEW_DB_PUBLIC_PORT non configurés : vérification de la base ignorée."
+            exit 0
+          fi
+          [[ "$DB_HOST" =~ ^[a-zA-Z0-9.-]+$ ]]
+          [[ "$DB_PORT" =~ ^[0-9]{1,5}$ ]]
+          for attempt in 1 2 3; do
+            if timeout 10 bash -c "exec 3<>/dev/tcp/$DB_HOST/$DB_PORT"; then
+              echo "Base de preview joignable depuis Internet."
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "::error::Base de preview injoignable sur le port public configuré. Vérifiez son port publié (docker port postgresql-mi4k-postgresql-1) et DATABASE_URL dans Vercel."
+          exit 1
+      - name: Remove runner identity
+        if: always()
+        run: rm -f "$HOME/.ssh/preview_deploy"

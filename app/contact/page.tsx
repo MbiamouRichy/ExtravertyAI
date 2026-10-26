@@ -1,16 +1,20 @@
-import { Contact } from "@/components/contact";
 import type { Metadata } from "next";
 
+import { ContactPage } from "@/components/website/contact/contact-page";
+import { SiteShell } from "@/components/website/site-shell";
+
 export const metadata: Metadata = {
-  title: "ExtravertyAI - Contactez-nous",
+  title: "Contact — Parlons de votre projet | ExtravertyAI",
   description:
-    "ExtravertyAI est un assistant de support client alimenté par l'IA qui fournit des réponses rapides et précises aux questions des clients, améliorant ainsi l'expérience client et le nombre de ventes.",
+    "Discutons de votre activité et de votre service client WhatsApp. Contactez ExtravertyAI à distance par WhatsApp, téléphone ou e-mail.",
+  alternates: { canonical: "/contact" },
 };
 export const dynamic = "force-static";
+
 export default function Page() {
   return (
-    <div className="min-h-screen w-full overflow-hidden px-4">
-      <Contact />
-    </div>
+    <SiteShell>
+      <ContactPage />
+    </SiteShell>
   );
 }

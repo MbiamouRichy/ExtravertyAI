@@ -1,0 +1,175 @@
+import type { ReactNode } from "react";
+import {
+  PAGE_PERMISSIONS,
+  canOpenPage,
+  type ProjectPage,
+} from "@/lib/project-permissions";
+import {
+  BarChart3Icon,
+  CalendarClock,
+  BriefcaseIcon,
+  UsersIcon,
+  SettingsIcon,
+  CreditCardIcon,
+  FolderEditIcon,
+  LayoutDashboard,
+  MessageSquareIcon,
+  UserCogIcon,
+  ContactIcon,
+  Settings2Icon,
+  MegaphoneIcon,
+  SquareKanban,
+  BotIcon,
+  PlugIcon,
+} from "lucide-react";
+
+export type SidebarNavItem = {
+  title: string;
+  path?: string;
+  icon?: ReactNode;
+  isActive?: boolean;
+  subItems?: SidebarNavItem[];
+  show?: boolean;
+};
+
+export type SidebarNavGroup = {
+  label?: string;
+  items: SidebarNavItem[];
+};
+
+// Transformation en fonction pour accepter projectId
+export const getNavGroups = (projectId: string): SidebarNavGroup[] => [
+  {
+    label: "Produit",
+    items: [
+      {
+        title: "Dashboard",
+        path: `/projects/${projectId}`, // Chemin dynamique
+        icon: <LayoutDashboard />,
+      },
+      {
+        title: "Analytics",
+        path: `/projects/${projectId}/analytics`,
+        icon: <BarChart3Icon />,
+      },
+      {
+        title: "Rapports",
+        path: `/projects/${projectId}/reports`,
+        icon: <CalendarClock />,
+      },
+      {
+        title: "Conversations",
+        path: `/projects/${projectId}/chat`, // Chemin dynamique
+        icon: <MessageSquareIcon />,
+      },
+      {
+        title: "Contacts",
+        path: `/projects/${projectId}/contacts`,
+        icon: <ContactIcon />,
+      },
+      {
+        title: "Diffusions",
+        path: `/projects/${projectId}/broadcasts`,
+        icon: <MegaphoneIcon />,
+      },
+      {
+        title: "Pipeline",
+        path: `/projects/${projectId}/pipeline`,
+        icon: <SquareKanban />,
+      },
+      {
+        title: "Assistant IA",
+        path: `/projects/${projectId}/knowledge`,
+        icon: <BotIcon />,
+      },
+      {
+        title: "setup",
+        path: `/projects/${projectId}/setup`,
+        icon: <Settings2Icon />,
+        show: false,
+      },
+      {
+        title: "Projets",
+        path: "/projects", // Reste statique si c'est la liste générale
+        icon: <BriefcaseIcon />,
+      },
+      {
+        title: "User",
+        path: `/projects/user`,
+        icon: <UserCogIcon />,
+        show: false,
+      },
+      {
+        title: "New project",
+        path: "/projects/new",
+        icon: <FolderEditIcon />,
+        show: false,
+      },
+      {
+        title: "Plan",
+        path: `/projects/${projectId}/billing`,
+        icon: <CreditCardIcon />,
+        show: false,
+      },
+    ],
+  },
+  {
+    label: "Espace de travail",
+    items: [
+      {
+        title: "Équipe",
+        path: `/projects/${projectId}/team`,
+        icon: <UsersIcon />,
+      },
+      {
+        title: "Intégrations",
+        path: `/projects/${projectId}/integrations`,
+        icon: <PlugIcon />,
+      },
+      // {
+      // 	title: "API Keys",
+      // 	path: `/projects/${projectId}/api-keys`,
+      // 	icon: <KeyRoundIcon />,
+      // },
+    ],
+  },
+  {
+    label: "Administration",
+    items: [
+      {
+        title: "Paramètres",
+        path: `/projects/${projectId}/settings`,
+        icon: <SettingsIcon />,
+      },
+      {
+        title: "Facturation",
+        path: `/projects/${projectId}/billing`,
+        icon: <CreditCardIcon />,
+      },
+    ],
+  },
+];
+
+export const navLinks = (projectId: string): SidebarNavItem[] => [
+  ...getNavGroups(projectId).flatMap((group) =>
+    group.items.flatMap((item) =>
+      item.subItems?.length ? [item, ...item.subItems] : [item],
+    ),
+  ),
+];
+
+/**
+ * Navigation limitée aux pages que le rôle peut ouvrir. Simple confort :
+ * chaque page revérifie la permission côté serveur.
+ */
+export function navGroupsForRole(projectId: string, role: string): SidebarNavGroup[] {
+  const base = `/projects/${projectId}`;
+  const allowed = (path?: string) => {
+    if (!path || (path !== base && !path.startsWith(base + "/"))) return true;
+    const page = path.slice(base.length + 1).split("/")[0];
+    return page in PAGE_PERMISSIONS && canOpenPage(role, page as ProjectPage);
+  };
+  return getNavGroups(projectId)
+    .map((group) => ({ ...group, items: group.items.filter((item) => allowed(item.path)) }))
+    .filter((group) => group.items.some((item) => item.show !== false));
+}

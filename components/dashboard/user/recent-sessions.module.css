@@ -1,0 +1,36 @@
+.container {
+  position: relative;
+}
+
+.fadeTop,
+.fadeBottom {
+  position: absolute;
+  inset-inline: 0;
+  height: calc(var(--spacing) * 6);
+  pointer-events: none;
+  opacity: 0;
+  background: color-mix(in oklab, var(--card) 60%, transparent);
+  backdrop-filter: blur(var(--blur-sm));
+}
+
+.fadeTop {
+  top: 0;
+  mask-image: linear-gradient(to bottom, black, transparent);
+}
+
+.fadeBottom {
+  bottom: 0;
+  mask-image: linear-gradient(to top, black, transparent);
+}
+
+.container:has([data-fade-top="true"]) .fadeTop,
+.container:has([data-fade-bottom="true"]) .fadeBottom {
+  opacity: 1;
+}
+
+@media (forced-colors: active) {
+  .fadeTop,
+  .fadeBottom {
+    display: none;
+  }
+}

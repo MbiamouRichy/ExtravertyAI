@@ -39,3 +39,18 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+/src/generated/prisma
+
+/.scratch/
+!.env.example
+
+/playwright-report/
+/test-results/
+/playwright/.auth/
+
+# Réglages Docker propres à chaque serveur (réseau de la base, etc.)
+compose.override.yaml
+
+# audit local (comptes de test, scripts)
+/.audit/
