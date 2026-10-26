@@ -15,7 +15,30 @@ export const EVOLUTION_WEBHOOK_EVENTS = [
   "MESSAGES_UPDATE",
   "PRESENCE_UPDATE",
 ] as const;
-export const WEBHOOK_EVENTS_VERSION = 2;
+/**
+ * Version du webhook attendue : 2 = événements de présence ; 3 = adresse avec
+ * le jeton Vercel. Sans jeton configuré on s’arrête à 2, pour que l’ajout du
+ * jeton plus tard déclenche encore la mise à jour.
+ */
+export function webhookEventsVersion() {
+  return process.env.VERCEL_AUTOMATION_BYPASS_SECRET ? 3 : 2;
+}
+
+/**
+ * Adresse du webhook Evolution. Sur un déploiement protégé (Vercel
+ * Authentication), le jeton « Protection Bypass for Automation » laisse passer
+ * la passerelle ; sans lui, Vercel répond 401 et aucun message n’arrive.
+ */
+export function evolutionWebhookUrl() {
+  const secret = process.env.EVOLUTION_WEBHOOK_SECRET;
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/+$/, "");
+  if (!secret || !appUrl) return null;
+  const url = new URL(`${appUrl}/api/webhooks/evolution`);
+  url.searchParams.set("secret", secret);
+  const bypass = process.env.VERCEL_AUTOMATION_BYPASS_SECRET;
+  if (bypass) url.searchParams.set("x-vercel-protection-bypass", bypass);
+  return url.toString();
+}
 
 function evolutionConfig() {
   const base = process.env.EVOLUTION_API_URL?.replace(/\/+$/, "");
@@ -101,11 +124,11 @@ export async function upgradeWebhookEvents(
   project: { id: string; instanceName: string; webhookEventsVersion: number },
   fetchImpl: typeof fetch = fetch,
 ) {
-  if (project.webhookEventsVersion >= WEBHOOK_EVENTS_VERSION) return;
+  const target = webhookEventsVersion();
+  if (project.webhookEventsVersion >= target) return;
   const config = evolutionConfig();
-  const secret = process.env.EVOLUTION_WEBHOOK_SECRET;
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/+$/, "");
-  if (!config || !secret || !appUrl) return;
+  const webhookUrl = evolutionWebhookUrl();
+  if (!config || !webhookUrl) return;
   const response = await fetchImpl(
     `${config.base}/webhook/set/${encodeURIComponent(project.instanceName)}`,
     {
@@ -114,7 +137,7 @@ export async function upgradeWebhookEvents(
       body: JSON.stringify({
         webhook: {
           enabled: true,
-          url: `${appUrl}/api/webhooks/evolution?secret=${secret}`,
+          url: webhookUrl,
           webhookByEvents: false,
           events: EVOLUTION_WEBHOOK_EVENTS,
         },
@@ -126,8 +149,8 @@ export async function upgradeWebhookEvents(
   await prisma.project.updateMany({
     where: {
       id: project.id,
-      webhookEventsVersion: { lt: WEBHOOK_EVENTS_VERSION },
+      webhookEventsVersion: { lt: target },
     },
-    data: { webhookEventsVersion: WEBHOOK_EVENTS_VERSION },
+    data: { webhookEventsVersion: target },
   });
 }

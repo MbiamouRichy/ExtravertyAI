@@ -1,6 +1,9 @@
 import "server-only";
 import { randomBytes } from "node:crypto";
-import { EVOLUTION_WEBHOOK_EVENTS } from "@/lib/contact-presence";
+import {
+  EVOLUTION_WEBHOOK_EVENTS,
+  evolutionWebhookUrl,
+} from "@/lib/contact-presence";
 const EVOLUTION_API_URL = process.env.EVOLUTION_API_URL;
 const EVOLUTION_API_TOKEN = process.env.EVOLUTION_API_KEY;
 const WEBHOOK_SECRET = process.env.EVOLUTION_WEBHOOK_SECRET;
@@ -23,7 +26,8 @@ export async function createEvolutionInstance(
     );
   }
 
-  const webhookUrl = `${APP_URL}/api/webhooks/evolution?secret=${WEBHOOK_SECRET}`;
+  // Inclut le jeton de contournement Vercel quand il est configuré.
+  const webhookUrl = evolutionWebhookUrl()!;
   const events = EVOLUTION_WEBHOOK_EVENTS;
   const cleanNumero = number.replace(/\D/g, "");
   const instanceToken = randomBytes(32).toString("hex");
