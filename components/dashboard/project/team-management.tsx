@@ -278,7 +278,7 @@ export default function TeamManagement({
               Inviter un membre
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-md">
+          <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-md">
             <DialogHeader>
               <DialogTitle>Inviter un collaborateur</DialogTitle>
               <DialogDescription>
@@ -336,7 +336,7 @@ export default function TeamManagement({
                           <FieldLabel
                             key={value}
                             htmlFor={`invite-role-${value}`}
-                            className="cursor-pointer rounded-xl border p-3 font-normal has-data-[state=checked]:border-primary has-data-[state=checked]:bg-muted/50"
+                            className="cursor-pointer rounded-xl border px-3 py-2.5 font-normal has-data-[state=checked]:border-primary has-data-[state=checked]:bg-muted/50"
                           >
                             <Field orientation="horizontal">
                               <RadioGroupItem id={`invite-role-${value}`} value={value} />

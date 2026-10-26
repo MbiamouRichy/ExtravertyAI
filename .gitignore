@@ -51,3 +51,6 @@ next-env.d.ts
 
 # Réglages Docker propres à chaque serveur (réseau de la base, etc.)
 compose.override.yaml
+
+# audit local (comptes de test, scripts)
+/.audit/
