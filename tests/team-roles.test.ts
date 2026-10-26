@@ -316,7 +316,7 @@ test(
 );
 
 /** Charge app/actions/team.ts contre une vraie base, session simulée. */
-function loadTeamActions(prisma: PrismaClient, userId: string) {
+function loadTeamActions(prisma: PrismaClient, userId: string, emailFails = false) {
   const sent: string[] = [];
   const modules: Record<string, unknown> = {
     "next/cache": { revalidatePath: () => undefined },
@@ -330,7 +330,14 @@ function loadTeamActions(prisma: PrismaClient, userId: string) {
     crypto: { default: crypto },
     "@/src/generated/prisma/client": { Role },
     "@/lib/resend": {
-      resend: { emails: { send: async (mail: { to: string }) => sent.push(mail.to) } },
+      resend: {
+        emails: {
+          send: async (mail: { to: string }) => {
+            sent.push(mail.to);
+            return emailFails ? { data: null, error: { message: "domaine refusé" } } : { data: { id: "e" }, error: null };
+          },
+        },
+      },
     },
     "@/components/emailTemplate/invitationEmail": { ProjectInvitationEmail: () => "" },
     "@/components/emailTemplate/projectMemberConfirmationEmail": {
@@ -441,6 +448,18 @@ test(
         true,
       );
       assert.equal(await roleOf("BILLING"), "ADMIN");
+
+      // Un e-mail qui échoue n'annule pas l'ajout d'un compte existant…
+      const outsider = await createUser(prisma, "Externe");
+      const failing = loadTeamActions(prisma, users.OWNER, true);
+      const added = await failing.inviteTeamMember(outsider.email, "VIEWER", project.id);
+      assert.equal(added.success, true);
+      assert.match((added as { warning?: string }).warning ?? "", /e-mail/);
+      assert.ok(await prisma.projectMembership.findFirst({ where: { projectId: project.id, userId: outsider.id, role: "VIEWER" } }));
+      // …mais une invitation sans e-mail est refusée et ne reste pas en base.
+      const pending = await failing.inviteTeamMember("absent@example.test", "AGENT", project.id);
+      assert.equal(pending.success, false);
+      assert.equal(await prisma.invitation.count({ where: { email: "absent@example.test" } }), 0);
     });
   },
 );

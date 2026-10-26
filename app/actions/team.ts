@@ -17,6 +17,27 @@ import {
   canManageMember,
 } from "@/lib/project-permissions";
 
+/** Adresse publique de l'application, sans laquelle aucun lien d'e-mail n'est valide. */
+function appOrigin() {
+  const origin = process.env.NEXT_PUBLIC_APP_URL;
+  if (!origin) throw new Error("NEXT_PUBLIC_APP_URL manquant");
+  return origin.replace(/\/$/, "");
+}
+
+/** Envoi d'un e-mail d'équipe : false si le modèle, la configuration ou Resend échoue. */
+async function sendTeamEmail(
+  build: () => Parameters<typeof resend.emails.send>[0],
+) {
+  try {
+    const { error } = await resend.emails.send(build());
+    if (error) throw new Error(error.message);
+    return true;
+  } catch (error) {
+    console.error("[team] E-mail non envoyé :", error instanceof Error ? error.message : error);
+    return false;
+  }
+}
+
 const MemberTarget = z.object({
   projectId: z.string().cuid(),
   membershipId: z.string().cuid(),
@@ -256,9 +277,8 @@ export async function inviteTeamMember(
         data: { projectId, userId: existingUser.id, role: targetRole },
       });
 
-      const inviteLink = `${process.env.NEXT_PUBLIC_APP_URL}/projects/${projectId}`;
-      // Envoi Email d'information
-      await resend.emails.send({
+      // L'ajout est fait : un e-mail d'information qui échoue ne l'annule pas.
+      const notified = await sendTeamEmail(() => ({
         from: "ExtravertyAI <equipe@extravertyai.com>",
         to: email,
         subject: `Vous avez été ajouté au projet ${requester.project.name}`,
@@ -267,10 +287,18 @@ export async function inviteTeamMember(
           userName: existingUser.name,
           projectName: requester.project.name,
           role: targetRole,
-          projectUrl: inviteLink,
+          projectUrl: `${appOrigin()}/projects/${projectId}`,
           email: email,
         }),
-      });
+      }));
+      revalidatePath(`/projects/${projectId}`, "layout");
+      return notified
+        ? { success: true }
+        : {
+            success: true,
+            warning:
+              "Membre ajouté, mais l’e-mail d’information n’a pas pu être envoyé.",
+          };
     } else {
       // --- CAS B : L'UTILISATEUR N'EXISTE PAS (Création d'une Invitation) ---
 
@@ -293,10 +321,8 @@ export async function inviteTeamMember(
         },
       });
 
-      const inviteLink = `${process.env.NEXT_PUBLIC_APP_URL}/invite?token=${inviteToken}`;
-
-      // Envoi Email d'invitation avec Resend
-      await resend.emails.send({
+      // Sans e-mail, l'invité n'a pas le lien : l'invitation est retirée.
+      const sent = await sendTeamEmail(() => ({
         from: "ExtravertyAI <equipe@extravertyai.com>",
         to: email,
         subject: `Invitation à rejoindre ${requester.project.name}`,
@@ -304,10 +330,17 @@ export async function inviteTeamMember(
           inviterName: session.user.name || "Un membre de l'équipe",
           projectName: requester.project.name,
           role: targetRole,
-          inviteUrl: inviteLink,
+          inviteUrl: `${appOrigin()}/invite?token=${inviteToken}`,
           email: email,
         }),
-      });
+      }));
+      if (!sent) {
+        await prisma.invitation.deleteMany({ where: { token: inviteToken } });
+        return {
+          success: false,
+          error: "L’e-mail d’invitation n’a pas pu être envoyé. Vérifiez l’adresse et réessayez.",
+        };
+      }
     }
 
     revalidatePath(`/projects/${projectId}`, "layout");
