@@ -10,6 +10,17 @@ import { ProjectInvitationEmail } from "@/components/emailTemplate/invitationEma
 import { ProjectMemberConfirmationEmail } from "@/components/emailTemplate/projectMemberConfirmationEmail";
 import z from "zod";
 import { isRecentSession } from "@/lib/recent-session";
+import { allowRequest } from "@/lib/rate-limit";
+import {
+  assignableRoles,
+  can,
+  canManageMember,
+} from "@/lib/project-permissions";
+
+const MemberTarget = z.object({
+  projectId: z.string().cuid(),
+  membershipId: z.string().cuid(),
+});
 
 export type TeamMember = {
   id: string;
@@ -35,8 +46,11 @@ export async function getTeamMembers(projectId: string) {
     where: { userId_projectId: { userId: session.user.id, projectId } },
     select: { role: true },
   });
-  if (!access || !["OWNER", "ADMIN"].includes(access.role))
+  // Le tableau de bord montre l'équipe disponible aux superviseurs et lecteurs ;
+  // seuls ceux qui gèrent l'équipe voient les adresses e-mail.
+  if (!can(access?.role, "team.manage") && !can(access?.role, "stats.view"))
     throw new Error("Accès refusé");
+  const showEmails = can(access?.role, "team.manage");
   // 1. Récupérer les membres de l'équipe
   const memberships = await prisma.projectMembership.findMany({
     where: { projectId },
@@ -50,7 +64,7 @@ export async function getTeamMembers(projectId: string) {
         },
       },
     },
-    // Enum order is USER, ADMIN, OWNER: descending lists the owner first.
+    // Enum order goes from the narrowest role to OWNER: descending lists the owner first.
     orderBy: [{ role: "desc" }, { createdAt: "asc" }],
   });
 
@@ -94,7 +108,7 @@ export async function getTeamMembers(projectId: string) {
       id: m.id,
       userId: m.user.id,
       name: m.user.name,
-      email: m.user.email,
+      email: showEmails ? m.user.email : "",
       role: m.role,
       image: m.user.image,
       createdAt: m.createdAt,
@@ -111,6 +125,8 @@ export async function removeTeamMember(
   projectId: string,
 ) {
   try {
+    if (!MemberTarget.safeParse({ projectId, membershipId }).success)
+      return { success: false, error: "Données de requête invalides." };
     const session = await getSession();
     if (!session?.user?.id) return { success: false, error: "Non authentifié" };
 
@@ -119,7 +135,7 @@ export async function removeTeamMember(
       where: { userId_projectId: { userId: session.user.id, projectId } },
     });
 
-    if (!requester || requester.role === "USER") {
+    if (!can(requester?.role, "team.manage")) {
       return { success: false, error: "Droits insuffisants" };
     }
 
@@ -137,10 +153,10 @@ export async function removeTeamMember(
         error: "Impossible de supprimer le propriétaire",
       };
     }
-    if (requester.role === "ADMIN" && targetMember.role === "ADMIN") {
+    if (!canManageMember(requester?.role, targetMember.role)) {
       return {
         success: false,
-        error: "Un Admin ne peut pas supprimer un autre Admin",
+        error: "Un administrateur ne peut pas retirer un autre administrateur.",
       };
     }
 
@@ -158,12 +174,27 @@ export async function removeTeamMember(
 // ============================================================================
 // 3. INVITER UN MEMBRE (Better Auth + Resend)
 // ============================================================================
+const InviteSchema = z.object({
+  email: z.string().trim().toLowerCase().email().max(254),
+  targetRole: z.nativeEnum(Role),
+  projectId: z.string().cuid(),
+});
+
 export async function inviteTeamMember(
-  email: string,
-  targetRole: Role,
-  projectId: string,
+  rawEmail: string,
+  rawRole: Role,
+  rawProjectId: string,
 ) {
   try {
+    const parsed = InviteSchema.safeParse({
+      email: rawEmail,
+      targetRole: rawRole,
+      projectId: rawProjectId,
+    });
+    if (!parsed.success)
+      return { success: false, error: "Adresse e-mail ou rôle invalide." };
+    const { email, targetRole, projectId } = parsed.data;
+
     const session = await getSession();
     if (!session?.user?.id) return { success: false, error: "Non authentifié" };
 
@@ -173,18 +204,34 @@ export async function inviteTeamMember(
       include: { project: true },
     });
 
-    if (!requester || requester.role === "USER") {
+    if (
+      !requester ||
+      requester.project.deletionPending ||
+      !can(requester.role, "team.manage")
+    ) {
       return {
         success: false,
         error: "Vous n'avez pas les droits pour inviter.",
       };
     }
 
-    // SÉCURITÉ : Empêcher un Admin d'inviter un Owner
-    if (requester.role === "ADMIN" && targetRole === "OWNER") {
+    // SÉCURITÉ : un administrateur n'invite ni administrateur ni propriétaire ;
+    // la propriété ne se donne que par le transfert dédié.
+    if (!assignableRoles(requester.role).includes(targetRole)) {
       return {
         success: false,
-        error: "Un Admin ne peut pas inviter un Owner.",
+        error: "Vous ne pouvez pas attribuer ce rôle.",
+      };
+    }
+
+    // Chaque invitation envoie un e-mail : limite contre l'envoi en rafale.
+    if (
+      !allowRequest(`invite:${session.user.id}`, 20, 60 * 60 * 1000) ||
+      !allowRequest(`invite-project:${projectId}`, 50, 24 * 60 * 60 * 1000)
+    ) {
+      return {
+        success: false,
+        error: "Trop d’invitations envoyées. Réessayez dans une heure.",
       };
     }
 
@@ -275,8 +322,8 @@ export async function inviteTeamMember(
 }
 
 const updateRoleSchema = z.object({
-  projectId: z.string().min(1, "ID projet requis"),
-  membershipId: z.string().min(1, "ID membre requis"),
+  projectId: z.string().cuid("ID projet requis"),
+  membershipId: z.string().cuid("ID membre requis"),
   newRole: z.nativeEnum(Role),
 });
 
@@ -341,33 +388,22 @@ export async function updateMemberRole(
       };
     }
 
-    // C. Un ADMIN ne peut modifier que des USER et ne peut pas promouvoir en ADMIN/OWNER
-    if (requesterRole === "ADMIN") {
-      if (targetMembership.role !== "USER") {
-        return {
-          success: false,
-          error:
-            "Les administrateurs ne peuvent modifier que les membres standards.",
-        };
-      }
-      if (newRole === "OWNER" || newRole === "ADMIN") {
-        return {
-          success: false,
-          error:
-            "Vous n'avez pas les droits pour accorder ce niveau de privilège.",
-        };
-      }
+    // C. Seuls ceux qui gèrent l'équipe changent un rôle, et jamais celui d'un
+    // rôle égal ou supérieur (un administrateur ne touche pas un administrateur).
+    if (!canManageMember(requesterRole, targetMembership.role)) {
+      return {
+        success: false,
+        error: "Vous n'avez pas les droits pour modifier le rôle de ce membre.",
+      };
     }
 
-    // D. Seul un OWNER peut attribuer le rôle ADMIN ou OWNER
-    if (
-      requesterRole !== "OWNER" &&
-      (newRole === "ADMIN" || newRole === "OWNER")
-    ) {
+    // D. Seul le propriétaire nomme des administrateurs ; la propriété passe
+    // uniquement par le transfert dédié.
+    if (!assignableRoles(requesterRole).includes(newRole)) {
       return {
         success: false,
         error:
-          "Seul le propriétaire du projet peut nommer des administrateurs.",
+          "Vous n'avez pas les droits pour accorder ce niveau de privilège.",
       };
     }
 

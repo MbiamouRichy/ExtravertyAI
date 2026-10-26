@@ -2,6 +2,11 @@ import type { PrismaClient } from "../src/generated/prisma/client";
 import { chatContactName } from "./chat-privacy";
 import type { AppNotification, NotificationFeed } from "./notification-types";
 import { BROADCAST_REASON_LABEL } from "./broadcast-shared";
+import { can, homePath, rolesWith } from "./project-permissions";
+
+// Messages, assignations et relances : seulement pour qui traite les conversations.
+const HANDLERS = rolesWith("conversations.handle");
+const MANAGERS = rolesWith("project.manage");
 
 export async function notificationFeed(
   db: PrismaClient,
@@ -31,7 +36,7 @@ export async function notificationFeed(
       ORDER BY "createdAt" DESC, id DESC LIMIT 1
     ) m ON true
     LEFT JOIN conversation_read_state r ON r."contactId" = c.id AND r."membershipId" = pm.id
-    WHERE pm."userId" = ${userId}
+    WHERE pm."userId" = ${userId} AND pm.role::text = ANY(${HANDLERS}::text[])
     ORDER BY m."createdAt" DESC, m.id DESC LIMIT 51
   `;
   const projects = await db.$queryRaw<
@@ -57,7 +62,8 @@ export async function notificationFeed(
   `;
   const items: AppNotification[] = [];
   for (const p of projects.slice(0, 100)) {
-    const admin = p.role === "ADMIN" || p.role === "OWNER";
+    const admin = can(p.role, "project.manage");
+    const billing = can(p.role, "billing.view");
     function alert(
       code: string,
       version: string,
@@ -85,10 +91,10 @@ export async function notificationFeed(
         admin
           ? "Reconnectez WhatsApp pour reprendre les échanges."
           : "Un administrateur doit reconnecter WhatsApp.",
-        "/projects/" + p.id + "/chat",
+        homePath(p.id, p.role),
       );
     if (
-      admin &&
+      billing &&
       (!["active", "trialing"].includes(p.status) ||
         !p.endsAt ||
         p.endsAt <= new Date())
@@ -100,7 +106,7 @@ export async function notificationFeed(
         "Vérifiez la période d’accès et le paiement de ce projet.",
         "/projects/" + p.id + "/billing",
       );
-    } else if (admin && p.limit && p.used !== null && p.used / p.limit >= 0.8) {
+    } else if (billing && p.limit && p.used !== null && p.used / p.limit >= 0.8) {
       alert(
         "quota",
         (p.quotaId ?? "") + ":" + (p.used >= p.limit ? "exhausted" : "warning"),
@@ -145,6 +151,7 @@ export async function notificationFeed(
     FROM contact c
     JOIN project p ON p.id = c."projectId" AND NOT p."deletionPending"
     JOIN project_membership pm ON pm."projectId" = p.id AND pm."userId" = ${userId}
+      AND pm.role::text = ANY(${HANDLERS}::text[])
     LEFT JOIN "user" u ON u.id = c."assignedById"
     WHERE c."assigneeId" = ${userId} AND c."assignedById" IS DISTINCT FROM ${userId}
       AND c."resolvedAt" IS NULL AND c."assignedAt" > NOW() - INTERVAL '30 days'
@@ -187,7 +194,7 @@ export async function notificationFeed(
     FROM broadcast b
     JOIN project p ON p.id = b."projectId" AND NOT p."deletionPending"
     JOIN project_membership pm ON pm."projectId" = p.id AND pm."userId" = ${userId}
-      AND pm.role::text IN ('OWNER', 'ADMIN')
+      AND pm.role::text = ANY(${MANAGERS}::text[])
     WHERE b.status = 'PAUSED' AND b."pauseReason" IS DISTINCT FROM 'MANUAL'
     ORDER BY b."updatedAt" DESC LIMIT 10
   `;
@@ -222,6 +229,7 @@ export async function notificationFeed(
     FROM contact c
     JOIN project p ON p.id = c."projectId" AND NOT p."deletionPending"
     JOIN project_membership pm ON pm."projectId" = p.id AND pm."userId" = ${userId}
+      AND pm.role::text = ANY(${HANDLERS}::text[])
     WHERE c."aiQuietSince" > NOW() - INTERVAL '7 days' AND c."aiActive" AND c."resolvedAt" IS NULL
       AND c."pipelineStage" IN ('INTERESTED', 'QUOTE_SENT')
       AND (c."assigneeId" IS NULL OR c."assigneeId" = ${userId})

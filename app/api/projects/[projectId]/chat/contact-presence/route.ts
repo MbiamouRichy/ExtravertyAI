@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { rolesWith } from "@/lib/project-permissions";
 
 import { getSession } from "@/lib/auth-server";
 import prisma from "@/lib/prisma";
@@ -38,7 +39,12 @@ export async function POST(
       project: {
         deletionPending: false,
         instanceStatus: "connected",
-        members: { some: { userId: session.user.id } },
+        members: {
+          some: {
+            userId: session.user.id,
+            role: { in: rolesWith("conversations.handle") },
+          },
+        },
       },
     },
     select: {

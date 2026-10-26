@@ -52,7 +52,7 @@ test("agent improvement loop", { timeout: 180000 }, async (t) => {
     const owner = await createUser(prisma, "Clara Mba");
     const member = await createUser(prisma, "Inès Obame");
     await addMember(prisma, project.id, owner.id, "OWNER");
-    await addMember(prisma, project.id, member.id, "USER");
+    await addMember(prisma, project.id, member.id, "AGENT");
     await saveEntry(prisma, {
       projectId: project.id,
       userId: owner.id,

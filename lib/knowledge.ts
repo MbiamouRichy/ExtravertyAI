@@ -6,6 +6,7 @@ import { requireProjectAdmin } from "./project-settings";
 import { StorageQuotaError, releaseStorage, reserveStorage } from "./storage-quota";
 import { SafeFetchError, parsePublicUrl } from "./safe-fetch";
 import { MAX_DEAL_VALUE } from "./pipeline-shared";
+import { can } from "./project-permissions";
 import {
   KNOWLEDGE_LIMITS,
   buildSearchQuery,
@@ -343,7 +344,7 @@ export async function knowledgeOverview(db: PrismaClient, projectId: string, use
     where: { userId_projectId: { userId, projectId } },
     select: { role: true, project: { select: { plan: true, currency: true, deletionPending: true } } },
   });
-  if (!membership || membership.project.deletionPending || !["OWNER", "ADMIN"].includes(membership.role)) {
+  if (!membership || membership.project.deletionPending || !can(membership.role, "project.manage")) {
     return null;
   }
   const entrySelect = {

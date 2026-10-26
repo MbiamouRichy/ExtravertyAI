@@ -3,6 +3,7 @@ import { readStoredMedia } from "./chat-media-server";
 import type { PrismaClient } from "../src/generated/prisma/client";
 import { latestStatus } from "./evolution-ingestion";
 import { projectBillingStatus } from "./project-status";
+import { can } from "./project-permissions";
 
 export function createOutboundProcessor(
   prisma: PrismaClient,
@@ -73,7 +74,7 @@ export function createOutboundProcessor(
                 projectId: job.projectId,
               },
             },
-            select: { userId: true },
+            select: { role: true },
           })
         : null;
 
@@ -93,7 +94,7 @@ export function createOutboundProcessor(
           : null;
       const senderAllowed =
         job.message.senderType === "AGENT"
-          ? !!membership
+          ? can(membership?.role, "conversations.handle")
           : job.message.senderType === "BOT" &&
             !!job.project.agentSetupCompletedAt &&
             !job.project.automationPaused &&

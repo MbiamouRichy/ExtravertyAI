@@ -1,4 +1,5 @@
 import { getSession } from "@/lib/auth-server";
+import { can, homePath } from "@/lib/project-permissions";
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { Dashboard } from "@/components/dashboard/dashboard";
@@ -60,12 +61,13 @@ export default async function ProjectDashboardPage({ params }: PageProps) {
     );
   }
   if (!project.agentSetupCompletedAt) redirect(`/projects/${projectId}/setup`);
-  if (project.userRole !== "OWNER" && project.userRole !== "ADMIN") {
-    return redirect(`/projects/${projectId}/chat`);
+  if (!can(project.userRole, "stats.view")) {
+    return redirect(homePath(projectId, project.userRole));
   }
   return (
     <Dashboard
       projectId={projectId}
+      role={project.userRole}
       project={{
         name: project.name,
         instanceStatus: project.instanceStatus,

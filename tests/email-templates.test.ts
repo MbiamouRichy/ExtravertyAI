@@ -17,7 +17,7 @@ const templates: ((link: string) => string)[] = [
   (link) => ChangeEmailTemplate({ url: link, newEmail: evil }),
   (link) => DeleteAccountEmailTemplate({ url: link }),
   (link) => ProjectInvitationEmail({ inviterName: evil, projectName: evil, role: "ADMIN", inviteUrl: link, email: evil }),
-  (link) => ProjectMemberConfirmationEmail({ userName: evil, inviterName: evil, projectName: evil, role: "USER", projectUrl: link, email: evil }),
+  (link) => ProjectMemberConfirmationEmail({ userName: evil, inviterName: evil, projectName: evil, role: "AGENT", projectUrl: link, email: evil }),
 ];
 
 test("account and team emails escape user-controlled values", () => {

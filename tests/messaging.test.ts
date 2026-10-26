@@ -81,7 +81,7 @@ test(
       }
       async function pauseActor(
         projectId: string,
-        role: "OWNER" | "ADMIN" | "USER" = "ADMIN",
+        role: "OWNER" | "ADMIN" | "AGENT" = "ADMIN",
       ) {
         const actor = await client.user.create({
           data: {
@@ -529,7 +529,7 @@ test(
           await client.projectMembership.createMany({
             data: [
               { userId: owner.id, projectId: p.id, role: "OWNER" },
-              { userId: member.id, projectId: p.id, role: "USER" },
+              { userId: member.id, projectId: p.id, role: "AGENT" },
             ],
           });
           const config = {
@@ -640,10 +640,10 @@ test(
       await t.test(
         "project pause is scoped to owners and admins and preserves individual contact choices",
         async () => {
-          for (const role of ["OWNER", "ADMIN", "USER"] as const) {
+          for (const role of ["OWNER", "ADMIN", "AGENT"] as const) {
             const p = await fixture();
             const actor = await pauseActor(p.id, role);
-            if (role === "USER") {
+            if (role === "AGENT") {
               await assert.rejects(
                 client.$transaction((tx) =>
                   writeProjectPause(tx, p.id, actor.id, 0, true),

@@ -1,4 +1,5 @@
 import type { PrismaClient } from "../src/generated/prisma/client";
+import { rolesWith } from "./project-permissions";
 
 // Membership is checked in the same statement as the update, for every project role.
 // A real state change is journaled atomically so the conversation shows who
@@ -22,6 +23,7 @@ export async function writeContactAiState(
           SELECT 1 FROM project p
           JOIN project_membership pm ON pm."projectId" = p.id
           WHERE p.id = c."projectId" AND p."deletionPending" = false AND pm."userId" = ${userId}
+            AND pm.role::text = ANY(${rolesWith("conversations.handle")}::text[])
         )
       FOR UPDATE OF c
     ), updated AS (

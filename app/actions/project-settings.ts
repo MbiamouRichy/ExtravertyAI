@@ -7,6 +7,7 @@ import { AgentConfigSchema } from "@/lib/agent-config";
 import {
   SettingsError,
   requireProjectAdmin,
+  requireProjectPermission,
   writeAgentConfig,
   writeProjectPause,
 } from "@/lib/project-settings";
@@ -177,7 +178,7 @@ export async function openProjectBillingPortal(
     z.enum(["manage", "renew", "upgrade"]).parse(intent);
     const userId = await actor();
     const { project } = await prisma.$transaction((tx) =>
-      requireProjectAdmin(tx, projectId, userId, true),
+      requireProjectPermission(tx, projectId, userId, "billing.manage"),
     );
     if (project.deletionPending)
       throw new SettingsError("Ce projet est en cours de suppression.");

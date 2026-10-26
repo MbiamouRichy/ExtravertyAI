@@ -39,7 +39,7 @@ test("manual conversation assignment", { timeout: 120000 }, async (t) => {
     const member = await createUser(prisma, "Inès Obame");
     const outsider = await createUser(prisma, "Externe");
     await addMember(prisma, project.id, owner.id, "OWNER");
-    await addMember(prisma, project.id, member.id, "USER");
+    await addMember(prisma, project.id, member.id, "AGENT");
     const contact = await ingestText(prisma, project.id, "Bonjour");
     const actor = {
       projectId: project.id,
@@ -216,7 +216,7 @@ test(
       const owner = await createUser(prisma, "Clara Mba");
       const member = await createUser(prisma, "Inès Obame");
       await addMember(prisma, project.id, owner.id, "OWNER");
-      await addMember(prisma, project.id, member.id, "USER");
+      await addMember(prisma, project.id, member.id, "AGENT");
       const first = await ingestText(
         prisma,
         project.id,

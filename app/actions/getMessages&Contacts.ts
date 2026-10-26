@@ -1,5 +1,6 @@
 "use server";
 import { chatContactName } from "@/lib/chat-privacy";
+import { can } from "@/lib/project-permissions";
 import { chatMediaFields } from "@/lib/chat-media";
 
 import prisma from "@/lib/prisma";
@@ -48,10 +49,10 @@ export async function getWorkspaceData(
           projectId,
         },
       },
-      select: { userId: true },
+      select: { role: true },
     });
 
-    if (!membership) {
+    if (!can(membership?.role, "conversations.handle")) {
       return {
         success: false,
         error: "Espace de travail indisponible.",

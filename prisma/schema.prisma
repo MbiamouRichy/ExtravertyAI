@@ -34,7 +34,19 @@ enum ProjectStatus {
   inactive   // Abonnement annulé / non payé
 }
 
+// Rôle d’un membre dans un projet, du plus restreint au plus large : un tri
+// « desc » liste le propriétaire d’abord. Droits : lib/project-permissions.ts.
 enum Role {
+  BILLING
+  VIEWER
+  AGENT
+  SUPERVISOR
+  ADMIN
+  OWNER
+}
+
+// Rôle global d’un compte, distinct des rôles de projet (non utilisé pour les droits).
+enum GlobalRole {
   USER
   ADMIN
   OWNER
@@ -435,7 +447,7 @@ model User {
   image         String?
   theme         Theme     @default(system)
   
-  globalRole    Role      @default(USER) 
+  globalRole    GlobalRole @default(USER)
 
   memberships   ProjectMembership[]
   messagesSent  Message[] // Historique des messages envoyés manuellement par cet utilisateur
@@ -517,7 +529,7 @@ model Invitation {
   id        String   @id @default(cuid())
   email     String
   projectId String
-  role      Role     @default(USER)
+  role      Role     @default(AGENT)
   token     String   @unique
   
   inviterId String

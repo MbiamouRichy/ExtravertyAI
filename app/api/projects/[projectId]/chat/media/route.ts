@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { can, rolesWith } from "@/lib/project-permissions";
 import prisma from "@/lib/prisma";
 import { getSession } from "@/lib/auth-server";
 import {
@@ -41,7 +42,11 @@ export async function POST(
     where: { userId_projectId: { userId: session.user.id, projectId } },
     include: { project: true },
   });
-  if (!member || member.project.deletionPending)
+  if (
+    !member ||
+    member.project.deletionPending ||
+    !can(member.role, "conversations.handle")
+  )
     return json("Projet indisponible.", 404);
   if (
     !["active", "trialing"].includes(projectBillingStatus(member.project)) ||
@@ -108,6 +113,7 @@ export async function POST(
       where: {
         userId: session.user.id,
         projectId,
+        role: { in: rolesWith("conversations.handle") },
         project: { deletionPending: false },
       },
       select: { id: true },

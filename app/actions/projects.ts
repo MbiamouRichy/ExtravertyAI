@@ -1,6 +1,7 @@
 "use server";
 
 import prisma from "@/lib/prisma";
+import { can } from "@/lib/project-permissions";
 import { getSession } from "@/lib/auth-server";
 import { revalidatePath } from "next/cache";
 import z from "zod";
@@ -74,7 +75,7 @@ export async function getProjects() {
         ...visible,
         // Seule l’adresse protégée quitte le serveur, jamais la clé de stockage.
         logoUrl: projectLogoUrl(project.id, logoKey),
-        canManageBilling: role === "OWNER",
+        canManageBilling: can(role, "billing.manage"),
         billingAccess: billingAccess(
           {
             ...project,
@@ -190,7 +191,7 @@ export async function disableProject(
 
     // SÉCURITÉ : Bloquer si l'utilisateur n'est pas le propriétaire ou un admin
     // (Ajuste "OWNER" / "ADMIN" selon ce que tu as défini dans ton schéma Prisma)
-    if (membership.role !== "OWNER" && membership.role !== "ADMIN") {
+    if (!can(membership.role, "project.manage")) {
       throw new Error("Droits insuffisants pour désactiver ce projet.");
     }
 
@@ -251,7 +252,7 @@ export async function deleteProjectAction(
     if (!membership || !membership.project)
       throw new Error("Projet introuvable");
 
-    if (membership.role !== "OWNER") {
+    if (!can(membership.role, "project.own")) {
       throw new Error("Seul le propriétaire peut supprimer le projet.");
     }
 

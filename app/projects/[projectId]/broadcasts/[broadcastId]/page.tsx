@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { can } from "@/lib/project-permissions";
 import { notFound, redirect } from "next/navigation";
 import { ArrowLeft, Target } from "lucide-react";
 import { z } from "zod";
@@ -54,13 +55,18 @@ export default async function BroadcastPage({
     select: { role: true, project: { select: { deletionPending: true } } },
   });
   // A broadcast of another project, or no access: the same « not found ».
-  if (!membership || membership.project.deletionPending) notFound();
+  if (
+    !membership ||
+    membership.project.deletionPending ||
+    !can(membership.role, "pipeline.view")
+  )
+    notFound();
   const broadcast = await prisma.broadcast.findFirst({
     where: { id: broadcastId, projectId },
     include: { createdBy: { select: { name: true } } },
   });
   if (!broadcast) notFound();
-  const canManage = membership.role === "OWNER" || membership.role === "ADMIN";
+  const canManage = can(membership.role, "project.manage");
 
   const [stats, counts, recipients, replies, timeline] = await Promise.all([
     broadcastStats(prisma, [broadcast.id]),

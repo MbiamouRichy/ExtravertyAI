@@ -105,7 +105,7 @@ test("broadcasts end to end", { timeout: 240000 }, async (t) => {
     const project = await proProject(prisma);
     await addMember(prisma, project.id, owner.id, "OWNER");
     await addMember(prisma, project.id, admin.id, "ADMIN");
-    await addMember(prisma, project.id, member.id, "USER");
+    await addMember(prisma, project.id, member.id, "AGENT");
 
     const vip = await prisma.tag.create({ data: { projectId: project.id, name: "VIP", nameKey: "vip" } });
     const aminata = await customer(prisma, project.id, "Aminata Diallo");

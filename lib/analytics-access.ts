@@ -4,6 +4,7 @@ import { cache } from "react";
 import { getSession } from "@/lib/auth-server";
 import { getProjectById } from "@/app/actions/projects";
 import prisma from "@/lib/prisma";
+import { can } from "@/lib/project-permissions";
 
 export const getAnalyticsAccess = cache(async (projectId: string) => {
   const session = await getSession();
@@ -50,7 +51,7 @@ export const getAnalyticsAccess = cache(async (projectId: string) => {
     return { status: "not-found" } as const;
   }
 
-  if (project.userRole !== "OWNER" && project.userRole !== "ADMIN") {
+  if (!can(project.userRole, "stats.view")) {
     return { status: "forbidden" } as const;
   }
 

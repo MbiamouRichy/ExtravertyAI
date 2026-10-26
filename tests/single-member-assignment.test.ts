@@ -42,7 +42,7 @@ test(
       const first = await createUser(prisma, "Clara Mba");
       const second = await createUser(prisma, "Inès Obame");
       await addMember(prisma, team.id, first.id, "OWNER");
-      await addMember(prisma, team.id, second.id, "USER");
+      await addMember(prisma, team.id, second.id, "AGENT");
       const shared = await ingestText(prisma, team.id, "Bonsoir");
       assert.equal(
         (await prisma.contact.findUniqueOrThrow({ where: { id: shared.id } }))
@@ -64,9 +64,9 @@ test(
       const paul = await createUser(prisma, "Paul Ekang");
       const away = await createUser(prisma, "Absent");
       await addMember(prisma, project.id, owner.id, "OWNER");
-      await addMember(prisma, project.id, ines.id, "USER");
+      await addMember(prisma, project.id, ines.id, "AGENT");
       await addMember(prisma, project.id, paul.id, "ADMIN");
-      await addMember(prisma, project.id, away.id, "USER");
+      await addMember(prisma, project.id, away.id, "AGENT");
       // En ligne : le propriétaire, Inès et Paul ; « Absent » n'a pas d'onglet ouvert.
       for (const user of [owner, ines, paul])
         await prisma.$executeRaw`INSERT INTO user_presence ("userId", "tabId", "lastSeenAt", "lastActiveAt")

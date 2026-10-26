@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import type Stripe from "stripe";
+import { can, homePath } from "@/lib/project-permissions";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import {
@@ -62,8 +63,8 @@ export default async function BillingPage({
     },
   });
   if (!membership) notFound();
-  if (!["OWNER", "ADMIN"].includes(membership.role))
-    redirect(`/projects/${projectId}/chat?error=unauthorized`);
+  if (!can(membership.role, "billing.view"))
+    redirect(homePath(projectId, membership.role));
   const p = membership.project;
   const quota = await prisma.quotaPeriod.findFirst({
     where: { projectId, isCurrent: true },
@@ -173,7 +174,7 @@ export default async function BillingPage({
         </div>
         <BillingActions
           projectId={projectId}
-          canManage={membership.role === "OWNER"}
+          canManage={can(membership.role, "billing.manage")}
           configured={!!p.stripeCustomerId}
         />
       </header>
@@ -349,9 +350,9 @@ export default async function BillingPage({
         </section>
       </div>
 
-      {membership.role !== "OWNER" ? (
+      {!can(membership.role, "billing.manage") ? (
         <p className="rounded-xl bg-muted/60 p-4 text-xs leading-relaxed text-muted-foreground">
-          Seul le propriétaire du projet peut modifier l’offre, le moyen de
+          Seuls le propriétaire et le rôle Facturation peuvent modifier l’offre, le moyen de
           paiement et les coordonnées de facturation.
         </p>
       ) : (

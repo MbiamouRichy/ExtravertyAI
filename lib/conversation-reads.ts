@@ -1,4 +1,8 @@
 import type { PrismaClient } from "../src/generated/prisma/client";
+import { rolesWith } from "./project-permissions";
+
+// Lecteurs et facturation ne voient pas la messagerie : ni non-lus ni accusés de lecture.
+const HANDLERS = rolesWith("conversations.handle");
 
 export async function conversationUnreadCounts(
   prisma: PrismaClient,
@@ -13,6 +17,7 @@ export async function conversationUnreadCounts(
     SELECT m."contactId", COUNT(*)::int AS count
     FROM message m
     JOIN project_membership pm ON pm."projectId" = m."projectId" AND pm."userId" = ${userId}
+      AND pm.role::text = ANY(${HANDLERS}::text[])
     LEFT JOIN conversation_read_state r ON r."membershipId" = pm.id AND r."contactId" = m."contactId"
     WHERE m."projectId" = ${projectId} AND m."contactId" = ANY(${contactIds}::text[])
       AND m."senderType" = 'CLIENT' AND m."fromMe" = false
@@ -37,6 +42,7 @@ export async function markConversationRead(
     FROM message m
     JOIN contact c ON c.id = m."contactId" AND c."projectId" = m."projectId"
     JOIN project_membership pm ON pm."projectId" = m."projectId" AND pm."userId" = ${userId}
+      AND pm.role::text = ANY(${HANDLERS}::text[])
     WHERE m.id = ${messageId} AND m."contactId" = ${contactId} AND m."projectId" = ${projectId}
     ON CONFLICT ("membershipId", "contactId") DO UPDATE
       SET "lastReadAt" = EXCLUDED."lastReadAt", "lastReadId" = EXCLUDED."lastReadId"
@@ -58,6 +64,7 @@ export async function unreadConversationCount(
     FROM message m
     JOIN contact c ON c.id = m."contactId" AND c."projectId" = m."projectId"
     JOIN project_membership pm ON pm."projectId" = m."projectId" AND pm."userId" = ${userId}
+      AND pm.role::text = ANY(${HANDLERS}::text[])
     LEFT JOIN conversation_read_state r ON r."membershipId" = pm.id AND r."contactId" = m."contactId"
     WHERE m."projectId" = ${projectId} AND m."senderType" = 'CLIENT' AND m."fromMe" = false
       AND (r."lastReadAt" IS NULL OR (m."createdAt", m.id) > (r."lastReadAt", r."lastReadId"))

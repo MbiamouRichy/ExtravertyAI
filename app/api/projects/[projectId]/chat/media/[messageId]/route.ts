@@ -1,4 +1,5 @@
 import prisma from "@/lib/prisma";
+import { can } from "@/lib/project-permissions";
 import { getSession } from "@/lib/auth-server";
 import {
   mediaResponse,
@@ -19,9 +20,10 @@ export async function GET(
   if (!session?.user?.id) return new Response(null, { status: 401, headers });
   const member = await prisma.projectMembership.findUnique({
     where: { userId_projectId: { userId: session.user.id, projectId } },
-    select: { userId: true },
+    select: { role: true },
   });
-  if (!member) return new Response(null, { status: 404, headers });
+  if (!can(member?.role, "conversations.handle"))
+    return new Response(null, { status: 404, headers });
   const message = await prisma.message.findFirst({
     where: {
       id: messageId,

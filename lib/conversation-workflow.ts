@@ -9,6 +9,7 @@ import {
 import { queueCsatSurvey } from "./csat";
 import { chatContactName } from "./chat-privacy";
 import { emitIntegrationEvent, integrationContact } from "./integration-events";
+import { can, rolesWith } from "./project-permissions";
 
 // Message sûr à afficher tel quel ; toute autre erreur reste générique.
 export class ConversationWorkflowError extends Error {}
@@ -20,7 +21,10 @@ async function lockProject(tx: Prisma.TransactionClient, projectId: string) {
   await tx.$queryRaw`SELECT id FROM project WHERE id = ${projectId} FOR UPDATE`;
 }
 
-// Tout membre du projet (quel que soit son rôle) peut organiser les conversations.
+// Tout membre qui traite les conversations peut les organiser ; un lecteur ou
+// la facturation n'y a pas accès.
+const handlers = { in: rolesWith("conversations.handle") };
+
 async function requireContact(
   db: Prisma.TransactionClient | PrismaClient,
   { projectId, contactId, userId }: Actor,
@@ -29,7 +33,10 @@ async function requireContact(
     where: {
       id: contactId,
       projectId,
-      project: { deletionPending: false, members: { some: { userId } } },
+      project: {
+        deletionPending: false,
+        members: { some: { userId, role: handlers } },
+      },
     },
     select: { id: true },
   });
@@ -242,12 +249,11 @@ async function applyAssignment(
 ) {
   const assignee = input.assigneeId
     ? (
-        await tx.projectMembership.findUnique({
+        await tx.projectMembership.findFirst({
           where: {
-            userId_projectId: {
-              userId: input.assigneeId,
-              projectId: input.projectId,
-            },
+            userId: input.assigneeId,
+            projectId: input.projectId,
+            role: handlers,
           },
           select: { user: { select: { id: true, name: true, image: true } } },
         })
@@ -255,7 +261,7 @@ async function applyAssignment(
     : null;
   if (input.assigneeId && !assignee) {
     throw new ConversationWorkflowError(
-      "Ce membre ne fait plus partie du projet.",
+      "Ce membre ne fait plus partie du projet ou n’a pas accès à la messagerie.",
     );
   }
 
@@ -320,9 +326,9 @@ export async function assignNextConversation(
         }),
       ),
     );
-    if (!actor || !["OWNER", "ADMIN"].includes(actor.role)) {
+    if (!actor || !can(actor.role, "conversations.dispatch")) {
       throw new ConversationWorkflowError(
-        "Seuls les propriétaires et administrateurs répartissent les conversations.",
+        "Seuls les propriétaires, administrateurs et superviseurs répartissent les conversations.",
       );
     }
     if (!assignee) {
@@ -333,6 +339,11 @@ export async function assignNextConversation(
     if (assignee.role === "OWNER") {
       throw new ConversationWorkflowError(
         "Le propriétaire choisit ses conversations lui-même.",
+      );
+    }
+    if (!can(assignee.role, "conversations.handle")) {
+      throw new ConversationWorkflowError(
+        "Ce membre n’a pas accès à la messagerie.",
       );
     }
     const [next] = await tx.$queryRaw<{ id: string }[]>`
@@ -374,10 +385,15 @@ export async function assignableMembers(
   projectId: string,
   userId: string,
 ) {
+  // Seuls les membres qui traitent les conversations peuvent en recevoir une.
   const members = await db.projectMembership.findMany({
     where: {
       projectId,
-      project: { deletionPending: false, members: { some: { userId } } },
+      role: handlers,
+      project: {
+        deletionPending: false,
+        members: { some: { userId, role: handlers } },
+      },
     },
     orderBy: [{ user: { name: "asc" } }, { userId: "asc" }],
     select: {

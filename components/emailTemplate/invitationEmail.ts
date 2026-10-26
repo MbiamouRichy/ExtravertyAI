@@ -1,13 +1,8 @@
 import { emailUi as ui, escapeHtml, renderEmail, safeEmailUrl } from "./emailLayout";
+import { roleLabel } from "@/lib/project-permissions";
 
 export function emailRoleLabel(role: string) {
-  return role === "ADMIN"
-    ? "Administrateur"
-    : role === "USER"
-      ? "Utilisateur / Agent"
-      : role === "OWNER"
-        ? "Propriétaire"
-        : role;
+  return roleLabel(role);
 }
 
 // Invitations are valid for 7 days (see app/actions/team.ts).

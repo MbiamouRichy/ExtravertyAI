@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { can, homePath } from "@/lib/project-permissions";
 import { notFound, redirect } from "next/navigation";
 import { ArrowRight, KanbanSquare } from "lucide-react";
 
@@ -36,7 +37,8 @@ export default async function PipelinePage({
     },
   });
   if (!membership || membership.project.deletionPending) notFound();
-  const canManage = membership.role === "OWNER" || membership.role === "ADMIN";
+  if (!can(membership.role, "pipeline.view")) redirect(homePath(projectId, membership.role));
+  const canManage = can(membership.role, "project.manage");
 
   const header = (
     <header>

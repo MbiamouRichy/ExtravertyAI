@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { can } from "@/lib/project-permissions";
 import { z } from "zod";
 
 import prisma from "@/lib/prisma";
@@ -34,7 +35,7 @@ export async function GET(request: NextRequest) {
   if (
     !membership ||
     membership.project.deletionPending ||
-    !["OWNER", "ADMIN"].includes(membership.role) ||
+    !can(membership.role, "project.manage") ||
     !planAllows(membership.project.plan, "integrations") ||
     !googleConfigured()
   ) {

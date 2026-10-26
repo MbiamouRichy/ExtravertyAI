@@ -165,7 +165,7 @@ test(
               create: [
                 { userId: "owner", role: "OWNER" },
                 { userId: "admin", role: "ADMIN" },
-                { userId: "user", role: "USER" },
+                { userId: "user", role: "AGENT" },
                 { userId: "unverified", role: "ADMIN" },
               ],
             },
@@ -341,7 +341,7 @@ test(
       );
       await db.projectMembership.updateMany({
         where: { userId: "admin" },
-        data: { role: "USER" },
+        data: { role: "AGENT" },
       });
       const sent: string[] = [];
       for (let i = 0; i < 5; i++)

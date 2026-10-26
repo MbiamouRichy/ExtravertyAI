@@ -9,6 +9,7 @@ import { collectWeekAggregate } from "./report-aggregates";
 import { buildFindings, buildVerdict } from "./report-findings";
 import { readIndicators } from "./report-indicators";
 import type { WeekAggregate } from "./report-week";
+import { can, rolesWith } from "./project-permissions";
 import {
   reportEmail,
   reportRange,
@@ -147,7 +148,7 @@ export async function queueNextWeeklyReport(
       const recipients = await tx.projectMembership.findMany({
         where: {
           projectId: project.id,
-          role: { in: ["OWNER", "ADMIN"] },
+          role: { in: rolesWith("stats.view") },
           user: { emailVerified: true },
         },
         select: { userId: true, user: { select: { email: true } } },
@@ -206,7 +207,7 @@ export async function deliverNextReportEmail(
     });
     const relevant =
       member &&
-      ["OWNER", "ADMIN"].includes(member.role) &&
+      can(member.role, "stats.view") &&
       member.user.emailVerified &&
       member.user.email === record.recipient &&
       project.plan === "business" &&

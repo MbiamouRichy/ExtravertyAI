@@ -89,7 +89,7 @@ test("integrations", { timeout: 180000 }, async (t) => {
     const member = await createUser(prisma);
     const project = await createProject(prisma, { plan: "business" });
     await addMember(prisma, project.id, owner.id, "OWNER");
-    await addMember(prisma, project.id, member.id, "USER");
+    await addMember(prisma, project.id, member.id, "AGENT");
     const admin = { projectId: project.id, userId: owner.id };
 
     await t.test("only Pro and Business admins create webhooks, to public URLs", async () => {

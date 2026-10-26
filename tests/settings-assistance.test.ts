@@ -153,7 +153,7 @@ test("AI limits reserve before spending and reject parallel, rapid, daily and un
     /Limite/,
   );
   rows = [];
-  role = "USER";
+  role = "AGENT";
   await assert.rejects(
     reserveSystemAssistance(tx, "project", "user"),
     /droits/,

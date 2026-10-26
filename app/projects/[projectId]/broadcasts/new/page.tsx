@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { can } from "@/lib/project-permissions";
 import { notFound, redirect } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { z } from "zod";
@@ -32,7 +33,7 @@ export default async function NewBroadcastPage({ params }: { params: Promise<{ p
   });
   if (!membership || membership.project.deletionPending) notFound();
   // Creation is reserved to owners and administrators, on plans with broadcasts.
-  if (!["OWNER", "ADMIN"].includes(membership.role) || !planAllows(membership.project.plan, "broadcast")) {
+  if (!can(membership.role, "project.manage") || !planAllows(membership.project.plan, "broadcast")) {
     redirect(base);
   }
   const active = await prisma.broadcast.findFirst({

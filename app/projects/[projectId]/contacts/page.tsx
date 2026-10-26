@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
+import { can, homePath } from "@/lib/project-permissions";
 import { z } from "zod";
 import { getSession } from "@/lib/auth-server";
 import prisma from "@/lib/prisma";
@@ -39,8 +40,8 @@ export default async function ContactsPage({
     },
   });
   if (!membership) notFound();
-  if (!["OWNER", "ADMIN"].includes(membership.role))
-    redirect(`/projects/${projectId}/chat`);
+  if (!can(membership.role, "project.manage"))
+    redirect(homePath(projectId, membership.role));
   const values = Query.parse(query);
   const where = {
     projectId,

@@ -127,7 +127,7 @@ test("quiet mode at the end of a conversation", { timeout: 240000 }, async (t) =
     const member = await createUser(prisma, "Inès Obame");
     const outsider = await createUser(prisma, "Paul Extérieur");
     await addMember(prisma, project.id, owner.id, "OWNER");
-    await addMember(prisma, project.id, member.id, "USER");
+    await addMember(prisma, project.id, member.id, "AGENT");
     let phone = 24166000000;
     const jid = () => `${++phone}@s.whatsapp.net`;
 

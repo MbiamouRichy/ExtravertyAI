@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { can, homePath, roleLabel, rolesWith } from "@/lib/project-permissions";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import {
@@ -44,11 +45,6 @@ export const metadata: Metadata = {
   title: "Rapports programmés | ExtravertyAI",
   robots: { index: false, follow: false },
 };
-const roleLabel: Record<string, string> = {
-  OWNER: "Propriétaire",
-  ADMIN: "Administrateur",
-};
-
 function parseSnapshot(value: unknown): ReportSnapshot | null {
   const parsed = ReportSnapshotSchema.safeParse(value);
   return parsed.success ? parsed.data : null;
@@ -73,8 +69,9 @@ export default async function ReportsPage({
     include: { project: true },
   });
   if (!member || member.project.deletionPending) notFound();
-  if (!["OWNER", "ADMIN"].includes(member.role))
-    redirect(`${base}?error=unauthorized`);
+  if (!can(member.role, "stats.view"))
+    redirect(homePath(projectId, member.role));
+  const canManageReports = can(member.role, "reports.manage");
   const project = member.project;
   const access = await getBillingAccess(prisma, projectId);
   const eligible = project.plan === "business" && access.allowed;
@@ -104,7 +101,7 @@ export default async function ReportsPage({
             ))}
           </ul>
           <div className="mt-8 flex flex-wrap items-center gap-3">
-            {member.role === "OWNER" ? (
+            {can(member.role, "billing.manage") ? (
               <BillingPlanButton
                 projectId={projectId}
                 intent="upgrade"
@@ -112,11 +109,13 @@ export default async function ReportsPage({
               />
             ) : (
               <>
-                <Button asChild>
-                  <Link href={`${base}/billing`}>Voir l’offre Business</Link>
-                </Button>
+                {can(member.role, "billing.view") && (
+                  <Button asChild>
+                    <Link href={`${base}/billing`}>Voir l’offre Business</Link>
+                  </Button>
+                )}
                 <p className="text-xs text-muted-foreground">
-                  Seul le propriétaire du projet peut changer d’offre.
+                  Seuls le propriétaire et le rôle Facturation peuvent changer d’offre.
                 </p>
               </>
             )}
@@ -171,7 +170,7 @@ export default async function ReportsPage({
       include: { emails: { select: { id: true, state: true } } },
     }),
     prisma.projectMembership.findMany({
-      where: { projectId, role: { in: ["OWNER", "ADMIN"] } },
+      where: { projectId, role: { in: rolesWith("stats.view") } },
       select: {
         id: true,
         role: true,
@@ -430,26 +429,34 @@ export default async function ReportsPage({
                   </>
                 )}
               </p>
-              <ReportSettingsForm
-                referenceDate={now.toISOString()}
-                projectId={projectId}
-                initial={{
-                  reportsEnabled: project.reportsEnabled,
-                  reportsSkipEmpty: project.reportsSkipEmpty,
-                  reportsIncludeTips: project.reportsIncludeTips,
-                  reportsHourUtc: project.reportsHourUtc,
-                }}
-                version={project.reportsVersion}
-              />
+              {canManageReports ? (
+                <ReportSettingsForm
+                  referenceDate={now.toISOString()}
+                  projectId={projectId}
+                  initial={{
+                    reportsEnabled: project.reportsEnabled,
+                    reportsSkipEmpty: project.reportsSkipEmpty,
+                    reportsIncludeTips: project.reportsIncludeTips,
+                    reportsHourUtc: project.reportsHourUtc,
+                  }}
+                  version={project.reportsVersion}
+                />
+              ) : (
+                <p className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
+                  Lecture seule : un administrateur règle l’heure et le contenu des envois.
+                </p>
+              )}
             </>
           ) : (
             <>
               <p className="mb-4 text-sm text-muted-foreground">
                 {access.message}
               </p>
-              <Button asChild variant="outline" size="sm">
-                <Link href={`${base}/billing`}>Gérer l’abonnement</Link>
-              </Button>
+              {can(member.role, "billing.view") && (
+                <Button asChild variant="outline" size="sm">
+                  <Link href={`${base}/billing`}>Gérer l’abonnement</Link>
+                </Button>
+              )}
             </>
           )}
         </div>
@@ -483,15 +490,17 @@ export default async function ReportsPage({
                   )}
                 >
                   {recipient.user.emailVerified
-                    ? (roleLabel[recipient.role] ?? recipient.role)
+                    ? roleLabel(recipient.role)
                     : "Adresse à vérifier"}
                 </span>
               </li>
             ))}
           </ul>
-          <Button asChild variant="outline" size="sm" className="mt-4">
-            <Link href={`${base}/team`}>Gérer l’équipe</Link>
-          </Button>
+          {can(member.role, "team.manage") && (
+            <Button asChild variant="outline" size="sm" className="mt-4">
+              <Link href={`${base}/team`}>Gérer l’équipe</Link>
+            </Button>
+          )}
         </div>
       </section>
 

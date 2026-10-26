@@ -10,7 +10,7 @@ import {
 	SidebarHeader,
 	SidebarMenuButton,
 } from "@/components/ui/sidebar";
-import { getNavGroups } from "@/components/dashboard/app-shared";
+import { navGroupsForRole } from "@/components/dashboard/app-shared";
 import { NavGroup } from "@/components/dashboard/nav-group";
 import { useIsProjectContext } from "./conditional-sidebar-trigger";
 import { useProjectIdentity } from "./project-identity";
@@ -24,9 +24,9 @@ export function AppSidebar() {
 	const params = useParams();
 	const projectId = params.projectId as string;
 
-	// Génération de la navigation dynamique
-	const navGroups = projectId ? getNavGroups(projectId) : [];
+	// Navigation limitée aux pages que le rôle peut ouvrir
 	const identity = useProjectIdentity(projectId);
+	const navGroups = identity ? navGroupsForRole(projectId, identity.role) : [];
 
 	if (isProjectContext && projectId) {
 		return (
@@ -62,10 +62,18 @@ export function AppSidebar() {
 					</SidebarMenuButton>
 				</SidebarHeader>
 				<SidebarContent>
-					{/* Utilisation des navGroups dynamiques */}
-					{navGroups.map((group, index) => (
-						<NavGroup key={`sidebar-group-${index}`} {...group} />
-					))}
+					{/* Liens affichés une fois le rôle connu : jamais de lien vers une page fermée. */}
+					{identity ? (
+						navGroups.map((group, index) => (
+							<NavGroup key={`sidebar-group-${index}`} {...group} />
+						))
+					) : (
+						<div aria-hidden="true" className="flex flex-col gap-2 p-4">
+							{Array.from({ length: 6 }, (_, index) => (
+								<Skeleton key={index} className="h-6 w-full" />
+							))}
+						</div>
+					)}
 				</SidebarContent>
 				<SidebarFooter className="gap-0 p-0">
 					<div className="px-4 pt-4 pb-2 transition-opacity group-data-[collapsible=icon]:pointer-events-none group-data-[collapsible=icon]:opacity-0">

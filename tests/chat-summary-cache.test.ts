@@ -187,7 +187,7 @@ test("every member may toggle their contact, without crossing project boundaries
       CREATE TABLE contact_event (id TEXT PRIMARY KEY, "projectId" TEXT, "contactId" TEXT, "actorId" TEXT, type "ContactEventType", "createdAt" TIMESTAMP DEFAULT NOW());
       INSERT INTO project (id) VALUES ('p'), ('other');
       INSERT INTO contact (id, "projectId") VALUES ('c', 'p'), ('foreign', 'other');
-      INSERT INTO project_membership VALUES ('p','member','USER'), ('p','admin','ADMIN'), ('p','owner','OWNER');
+      INSERT INTO project_membership VALUES ('p','member','AGENT'), ('p','admin','ADMIN'), ('p','owner','OWNER');
     `);
     const prisma = {
       $executeRaw: async (

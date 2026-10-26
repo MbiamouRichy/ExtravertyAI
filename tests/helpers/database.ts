@@ -64,7 +64,7 @@ export async function addMember(
   prisma: PrismaClient,
   projectId: string,
   userId: string,
-  role: "OWNER" | "ADMIN" | "USER" = "USER",
+  role: "OWNER" | "ADMIN" | "SUPERVISOR" | "AGENT" | "VIEWER" | "BILLING" = "AGENT",
 ) {
   return prisma.projectMembership.create({ data: { projectId, userId, role } });
 }

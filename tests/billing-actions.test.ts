@@ -33,14 +33,18 @@ function setup(
     },
     "@/lib/project-settings": {
       SettingsError,
-      requireProjectAdmin: async (
+      requireProjectAdmin: async () => {
+        throw new Error("Billing must not use the settings check.");
+      },
+      // Propriétaire et rôle Facturation : la permission est vérifiée côté serveur.
+      requireProjectPermission: async (
         _tx: unknown,
         _project: unknown,
         user: unknown,
-        ownerOnly: unknown,
+        permission: unknown,
       ) => {
         assert.equal(user, "actor");
-        assert.equal(ownerOnly, true);
+        assert.equal(permission, "billing.manage");
         if (options.forbidden) throw new SettingsError("Interdit");
         return {
           project: {

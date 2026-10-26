@@ -3,6 +3,7 @@ import { chatContactName } from "./chat-privacy";
 import { requirePlanFeature } from "./plan-features";
 import { requireProjectAdmin } from "./project-settings";
 import { emitIntegrationEvent, integrationContact } from "./integration-events";
+import { rolesWith } from "./project-permissions";
 import {
   CURRENCIES,
   MAX_DEAL_VALUE,
@@ -47,7 +48,10 @@ async function requirePipelineContact(tx: Prisma.TransactionClient, input: Actor
     where: {
       id: input.contactId,
       projectId: input.projectId,
-      project: { deletionPending: false, members: { some: { userId: input.userId } } },
+      project: {
+        deletionPending: false,
+        members: { some: { userId: input.userId, role: { in: rolesWith("conversations.handle") } } },
+      },
     },
     select: { id: true, pipelineStage: true, project: { select: { plan: true } } },
   });
@@ -141,7 +145,11 @@ export async function pipelineBoard(
   userId: string,
 ): Promise<{ currency: string; columns: PipelineColumn[] } | null> {
   const project = await db.project.findFirst({
-    where: { id: projectId, deletionPending: false, members: { some: { userId } } },
+    where: {
+      id: projectId,
+      deletionPending: false,
+      members: { some: { userId, role: { in: rolesWith("pipeline.view") } } },
+    },
     select: { currency: true },
   });
   if (!project) return null;

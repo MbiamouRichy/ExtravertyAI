@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { can } from "@/lib/project-permissions";
 import { notFound, redirect } from "next/navigation";
 import { ArrowRight, Plug, ShieldCheck } from "lucide-react";
 
@@ -48,7 +49,7 @@ export default async function IntegrationsPage({
     </header>
   );
 
-  if (!["OWNER", "ADMIN"].includes(membership.role)) {
+  if (!can(membership.role, "project.manage")) {
     return (
       <main className="mx-auto w-full max-w-5xl space-y-8 p-4 sm:p-6 xl:p-8">
         {header}

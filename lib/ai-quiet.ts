@@ -1,5 +1,6 @@
 import type { PrismaClient } from "../src/generated/prisma/client";
 import { SettingsError, requireProjectAdmin } from "./project-settings";
+import { rolesWith } from "./project-permissions";
 
 // Safe to show as is to the user.
 export class AiQuietError extends Error {}
@@ -19,7 +20,10 @@ export async function wakeAssistant(
       where: {
         id: input.contactId,
         projectId: input.projectId,
-        project: { deletionPending: false, members: { some: { userId: input.userId } } },
+        project: {
+        deletionPending: false,
+        members: { some: { userId: input.userId, role: { in: rolesWith("conversations.handle") } } },
+      },
       },
       select: { id: true, aiQuietSince: true },
     });

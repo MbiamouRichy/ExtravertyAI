@@ -1,5 +1,6 @@
 import "server-only";
 import prisma from "@/lib/prisma";
+import { can } from "@/lib/project-permissions";
 import { getSession } from "@/lib/auth-server";
 import type { ResponseSample } from "@/lib/ai-response-metrics";
 export async function getAiResponseTimeData(
@@ -13,7 +14,7 @@ export async function getAiResponseTimeData(
     where: { userId_projectId: { userId: session.user.id, projectId } },
     select: { role: true },
   });
-  if (!member || !["OWNER", "ADMIN"].includes(member.role)) return empty;
+  if (!can(member?.role, "stats.view")) return empty;
   try {
     // Correlate the actual client request and accepted outbound, not adjacent messages.
     const rows = await prisma.$queryRaw<

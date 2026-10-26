@@ -1,7 +1,12 @@
 "use client";
 
 import React, { useState, useTransition } from "react";
-import { Role } from "@/src/generated/prisma/client";
+import type { Role } from "@/src/generated/prisma/client";
+import {
+  ROLE_DESCRIPTIONS,
+  ROLE_LABELS,
+  assignableRoles,
+} from "@/lib/project-permissions";
 import {
   Dialog,
   DialogContent,
@@ -41,17 +46,9 @@ interface ChangeRoleModalProps {
   onClose: () => void;
   member: MemberToEdit | null;
   projectId: string;
-  currentUserRole: Role;
+  currentUserRole: string;
   onSuccess: (newRole: Role) => void; // Callback to update the member list after a successful role change
 }
-
-const ROLE_DESCRIPTIONS: Record<Role, string> = {
-  OWNER:
-    "Accès total au projet, gestion de la facturation et transfert de propriété.",
-  ADMIN:
-    "Gestion de l'équipe, invitation de membres et accès complet aux fonctionnalités du projet.",
-  USER: "Accès standard aux fonctionnalités du projet sans droits de gestion d'équipe.",
-};
 
 export function ChangeRoleModal({
   isOpen,
@@ -62,7 +59,7 @@ export function ChangeRoleModal({
   onSuccess,
 }: ChangeRoleModalProps) {
   const [selectedRole, setSelectedRole] = useState<Role>(
-    member?.role ?? "USER",
+    member?.role ?? "AGENT",
   );
   const [isPending, startTransition] = useTransition();
   const { playHaptic } = useHaptics();
@@ -136,13 +133,16 @@ export function ChangeRoleModal({
             </span>
           </div>
           <Badge variant="outline" className="shrink-0 text-xs font-mono">
-            Rôle actuel : {member.role}
+            Rôle actuel : {ROLE_LABELS[member.role]}
           </Badge>
         </div>
 
         {/* SÉLECTION DU NOUVEAU RÔLE */}
         <div className="space-y-3">
-          <label className="text-xs font-semibold text-foreground tracking-wide uppercase">
+          <label
+            htmlFor="change-role-select"
+            className="text-xs font-semibold text-foreground tracking-wide uppercase"
+          >
             Nouveau rôle attribué
           </label>
           <Select
@@ -150,22 +150,15 @@ export function ChangeRoleModal({
             onValueChange={(value) => setSelectedRole(value as Role)}
             disabled={isPending}
           >
-            <SelectTrigger className="w-full h-11 mt-2">
+            <SelectTrigger id="change-role-select" className="w-full h-11 mt-2">
               <SelectValue placeholder="Sélectionnez un rôle" />
             </SelectTrigger>
             <SelectContent>
-              {currentUserRole === "OWNER" && (
-                <SelectItem value="ADMIN" className="cursor-pointer">
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium">Administrateur</span>
-                  </div>
+              {assignableRoles(currentUserRole).map((role) => (
+                <SelectItem key={role} value={role} className="cursor-pointer">
+                  <span className="font-medium">{ROLE_LABELS[role]}</span>
                 </SelectItem>
-              )}
-              <SelectItem value="USER" className="cursor-pointer">
-                <div className="flex items-center gap-2">
-                  <span className="font-medium">Membre (Utilisateur)</span>
-                </div>
-              </SelectItem>
+              ))}
             </SelectContent>
           </Select>
 
@@ -181,8 +174,9 @@ export function ChangeRoleModal({
               <ShieldAlert className="w-4 h-4 shrink-0 mt-0.5" />
               <AlertTitle className="text-sm">Attention :</AlertTitle>
               <AlertDescription className="leading-relaxed text-xs">
-                Un administrateur peut inviter, modifier et supprimer des
-                membres standards du projet.
+                Un administrateur règle le projet et l’assistant IA, et peut
+                inviter, modifier ou retirer les autres membres (sauf les
+                administrateurs et le propriétaire).
               </AlertDescription>
             </Alert>
           )}

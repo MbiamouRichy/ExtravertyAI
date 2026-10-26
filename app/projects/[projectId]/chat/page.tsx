@@ -1,4 +1,5 @@
 import { chatContactName } from "@/lib/chat-privacy";
+import { can, homePath } from "@/lib/project-permissions";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { MessageCircle, WifiOff } from "lucide-react";
@@ -61,8 +62,9 @@ export default async function ChatPage({ params, searchParams }: PageProps) {
   }
 
   if (!project.agentSetupCompletedAt) redirect(`/projects/${projectId}/setup`);
-  const canManageAi =
-    project.userRole === "OWNER" || project.userRole === "ADMIN";
+  if (!can(project.userRole, "conversations.handle"))
+    redirect(homePath(projectId, project.userRole));
+  const canManageAi = can(project.userRole, "project.manage");
 
   const requiresConnection =
     project.instanceStatus === "qr_ready" ||
@@ -180,7 +182,7 @@ export default async function ChatPage({ params, searchParams }: PageProps) {
         }}
         isSuccess={query.success === "true"}
         canManageAi={true}
-        canCopyPhone={canManageAi}
+        canCopyPhone={can(project.userRole, "contacts.view")}
         pipeline={{
           enabled: planAllows(project.plan, "pipeline"),
           currency: project.currency,

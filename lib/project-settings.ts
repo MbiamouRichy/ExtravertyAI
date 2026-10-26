@@ -1,28 +1,41 @@
 import type { Prisma } from "../src/generated/prisma/client";
 import { AgentConfigSchema } from "./agent-config";
+import { can, type ProjectPermission } from "./project-permissions";
 
 export class SettingsError extends Error {}
+
+/** Contrôle d’accès serveur commun : membre du projet avec la permission demandée. */
+export async function requireProjectPermission(
+  tx: Prisma.TransactionClient,
+  projectId: string,
+  userId: string,
+  permission: ProjectPermission,
+) {
+  const membership = await tx.projectMembership.findUnique({
+    where: { userId_projectId: { userId, projectId } },
+    include: { project: true },
+  });
+  if (!membership || !can(membership.role, permission)) {
+    throw new SettingsError(
+      "Vous n’avez pas les droits nécessaires sur ce projet.",
+    );
+  }
+  return membership;
+}
+
+/** Réglages du projet (propriétaire et administrateurs) ou action réservée au propriétaire. */
 export async function requireProjectAdmin(
   tx: Prisma.TransactionClient,
   projectId: string,
   userId: string,
   ownerOnly = false,
 ) {
-  const membership = await tx.projectMembership.findUnique({
-    where: { userId_projectId: { userId, projectId } },
-    include: { project: true },
-  });
-  if (
-    !membership ||
-    (ownerOnly
-      ? membership.role !== "OWNER"
-      : !["OWNER", "ADMIN"].includes(membership.role))
-  ) {
-    throw new SettingsError(
-      "Vous n’avez pas les droits nécessaires sur ce projet.",
-    );
-  }
-  return membership;
+  return requireProjectPermission(
+    tx,
+    projectId,
+    userId,
+    ownerOnly ? "project.own" : "project.manage",
+  );
 }
 export async function writeAgentConfig(
   tx: Prisma.TransactionClient,

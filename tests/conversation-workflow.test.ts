@@ -76,7 +76,7 @@ test(
         });
         const member = await user();
         await client.projectMembership.create({
-          data: { projectId: project.id, userId: member.id, role: "USER" },
+          data: { projectId: project.id, userId: member.id, role: "AGENT" },
         });
         await incoming(project.id, crypto.randomUUID());
         const contact = await client.contact.findFirstOrThrow({

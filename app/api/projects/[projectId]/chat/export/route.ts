@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { can } from "@/lib/project-permissions";
 import { z } from "zod";
 
 import { getSession } from "@/lib/auth-server";
@@ -64,9 +65,13 @@ export async function GET(
   try {
     const membership = await prisma.projectMembership.findUnique({
       where: { userId_projectId: { userId: session.user.id, projectId } },
-      select: { project: { select: { deletionPending: true } } },
+      select: { role: true, project: { select: { deletionPending: true } } },
     });
-    if (!membership || membership.project.deletionPending)
+    if (
+      !membership ||
+      membership.project.deletionPending ||
+      !can(membership.role, "conversations.handle")
+    )
       return error("Conversation introuvable.", 404);
 
     // Le contact doit appartenir à ce projet (isolation entre projets).
