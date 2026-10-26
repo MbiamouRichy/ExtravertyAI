@@ -71,7 +71,7 @@ export async function Dashboard({
               </span>
             </Link>
           </Button>
-          <Button asChild variant="outline" className="min-w-0">
+          <Button asChild className="min-w-0">
             <Link href={`${base}/chat`}>
               <MessagesSquare data-icon="inline-start" />
               <span className="truncate">

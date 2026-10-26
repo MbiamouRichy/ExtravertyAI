@@ -3,7 +3,11 @@ import { redirect } from "next/navigation";
 
 import { getAnalyticsAccess } from "@/lib/analytics-access";
 import { getAnalyticsOverview } from "@/app/actions/analytics";
-import { PERIOD_DAYS, parseAnalyticsPeriod } from "@/lib/analytics";
+import {
+  PERIOD_DAYS,
+  clampAnalyticsPeriod,
+  parseAnalyticsPeriod,
+} from "@/lib/analytics";
 import prisma from "@/lib/prisma";
 import { planAllows } from "@/lib/plan-features";
 import { openPipelineValue, wonValue } from "@/lib/pipeline";
@@ -87,7 +91,11 @@ export default async function AnalyticsPage({
     redirect(`${projectPath}?error=unauthorized`);
   }
 
-  const period = parseAnalyticsPeriod(sp.period);
+  // Une période hors offre (lien partagé, URL modifiée) revient au maximum autorisé.
+  const period = clampAnalyticsPeriod(
+    parseAnalyticsPeriod(sp.period),
+    access.analyticsDays,
+  );
   const since = periodStart(period);
   const [overview, sales, avoided, responseTime] = await Promise.all([
     getAnalyticsOverview(projectId, period),
@@ -140,6 +148,9 @@ export default async function AnalyticsPage({
         <AnalyticsHeader
           projectName={access.projectName}
           period={period}
+          plan={access.plan}
+          analyticsDays={access.analyticsDays}
+          billingHref={`${projectPath}/billing`}
           rangeLabel={overview.rangeLabel}
           timeZone={overview.timeZone}
           volumeSeries={overview.volumeSeries}

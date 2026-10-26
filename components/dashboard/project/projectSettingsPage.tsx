@@ -191,7 +191,7 @@ export default function ProjectSettingsPage({
               Assistant IA
             </Link>
           </Button>
-          <Button asChild variant="outline">
+          <Button asChild>
             <Link href={`/projects/${p.id}/chat`}>
               <MessageSquare data-icon="inline-start" />
               Messagerie

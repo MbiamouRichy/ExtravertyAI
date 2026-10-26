@@ -39,6 +39,26 @@ export function isAnalyticsPeriod(value: unknown): value is AnalyticsPeriod {
   );
 }
 
+/** La période demandée tient-elle dans l’historique autorisé par l’offre ? */
+export function analyticsPeriodAllowed(
+  period: AnalyticsPeriod,
+  maxDays: number,
+): boolean {
+  return PERIOD_DAYS[period] <= maxDays;
+}
+
+/** Ramène une période hors offre à la plus longue période autorisée. */
+export function clampAnalyticsPeriod(
+  period: AnalyticsPeriod,
+  maxDays: number,
+): AnalyticsPeriod {
+  if (analyticsPeriodAllowed(period, maxDays)) return period;
+  const allowed = ANALYTICS_PERIOD_OPTIONS.filter((option) =>
+    analyticsPeriodAllowed(option.value, maxDays),
+  );
+  return allowed.at(-1)?.value ?? "7d";
+}
+
 export function parseAnalyticsPeriod(
   value: string | string[] | undefined,
 ): AnalyticsPeriod {
