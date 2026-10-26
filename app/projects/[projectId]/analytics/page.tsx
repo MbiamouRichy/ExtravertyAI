@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
 import { getAnalyticsAccess } from "@/lib/analytics-access";
+import { homePath } from "@/lib/project-permissions";
 import { getAnalyticsOverview } from "@/app/actions/analytics";
 import { PERIOD_DAYS, parseAnalyticsPeriod } from "@/lib/analytics";
 import prisma from "@/lib/prisma";
@@ -84,7 +85,7 @@ export default async function AnalyticsPage({
   }
 
   if (access.status === "forbidden") {
-    redirect(`${projectPath}?error=unauthorized`);
+    redirect(homePath(projectId, access.role));
   }
 
   const period = parseAnalyticsPeriod(sp.period);

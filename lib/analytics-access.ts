@@ -52,7 +52,7 @@ export const getAnalyticsAccess = cache(async (projectId: string) => {
   }
 
   if (!can(project.userRole, "stats.view")) {
-    return { status: "forbidden" } as const;
+    return { status: "forbidden", role: project.userRole } as const;
   }
 
   return {
