@@ -6,8 +6,8 @@ import { avoidedReplies, setAiQuietMode, wakeAssistant } from "../lib/ai-quiet";
 import { runAgentTest } from "../lib/agent-sandbox";
 import { writeContactAiState } from "../lib/contact-ai-state";
 import { notificationFeed } from "../lib/notifications";
-import { CONVERSATION_FLOW_INSTRUCTION } from "../lib/conversation-end";
 import {
+  CONVERSATION_FLOW_INSTRUCTION,
   QUIET_INSTRUCTION,
   findRepetition,
   isAcknowledgment,
