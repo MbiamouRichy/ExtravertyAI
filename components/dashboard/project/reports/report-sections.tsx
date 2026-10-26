@@ -3,8 +3,15 @@ import {
   ArrowRight,
   ChevronDown,
   ChevronRight,
+  Info,
   TriangleAlert,
 } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { ScrollFadeArea } from "@/components/dashboard/project/scroll-fade-area";
 
 import { cn } from "@/lib/utils";
 import { reportMetricLabels, type ReportMetrics } from "@/lib/weekly-report";
@@ -316,9 +323,29 @@ export function IndicatorGrid({
               className="flex flex-col bg-background p-5"
             >
               <div className="flex items-center justify-between gap-2">
-                <h3 className="font-sans text-sm font-normal tracking-normal text-muted-foreground">
-                  {definition.label}
-                </h3>
+                <div className="flex min-w-0 items-center gap-1">
+                  <h3 className="font-sans text-sm font-normal tracking-normal text-muted-foreground">
+                    {definition.label}
+                  </h3>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        className="text-muted-foreground"
+                        aria-label={`À quoi sert « ${definition.label} » ?`}
+                      >
+                        <Info />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent
+                      side="top"
+                      className="max-w-64 leading-relaxed"
+                    >
+                      {purpose[definition.key]}
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
                 {unusual ? (
                   <span
                     className={cn(
@@ -473,6 +500,31 @@ export function IndicatorGrid({
   );
 }
 
+/** Utilité de chaque indicateur, affichée au survol ou au focus de l’icône. */
+const purpose: Record<IndicatorKey, string> = {
+  autonomy:
+    "Votre indicateur principal : la part des conversations que l’IA a menées seule jusqu’au bout. S’il baisse, les actions ci-dessus disent pourquoi.",
+  handover:
+    "Combien de conversations votre équipe a dû reprendre. Une hausse signale souvent des consignes à préciser.",
+  gaps: "Les questions auxquelles l’IA n’a pas su répondre. Ajoutez ces réponses à la base pour qu’elle devienne autonome.",
+  aiReply:
+    "Le temps d’attente du client avant sa première réponse. Une hausse peut signaler un service ralenti.",
+  csat: "La note donnée par vos clients après l’échange : la seule mesure directe de leur ressenti.",
+  failures:
+    "Les envois et réponses IA qui ont échoué. Une hausse soudaine signale souvent une déconnexion WhatsApp.",
+};
+
+/** Ce que recouvre chaque couleur de la barre des conversations. */
+const outcomeMeaning: Record<string, string> = {
+  autonomous:
+    "L’IA a répondu seule : aucune reprise par l’équipe, aucune question restée sans réponse, aucun échec.",
+  handover: "Un membre de l’équipe a répondu ou a mis l’IA en pause.",
+  gap: "L’IA a répondu en signalant une information qu’elle n’avait pas.",
+  unanswered:
+    "Le client n’a reçu aucune réponse avant la clôture de la semaine.",
+  failed: "Un envoi ou la génération d’une réponse par l’IA a échoué.",
+};
+
 export function WeekDetail({
   week,
   base,
@@ -525,17 +577,46 @@ export function WeekDetail({
         {n ? (
           <>
             <div
-              aria-hidden="true"
-              className="flex h-2 gap-0.5 overflow-hidden rounded-full"
+              role="group"
+              aria-label="Répartition des conversations de la semaine"
+              className="flex h-6 items-center gap-0.5"
             >
               {rows
                 .filter((row) => row.count > 0)
-                .map((row) => (
-                  <span
-                    key={row.key}
-                    className={row.className}
-                    style={{ width: `${(row.count / n) * 100}%` }}
-                  />
+                .map((row, index, visible) => (
+                  <Tooltip key={row.key}>
+                    <TooltipTrigger asChild>
+                      {/* La zone survolable déborde du trait de 2 px pour rester facile à viser. */}
+                      <span
+                        role="img"
+                        tabIndex={0}
+                        aria-label={`${row.label} : ${row.count} (${percent.format(row.count / n)})`}
+                        className="group/segment flex h-full cursor-default items-center rounded-sm outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+                        style={{ width: `${(row.count / n) * 100}%` }}
+                      >
+                        <span
+                          className={cn(
+                            "h-2 w-full transition-[height] group-hover/segment:h-3 group-focus-visible/segment:h-3",
+                            row.className,
+                            index === 0 && "rounded-l-full",
+                            index === visible.length - 1 && "rounded-r-full",
+                          )}
+                        />
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent
+                      side="top"
+                      className="block max-w-64 leading-relaxed"
+                    >
+                      <span className="block font-medium">
+                        {row.label} · {row.count} (
+                        {percent.format(row.count / n)})
+                      </span>
+                      <span className="mt-0.5 block opacity-80">
+                        {outcomeMeaning[row.key]}
+                      </span>
+                    </TooltipContent>
+                  </Tooltip>
                 ))}
             </div>
             <dl className="mt-5 grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-5">
@@ -726,79 +807,89 @@ export function HistoryList({
         title="Historique"
         meta="12 dernières semaines, figées au calcul"
       />
-      <ol className="divide-y border-y">
-        {reports.map((report) => {
-          const current = report.id === selectedId;
-          const sent = report.emails.filter((e) => e.state === "SENT").length;
-          const other = report.emails.find((e) => e.state !== "SENT");
-          const status = report.skipped
-            ? "Sans activité · e-mail non envoyé"
-            : (report.verdict?.label ?? "Ancien format");
-          return (
-            <li key={report.id}>
-              <Link
-                href={hrefFor(report.id)}
-                aria-current={current ? "page" : undefined}
-                className={cn(
-                  "-mx-2 grid grid-cols-[3rem_1fr_auto] items-center gap-3 rounded-lg px-2 py-3 text-sm outline-none transition-colors hover:bg-muted/50 focus-visible:ring-3 focus-visible:ring-ring/50 sm:grid-cols-[3rem_1fr_12rem_auto]",
-                  current && "bg-muted/60",
-                )}
-              >
-                <span
+      {/* Hauteur : 8 semaines et un aperçu de la 9e, pour signaler qu’il reste à défiler. */}
+      <ScrollFadeArea
+        label="Historique des rapports"
+        surface="background"
+        className="border-y"
+        viewportClassName="max-h-[33.5rem] sm:max-h-[24rem]"
+      >
+        <ol className="divide-y">
+          {reports.map((report) => {
+            const current = report.id === selectedId;
+            const sent = report.emails.filter((e) => e.state === "SENT").length;
+            const other = report.emails.find((e) => e.state !== "SENT");
+            const status = report.skipped
+              ? "Sans activité · e-mail non envoyé"
+              : (report.verdict?.label ?? "Ancien format");
+            return (
+              <li key={report.id}>
+                <Link
+                  href={hrefFor(report.id)}
+                  aria-current={current ? "page" : undefined}
                   className={cn(
-                    "font-mono text-xs",
-                    current ? "text-foreground" : "text-muted-foreground",
+                    "grid grid-cols-[3rem_1fr_auto] items-center gap-3 rounded-lg px-2 py-3 text-sm outline-none transition-colors hover:bg-muted/50 focus-visible:ring-3 focus-visible:ring-ring/50 sm:grid-cols-[3rem_1fr_12rem_auto]",
+                    current && "bg-muted/60",
                   )}
                 >
-                  {report.label}
-                </span>
-                <span className="min-w-0">
                   <span
-                    className={cn("block truncate", current && "font-medium")}
+                    className={cn(
+                      "font-mono text-xs",
+                      current ? "text-foreground" : "text-muted-foreground",
+                    )}
                   >
-                    {report.range}
+                    {report.label}
+                  </span>
+                  <span className="min-w-0">
+                    <span
+                      className={cn("block truncate", current && "font-medium")}
+                    >
+                      {report.range}
+                    </span>
+                    <span
+                      className={cn(
+                        "mt-0.5 flex items-center gap-1.5 text-xs sm:hidden",
+                        report.verdict?.tone === "watch"
+                          ? "text-destructive"
+                          : "text-muted-foreground",
+                      )}
+                    >
+                      {status}
+                    </span>
                   </span>
                   <span
                     className={cn(
-                      "mt-0.5 flex items-center gap-1.5 text-xs sm:hidden",
+                      "hidden items-center gap-1.5 text-xs sm:flex",
                       report.verdict?.tone === "watch"
                         ? "text-destructive"
                         : "text-muted-foreground",
                     )}
                   >
+                    <Dot
+                      tone={
+                        report.verdict?.tone === "watch" ? "bad" : "neutral"
+                      }
+                    />
                     {status}
                   </span>
-                </span>
-                <span
-                  className={cn(
-                    "hidden items-center gap-1.5 text-xs sm:flex",
-                    report.verdict?.tone === "watch"
-                      ? "text-destructive"
-                      : "text-muted-foreground",
-                  )}
-                >
-                  <Dot
-                    tone={report.verdict?.tone === "watch" ? "bad" : "neutral"}
-                  />
-                  {status}
-                </span>
-                <span className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <span className="hidden md:inline">
-                    {report.skipped
-                      ? ""
-                      : `${sent} ${emailStates.SENT}${other ? ` · 1 ${emailStates[other.state]}` : ""}`}
+                  <span className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <span className="hidden md:inline">
+                      {report.skipped
+                        ? ""
+                        : `${sent} ${emailStates.SENT}${other ? ` · 1 ${emailStates[other.state]}` : ""}`}
+                    </span>
+                    {current ? (
+                      <span className="text-foreground">Affiché</span>
+                    ) : (
+                      <ChevronRight aria-hidden="true" className="size-4" />
+                    )}
                   </span>
-                  {current ? (
-                    <span className="text-foreground">Affiché</span>
-                  ) : (
-                    <ChevronRight aria-hidden="true" className="size-4" />
-                  )}
-                </span>
-              </Link>
-            </li>
-          );
-        })}
-      </ol>
+                </Link>
+              </li>
+            );
+          })}
+        </ol>
+      </ScrollFadeArea>
     </section>
   );
 }
