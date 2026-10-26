@@ -1,6 +1,7 @@
 import type { Prisma } from "../src/generated/prisma/client";
 import { AgentConfigSchema } from "./agent-config";
 import { can, type ProjectPermission } from "./project-permissions";
+import { getBillingAccess } from "./billing-access";
 
 export class SettingsError extends Error {}
 
@@ -48,6 +49,9 @@ export async function writeAgentConfig(
   const { project } = await requireProjectAdmin(tx, projectId, actorId);
   if (project.deletionPending)
     throw new SettingsError("Ce projet est en cours de suppression.");
+  // L’agent ne se configure qu’avec un abonnement actif ou un essai en cours.
+  const access = await getBillingAccess(tx, projectId);
+  if (!access.allowed) throw new SettingsError(access.message);
   if (project.agentConfigVersion !== expectedVersion)
     throw new SettingsError(
       "Un autre membre a modifié cet agent. Rechargez la page avant d’enregistrer.",

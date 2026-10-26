@@ -3,6 +3,7 @@ import { z } from "zod";
 import type { Prisma, PrismaClient } from "../src/generated/prisma/client";
 import { planFeatures } from "./plan-features";
 import { requireProjectAdmin } from "./project-settings";
+import { getBillingAccess } from "./billing-access";
 import { StorageQuotaError, releaseStorage, reserveStorage } from "./storage-quota";
 import { SafeFetchError, parsePublicUrl } from "./safe-fetch";
 import { MAX_DEAL_VALUE } from "./pipeline-shared";
@@ -34,11 +35,24 @@ export const EntryPayloadSchema = z.object({
 });
 export type EntryPayload = z.infer<typeof EntryPayloadSchema>;
 
-async function lockAdmin(tx: Prisma.TransactionClient, { projectId, userId }: Admin) {
+/**
+ * Droits d’administration sous le verrou du projet. Les imports (page web, PDF,
+ * catalogue, nouvel essai) font travailler l’IA : ils exigent en plus un
+ * abonnement actif, l’offre n’étant acquise qu’une fois le paiement confirmé.
+ */
+async function lockAdmin(
+  tx: Prisma.TransactionClient,
+  { projectId, userId }: Admin,
+  needsPayment = false,
+) {
   await tx.$queryRaw`SELECT id FROM project WHERE id = ${projectId} FOR UPDATE`;
   const { project } = await requireProjectAdmin(tx, projectId, userId);
   if (project.deletionPending) {
     throw new KnowledgeError("Ce projet est en cours de suppression.");
+  }
+  if (needsPayment) {
+    const access = await getBillingAccess(tx, projectId);
+    if (!access.allowed) throw new KnowledgeError(access.message);
   }
   return project;
 }
@@ -152,7 +166,7 @@ export async function addUrlSource(db: PrismaClient, input: Admin & { url: strin
   }
   url.hash = "";
   return db.$transaction(async (tx) => {
-    const project = await lockAdmin(tx, input);
+    const project = await lockAdmin(tx, input, true);
     const duplicate = await tx.knowledgeSource.findFirst({
       where: { projectId: input.projectId, type: "URL", url: url.toString() },
       select: { id: true },
@@ -197,7 +211,7 @@ export async function addPdfSource(
   }
   // Fail fast on rights and limits before uploading anything.
   await db.$transaction(async (tx) => {
-    const project = await lockAdmin(tx, input);
+    const project = await lockAdmin(tx, input, true);
     const { pdfMaxMb } = planFeatures(project.plan);
     if (input.bytes.length > pdfMaxMb * 1024 * 1024) {
       throw new KnowledgeError(`Votre offre accepte des PDF de ${pdfMaxMb} Mo au maximum.`);
@@ -246,7 +260,7 @@ export async function importProductsCsv(
     throw new KnowledgeError("Le fichier CSV dépasse 2 Mo.");
   }
   return db.$transaction(async (tx) => {
-    const project = await lockAdmin(tx, input);
+    const project = await lockAdmin(tx, input, true);
     const { rows, errors } = parseProductsCsv(input.text, project.currency);
     if (!rows.length) {
       throw new KnowledgeError(errors[0] ?? "Aucun produit valide dans ce fichier.");
@@ -294,7 +308,7 @@ export async function importProductsCsv(
 
 export async function retrySource(db: PrismaClient, input: Admin & { sourceId: string }) {
   await db.$transaction(async (tx) => {
-    await lockAdmin(tx, input);
+    await lockAdmin(tx, input, true);
     const result = await tx.knowledgeSource.updateMany({
       where: {
         id: input.sourceId,

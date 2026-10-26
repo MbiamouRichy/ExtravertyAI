@@ -26,6 +26,7 @@ import { extractPdfText, htmlToText } from "../lib/knowledge-extract";
 import { SettingsError } from "../lib/project-settings";
 import {
   addMember,
+  activateBilling,
   createProject,
   createUser,
   withTestDatabase,
@@ -100,6 +101,7 @@ test("PDF text is extracted", async () => {
 test("knowledge base", { timeout: 180000 }, async (t) => {
   await withTestDatabase(async (prisma) => {
     const project = await createProject(prisma, { plan: "starter" });
+    await activateBilling(prisma, project.id);
     const owner = await createUser(prisma);
     const member = await createUser(prisma);
     await addMember(prisma, project.id, owner.id, "OWNER");

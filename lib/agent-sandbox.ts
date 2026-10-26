@@ -7,6 +7,7 @@ import { knowledgeContext } from "./knowledge";
 import { splitMissingInfo } from "./missing-info";
 import { planFeatures } from "./plan-features";
 import { requireProjectAdmin } from "./project-settings";
+import { getBillingAccess } from "./billing-access";
 
 // Safe to show as is to the user.
 export class SandboxError extends Error {}
@@ -55,6 +56,9 @@ export async function runAgentTest(
     await tx.$queryRaw`SELECT id FROM project WHERE id = ${projectId} FOR UPDATE`;
     const { project } = await requireProjectAdmin(tx, projectId, input.userId);
     if (project.deletionPending) throw new SandboxError("Ce projet est en cours de suppression.");
+    // Chaque essai appelle le modèle : l’offre ne vaut qu’une fois le paiement confirmé.
+    const access = await getBillingAccess(tx, projectId);
+    if (!access.allowed) throw new SandboxError(access.message);
     if (!project.agentSetupCompletedAt) {
       throw new SandboxError("Configurez d’abord votre agent dans les paramètres.");
     }
