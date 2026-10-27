@@ -4,6 +4,8 @@ import { readFileSync } from "node:fs";
 import { runInNewContext } from "node:vm";
 import ts from "typescript";
 import { z } from "zod";
+import * as permissions from "../lib/project-permissions";
+import * as billingDisplay from "../lib/billing-display";
 import {
   isRecentSession,
   PROJECT_DELETION_SESSION_MAX_AGE_MS,
@@ -76,6 +78,8 @@ function setup({
       },
     },
     "@/lib/billing-access": {},
+    "@/lib/project-permissions": permissions,
+    "@/lib/billing-display": billingDisplay,
     "@/lib/project-logo": { projectLogoUrl: () => null },
     "@/lib/contact-export": { contactExportSnapshot: async () => ({ hash: "snapshot" }), verifyExportReceipt: () => exported },
     "@/lib/recent-session": {

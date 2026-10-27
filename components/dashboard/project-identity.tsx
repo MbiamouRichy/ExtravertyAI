@@ -12,6 +12,8 @@ export type ProjectIdentity = {
   projectId: string;
   name: string;
   logoUrl: string | null;
+  /** Rôle du membre connecté : ne sert qu’à masquer les liens, le serveur revérifie. */
+  role: string;
 };
 
 const IdentityContext = createContext<{
@@ -38,10 +40,10 @@ export function useProjectIdentity(projectId: string | undefined) {
 }
 
 /** Publie l’identité du projet ; se met à jour après un renommage ou une nouvelle icône. */
-export function ProjectIdentitySync({ projectId, name, logoUrl }: ProjectIdentity) {
+export function ProjectIdentitySync({ projectId, name, logoUrl, role }: ProjectIdentity) {
   const { setIdentity } = useContext(IdentityContext);
   useEffect(() => {
-    setIdentity({ projectId, name, logoUrl });
-  }, [projectId, name, logoUrl, setIdentity]);
+    setIdentity({ projectId, name, logoUrl, role });
+  }, [projectId, name, logoUrl, role, setIdentity]);
   return null;
 }

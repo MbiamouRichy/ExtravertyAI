@@ -1,6 +1,7 @@
 "use server";
 
 import { getSession } from "@/lib/auth-server";
+import { rolesWith } from "@/lib/project-permissions";
 import prisma from "@/lib/prisma";
 import { prepareSummaryHistory } from "@/lib/conversation-summary";
 import {
@@ -50,7 +51,12 @@ export async function assistWriting(input: unknown) {
           projectId,
           project: {
             deletionPending: false,
-            members: { some: { userId: session.user.id } },
+            members: {
+              some: {
+                userId: session.user.id,
+                role: { in: rolesWith("conversations.handle") },
+              },
+            },
           },
         },
         select: {

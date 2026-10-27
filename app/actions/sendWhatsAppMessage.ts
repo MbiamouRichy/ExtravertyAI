@@ -1,5 +1,6 @@
 "use server";
 import { projectBillingStatus } from "@/lib/project-status";
+import { can } from "@/lib/project-permissions";
 
 import { z } from "zod";
 import { SendChatMessageSchema } from "@/lib/message-schema";
@@ -70,14 +71,10 @@ export async function sendWhatsAppMessage(
         select: { role: true },
       });
 
-      if (!membership) {
+      // Lecteurs et facturation n'écrivent jamais aux clients.
+      if (!can(membership?.role, "conversations.handle")) {
         throw new SendRejected("Accès refusé.");
       }
-
-      // Règle conservée depuis ton application :
-      // tous les membres peuvent envoyer.
-      // Si USER est un rôle de lecture seule chez toi,
-      // ajoute ici une vérification OWNER / ADMIN.
       const existing = await tx.outboundJob.findUnique({
         where: {
           projectId_requestId: {

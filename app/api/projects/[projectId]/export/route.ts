@@ -1,4 +1,5 @@
 import { getUserTimeZone } from "@/lib/server-time-zone";
+import { can } from "@/lib/project-permissions";
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth-server";
 import prisma from "@/lib/prisma";
@@ -17,14 +18,14 @@ export async function GET(
     where: { userId_projectId: { userId: session.user.id, projectId } },
     select: { role: true },
   });
-  if (!membership || !["OWNER", "ADMIN"].includes(membership.role))
+  if (!can(membership?.role, "contacts.export"))
     return NextResponse.json({ error: "Accès refusé." }, { status: 403 });
   const format = new URL(req.url).searchParams.get("format") || "csv";
   if (!["csv", "xlsx"].includes(format))
     return NextResponse.json({ error: "Format invalide." }, { status: 400 });
   try {
     const forDeletion = new URL(req.url).searchParams.get("deletion") === "1";
-    if (forDeletion && membership.role !== "OWNER")
+    if (forDeletion && !can(membership?.role, "project.own"))
       return NextResponse.json(
         { error: "Seul le propriétaire peut préparer la suppression." },
         { status: 403 },

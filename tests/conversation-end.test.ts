@@ -7,6 +7,7 @@ import { runAgentTest } from "../lib/agent-sandbox";
 import { writeContactAiState } from "../lib/contact-ai-state";
 import { notificationFeed } from "../lib/notifications";
 import {
+  CONVERSATION_FLOW_INSTRUCTION,
   QUIET_INSTRUCTION,
   findRepetition,
   isAcknowledgment,
@@ -127,7 +128,7 @@ test("quiet mode at the end of a conversation", { timeout: 240000 }, async (t) =
     const member = await createUser(prisma, "Inès Obame");
     const outsider = await createUser(prisma, "Paul Extérieur");
     await addMember(prisma, project.id, owner.id, "OWNER");
-    await addMember(prisma, project.id, member.id, "USER");
+    await addMember(prisma, project.id, member.id, "AGENT");
     let phone = 24166000000;
     const jid = () => `${++phone}@s.whatsapp.net`;
 
@@ -411,4 +412,11 @@ test("quiet mode at the end of a conversation", { timeout: 240000 }, async (t) =
 test("the quiet instruction names both markers", () => {
   assert.match(QUIET_INSTRUCTION, /\[\[FIN\]\]/);
   assert.match(QUIET_INSTRUCTION, /\[\[SILENCE\]\]/);
+});
+
+test("the assistant answers the latest of several unanswered messages", () => {
+  // Constaté en réel : après une reprise par l'équipe, six messages attendaient
+  // et l'IA répondait au plus ancien (« ça va ? ») au lieu de la vraie question.
+  assert.match(CONVERSATION_FLOW_INSTRUCTION, /dernier message du client/);
+  assert.match(CONVERSATION_FLOW_INSTRUCTION, /question la plus récente/);
 });

@@ -20,6 +20,10 @@ import {
   Loader2,
   AlertTriangle,
   Crown,
+  CreditCard,
+  Eye,
+  UserCheck,
+  type LucideIcon,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -76,12 +80,30 @@ import {
   inviteTeamMember,
   type TeamMember,
 } from "@/app/actions/team";
-import { Role } from "@/src/generated/prisma/client";
+import type { Role } from "@/src/generated/prisma/client";
+import {
+  PROJECT_ROLES,
+  ROLE_DESCRIPTIONS,
+  ROLE_LABELS,
+  assignableRoles,
+  can,
+  canManageMember,
+  type ProjectRole,
+} from "@/lib/project-permissions";
 import { ChangeRoleModal } from "./changeRoleModal";
 import { TransferOwnershipDialog } from "./transfer-ownership-dialog";
 import { MemberPresence, useProjectPresence } from "../user/member-presence";
 import { getInitials } from "@/components/getInitials";
 import { AssignNextButton } from "./assign-next-button";
+
+const ROLE_ICONS: Record<ProjectRole, LucideIcon> = {
+  OWNER: Crown,
+  ADMIN: ShieldCheck,
+  SUPERVISOR: UserCheck,
+  AGENT: UserIcon,
+  VIEWER: Eye,
+  BILLING: CreditCard,
+};
 
 // --- 1. SCHÉMA DE VALIDATION ZOD ---
 const inviteSchema = z.object({
@@ -89,7 +111,7 @@ const inviteSchema = z.object({
     .string()
     .min(1, "L'adresse email est requise.")
     .email("Veuillez entrer une adresse email valide."),
-  role: z.enum(["ADMIN", "USER"], {
+  role: z.enum(["ADMIN", "SUPERVISOR", "AGENT", "VIEWER", "BILLING"], {
     message: "Veuillez sélectionner un rôle.",
   }),
 });
@@ -139,13 +161,14 @@ export default function TeamManagement({
     resolver: zodResolver(inviteSchema),
     defaultValues: {
       email: "",
-      role: "USER",
+      role: "AGENT",
     },
   });
 
-  // Rôle de l'utilisateur connecté
+  // Rôle de l'utilisateur connecté et rôles qu'il peut attribuer (revérifiés côté serveur).
   const currentUserMembership = members.find((m) => m.userId === currentUserId);
-  const currentUserRole: Role = currentUserMembership?.role ?? "USER";
+  const currentUserRole: string = currentUserMembership?.role ?? "AGENT";
+  const inviteRoles = assignableRoles(currentUserRole);
 
   // Filtrage dynamique
   const filteredMembers = members.filter(
@@ -155,19 +178,15 @@ export default function TeamManagement({
   );
 
   const getRoleBadge = (role: Role) => {
-    const meta = {
-      OWNER: { label: "Propriétaire", icon: ShieldAlert, strong: true },
-      ADMIN: { label: "Admin", icon: ShieldCheck, strong: false },
-      USER: { label: "Agent", icon: UserIcon, strong: false },
-    }[role];
-    const Icon = meta.icon;
+    const strong = role === "OWNER";
+    const Icon = role === "OWNER" ? ShieldAlert : ROLE_ICONS[role];
     return (
       <Badge
-        variant={meta.strong ? "default" : "outline"}
-        className={meta.strong ? "font-medium" : "text-muted-foreground"}
+        variant={strong ? "default" : "outline"}
+        className={strong ? "font-medium" : "text-muted-foreground"}
       >
         <Icon data-icon="inline-start" />
-        {meta.label}
+        {ROLE_LABELS[role]}
       </Badge>
     );
   };
@@ -184,7 +203,8 @@ export default function TeamManagement({
 
       if (res.success) {
         playHaptic("success");
-        toast.success(`Invitation envoyée à ${formData.email}`);
+        if ("warning" in res && res.warning) toast.warning(res.warning);
+        else toast.success(`Invitation envoyée à ${formData.email}`);
         setIsInviteOpen(false);
         form.reset();
 
@@ -226,39 +246,17 @@ export default function TeamManagement({
     });
   };
 
-  const rolePriority = {
-    OWNER: 1,
-    ADMIN: 2,
-    USER: 3,
-  };
+  // Du rôle le plus large au plus restreint, propriétaire en tête.
+  const sortedMembers = [...filteredMembers].sort(
+    (a, b) => PROJECT_ROLES.indexOf(a.role) - PROJECT_ROLES.indexOf(b.role),
+  );
 
-  // Trier les membres en fonction de ce poids
-  const sortedMembers = [...filteredMembers].sort((a, b) => {
-    const priorityA = rolePriority[a.role] || 3;
-    const priorityB = rolePriority[b.role] || 3;
-    return priorityA - priorityB;
-  });
-
-  const roleCards = [
-    {
-      role: "OWNER" as const,
-      label: "Propriétaire",
-      icon: Crown,
-      text: "Accès complet, facturation et suppression du projet.",
-    },
-    {
-      role: "ADMIN" as const,
-      label: "Administrateurs",
-      icon: ShieldCheck,
-      text: "Réglages, équipe, exports et facturation Stripe.",
-    },
-    {
-      role: "USER" as const,
-      label: "Agents",
-      icon: UserIcon,
-      text: "Répondent aux conversations de la messagerie.",
-    },
-  ];
+  const roleCards = PROJECT_ROLES.map((role) => ({
+    role,
+    label: ROLE_LABELS[role],
+    icon: ROLE_ICONS[role],
+    text: ROLE_DESCRIPTIONS[role],
+  }));
 
   return (
     <div className="mx-auto w-full min-w-0 max-w-5xl space-y-8 p-4 sm:p-6 xl:p-8">
@@ -281,7 +279,7 @@ export default function TeamManagement({
               Inviter un membre
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-md">
+          <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-md">
             <DialogHeader>
               <DialogTitle>Inviter un collaborateur</DialogTitle>
               <DialogDescription>
@@ -335,22 +333,17 @@ export default function TeamManagement({
                         disabled={isInviting}
                         className="gap-2"
                       >
-                        {(
-                          [
-                            { value: "USER", title: "Agent", text: "Répond aux conversations." },
-                            { value: "ADMIN", title: "Administrateur", text: "Gère réglages, équipe et facturation." },
-                          ] as const
-                        ).map((option) => (
+                        {inviteRoles.map((value) => (
                           <FieldLabel
-                            key={option.value}
-                            htmlFor={`invite-role-${option.value}`}
-                            className="cursor-pointer rounded-xl border p-3 font-normal has-data-[state=checked]:border-primary has-data-[state=checked]:bg-muted/50"
+                            key={value}
+                            htmlFor={`invite-role-${value}`}
+                            className="cursor-pointer rounded-xl border px-3 py-2.5 font-normal has-data-[state=checked]:border-primary has-data-[state=checked]:bg-muted/50"
                           >
                             <Field orientation="horizontal">
-                              <RadioGroupItem id={`invite-role-${option.value}`} value={option.value} />
+                              <RadioGroupItem id={`invite-role-${value}`} value={value} />
                               <span className="flex flex-col">
-                                <span className="text-sm font-medium">{option.title}</span>
-                                <span className="text-xs text-muted-foreground">{option.text}</span>
+                                <span className="text-sm font-medium">{ROLE_LABELS[value]}</span>
+                                <span className="text-xs text-muted-foreground">{ROLE_DESCRIPTIONS[value]}</span>
                               </span>
                             </Field>
                           </FieldLabel>
@@ -381,7 +374,7 @@ export default function TeamManagement({
         </Dialog>
       </header>
 
-      <section aria-label="Rôles" className="grid gap-3 sm:grid-cols-3">
+      <section aria-label="Rôles" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {roleCards.map(({ role, label, icon: Icon, text }) => (
           <div key={role} className="rounded-2xl border bg-card p-4">
             <div className="flex items-center justify-between">
@@ -426,9 +419,10 @@ export default function TeamManagement({
 
         <ul className="divide-y">
           {sortedMembers.map((member) => {
-            const canManageMember =
-              currentUserRole === "OWNER" ||
-              (currentUserRole === "ADMIN" && member.role === "USER");
+            const canManage = canManageMember(currentUserRole, member.role);
+            // Le propriétaire choisit ses conversations ; lecteurs et facturation n’en reçoivent pas.
+            const canReceive =
+              member.role !== "OWNER" && can(member.role, "conversations.handle");
             const isMe = member.userId === currentUserId;
 
             return (
@@ -473,7 +467,7 @@ export default function TeamManagement({
                     </span>
                   </div>
                   {/* Mobile : l’action passe sous les informations. */}
-                  {member.role !== "OWNER" && (
+                  {canReceive && (
                     <AssignNextButton
                       projectId={projectId}
                       assigneeId={member.userId}
@@ -486,7 +480,7 @@ export default function TeamManagement({
                 <div className="flex shrink-0 items-center gap-2">
                   <span className="hidden sm:inline-flex">{getRoleBadge(member.role)}</span>
                   {/* Le propriétaire choisit ses conversations lui-même. */}
-                  {member.role !== "OWNER" && (
+                  {canReceive && (
                     <AssignNextButton
                       projectId={projectId}
                       assigneeId={member.userId}
@@ -494,7 +488,7 @@ export default function TeamManagement({
                       className="hidden sm:inline-flex"
                     />
                   )}
-                  {!isMe && canManageMember && member.role !== "OWNER" ? (
+                  {!isMe && canManage ? (
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="ghost" size="icon-sm" aria-label={`Actions pour ${member.name}`}>
@@ -581,6 +575,8 @@ export default function TeamManagement({
       />
 
       <ChangeRoleModal
+        // Remonté pour chaque membre : le rôle présélectionné est le sien.
+        key={memberToEditRole?.id ?? "none"}
         isOpen={!!memberToEditRole}
         onClose={() => setMemberToEditRole(null)}
         member={memberToEditRole}

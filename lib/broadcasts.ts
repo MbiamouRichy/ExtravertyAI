@@ -18,6 +18,7 @@ import { maskContactPhone } from "./contact-details";
 import { MessageQuotaError, reserveMessageQuota } from "./message-quota";
 import { planAllows, planFeatures, planUpgradeMessage } from "./plan-features";
 import { projectBillingStatus } from "./project-status";
+import { can } from "./project-permissions";
 
 // Safe to show as is to the user.
 export class BroadcastError extends Error {}
@@ -49,7 +50,7 @@ async function requireBroadcastAdmin(db: Db, projectId: string, userId: string, 
   if (!membership || membership.project.deletionPending) {
     throw new BroadcastError("Projet indisponible.");
   }
-  if (!["OWNER", "ADMIN"].includes(membership.role)) {
+  if (!can(membership.role, "project.manage")) {
     throw new BroadcastError("Seuls les propriétaires et administrateurs gèrent les diffusions.");
   }
   if (needsPlan && !planAllows(membership.project.plan, "broadcast")) {
@@ -554,14 +555,19 @@ export async function repliedRecipientIds(db: Db, recipientIds: string[]) {
   return new Set(rows.map((row) => row.id));
 }
 
-/** Any member reads broadcasts; managing them stays reserved to administrators. */
+/** Members who handle conversations read broadcasts; managing them stays reserved to administrators. */
 export async function requireBroadcastViewer(db: Db, projectId: string, userId: string) {
   const membership = await db.projectMembership.findUnique({
     where: { userId_projectId: { userId, projectId } },
     select: { role: true, project: { select: { deletionPending: true, plan: true } } },
   });
   // Same answer for « no access » and « does not exist »: nothing leaks.
-  if (!membership || membership.project.deletionPending) throw new BroadcastError("Diffusion introuvable.");
+  if (
+    !membership ||
+    membership.project.deletionPending ||
+    !can(membership.role, "pipeline.view")
+  )
+    throw new BroadcastError("Diffusion introuvable.");
   return membership;
 }
 

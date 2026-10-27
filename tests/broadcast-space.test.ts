@@ -49,7 +49,7 @@ async function setup(prisma: PrismaClient) {
   const member = await createUser(prisma, "Paul Nzé");
   const outsider = await createUser(prisma, "Eve Ext");
   await addMember(prisma, project.id, owner.id, "OWNER");
-  await addMember(prisma, project.id, member.id, "USER");
+  await addMember(prisma, project.id, member.id, "AGENT");
   const names = ["Aminata Diallo", "Kevin Mba", "Grace Ella", "Moussa Kane"];
   const contacts = [];
   for (const name of names) {

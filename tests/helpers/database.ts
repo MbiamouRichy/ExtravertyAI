@@ -64,7 +64,7 @@ export async function addMember(
   prisma: PrismaClient,
   projectId: string,
   userId: string,
-  role: "OWNER" | "ADMIN" | "USER" = "USER",
+  role: "OWNER" | "ADMIN" | "SUPERVISOR" | "AGENT" | "VIEWER" | "BILLING" = "AGENT",
 ) {
   return prisma.projectMembership.create({ data: { projectId, userId, role } });
 }
@@ -84,4 +84,23 @@ export async function ingestText(
     });
   });
   return prisma.contact.findFirstOrThrow({ where: { projectId, remoteJid } });
+}
+
+/** Ouvre une période d’accès en cours : le projet devient payé (ou en essai). */
+export async function activateBilling(
+  prisma: PrismaClient,
+  projectId: string,
+  kind: "active" | "trialing" = "active",
+) {
+  await prisma.project.update({ where: { id: projectId }, data: { status: kind } });
+  return prisma.quotaPeriod.create({
+    data: {
+      projectId,
+      key: crypto.randomUUID(),
+      kind,
+      startsAt: new Date(Date.now() - 60_000),
+      endsAt: new Date(Date.now() + 86_400_000),
+      limit: 1000,
+    },
+  });
 }

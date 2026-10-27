@@ -5,6 +5,7 @@ import {
   summaryFingerprint,
 } from "@/lib/conversation-summary-cache";
 import { z } from "zod";
+import { can } from "@/lib/project-permissions";
 import { getSession } from "@/lib/auth-server";
 import prisma from "@/lib/prisma";
 import { getBillingAccess } from "@/lib/billing-access";
@@ -29,9 +30,10 @@ export async function summarizeConversation(input: unknown) {
     const { projectId, contactId } = parsed.data;
     const membership = await prisma.projectMembership.findUnique({
       where: { userId_projectId: { userId: session.user.id, projectId } },
-      select: { id: true },
+      select: { role: true },
     });
-    if (!membership) return { success: false as const, error: "Accès refusé." };
+    if (!can(membership?.role, "conversations.handle"))
+      return { success: false as const, error: "Accès refusé." };
     const access = await getBillingAccess(prisma, projectId);
     if (!access.allowed)
       return { success: false as const, error: access.message };
@@ -95,9 +97,9 @@ export async function summarizeConversation(input: unknown) {
     // Membership may have been revoked while the provider was responding.
     const stillMember = await prisma.projectMembership.findUnique({
       where: { userId_projectId: { userId: session.user.id, projectId } },
-      select: { id: true },
+      select: { role: true },
     });
-    if (!stillMember)
+    if (!can(stillMember?.role, "conversations.handle"))
       return { success: false as const, error: "Accès refusé." };
     const currentAccess = await getBillingAccess(prisma, projectId);
     if (!currentAccess.allowed)

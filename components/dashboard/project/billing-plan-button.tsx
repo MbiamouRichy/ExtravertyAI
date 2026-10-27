@@ -1,11 +1,12 @@
 "use client";
 import { useState } from "react";
-import { Loader2, RefreshCw, ArrowUpRight } from "lucide-react";
+import { Loader2, RefreshCw, ArrowUpRight, CreditCard } from "lucide-react";
 import { toast } from "sonner";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { openProjectBillingPortal } from "@/app/actions/project-settings";
+import { resumeProjectCheckout } from "@/app/actions/stripe-actions";
 export function BillingPlanButton({
   projectId,
   intent,
@@ -14,9 +15,12 @@ export function BillingPlanButton({
   label,
   variant,
   className,
+  needsCheckout = false,
 }: {
   projectId: string;
   intent: "renew" | "upgrade";
+  /** Paiement initial jamais abouti : on repart sur un Checkout Stripe. */
+  needsCheckout?: boolean;
   disabled?: boolean;
   size?: "default" | "sm" | "lg";
   /** Overrides the default label (e.g. a contextual upsell). */
@@ -29,7 +33,9 @@ export function BillingPlanButton({
     if (busy) return;
     setBusy(true);
     try {
-      const result = await openProjectBillingPortal(projectId, intent);
+      const result = needsCheckout
+        ? await resumeProjectCheckout({ projectId })
+        : await openProjectBillingPortal(projectId, intent);
       if (result.success) window.location.assign(result.url);
       else toast.error(result.error);
     } catch {
@@ -40,11 +46,17 @@ export function BillingPlanButton({
       setBusy(false);
     }
   }
-  const Icon = busy ? Loader2 : intent === "renew" ? RefreshCw : ArrowUpRight;
+  const Icon = busy
+    ? Loader2
+    : needsCheckout
+      ? CreditCard
+      : intent === "renew"
+        ? RefreshCw
+        : ArrowUpRight;
   return (
     <Button
       size={size}
-      variant={variant ?? (intent === "renew" ? "default" : "outline")}
+      variant={variant ?? (needsCheckout || intent === "renew" ? "default" : "outline")}
       className={cn("h-auto min-h-9 whitespace-normal text-center", className)}
       disabled={disabled || busy}
       aria-busy={busy}
@@ -54,7 +66,9 @@ export function BillingPlanButton({
         aria-hidden="true"
         className={busy ? "size-4 animate-spin" : "size-4"}
       />
-      {label ?? (intent === "renew" ? "Renouveler le plan" : "Changer d’offre")}
+      {needsCheckout
+        ? "Reprendre le paiement"
+        : (label ?? (intent === "renew" ? "Renouveler le plan" : "Changer d’offre"))}
     </Button>
   );
 }

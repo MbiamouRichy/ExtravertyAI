@@ -36,6 +36,7 @@ import {
 import { DeleteProjectDialog } from "./delete-project-dialog";
 import { ReauthButton, useRecentSession } from "../user/recent-session";
 import { ScrollFadeArea } from "./scroll-fade-area";
+import { can } from "@/lib/project-permissions";
 
 const tabs = [
   {
@@ -83,8 +84,8 @@ export default function ProjectSettingsPage({
   const [deleting, setDeleting] = useState(false);
   // Suppression : seulement après une connexion de moins de 10 minutes.
   const recentLogin = useRecentSession(p.sessionCreatedAt);
-  const owner = p.role === "OWNER";
-  const canPause = owner || p.role === "ADMIN";
+  const owner = can(p.role, "project.own");
+  const canPause = can(p.role, "project.manage");
   useEffect(() => {
     if (!p.whatsapp.pending) return;
     const timer = setInterval(() => router.refresh(), 5000);

@@ -16,6 +16,11 @@ import { ArrowRightIcon } from "lucide-react";
 import { Button } from "../ui/button";
 import { getInitials } from "../getInitials";
 import Link from "next/link";
+import {
+  PROJECT_ROLES,
+  can,
+  type ProjectRole,
+} from "@/lib/project-permissions";
 
 // On met à jour le type pour accepter null (venant de Prisma pour l'image)
 export type Teammate = {
@@ -30,21 +35,26 @@ export type Teammate = {
   image?: string | null;
 };
 
-const ROLE_ORDER: Record<string, number> = { OWNER: 0, ADMIN: 1 };
-
+// Propriétaire d’abord, puis les rôles du plus large au plus restreint.
 function roleRank(role: string) {
-  return ROLE_ORDER[role] ?? 2;
+  const index = PROJECT_ROLES.indexOf(role as ProjectRole);
+  return index === -1 ? PROJECT_ROLES.length : index;
 }
 
 // On ajoute les props pour recevoir les données du serveur
 interface TeamOnDutyProps extends ComponentProps<typeof Card> {
   initialTeammates: Teammate[];
   projectId: string;
+  /** Propose « confier la prochaine conversation » (superviseurs et plus). */
+  canDispatch: boolean;
+  canManageTeam: boolean;
 }
 
 export function TeamOnDuty({
   initialTeammates,
   projectId,
+  canDispatch,
+  canManageTeam,
   className,
   ...props
 }: TeamOnDutyProps) {
@@ -108,7 +118,9 @@ export function TeamOnDuty({
                 </p>
               </div>
               {/* Le propriétaire choisit ses conversations lui-même. */}
-              {t.role !== "OWNER" && (
+              {canDispatch &&
+                t.role !== "OWNER" &&
+                can(t.role, "conversations.handle") && (
                 <AssignNextButton
                   projectId={projectId}
                   assigneeId={t.userId}
@@ -119,7 +131,8 @@ export function TeamOnDuty({
           ))}
         </ul>
       </CardContent>
-      <div className="mt-2 flex shrink-0 items-center justify-center border-t px-3 py-3">
+      {canManageTeam && (
+        <div className="mt-2 flex shrink-0 items-center justify-center border-t px-3 py-3">
         <Button asChild className="relative" variant="ghost" size="sm">
           <Link href={`/projects/${projectId}/team`}>
             Voir l’équipe
@@ -127,6 +140,7 @@ export function TeamOnDuty({
           </Link>
         </Button>
       </div>
+      )}
     </Card>
   );
 }

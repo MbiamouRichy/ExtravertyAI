@@ -39,7 +39,7 @@ test(
       const project = await createProject(prisma);
       const member = await createUser(prisma, "Inès Obame");
       const outsider = await createUser(prisma, "Externe");
-      await addMember(prisma, project.id, member.id, "USER");
+      await addMember(prisma, project.id, member.id, "AGENT");
       const send = (userId: string, pagePath?: string) =>
         submitProductFeedback(prisma, userId, {
           kind: "IDEA",

@@ -1,6 +1,7 @@
 "use server";
 
 import prisma from "@/lib/prisma";
+import { can } from "@/lib/project-permissions";
 import { getSession } from "@/lib/auth-server";
 import { revalidatePath } from "next/cache";
 import z from "zod";
@@ -13,6 +14,7 @@ import {
   verifyExportReceipt,
 } from "@/lib/contact-export";
 import { isRecentSession } from "@/lib/recent-session";
+import { needsInitialCheckout } from "@/lib/billing-display";
 
 // 1. RÉCUPERER TOUS LES PROJETS
 export async function getProjects() {
@@ -37,6 +39,8 @@ export async function getProjects() {
             automationPaused: true,
             statusBeforePause: true,
             stripeStatus: true,
+            stripeCustomerId: true,
+            stripeSubscriptionId: true,
             deletionPending: true,
             quotaPeriods: {
               where: { isCurrent: true },
@@ -67,6 +71,8 @@ export async function getProjects() {
         statusBeforePause,
         deletionPending,
         logoKey,
+        stripeCustomerId,
+        stripeSubscriptionId,
         ...visible
       } = project;
       const period = quotaPeriods[0];
@@ -74,7 +80,13 @@ export async function getProjects() {
         ...visible,
         // Seule l’adresse protégée quitte le serveur, jamais la clé de stockage.
         logoUrl: projectLogoUrl(project.id, logoKey),
-        canManageBilling: role === "OWNER",
+        canManageBilling: can(role, "billing.manage"),
+        // Seul l’indicateur quitte le serveur, jamais les identifiants Stripe.
+        needsCheckout: needsInitialCheckout({
+          status: project.status,
+          stripeCustomerId,
+          stripeSubscriptionId,
+        }),
         billingAccess: billingAccess(
           {
             ...project,
@@ -190,7 +202,7 @@ export async function disableProject(
 
     // SÉCURITÉ : Bloquer si l'utilisateur n'est pas le propriétaire ou un admin
     // (Ajuste "OWNER" / "ADMIN" selon ce que tu as défini dans ton schéma Prisma)
-    if (membership.role !== "OWNER" && membership.role !== "ADMIN") {
+    if (!can(membership.role, "project.manage")) {
       throw new Error("Droits insuffisants pour désactiver ce projet.");
     }
 
@@ -251,7 +263,7 @@ export async function deleteProjectAction(
     if (!membership || !membership.project)
       throw new Error("Projet introuvable");
 
-    if (membership.role !== "OWNER") {
+    if (!can(membership.role, "project.own")) {
       throw new Error("Seul le propriétaire peut supprimer le projet.");
     }
 

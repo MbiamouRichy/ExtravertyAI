@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { can } from "@/lib/project-permissions";
 import { z } from "zod";
 
 import prisma from "@/lib/prisma";
@@ -49,10 +50,11 @@ export async function POST(request: Request) {
         projectId: parsed.data.projectId,
       },
     },
-    select: { userId: true },
+    select: { role: true },
   });
 
-  if (!membership) {
+  // Seule la messagerie écoute ce canal (changements, présence des contacts).
+  if (!can(membership?.role, "conversations.handle")) {
     return NextResponse.json({ error: "Accès refusé." }, { status: 403 });
   }
 

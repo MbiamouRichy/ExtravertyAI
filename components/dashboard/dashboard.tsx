@@ -15,6 +15,7 @@ import { FirstAiReplyTimeChart } from "./first-reply-time-chart";
 import { QuickActions } from "./quick-actions";
 import { getDashboardDiscussionsMetrics } from "@/app/actions/getDiscussionsMetrics";
 import { getTeamMembers } from "@/app/actions/team";
+import { can } from "@/lib/project-permissions";
 
 function SectionTitle({ id, title, description }: { id: string; title: string; description: string }) {
   return (
@@ -29,11 +30,16 @@ function SectionTitle({ id, title, description }: { id: string; title: string; d
 
 export async function Dashboard({
   projectId,
+  role,
   project,
 }: {
   projectId: string;
+  role: string;
   project: { name: string; instanceStatus: string | null; automationPaused: boolean };
 }) {
+  const canOpenChat = can(role, "conversations.handle");
+  // Les derniers prospects montrent les numéros : pas pour un lecteur.
+  const canSeeContacts = can(role, "contacts.view");
   const [statsResult, responseTimeChartData, discussions, teamData] =
     await Promise.all([
       getMessageSourcesStats(projectId, "7d"),
@@ -71,15 +77,17 @@ export async function Dashboard({
               </span>
             </Link>
           </Button>
-          <Button asChild className="min-w-0">
-            <Link href={`${base}/chat`}>
-              <MessagesSquare data-icon="inline-start" />
-              <span className="truncate">
-                <span className="sm:hidden">Messagerie</span>
-                <span className="hidden sm:inline">Ouvrir la messagerie</span>
-              </span>
-            </Link>
-          </Button>
+          {canOpenChat && (
+            <Button asChild className="min-w-0">
+              <Link href={`${base}/chat`}>
+                <MessagesSquare data-icon="inline-start" />
+                <span className="truncate">
+                  <span className="sm:hidden">Messagerie</span>
+                  <span className="hidden sm:inline">Ouvrir la messagerie</span>
+                </span>
+              </Link>
+            </Button>
+          )}
         </div>
       </header>
 
@@ -115,16 +123,35 @@ export async function Dashboard({
       </section>
 
       <section aria-labelledby="people-title">
-        <SectionTitle id="people-title" title="Contacts et équipe" description="Vos derniers prospects et qui est disponible." />
-        <div className="grid min-w-0 grid-cols-1 items-start gap-5 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] [&>*]:min-w-0">
-          <DashboardContacts projectId={projectId} />
-          <TeamOnDuty initialTeammates={teamData} projectId={projectId} />
+        <SectionTitle
+          id="people-title"
+          title={canSeeContacts ? "Contacts et équipe" : "Équipe"}
+          description={
+            canSeeContacts
+              ? "Vos derniers prospects et qui est disponible."
+              : "Qui est disponible et combien de conversations chacun suit."
+          }
+        />
+        <div
+          className={
+            canSeeContacts
+              ? "grid min-w-0 grid-cols-1 items-start gap-5 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] [&>*]:min-w-0"
+              : "grid min-w-0 grid-cols-1 items-start gap-5 xl:max-w-xl [&>*]:min-w-0"
+          }
+        >
+          {canSeeContacts && <DashboardContacts projectId={projectId} />}
+          <TeamOnDuty
+            initialTeammates={teamData}
+            projectId={projectId}
+            canDispatch={can(role, "conversations.dispatch")}
+            canManageTeam={can(role, "team.manage")}
+          />
         </div>
       </section>
 
       <section aria-labelledby="actions-title">
         <SectionTitle id="actions-title" title="Actions rapides" description="Accédez directement aux outils de votre projet." />
-        <QuickActions projectId={projectId} />
+        <QuickActions projectId={projectId} role={role} />
       </section>
     </div>
   );

@@ -1,6 +1,7 @@
 "use server";
 
 import { getSession } from "@/lib/auth-server";
+import { can } from "@/lib/project-permissions";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
 
@@ -107,7 +108,7 @@ export async function getMessageSourcesStats(
       select: { role: true }, // ⚡ Optimisation: on ne demande que le rôle, pas tout le projet
     });
 
-    if (!membership || !["OWNER", "ADMIN"].includes(membership.role)) {
+    if (!can(membership?.role, "stats.view")) {
       // Même erreur générique pour éviter le sondage d'identifiants (IDOR scan)
       return {
         success: false,

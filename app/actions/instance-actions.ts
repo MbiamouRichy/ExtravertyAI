@@ -1,6 +1,7 @@
 "use server";
 
 import { z } from "zod";
+import { can } from "@/lib/project-permissions";
 
 import prisma from "@/lib/prisma";
 import { getSession } from "@/lib/auth-server";
@@ -65,10 +66,7 @@ async function requireConnectionAdmin(projectId: string) {
     },
   });
 
-  if (
-    !membership ||
-    (membership.role !== "OWNER" && membership.role !== "ADMIN")
-  ) {
+  if (!membership || !can(membership.role, "project.manage")) {
     throw new ConnectionError(
       "Vous ne pouvez pas gérer la connexion de ce projet.",
     );

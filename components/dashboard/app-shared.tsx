@@ -1,5 +1,10 @@
 import type { ReactNode } from "react";
 import {
+  PAGE_PERMISSIONS,
+  canOpenPage,
+  type ProjectPage,
+} from "@/lib/project-permissions";
+import {
   BarChart3Icon,
   CalendarClock,
   BriefcaseIcon,
@@ -152,3 +157,19 @@ export const navLinks = (projectId: string): SidebarNavItem[] => [
     ),
   ),
 ];
+
+/**
+ * Navigation limitée aux pages que le rôle peut ouvrir. Simple confort :
+ * chaque page revérifie la permission côté serveur.
+ */
+export function navGroupsForRole(projectId: string, role: string): SidebarNavGroup[] {
+  const base = `/projects/${projectId}`;
+  const allowed = (path?: string) => {
+    if (!path || (path !== base && !path.startsWith(base + "/"))) return true;
+    const page = path.slice(base.length + 1).split("/")[0];
+    return page in PAGE_PERMISSIONS && canOpenPage(role, page as ProjectPage);
+  };
+  return getNavGroups(projectId)
+    .map((group) => ({ ...group, items: group.items.filter((item) => allowed(item.path)) }))
+    .filter((group) => group.items.some((item) => item.show !== false));
+}

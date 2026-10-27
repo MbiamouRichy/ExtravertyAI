@@ -1,4 +1,5 @@
 import { chatContactName } from "@/lib/chat-privacy";
+import { can } from "@/lib/project-permissions";
 import { chatMediaFields } from "@/lib/chat-media";
 import {
   contactEventLabel,
@@ -121,10 +122,10 @@ export async function GET(
           projectId,
         },
       },
-      select: { userId: true },
+      select: { role: true },
     });
 
-    if (!membership) {
+    if (!can(membership?.role, "conversations.handle")) {
       return json({ error: "Projet indisponible." }, 404);
     }
 

@@ -1,5 +1,6 @@
 import { getProjectById } from "@/app/actions/projects";
 import { getTeamMembers } from "@/app/actions/team";
+import { can, homePath } from "@/lib/project-permissions";
 import ProjectNotFoundDialog from "@/components/dashboard/project/projectNotfoundDialog";
 import TeamManagement from "@/components/dashboard/project/team-management";
 import { getSession } from "@/lib/auth-server";
@@ -56,8 +57,8 @@ export default async function TeamPage({ params }: PageProps) {
             </div>
         );
     }
-    if (project.userRole !== "OWNER" && project.userRole !== "ADMIN") {
-        return redirect(`/projects/${projectId}?error=unauthorized`);
+    if (!can(project.userRole, "team.manage")) {
+        return redirect(homePath(projectId, project.userRole));
     }
     const data = await getTeamMembers(projectId);
 

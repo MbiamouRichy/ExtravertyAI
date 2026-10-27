@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { can, homePath } from "@/lib/project-permissions";
 import { notFound, redirect } from "next/navigation";
 import { ArrowLeft, Bot, Clock3, ShieldCheck, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -31,8 +32,8 @@ export default async function AgentSetupPage({
   });
   if (!membership) notFound();
   const p = membership.project;
-  if (p.agentSetupCompletedAt) redirect(`/projects/${projectId}/chat`);
-  if (!["OWNER", "ADMIN"].includes(membership.role))
+  if (p.agentSetupCompletedAt) redirect(homePath(projectId, membership.role));
+  if (!can(membership.role, "project.manage"))
     return (
       <main className="flex min-h-[70dvh] items-center justify-center p-4 sm:p-8">
         <section

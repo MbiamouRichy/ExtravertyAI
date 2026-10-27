@@ -1,6 +1,7 @@
 "use server";
 
 import { z } from "zod";
+import { can } from "@/lib/project-permissions";
 import prisma from "@/lib/prisma";
 import { getSession } from "@/lib/auth-server";
 
@@ -29,10 +30,10 @@ export async function revealContactPhone(
       where: { userId_projectId: { userId: session.user.id, projectId } },
       select: { role: true },
     });
-    if (!membership || !["OWNER", "ADMIN"].includes(membership.role)) {
+    if (!can(membership?.role, "contacts.view")) {
       return {
         success: false,
-        error: "Seuls les propriétaires et administrateurs peuvent copier ce numéro.",
+        error: "Seuls les propriétaires, administrateurs et superviseurs peuvent copier ce numéro.",
       };
     }
 

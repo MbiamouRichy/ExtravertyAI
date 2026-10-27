@@ -7,6 +7,12 @@ import { Button } from "@/components/ui/button";
 import { InviteShell } from "@/components/auth/invite-shell";
 import { InviteForm } from "@/components/dashboard/project/invite-form";
 import { consumeInvitation } from "../actions/invite";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Invitation | ExtravertyAI",
+  robots: { index: false, follow: false },
+};
 
 // 1. On type searchParams comme une Promesse
 export default async function InvitePage({

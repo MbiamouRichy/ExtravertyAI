@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
 import { getAnalyticsAccess } from "@/lib/analytics-access";
+import { homePath } from "@/lib/project-permissions";
 import { getAnalyticsOverview } from "@/app/actions/analytics";
 import {
   PERIOD_DAYS,
@@ -88,7 +89,7 @@ export default async function AnalyticsPage({
   }
 
   if (access.status === "forbidden") {
-    redirect(`${projectPath}?error=unauthorized`);
+    redirect(homePath(projectId, access.role));
   }
 
   // Une période hors offre (lien partagé, URL modifiée) revient au maximum autorisé.

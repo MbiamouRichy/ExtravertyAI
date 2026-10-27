@@ -6,6 +6,7 @@ import { getProjectById } from "@/app/actions/projects";
 import prisma from "@/lib/prisma";
 import { planFeatures } from "@/lib/plan-features";
 import { resolvePlanId } from "@/lib/pricing";
+import { can } from "@/lib/project-permissions";
 
 export const getAnalyticsAccess = cache(async (projectId: string) => {
   const session = await getSession();
@@ -53,8 +54,8 @@ export const getAnalyticsAccess = cache(async (projectId: string) => {
     return { status: "not-found" } as const;
   }
 
-  if (project.userRole !== "OWNER" && project.userRole !== "ADMIN") {
-    return { status: "forbidden" } as const;
+  if (!can(project.userRole, "stats.view")) {
+    return { status: "forbidden", role: project.userRole } as const;
   }
 
   return {

@@ -31,11 +31,13 @@ export function BillingNotice({
   initial,
   canViewBilling,
   canManageBilling,
+  needsCheckout = false,
 }: {
   projectId: string;
   initial: Access;
   canViewBilling: boolean;
   canManageBilling: boolean;
+  needsCheckout?: boolean;
 }) {
   const {
     data = initial,
@@ -56,12 +58,14 @@ export function BillingNotice({
   }, [data.allowed, data.endsAt, mutate]);
   if (data.reason === "active" && !data.automationPaused && !error) return null;
   const blocked = !data.allowed;
-  const title =
-    error && data.reason === "active" && !data.automationPaused
+  const title = needsCheckout
+    ? "Paiement à finaliser"
+    : error && data.reason === "active" && !data.automationPaused
       ? "État de l’abonnement à vérifier"
       : titles[data.reason];
-  const detail =
-    data.reason === "active" && data.automationPaused
+  const detail = needsCheckout
+    ? "Le paiement n’a pas abouti lors de la création du projet. Reprenez-le pour activer l’essai de 10 jours."
+    : data.reason === "active" && data.automationPaused
       ? "Votre abonnement reste actif ; les réponses automatiques sont en pause."
       : data.reason === "trialing"
         ? null
@@ -116,7 +120,12 @@ export function BillingNotice({
         {(canViewBilling || canManageBilling) && (
           <div className="flex shrink-0 flex-wrap gap-2 pl-11 sm:pl-0">
             {blocked && canManageBilling ? (
-              <BillingPlanButton projectId={projectId} intent="renew" size="sm" />
+              <BillingPlanButton
+                projectId={projectId}
+                intent="renew"
+                size="sm"
+                needsCheckout={needsCheckout}
+              />
             ) : (
               canViewBilling && (
                 <Button variant="outline" size="sm" asChild>

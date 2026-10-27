@@ -4,6 +4,7 @@ import { chatContactName } from "./chat-privacy";
 import { KNOWLEDGE_LIMITS, entrySearchText } from "./knowledge-shared";
 import { planFeatures } from "./plan-features";
 import { requireProjectAdmin } from "./project-settings";
+import { rolesWith } from "./project-permissions";
 
 // Safe to show as is to the user.
 export class FeedbackError extends Error {}
@@ -41,7 +42,10 @@ export async function rateAiMessage(
       id: input.messageId,
       projectId: input.projectId,
       senderType: "BOT",
-      project: { deletionPending: false, members: { some: { userId: input.userId } } },
+      project: {
+        deletionPending: false,
+        members: { some: { userId: input.userId, role: { in: rolesWith("conversations.handle") } } },
+      },
     },
     select: { id: true },
   });

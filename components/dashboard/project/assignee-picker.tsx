@@ -22,14 +22,9 @@ import {
   listAssignableMembersAction,
 } from "@/app/actions/conversation-workflow";
 import type { ChatAgent } from "@/lib/chat";
+import { roleLabel } from "@/lib/project-permissions";
 
 type Member = ChatAgent & { role: string };
-
-const ROLE_LABEL: Record<string, string> = {
-  OWNER: "Propriétaire",
-  ADMIN: "Administrateur",
-  USER: "Membre",
-};
 
 const NONE = "__none__";
 
@@ -172,7 +167,7 @@ export function AssigneePicker({
                       {member.id === currentUserId && " (vous)"}
                     </span>
                     <span className="block text-[11px] text-muted-foreground">
-                      {ROLE_LABEL[member.role] ?? "Membre"}
+                      {roleLabel(member.role)}
                     </span>
                   </span>
                 </DropdownMenuRadioItem>

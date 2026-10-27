@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
+import { can, homePath } from "@/lib/project-permissions";
 import ProjectSettingsPage from "@/components/dashboard/project/projectSettingsPage";
 import { getSession } from "@/lib/auth-server";
 import prisma from "@/lib/prisma";
@@ -29,8 +30,8 @@ export default async function SettingsPage({
     include: { project: true },
   });
   if (!membership) notFound();
-  if (!["OWNER", "ADMIN"].includes(membership.role))
-    redirect(`/projects/${projectId}/chat`);
+  if (!can(membership.role, "project.manage"))
+    redirect(homePath(projectId, membership.role));
   const p = membership.project;
   const [stats, audit, period, storage] = await Promise.all([
     prisma.$queryRaw<Array<{ week: number; month: number; year: number }>>`
