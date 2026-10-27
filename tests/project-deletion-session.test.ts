@@ -36,6 +36,7 @@ function setup({
   member = true,
   invalid = false,
   exported = true,
+  failAt = null as "billing" | "whatsapp" | "media" | null,
 } = {}) {
   const calls: string[] = [];
   const exports: Record<
@@ -73,8 +74,10 @@ function setup({
     },
     "./project-settings": {},
     "@/lib/project-deletion": {
+      ProjectDeletionError,
       deleteProjectResources: async () => {
         calls.push("delete");
+        if (failAt) throw new ProjectDeletionError("Étape interrompue.", failAt);
       },
     },
     "@/lib/billing-access": {},
@@ -114,6 +117,28 @@ function setup({
       }),
   };
 }
+
+class ProjectDeletionError extends Error {
+  constructor(
+    message: string,
+    readonly step: string,
+  ) {
+    super(message);
+  }
+}
+
+test("an interrupted deletion reports the step left so it can be finished", async () => {
+  for (const failAt of ["billing", "whatsapp", "media"] as const) {
+    const app = setup({ age: 1000, failAt });
+    const result = (await app.remove()) as { success: boolean; code?: string; step?: string; error?: string };
+    assert.equal(result.success, false);
+    assert.equal(result.code, "DELETION_PENDING");
+    assert.equal(result.step, failAt);
+    assert.equal(result.error, "Étape interrompue.");
+    // L'état « en cours de suppression » est rafraîchi pour toute l'application.
+    assert.deepEqual(app.calls, ["delete", "revalidate"]);
+  }
+});
 
 test("a fresh owner can delete with the correct confirmation", async () => {
   const app = setup({ age: 599999 });
