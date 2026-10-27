@@ -77,15 +77,17 @@ export async function Dashboard({
               </span>
             </Link>
           </Button>
-          <Button asChild className="min-w-0">
-            <Link href={`${base}/chat`}>
-              <MessagesSquare data-icon="inline-start" />
-              <span className="truncate">
-                <span className="sm:hidden">Messagerie</span>
-                <span className="hidden sm:inline">Ouvrir la messagerie</span>
-              </span>
-            </Link>
-          </Button>
+          {canOpenChat && (
+            <Button asChild className="min-w-0">
+              <Link href={`${base}/chat`}>
+                <MessagesSquare data-icon="inline-start" />
+                <span className="truncate">
+                  <span className="sm:hidden">Messagerie</span>
+                  <span className="hidden sm:inline">Ouvrir la messagerie</span>
+                </span>
+              </Link>
+            </Button>
+          )}
         </div>
       </header>
 
