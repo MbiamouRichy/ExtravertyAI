@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useTransition } from "react";
+import React, { useSyncExternalStore, useTransition } from "react";
 import { useTheme } from "next-themes";
 import { toast } from "sonner";
 import { updateThemeAction } from "@/app/actions/user"; // Ajuste le chemin
@@ -24,8 +24,14 @@ export default function UserSettingsPage({
 }) {
   const { playHaptic } = useHaptics();
 
-  // Pour le thème
+  // Pour le thème : inconnu au rendu serveur, lu seulement une fois monté pour
+  // que le premier rendu client corresponde au HTML du serveur (erreur React #418).
   const { theme, setTheme } = useTheme();
+  const mounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
   const [isPendingTheme, startThemeTransition] = useTransition();
 
   // --- GESTION DU THÈME ---
@@ -67,7 +73,7 @@ export default function UserSettingsPage({
       >
         <div role="group" aria-label="Thème de l’application" className="grid grid-cols-3 gap-3">
           {themes.map((item) => {
-            const selected = theme === item.id;
+            const selected = mounted && theme === item.id;
             return (
               <Button
                 key={item.id}

@@ -327,6 +327,19 @@ function describeError(error: unknown) {
     }[error.code] ?? "Erreur réseau.";
   }
   if (error instanceof IntegrationError) return error.message;
+  // Le secret est chiffré par l'application et ouvert par le worker d'envoi :
+  // les deux doivent avoir la même INTEGRATIONS_ENCRYPTION_KEY. Pas d'échec
+  // définitif : une fois la clé corrigée, les tentatives suivantes aboutissent.
+  const message = error instanceof Error ? error.message : "";
+  if (message === "INTEGRATIONS_KEY_MISSING" || message === "INTEGRATIONS_KEY_INVALID") {
+    console.error("[integrations] INTEGRATIONS_ENCRYPTION_KEY absente ou invalide sur ce serveur.");
+    return "Clé de chiffrement absente sur le serveur d’envoi (INTEGRATIONS_ENCRYPTION_KEY).";
+  }
+  if (message === "SECRET_FORMAT_INVALID" || /unable to authenticate data/i.test(message)) {
+    console.error("[integrations] Secret illisible : INTEGRATIONS_ENCRYPTION_KEY diffère entre l'application et ce serveur.");
+    return "Secret illisible : la clé de chiffrement du serveur d’envoi diffère de celle de l’application (INTEGRATIONS_ENCRYPTION_KEY).";
+  }
+  console.error("[integrations] Échec d'envoi inattendu :", message.slice(0, 200));
   return "Erreur inattendue.";
 }
 
