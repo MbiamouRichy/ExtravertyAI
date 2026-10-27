@@ -8,6 +8,7 @@ import {
   Send,
 } from "lucide-react";
 
+import { LocalDate } from "@/components/local-date";
 import { BROADCAST_EVENT_LABEL, BROADCAST_REASON_LABEL } from "@/lib/broadcast-shared";
 import type { BroadcastStats, TimelineEvent } from "@/lib/broadcasts";
 import { cn } from "@/lib/utils";
@@ -80,7 +81,7 @@ const EVENT_ICON = {
   COMPLETED: CircleCheckBig,
 } as const;
 
-const dateTime = new Intl.DateTimeFormat("fr-FR", { dateStyle: "medium", timeStyle: "short" });
+const dateTime = { dateStyle: "medium", timeStyle: "short" } as const;
 
 /** Audit trail: who did what, and every automatic stop with its reason. */
 export function BroadcastTimeline({ events }: { events: TimelineEvent[] }) {
@@ -115,7 +116,7 @@ export function BroadcastTimeline({ events }: { events: TimelineEvent[] }) {
                   </p>
                   {reason && <p className="text-xs text-muted-foreground">{reason}</p>}
                   <p className="font-mono text-[11px] tabular-nums text-muted-foreground">
-                    <time dateTime={event.createdAt}>{dateTime.format(new Date(event.createdAt))}</time>
+                    <LocalDate value={event.createdAt} options={dateTime} />
                   </p>
                 </div>
               </li>

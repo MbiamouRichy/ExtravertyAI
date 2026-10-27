@@ -1,5 +1,6 @@
 "use client";
 
+import { LocalDate } from "@/components/local-date";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useState, useTransition, type ReactNode } from "react";
@@ -330,7 +331,7 @@ export function IntegrationsWorkspace({
 
   const sheets = endpoints.find((endpoint) => endpoint.kind === "GOOGLE_SHEETS");
   const names = new Map(endpoints.map((endpoint) => [endpoint.id, endpoint.name]));
-  const date = new Intl.DateTimeFormat("fr-FR", { dateStyle: "short", timeStyle: "short" });
+  const date = { dateStyle: "short", timeStyle: "short" } as const;
 
   return (
     <div className="space-y-8">
@@ -485,7 +486,7 @@ export function IntegrationsWorkspace({
                   <TableRow key={delivery.id}>
                     <TableCell className="align-top text-xs md:align-middle">
                       <span className="block whitespace-nowrap font-mono tabular-nums">
-                        {date.format(new Date(delivery.createdAt))}
+                        <LocalDate value={delivery.createdAt} options={date} />
                       </span>
                       {/* Sur mobile, destination et événement passent sous la date. */}
                       <span className="mt-1 block max-w-40 truncate text-muted-foreground md:hidden">

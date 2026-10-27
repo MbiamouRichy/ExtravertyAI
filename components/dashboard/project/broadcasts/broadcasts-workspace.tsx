@@ -1,5 +1,6 @@
 "use client";
 
+import { LocalDate } from "@/components/local-date";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useTransition } from "react";
@@ -18,7 +19,7 @@ import { BroadcastActions } from "./broadcast-actions";
 import { ACTIVE_STATUSES, type BroadcastUsageView, type BroadcastView } from "./types";
 
 const number = (value: number) => value.toLocaleString("fr-FR");
-const dateTime = new Intl.DateTimeFormat("fr-FR", { dateStyle: "medium", timeStyle: "short" });
+const dateTime = { dateStyle: "medium", timeStyle: "short" } as const;
 
 function Meter({ label, used, limit, hint }: { label: string; used: number; limit: number; hint?: string }) {
   const ratio = limit ? Math.min(1, used / limit) : 0;
@@ -67,7 +68,7 @@ export function StatusLine({ broadcast }: { broadcast: Pick<BroadcastView, "stat
         {BROADCAST_STATUS_LABEL[broadcast.status]}
       </span>
       {broadcast.status === "SCHEDULED" && !reason && (
-        <span className="text-xs text-muted-foreground">Départ prévu le {dateTime.format(new Date(broadcast.scheduledAt))}</span>
+        <span className="text-xs text-muted-foreground">Départ prévu le <LocalDate value={broadcast.scheduledAt} options={dateTime} /></span>
       )}
       {reason && (
         <span className={cn("flex items-start gap-1 text-xs", broadcast.status === "PAUSED" ? "text-destructive" : "text-muted-foreground")}>
@@ -225,9 +226,8 @@ export function BroadcastsWorkspace({
                       </h3>
                       <p className="mt-0.5 text-xs text-muted-foreground">
                         {number(broadcast.recipientCount)} contact{broadcast.recipientCount > 1 ? "s" : ""} ·{" "}
-                        {broadcast.finishedAt
-                          ? `terminée le ${dateTime.format(new Date(broadcast.finishedAt))}`
-                          : `créée le ${dateTime.format(new Date(broadcast.createdAt))}`}
+                        {broadcast.finishedAt ? "terminée le " : "créée le "}
+                        <LocalDate value={broadcast.finishedAt ?? broadcast.createdAt} options={dateTime} />
                         {broadcast.author ? ` par ${broadcast.author}` : ""}
                       </p>
                     </div>

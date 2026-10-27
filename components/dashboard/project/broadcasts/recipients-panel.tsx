@@ -1,5 +1,6 @@
 "use client";
 
+import { LocalDate } from "@/components/local-date";
 import Link from "next/link";
 import { useEffect, useRef, useState, useTransition } from "react";
 import {
@@ -22,7 +23,7 @@ import { BROADCAST_SKIP_LABEL, RECIPIENT_FILTERS, type RecipientFilter } from "@
 import type { RecipientRow } from "@/lib/broadcasts";
 import { cn } from "@/lib/utils";
 
-const dateTime = new Intl.DateTimeFormat("fr-FR", { dateStyle: "short", timeStyle: "short" });
+const dateTime = { dateStyle: "short", timeStyle: "short" } as const;
 
 function stateOf(row: RecipientRow) {
   if (row.state === "PENDING") return { label: "En attente", icon: Clock3, tone: "text-muted-foreground" };
@@ -172,7 +173,7 @@ export function RecipientsPanel({
                     </span>
                   )}
                   <span className="w-24 font-mono text-[11px] tabular-nums text-muted-foreground sm:text-right">
-                    {row.queuedAt ? <time dateTime={row.queuedAt}>{dateTime.format(new Date(row.queuedAt))}</time> : "—"}
+                    {row.queuedAt ? <LocalDate value={row.queuedAt} options={dateTime} /> : "—"}
                   </span>
                 </div>
               </li>

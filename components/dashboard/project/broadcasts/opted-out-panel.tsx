@@ -1,5 +1,6 @@
 "use client";
 
+import { LocalDate } from "@/components/local-date";
 import Link from "next/link";
 import { useState, useTransition } from "react";
 import { Loader2, ShieldCheck, TriangleAlert, UserX } from "lucide-react";
@@ -9,7 +10,7 @@ import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/
 import { listOptedOutAction } from "@/app/actions/broadcasts";
 import type { OptOutRow } from "@/lib/broadcasts";
 
-const date = new Intl.DateTimeFormat("fr-FR", { dateStyle: "medium", timeStyle: "short" });
+const date = { dateStyle: "medium", timeStyle: "short" } as const;
 
 type Page = { rows: OptOutRow[]; nextCursor: string | null };
 
@@ -68,7 +69,7 @@ export function OptedOutPanel({ projectId, total, initial }: { projectId: string
                 )}
               </div>
               <span className="text-xs text-muted-foreground">
-                Désinscrit le <time dateTime={row.optedOutAt}>{date.format(new Date(row.optedOutAt))}</time>
+                Désinscrit le <LocalDate value={row.optedOutAt} options={date} />
               </span>
             </li>
           ))}

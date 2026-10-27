@@ -1,5 +1,6 @@
 "use client";
 
+import { LocalDate } from "@/components/local-date";
 import Link from "next/link";
 import { useState, useTransition } from "react";
 import { ArrowUpRight, FileText, ImageIcon, Loader2, MessageCircleReply, Mic, TriangleAlert, Video } from "lucide-react";
@@ -10,7 +11,7 @@ import { getInitials } from "@/components/getInitials";
 import { listRepliesAction } from "@/app/actions/broadcasts";
 import type { ReplyRow } from "@/lib/broadcasts";
 
-const dateTime = new Intl.DateTimeFormat("fr-FR", { dateStyle: "medium", timeStyle: "short" });
+const dateTime = { dateStyle: "medium", timeStyle: "short" } as const;
 
 const MEDIA = {
   IMAGE: { icon: ImageIcon, label: "Image" },
@@ -82,9 +83,9 @@ export function RepliesPanel({ projectId, broadcastId, initial }: { projectId: s
                 <div className="min-w-0 flex-1">
                   <header className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
                     <h3 className="truncate text-sm font-medium">{reply.contact.name}</h3>
-                    <time dateTime={reply.createdAt} className="font-mono text-[11px] tabular-nums text-muted-foreground">
-                      {dateTime.format(new Date(reply.createdAt))}
-                    </time>
+                    <span className="font-mono text-[11px] tabular-nums text-muted-foreground">
+                      <LocalDate value={reply.createdAt} options={dateTime} />
+                    </span>
                   </header>
                   {media && (
                     <p className="mt-1.5 inline-flex items-center gap-1.5 text-xs text-muted-foreground">

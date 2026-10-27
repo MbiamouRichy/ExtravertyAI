@@ -186,6 +186,34 @@ test("integrations", { timeout: 180000 }, async (t) => {
       assert.equal(delivery.lastStatus, 204);
     });
 
+    await t.test("a worker with another encryption key says so and keeps retrying", async () => {
+      await sendTestEvent(prisma, { ...admin, endpointId: created.id });
+      const job = await claimDelivery(prisma);
+      assert.ok(job);
+      const appKey = process.env.INTEGRATIONS_ENCRYPTION_KEY;
+      // Constaté en préproduction : « Erreur inattendue » sans code HTTP.
+      process.env.INTEGRATIONS_ENCRYPTION_KEY = randomBytes(32).toString("base64");
+      let sent = false;
+      try {
+        await runDelivery(prisma, job, {
+          webhook: async () => {
+            sent = true;
+            return { status: 204 };
+          },
+          sheets: async () => ({ status: 200 }),
+        });
+      } finally {
+        process.env.INTEGRATIONS_ENCRYPTION_KEY = appKey;
+      }
+      assert.equal(sent, false);
+      const delivery = await prisma.integrationDelivery.findUniqueOrThrow({ where: { id: job.id } });
+      assert.equal(delivery.state, "QUEUED");
+      assert.match(delivery.lastError ?? "", /clé de chiffrement du serveur d’envoi diffère/);
+      // Remise à zéro pour le test suivant.
+      await prisma.integrationDelivery.delete({ where: { id: job.id } });
+      await prisma.integrationEndpoint.update({ where: { id: created.id }, data: { consecutiveFailures: 0 } });
+    });
+
     await t.test("failures retry with backoff, then fail and disable the endpoint", async () => {
       await sendTestEvent(prisma, { ...admin, endpointId: created.id });
       const failing: DeliveryTransport = {
