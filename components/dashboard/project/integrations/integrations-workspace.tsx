@@ -394,7 +394,7 @@ export function IntegrationsWorkspace({
               Webhook
             </Button>
           ) : (
-            <Button asChild variant="outline">
+            <Button asChild>
               <Link href={`/projects/${projectId}/billing`}>Passer à l’offre Pro</Link>
             </Button>
           )}
@@ -468,11 +468,14 @@ export function IntegrationsWorkspace({
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Destination</TableHead>
-                  <TableHead>Événement</TableHead>
+                  <TableHead>
+                    <span className="md:hidden">Envoi</span>
+                    <span className="hidden md:inline">Date</span>
+                  </TableHead>
+                  <TableHead className="hidden md:table-cell">Destination</TableHead>
+                  <TableHead className="hidden md:table-cell">Événement</TableHead>
                   <TableHead>État</TableHead>
-                  <TableHead className="w-24">
+                  <TableHead className="w-10 md:w-24">
                     <span className="sr-only">Actions</span>
                   </TableHead>
                 </TableRow>
@@ -480,37 +483,50 @@ export function IntegrationsWorkspace({
               <TableBody>
                 {deliveries.map((delivery) => (
                   <TableRow key={delivery.id}>
-                    <TableCell className="whitespace-nowrap font-mono text-xs tabular-nums">
-                      {date.format(new Date(delivery.createdAt))}
+                    <TableCell className="align-top text-xs md:align-middle">
+                      <span className="block whitespace-nowrap font-mono tabular-nums">
+                        {date.format(new Date(delivery.createdAt))}
+                      </span>
+                      {/* Sur mobile, destination et événement passent sous la date. */}
+                      <span className="mt-1 block max-w-40 truncate text-muted-foreground md:hidden">
+                        {names.get(delivery.endpointId) ?? "—"} ·{" "}
+                        {EVENT_LABEL[delivery.event] ?? delivery.event}
+                      </span>
                     </TableCell>
-                    <TableCell className="max-w-48 truncate text-xs">{names.get(delivery.endpointId) ?? "—"}</TableCell>
-                    <TableCell className="text-xs">{EVENT_LABEL[delivery.event] ?? delivery.event}</TableCell>
-                    <TableCell className="text-xs">
+                    <TableCell className="hidden max-w-48 truncate text-xs md:table-cell">{names.get(delivery.endpointId) ?? "—"}</TableCell>
+                    <TableCell className="hidden text-xs md:table-cell">{EVENT_LABEL[delivery.event] ?? delivery.event}</TableCell>
+                    <TableCell className="whitespace-normal align-top text-xs md:align-middle">
                       {delivery.state === "DELIVERED" ? (
                         <span className="inline-flex items-center gap-1">
-                          <CircleCheck aria-hidden="true" className="size-3.5" />
+                          <CircleCheck aria-hidden="true" className="size-3.5 shrink-0" />
                           Livré{delivery.lastStatus ? ` · ${delivery.lastStatus}` : ""}
                         </span>
                       ) : delivery.state === "FAILED" ? (
-                        <span className="inline-flex items-center gap-1 text-destructive" title={delivery.lastError ?? undefined}>
-                          <CircleAlert aria-hidden="true" className="size-3.5" />
-                          Échec · {delivery.lastError ?? "erreur"}
+                        <span className="inline-flex items-start gap-1 text-destructive" title={delivery.lastError ?? undefined}>
+                          <CircleAlert aria-hidden="true" className="mt-px size-3.5 shrink-0" />
+                          <span className="line-clamp-2 break-words">
+                            Échec · {delivery.lastError ?? "erreur"}
+                          </span>
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1 text-muted-foreground">
-                          <Clock3 aria-hidden="true" className="size-3.5" />
-                          {delivery.attempts ? `Nouvelle tentative (${delivery.attempts})` : "En attente"}
-                          {delivery.lastError ? ` · ${delivery.lastError}` : ""}
+                        <span className="inline-flex items-start gap-1 text-muted-foreground">
+                          <Clock3 aria-hidden="true" className="mt-px size-3.5 shrink-0" />
+                          <span className="line-clamp-2 break-words">
+                            {delivery.attempts ? `Nouvelle tentative (${delivery.attempts})` : "En attente"}
+                            {delivery.lastError ? ` · ${delivery.lastError}` : ""}
+                          </span>
                         </span>
                       )}
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="align-top md:align-middle">
                       {delivery.state === "FAILED" && (
                         <Button
                           type="button"
                           variant="ghost"
                           size="sm"
                           disabled={pending}
+                          aria-label="Relancer l’envoi"
+                          className="max-md:size-8 max-md:px-0"
                           onClick={() =>
                             startAction(async () => {
                               const result = await redeliverAction({ projectId, deliveryId: delivery.id });
@@ -520,7 +536,7 @@ export function IntegrationsWorkspace({
                           }
                         >
                           <RotateCw data-icon="inline-start" />
-                          Relancer
+                          <span className="hidden md:inline">Relancer</span>
                         </Button>
                       )}
                     </TableCell>

@@ -4,7 +4,8 @@ import { cache } from "react";
 import { getSession } from "@/lib/auth-server";
 import { getProjectById } from "@/app/actions/projects";
 import prisma from "@/lib/prisma";
-import { can } from "@/lib/project-permissions";
+import { planFeatures } from "@/lib/plan-features";
+import { resolvePlanId } from "@/lib/pricing";
 
 export const getAnalyticsAccess = cache(async (projectId: string) => {
   const session = await getSession();
@@ -34,6 +35,7 @@ export const getAnalyticsAccess = cache(async (projectId: string) => {
       project: {
         select: {
           name: true,
+          plan: true,
         },
       },
     },
@@ -58,5 +60,8 @@ export const getAnalyticsAccess = cache(async (projectId: string) => {
   return {
     status: "authorized",
     projectName: membership.project.name,
+    plan: resolvePlanId(membership.project.plan),
+    // Historique consultable : imposé côté serveur, pas seulement dans l’interface.
+    analyticsDays: planFeatures(membership.project.plan).analyticsDays,
   } as const;
 });

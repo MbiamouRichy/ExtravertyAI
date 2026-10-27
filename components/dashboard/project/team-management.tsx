@@ -274,7 +274,7 @@ export default function TeamManagement({
 
         <Dialog open={isInviteOpen} onOpenChange={handleInviteModalChange}>
           <DialogTrigger asChild>
-            <Button variant="outline" className="w-full sm:w-auto">
+            <Button className="w-full sm:w-auto">
               <Plus data-icon="inline-start" />
               Inviter un membre
             </Button>
