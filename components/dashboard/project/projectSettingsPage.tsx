@@ -680,7 +680,7 @@ export default function ProjectSettingsPage({
       </div>
       {deleting && (
         <DeleteProjectDialog
-          project={p}
+          project={{ id: p.id, name: p.name, deletionPending: p.deletionPending }}
           recentLogin={recentLogin}
           onClose={() => {
             setDeleting(false);

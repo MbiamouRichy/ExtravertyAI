@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Download, Check, Loader2 } from "lucide-react";
+import { AlertTriangle, Check, Circle, Download, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { deleteProjectAction } from "@/app/actions/projects";
 import { signOut } from "@/lib/auth-client";
@@ -27,12 +27,24 @@ import {
   AlertDialogCancel,
 } from "@/components/ui/alert-dialog";
 
+type DeletionStep = "billing" | "whatsapp" | "media";
+
+const DELETION_STEPS: Array<{ id: DeletionStep | "data"; label: string }> = [
+  { id: "billing", label: "Abonnement résilié" },
+  { id: "whatsapp", label: "Connexion WhatsApp supprimée" },
+  { id: "media", label: "Fichiers supprimés" },
+  { id: "data", label: "Données du projet effacées" },
+];
+
+/** Suppression commencée puis interrompue : étape restante, si le serveur l'a dite. */
+type Interrupted = { step: DeletionStep | null; message: string };
+
 export function DeleteProjectDialog({
   project,
   recentLogin,
   onClose,
 }: {
-  project: { id: string; name: string };
+  project: { id: string; name: string; deletionPending?: boolean };
   /** Faux dès que la connexion dépasse 10 minutes, même dialogue ouvert. */
   recentLogin: boolean;
   onClose: () => void;
@@ -43,6 +55,15 @@ export function DeleteProjectDialog({
   >({});
   const [exporting, setExporting] = useState<"csv" | "xlsx" | null>(null);
   const [error, setError] = useState("");
+  const [interrupted, setInterrupted] = useState<Interrupted | null>(
+    project.deletionPending
+      ? {
+          step: null,
+          message:
+            "La suppression de ce projet a commencé mais n’est pas terminée. Les envois sont bloqués. Terminez-la pour effacer ce qui reste.",
+        }
+      : null,
+  );
   const [serverReauth, setServerReauth] = useState(false);
   // Le serveur reste juge : son refus compte même si l’horloge locale dit le contraire.
   const reauthRequired = serverReauth || !recentLogin;
@@ -131,6 +152,14 @@ export function DeleteProjectDialog({
         projectId: project.id,
         ...values,
       });
+      if (!result.success && result.code === "DELETION_PENDING") {
+        setInterrupted({
+          step: (result.step as DeletionStep | undefined) ?? null,
+          message: result.error || "La suppression n’a pas pu être terminée.",
+        });
+        router.refresh();
+        return;
+      }
       if (!result.success) {
         setError(result.error || "La suppression a échoué.");
         setServerReauth(result.code === "REAUTH_REQUIRED");
@@ -142,11 +171,19 @@ export function DeleteProjectDialog({
       router.refresh();
       onClose();
     } catch {
-      setError(
-        "La connexion a été interrompue. Actualisez pour vérifier le résultat.",
-      );
+      // La requête a pu aller au bout côté serveur : on propose de terminer,
+      // ce qui est sans risque (chaque étape est idempotente).
+      setInterrupted({
+        step: null,
+        message:
+          "La connexion a été interrompue avant la fin. La suppression a peut-être commencé : terminez-la pour être sûr que tout est effacé.",
+      });
+      router.refresh();
     }
   });
+  const failedIndex = interrupted?.step
+    ? DELETION_STEPS.findIndex((step) => step.id === interrupted.step)
+    : -1;
 
   return (
     <AlertDialog
@@ -157,12 +194,53 @@ export function DeleteProjectDialog({
     >
       <AlertDialogContent className="max-h-dvh overflow-y-auto">
         <AlertDialogHeader>
-          <AlertDialogTitle>Supprimer {project.name} ?</AlertDialogTitle>
+          <AlertDialogTitle>
+            {interrupted
+              ? `Terminer la suppression de ${project.name}`
+              : `Supprimer ${project.name} ?`}
+          </AlertDialogTitle>
           <AlertDialogDescription>
             L’abonnement, l’instance WhatsApp et les données seront supprimés
             définitivement.
           </AlertDialogDescription>
         </AlertDialogHeader>
+        {interrupted && (
+          <section
+            role="status"
+            aria-label="État de la suppression"
+            className="space-y-3 rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm"
+          >
+            <p className="font-medium">Suppression commencée, pas encore terminée</p>
+            <p className="text-muted-foreground">{interrupted.message}</p>
+            {interrupted.step && (
+              <ul className="space-y-1.5">
+                {DELETION_STEPS.map((step, index) => {
+                  const state =
+                    index < failedIndex ? "done" : index === failedIndex ? "failed" : "todo";
+                  const Icon = state === "done" ? Check : state === "failed" ? AlertTriangle : Circle;
+                  return (
+                    <li
+                      key={step.id}
+                      className={
+                        state === "todo"
+                          ? "flex items-center gap-2 text-muted-foreground"
+                          : state === "failed"
+                            ? "flex items-center gap-2 text-destructive"
+                            : "flex items-center gap-2"
+                      }
+                    >
+                      <Icon aria-hidden className="size-4 shrink-0" />
+                      {step.label}
+                      <span className="sr-only">
+                        {state === "done" ? " : fait" : state === "failed" ? " : à reprendre" : " : à faire"}
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </section>
+        )}
         <form onSubmit={submit} className="space-y-5">
           <section
             className="space-y-3 rounded-lg border bg-muted/40 p-4"
@@ -269,7 +347,7 @@ export function DeleteProjectDialog({
                 {busy && (
                   <Loader2 aria-hidden className="size-4 animate-spin" />
                 )}
-                Supprimer définitivement
+                {interrupted ? "Terminer la suppression" : "Supprimer définitivement"}
               </Button>
             )}
           </AlertDialogFooter>

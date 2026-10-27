@@ -118,7 +118,8 @@ export async function deleteEvolutionInstance(
   // 3. RÉSILIENCE : MISE EN PLACE D'UN TIMEOUT (Startup Standard)
   // Si l'API d'Evolution bug, on ne veut pas bloquer notre serveur indéfiniment.
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 secondes max
+  // Une instance connectée est déconnectée avant d'être supprimée : 15 s max.
+  const timeoutId = setTimeout(() => controller.abort(), 15000);
 
   try {
     const response = await fetch(

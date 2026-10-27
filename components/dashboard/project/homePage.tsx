@@ -37,6 +37,8 @@ export interface CustomProjectProps {
     id: string;
     canManageBilling?: boolean;
     needsCheckout?: boolean;
+    /** Suppression commencée puis interrompue : à terminer dans les paramètres. */
+    deletionPending?: boolean;
     name: string;
     logoUrl?: string | null;
     numero: string;
@@ -154,9 +156,11 @@ export default function HomeProjectsPage({ projects }: CustomProjectProps) {
             {projects.map((project) => {
               const status = project.billingAccess
                 ? {
-                    label: project.needsCheckout
-                      ? "Paiement à finaliser"
-                      : billingAccessLabel(project.billingAccess),
+                    label: project.deletionPending
+                      ? "Suppression à terminer"
+                      : project.needsCheckout
+                        ? "Paiement à finaliser"
+                        : billingAccessLabel(project.billingAccess),
                     ok: project.billingAccess.allowed,
                   }
                 : { label: statusLabel[project.status] ?? "Inconnu", ok: project.status !== "inactive" };
