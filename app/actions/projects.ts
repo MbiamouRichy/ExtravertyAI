@@ -14,6 +14,7 @@ import {
   verifyExportReceipt,
 } from "@/lib/contact-export";
 import { isRecentSession } from "@/lib/recent-session";
+import { needsInitialCheckout } from "@/lib/billing-display";
 
 // 1. RÉCUPERER TOUS LES PROJETS
 export async function getProjects() {
@@ -38,6 +39,8 @@ export async function getProjects() {
             automationPaused: true,
             statusBeforePause: true,
             stripeStatus: true,
+            stripeCustomerId: true,
+            stripeSubscriptionId: true,
             deletionPending: true,
             quotaPeriods: {
               where: { isCurrent: true },
@@ -68,6 +71,8 @@ export async function getProjects() {
         statusBeforePause,
         deletionPending,
         logoKey,
+        stripeCustomerId,
+        stripeSubscriptionId,
         ...visible
       } = project;
       const period = quotaPeriods[0];
@@ -76,6 +81,12 @@ export async function getProjects() {
         // Seule l’adresse protégée quitte le serveur, jamais la clé de stockage.
         logoUrl: projectLogoUrl(project.id, logoKey),
         canManageBilling: can(role, "billing.manage"),
+        // Seul l’indicateur quitte le serveur, jamais les identifiants Stripe.
+        needsCheckout: needsInitialCheckout({
+          status: project.status,
+          stripeCustomerId,
+          stripeSubscriptionId,
+        }),
         billingAccess: billingAccess(
           {
             ...project,

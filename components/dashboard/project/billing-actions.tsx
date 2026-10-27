@@ -8,10 +8,13 @@ export function BillingActions({
   projectId,
   canManage,
   configured,
+  needsCheckout = false,
 }: {
   projectId: string;
   canManage: boolean;
   configured: boolean;
+  /** Paiement initial jamais abouti : seule action utile, le reprendre. */
+  needsCheckout?: boolean;
 }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -28,21 +31,22 @@ export function BillingActions({
       setBusy(false);
     }
   }
+  if (needsCheckout)
+    return canManage ? (
+      <div className="min-w-0 space-y-2">
+        <BillingPlanButton projectId={projectId} intent="renew" needsCheckout />
+        <p className="max-w-xs text-xs text-muted-foreground">
+          Le paiement n’a pas abouti. Reprenez-le pour activer l’essai de 10 jours.
+        </p>
+      </div>
+    ) : null;
   return (
     <div className="min-w-0 space-y-3">
       <div className="grid grid-cols-2 gap-2 *:first:col-span-2 sm:flex sm:flex-wrap sm:*:first:col-span-1">
         {canManage && (
           <>
-            <BillingPlanButton
-              projectId={projectId}
-              intent="renew"
-              disabled={!configured}
-            />
-            <BillingPlanButton
-              projectId={projectId}
-              intent="upgrade"
-              disabled={!configured}
-            />
+            <BillingPlanButton projectId={projectId} intent="renew" disabled={!configured} />
+            <BillingPlanButton projectId={projectId} intent="upgrade" disabled={!configured} />
           </>
         )}
         {canManage && (

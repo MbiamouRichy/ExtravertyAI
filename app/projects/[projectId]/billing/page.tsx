@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import type Stripe from "stripe";
+import { needsInitialCheckout } from "@/lib/billing-display";
 import { can, homePath } from "@/lib/project-permissions";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
@@ -176,6 +177,7 @@ export default async function BillingPage({
           projectId={projectId}
           canManage={can(membership.role, "billing.manage")}
           configured={!!p.stripeCustomerId}
+          needsCheckout={needsInitialCheckout(p)}
         />
       </header>
 

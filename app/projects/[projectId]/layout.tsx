@@ -4,6 +4,7 @@ import { getSession } from "@/lib/auth-server";
 import prisma from "@/lib/prisma";
 import { can } from "@/lib/project-permissions";
 import { getBillingAccess } from "@/lib/billing-access";
+import { needsInitialCheckout } from "@/lib/billing-display";
 import { BillingNotice } from "@/components/dashboard/project/billing-notice";
 import { ProjectIdentitySync } from "@/components/dashboard/project-identity";
 import { projectLogoUrl } from "@/lib/project-logo";
@@ -33,6 +34,9 @@ export default async function ProjectLayout({
           instanceName: true,
           instanceStatus: true,
           webhookEventsVersion: true,
+          status: true,
+          stripeCustomerId: true,
+          stripeSubscriptionId: true,
         },
       },
     },
@@ -64,6 +68,7 @@ export default async function ProjectLayout({
         initial={access}
         canManageBilling={can(member.role, "billing.manage")}
         canViewBilling={can(member.role, "billing.view")}
+        needsCheckout={needsInitialCheckout(member.project)}
       />
       {children}
     </>
