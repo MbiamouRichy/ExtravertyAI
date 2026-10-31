@@ -200,9 +200,6 @@ function ProfileForm({
               data-invalid={fieldState.invalid}
               className="items-center [&>[data-profile-avatar]]:w-32"
             >
-              <FieldLabel htmlFor="profile-image" className="justify-center">
-                Photo de profil
-              </FieldLabel>
               <div
                 data-profile-avatar
                 className="relative mx-auto size-32 shrink-0 rounded-full focus-within:ring-2 focus-within:ring-ring"
@@ -237,9 +234,11 @@ function ProfileForm({
                   }}
                   disabled={loading}
                   onBlur={field.onBlur}
+                  aria-label="Photo de profil"
                   aria-invalid={fieldState.invalid}
                   aria-describedby={`profile-image-description${fieldState.invalid ? " profile-image-error" : ""}`}
-                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                  // Sans `disabled:opacity-0`, le style désactivé d’Input rend le champ visible pendant l’envoi.
+                  className="absolute inset-0 w-full h-full opacity-0 disabled:opacity-0 cursor-pointer"
                   accept="image/jpeg,image/png,image/webp"
                   onChange={(event) => {
                     const selected = event.target.files?.[0];
