@@ -5,7 +5,8 @@ import {
   createAuthMiddleware,
   getAuthoritativeSessionFromCtx,
 } from "better-auth/api";
-import { isRecentSession } from "./recent-session";
+import { isRecentSession, requiresRecentSession } from "./recent-session";
+import { countryFromHeader } from "./site-analytics";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import prisma from "./prisma";
 import { resend } from "./resend";
@@ -71,17 +72,18 @@ export const auth = betterAuth({
   }),
   hooks: {
     before: createAuthMiddleware(async (ctx) => {
-      if (ctx.path === "/delete-user" || ctx.path === "/delete-user/callback") {
-        const session = await getAuthoritativeSessionFromCtx(ctx);
-        if (!session || !isRecentSession(session.session.createdAt)) {
-          throw new APIError("FORBIDDEN", {
-            code: "REAUTH_REQUIRED",
-            message:
-              "Reconnectez-vous avant de supprimer votre compte (connexion de moins de 10 minutes requise).",
-          });
-        }
-        await assertNoOwnershipBlockers(session.session.userId);
+      if (!requiresRecentSession(ctx.path)) return;
+      const deleting = ctx.path.startsWith("/delete-user");
+      const session = await getAuthoritativeSessionFromCtx(ctx);
+      if (!session || !isRecentSession(session.session.createdAt)) {
+        throw new APIError("FORBIDDEN", {
+          code: "REAUTH_REQUIRED",
+          message: deleting
+            ? "Reconnectez-vous avant de supprimer votre compte (connexion de moins de 10 minutes requise)."
+            : "Reconnectez-vous avant de modifier ces informations (connexion de moins de 10 minutes requise).",
+        });
       }
+      if (deleting) await assertNoOwnershipBlockers(session.session.userId);
     }),
     after: createAuthMiddleware(async (ctx) => {
       if (ctx.path !== "/delete-user" || !ctx.request) return;
@@ -99,7 +101,25 @@ export const auth = betterAuth({
     }),
   },
 
+  session: {
+    additionalFields: {
+      country: { type: "string", required: false, input: false },
+    },
+  },
+
   databaseHooks: {
+    session: {
+      create: {
+        // Pays fourni par Vercel à la connexion (en-tête non falsifiable par le client).
+        before: async (session, ctx) => {
+          const headers = ctx?.headers ?? ctx?.request?.headers;
+          const country = countryFromHeader(
+            headers?.get("x-vercel-ip-country") ?? null,
+          );
+          return { data: { ...session, country } };
+        },
+      },
+    },
     user: {
       delete: {
         before: async (user) => {

@@ -9,6 +9,7 @@ import * as billingDisplay from "../lib/billing-display";
 import {
   isRecentSession,
   PROJECT_DELETION_SESSION_MAX_AGE_MS,
+  requiresRecentSession,
 } from "../lib/recent-session";
 
 const now = Date.parse("2026-10-11T06:00:00Z");
@@ -180,3 +181,10 @@ test("missing membership and wrong confirmation have no side effects", async () 
 });
 
 test("project deletion refuses absent, expired or obsolete export proof", async () => { const app = setup({ exported: false }); assert.equal((await app.remove()).code, "EXPORT_REQUIRED"); assert.deepEqual(app.calls, []); });
+
+test("email and password changes demand a recent login, a forgotten password does not", () => {
+  for (const path of ["/change-email", "/change-password", "/set-password", "/delete-user"])
+    assert.equal(requiresRecentSession(path), true);
+  for (const path of ["/reset-password", "/request-password-reset", "/get-session"])
+    assert.equal(requiresRecentSession(path), false);
+});

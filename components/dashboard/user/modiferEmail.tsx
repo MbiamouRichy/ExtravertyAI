@@ -18,19 +18,14 @@ import {
 import {
   InputGroup,
   InputGroupAddon,
-  InputGroupButton,
   InputGroupInput,
 } from "@/components/ui/input-group";
 
 import { authClient } from "@/lib/auth-client";
 import {
-  ArrowRight,
   AtSignIcon,
   CheckCircle2,
-  Eye,
-  EyeOff,
   Loader,
-  Lock,
 } from "lucide-react";
 import { useState } from "react";
 import { useHaptics } from "@/lib/webHaptics";
@@ -43,32 +38,20 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { VerifyPasswordAction } from "@/app/actions/verify-password";
 
 const formEmailSchema = z.object({
   newEmail: z.string().email("Entrer une adresse email valide."),
 });
-
-const formPasswordSchema = z.object({
-  password: z
-    .string()
-    .min(8, "Le mot de passe doit contenir au moins 8 caractères.")
-    .max(256, "Le mot de passe ne peut pas dépasser 256 caractères."),
-});
-
-type Step = 1 | 2 | 3;
 
 export default function ChangeEmailForm({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const { data: session } = authClient.useSession();
   const { playHaptic } = useHaptics();
   const [loading, setLoading] = useState<boolean>(false);
   const [newEmail, setNewEmail] = useState<string>("");
-  const [currentPasswordVisible, setCurrentPasswordVisible] = useState(false);
-  const [step, setStep] = useState<Step>(1);
+  const [sent, setSent] = useState<boolean>(false);
   const [open, setOpen] = useState<boolean>(false);
   const formEmail = useForm<z.infer<typeof formEmailSchema>>({
     resolver: zodResolver(formEmailSchema),
@@ -78,74 +61,17 @@ export default function ChangeEmailForm({
     },
   });
 
-  const formPassword = useForm<z.infer<typeof formPasswordSchema>>({
-    resolver: zodResolver(formPasswordSchema),
-    mode: "onChange",
-    defaultValues: {
-      password: "",
-    },
-  });
-
-  // 2. Gestion de l'ouverture du modal et vérification du Provider
-  const handleOpenChange = async (isOpen: boolean) => {
+  // La reconnexion récente remplace le mot de passe : les comptes Google ou
+  // TikTok n’en ont pas. Le serveur la revérifie sur /change-email.
+  const handleOpenChange = (isOpen: boolean) => {
     setOpen(isOpen);
-
-    if (isOpen) {
-      setLoading(true);
-      try {
-        const { data: accounts } = await authClient.listAccounts();
-        const hasPasswordAccount = accounts?.some(
-          (acc) => acc.providerId === "credential",
-        );
-
-        // Contournement intelligent pour les comptes OAuth (Google, GitHub)
-        setStep(hasPasswordAccount ? 1 : 2);
-      } catch (error) {
-        console.error("Erreur lors de la récupération des comptes", error);
-        setStep(1); // Fallback sécurisé : exiger le mot de passe en cas de doute
-      } finally {
-        setLoading(false);
-      }
-    } else {
+    if (!isOpen) {
       // Nettoyage fluide sans glitch visuel
       setTimeout(() => {
-        setStep(1);
-        formPassword.reset();
+        setSent(false);
         formEmail.reset();
-        setCurrentPasswordVisible(false);
         setNewEmail("");
       }, 300);
-    }
-  };
-
-  // Étape 1 : Vérification du mot de passe
-  const handleVerifyPassword = async (
-    data: z.infer<typeof formPasswordSchema>,
-  ) => {
-    if (!session?.user?.email) {
-      toast.error("Impossible de vérifier votre identité.");
-      return;
-    }
-    setLoading(true);
-    try {
-      const response = await VerifyPasswordAction(data.password);
-
-      if (!response.success) {
-        playHaptic("error");
-        // On affiche l'erreur assainie renvoyée par le serveur
-        toast.error(response.error || "Mot de passe incorrect.");
-        // Optionnel : Vider le champ mot de passe après une erreur
-        formPassword.setValue("password", "");
-        return;
-      }
-
-      playHaptic("success");
-      setStep(2);
-    } catch {
-      playHaptic("error");
-      toast.error("Une erreur réseau est survenue.");
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -160,8 +86,8 @@ export default function ChangeEmailForm({
         },
         {
           onSuccess: () => {
-            // 2. On retire le chargement ET on passe à l'étape 3 UNIQUEMENT en cas de succès
-            setStep(3);
+            // 2. On retire le chargement ET on affiche la confirmation UNIQUEMENT en cas de succès
+            setSent(true);
             setNewEmail(data.newEmail);
             playHaptic("success");
             toast.success("Email modifié avec succès.", {
@@ -194,79 +120,7 @@ export default function ChangeEmailForm({
       </DialogTrigger>
 
       <DialogContent className="sm:max-w-106.25">
-        {step === 1 && (
-          <form onSubmit={formPassword.handleSubmit(handleVerifyPassword)}>
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <Lock className="h-5 w-5 text-primary" />
-                Vérification de sécurité
-              </DialogTitle>
-              <DialogDescription>
-                Pour des raisons de sécurité, veuillez confirmer votre mot de
-                passe actuel avant de modifier votre email.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="py-6 space-y-4">
-              <Controller
-                name="password"
-                control={formPassword.control}
-                render={({ field, fieldState }) => (
-                  <Field data-invalid={fieldState.invalid}>
-                    <FieldLabel htmlFor={field.name}>
-                      Mot de passe actuel
-                    </FieldLabel>
-                    <InputGroup>
-                      <InputGroupInput
-                        type={currentPasswordVisible ? "text" : "password"}
-                        {...field}
-                        id={field.name}
-                        aria-invalid={fieldState.invalid}
-                        placeholder="••••••••"
-                      />
-                      <InputGroupAddon align="inline-start">
-                        <Lock />
-                      </InputGroupAddon>
-                      <InputGroupAddon align="inline-end">
-                        <InputGroupButton
-                          type="button"
-                          variant="ghost"
-                          size={"icon-sm"}
-                          onClick={() =>
-                            setCurrentPasswordVisible(!currentPasswordVisible)
-                          }
-                        >
-                          {currentPasswordVisible ? <EyeOff /> : <Eye />}
-                        </InputGroupButton>
-                      </InputGroupAddon>
-                    </InputGroup>
-                    <FieldDescription>
-                      Entrez votre mot de passe actuel pour confirmer votre
-                      identité avant de modifier votre adresse e-mail.
-                    </FieldDescription>
-                    {fieldState.invalid && (
-                      <FieldError errors={[fieldState.error]} />
-                    )}
-                  </Field>
-                )}
-              />
-            </div>
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setOpen(false)}
-              >
-                Annuler
-              </Button>
-              <Button type="submit" disabled={loading}>
-                {loading ? "Vérification..." : "Continuer"}
-                {!loading && <ArrowRight className="ml-2 h-4 w-4" />}
-              </Button>
-            </DialogFooter>
-          </form>
-        )}
-
-        {step === 2 && (
+        {!sent && (
           <form id="form-rhf-demo" onSubmit={formEmail.handleSubmit(onSubmit)}>
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
@@ -293,7 +147,7 @@ export default function ChangeEmailForm({
                         id={field.name}
                         aria-invalid={fieldState.invalid}
                         placeholder="votre.nouvelemail@example.com"
-                        autoComplete="current-password"
+                        autoComplete="email"
                       />
                       <InputGroupAddon align="inline-start">
                         <AtSignIcon />
@@ -327,7 +181,7 @@ export default function ChangeEmailForm({
           </form>
         )}
 
-        {step === 3 && (
+        {sent && (
           <div className="flex flex-col items-center justify-center py-6 text-center space-y-4">
             <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center mb-2">
               <CheckCircle2 className="h-6 w-6 text-foreground" />

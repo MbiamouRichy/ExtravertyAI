@@ -16,7 +16,7 @@ type RecentSession = {
   browser: string;
   os: string;
   device: string;
-  ip: string;
+  country: string;
   date: string;
   isCurrent: boolean;
 };
@@ -152,7 +152,7 @@ export function RecentSessions({ sessions }: { sessions: RecentSession[] }) {
                     )}
                   </div>
                   <p className="mt-0.5 break-words text-xs text-muted-foreground">
-                    {session.ip} • Connecté le{" "}
+                    {session.country} • Connecté le{" "}
                     <LocalDate value={session.date} />
                   </p>
                   <Button
@@ -161,7 +161,7 @@ export function RecentSessions({ sessions }: { sessions: RecentSession[] }) {
                     className="mt-3"
                     disabled={isPending}
                     onClick={() => disconnect(session.id)}
-                    aria-label={`Déconnecter ${session.device}, ${session.os}, ${session.browser}, ${session.ip}${session.isCurrent ? ", session actuelle" : ""}`}
+                    aria-label={`Déconnecter ${session.device}, ${session.os}, ${session.browser}, ${session.country}${session.isCurrent ? ", session actuelle" : ""}`}
                   >
                     {isPending && pendingTarget === session.id ? (
                       <Loader2 className="animate-spin" aria-hidden="true" />

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { authClient } from "@/lib/auth-client";
+import { setAccountPasswordAction } from "@/app/actions/set-password";
 import { useRouter } from "next/navigation";
 import { KeyRound, Loader2, KeySquareIcon, EyeOff, Eye } from "lucide-react";
 import {
@@ -34,11 +35,11 @@ import { toast } from "sonner";
 import { useHaptics } from "@/lib/webHaptics";
 
 // 1. Correction du schéma Zod
-const formSchema = z
+const formSchema = (hasPassword: boolean) => z
     .object({
-        currentPassword: z
-            .string()
-            .min(1, "Le mot de passe actuel est requis."),
+        currentPassword: hasPassword
+            ? z.string().min(1, "Le mot de passe actuel est requis.")
+            : z.string(),
         newPassword: z
             .string()
             .min(8, "Le mot de passe doit contenir au moins 8 caractères.")
@@ -55,7 +56,16 @@ const formSchema = z
         path: ["confirmPassword"],
     });
 
-export function ChangePasswordDialog({ children }: { children: React.ReactNode }) {
+type FormValues = z.infer<ReturnType<typeof formSchema>>;
+
+export function ChangePasswordDialog({
+    children,
+    hasPassword,
+}: {
+    children: React.ReactNode;
+    /** Faux pour un compte Google ou TikTok, qui n’a rien à confirmer. */
+    hasPassword: boolean;
+}) {
     const { playHaptic } = useHaptics();
     const router = useRouter();
 
@@ -66,8 +76,8 @@ export function ChangePasswordDialog({ children }: { children: React.ReactNode }
     const [confirmPasswordVisible, setConfirmPasswordVisible] = useState(false);
 
     // On supprime les state de revokeSessions, React Hook Form gère cela maintenant
-    const form = useForm<z.infer<typeof formSchema>>({
-        resolver: zodResolver(formSchema),
+    const form = useForm<FormValues>({
+        resolver: zodResolver(formSchema(hasPassword)),
         mode: "onChange",
         defaultValues: {
             currentPassword: "",
@@ -77,8 +87,32 @@ export function ChangePasswordDialog({ children }: { children: React.ReactNode }
         },
     });
 
-    async function onSubmit(data: z.infer<typeof formSchema>) {
+    function finish(message: string) {
+        setLoading(false);
+        setOpen(false);
+        form.reset(); // Réinitialise tout le formulaire d'un coup
+
+        toast.success(message, { position: "top-center" });
+        router.refresh();
+    }
+
+    async function defineFirstPassword(newPassword: string) {
+        const result = await setAccountPasswordAction(newPassword).catch(() => ({
+            success: false as const,
+            error: "Une erreur réseau est survenue.",
+        }));
+        if (!result.success) {
+            playHaptic("error");
+            setLoading(false);
+            toast.error(result.error, { position: "top-center" });
+            return;
+        }
+        finish("Mot de passe défini avec succès.");
+    }
+
+    async function onSubmit(data: FormValues) {
         setLoading(true);
+        if (!hasPassword) return defineFirstPassword(data.newPassword);
 
         // 2. Appel à l'API Better Auth direct (Zod a déjà validé les longueurs et correspondances !)
         const { error: authError } = await authClient.changePassword({
@@ -91,7 +125,10 @@ export function ChangePasswordDialog({ children }: { children: React.ReactNode }
             playHaptic("error");
             setLoading(false);
 
-            if (authError.status === 403 || authError.code === "INVALID_PASSWORD") {
+            if (authError.code === "REAUTH_REQUIRED") {
+                toast.error(authError.message, { position: "top-center" });
+                router.refresh();
+            } else if (authError.status === 403 || authError.code === "INVALID_PASSWORD") {
                 toast.error("L'ancien mot de passe est incorrect.", {
                     position: "top-center",
                     action: (
@@ -114,12 +151,7 @@ export function ChangePasswordDialog({ children }: { children: React.ReactNode }
         }
 
         // 3. Succès : On nettoie et on ferme
-        setLoading(false);
-        setOpen(false);
-        form.reset(); // Réinitialise tout le formulaire d'un coup
-
-        toast.success("Mot de passe modifié avec succès.", { position: "top-center" });
-        router.refresh();
+        finish("Mot de passe modifié avec succès.");
     }
 
     // Gestion des erreurs Zod (si le formulaire est invalide à la soumission)
@@ -139,7 +171,7 @@ export function ChangePasswordDialog({ children }: { children: React.ReactNode }
                     <DialogHeader>
                         <DialogTitle className="flex items-center gap-2">
                             <KeyRound className="h-5 w-5 text-primary" />
-                            Modifier le mot de passe
+                            {hasPassword ? "Modifier le mot de passe" : "Définir un mot de passe"}
                         </DialogTitle>
                         <DialogDescription>
                             Assurez-vous d&apos;utiliser un mot de passe long et sécurisé.
@@ -148,7 +180,7 @@ export function ChangePasswordDialog({ children }: { children: React.ReactNode }
 
                     <div className="space-y-4 py-4">
                         <FieldGroup>
-                            <Controller
+                            {hasPassword && <Controller
                                 name="currentPassword"
                                 control={form.control}
                                 render={({ field, fieldState }) => (
@@ -180,7 +212,7 @@ export function ChangePasswordDialog({ children }: { children: React.ReactNode }
                                         {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
                                     </Field>
                                 )}
-                            />
+                            />}
 
                             <Controller
                                 name="newPassword"
@@ -251,7 +283,7 @@ export function ChangePasswordDialog({ children }: { children: React.ReactNode }
                             />
 
                             {/* 3. Correction du Checkbox */}
-                            <Controller
+                            {hasPassword && <Controller
                                 name="revokeSessions"
                                 control={form.control}
                                 render={({ field, fieldState }) => (
@@ -276,7 +308,7 @@ export function ChangePasswordDialog({ children }: { children: React.ReactNode }
                                         </div>
                                     </Field>
                                 )}
-                            />
+                            />}
                         </FieldGroup>
                     </div>
 
