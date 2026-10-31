@@ -7,10 +7,10 @@ import crypto from "crypto";
 import { Role } from "@/src/generated/prisma/client";
 import { resend } from "@/lib/resend";
 import { ProjectInvitationEmail } from "@/components/emailTemplate/invitationEmail";
-import { ProjectMemberConfirmationEmail } from "@/components/emailTemplate/projectMemberConfirmationEmail";
 import z from "zod";
 import { isRecentSession } from "@/lib/recent-session";
 import { allowRequest } from "@/lib/rate-limit";
+import { hashInvitationToken } from "@/lib/project-invitations";
 import {
   assignableRoles,
   can,
@@ -260,7 +260,6 @@ export async function inviteTeamMember(
     const existingUser = await prisma.user.findUnique({ where: { email } });
 
     if (existingUser) {
-      // --- CAS A : L'UTILISATEUR EXISTE DÉJÀ ---
       const alreadyInProject = await prisma.projectMembership.findUnique({
         where: { userId_projectId: { userId: existingUser.id, projectId } },
       });
@@ -272,75 +271,49 @@ export async function inviteTeamMember(
         };
       }
 
-      // Ajout direct
-      await prisma.projectMembership.create({
-        data: { projectId, userId: existingUser.id, role: targetRole },
-      });
+    }
 
-      // L'ajout est fait : un e-mail d'information qui échoue ne l'annule pas.
-      const notified = await sendTeamEmail(() => ({
-        from: "ExtravertyAI <equipe@extravertyai.com>",
-        to: email,
-        subject: `Vous avez été ajouté au projet ${requester.project.name}`,
-        html: ProjectMemberConfirmationEmail({
-          inviterName: session.user.name || "Un membre de l'équipe",
-          userName: existingUser.name,
-          projectName: requester.project.name,
-          role: targetRole,
-          projectUrl: `${appOrigin()}/projects/${projectId}`,
-          email: email,
-        }),
-      }));
-      revalidatePath(`/projects/${projectId}`, "layout");
-      return notified
-        ? { success: true }
-        : {
-            success: true,
-            warning:
-              "Membre ajouté, mais l’e-mail d’information n’a pas pu être envoyé.",
-          };
-    } else {
-      // --- CAS B : L'UTILISATEUR N'EXISTE PAS (Création d'une Invitation) ---
+    // Compte existant ou non, personne n'entre sans accepter depuis l'e-mail reçu.
+    // Une nouvelle invitation remplace la précédente, dont le lien cesse de marcher.
+    await prisma.invitation.deleteMany({
+      where: { email, projectId },
+    });
 
-      // Nettoyage d'une éventuelle ancienne invitation expirée
-      await prisma.invitation.deleteMany({
-        where: { email, projectId },
-      });
+    const inviteToken = crypto.randomBytes(32).toString("hex");
+    const tokenHash = hashInvitationToken(inviteToken);
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // Expire dans 7 jours
 
-      const inviteToken = crypto.randomBytes(32).toString("hex");
-      const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // Expire dans 7 jours
+    await prisma.invitation.create({
+      data: {
+        email,
+        projectId,
+        role: targetRole,
+        token: tokenHash,
+        expiresAt,
+        inviterId: session.user.id,
+      },
+    });
 
-      await prisma.invitation.create({
-        data: {
-          email,
-          projectId,
-          role: targetRole,
-          token: inviteToken,
-          expiresAt,
-          inviterId: session.user.id,
-        },
-      });
-
-      // Sans e-mail, l'invité n'a pas le lien : l'invitation est retirée.
-      const sent = await sendTeamEmail(() => ({
-        from: "ExtravertyAI <equipe@extravertyai.com>",
-        to: email,
-        subject: `Invitation à rejoindre ${requester.project.name}`,
-        html: ProjectInvitationEmail({
-          inviterName: session.user.name || "Un membre de l'équipe",
-          projectName: requester.project.name,
-          role: targetRole,
-          inviteUrl: `${appOrigin()}/invite?token=${inviteToken}`,
-          email: email,
-        }),
-      }));
-      if (!sent) {
-        await prisma.invitation.deleteMany({ where: { token: inviteToken } });
-        return {
-          success: false,
-          error: "L’e-mail d’invitation n’a pas pu être envoyé. Vérifiez l’adresse et réessayez.",
-        };
-      }
+    // Sans e-mail, l'invité n'a pas le lien : l'invitation est retirée.
+    const sent = await sendTeamEmail(() => ({
+      from: "ExtravertyAI <equipe@extravertyai.com>",
+      to: email,
+      subject: `Invitation à rejoindre ${requester.project.name}`,
+      html: ProjectInvitationEmail({
+        inviterName: session.user.name || "Un membre de l'équipe",
+        projectName: requester.project.name,
+        role: targetRole,
+        inviteUrl: `${appOrigin()}/invite?token=${inviteToken}`,
+        email: email,
+        hasAccount: !!existingUser,
+      }),
+    }));
+    if (!sent) {
+      await prisma.invitation.deleteMany({ where: { token: tokenHash } });
+      return {
+        success: false,
+        error: "L’e-mail d’invitation n’a pas pu être envoyé. Vérifiez l’adresse et réessayez.",
+      };
     }
 
     revalidatePath(`/projects/${projectId}`, "layout");

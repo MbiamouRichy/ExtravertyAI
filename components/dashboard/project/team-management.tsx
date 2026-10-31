@@ -203,8 +203,7 @@ export default function TeamManagement({
 
       if (res.success) {
         playHaptic("success");
-        if ("warning" in res && res.warning) toast.warning(res.warning);
-        else toast.success(`Invitation envoyée à ${formData.email}`);
+        toast.success(`Invitation envoyée à ${formData.email}`);
         setIsInviteOpen(false);
         form.reset();
 

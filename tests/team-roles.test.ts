@@ -20,6 +20,7 @@ import {
 } from "../lib/project-permissions";
 import * as permissions from "../lib/project-permissions";
 import * as rateLimit from "../lib/rate-limit";
+import { hashInvitationToken } from "../lib/project-invitations";
 import * as recentSession from "../lib/recent-session";
 import {
   ConversationWorkflowError,
@@ -340,9 +341,7 @@ function loadTeamActions(prisma: PrismaClient, userId: string, emailFails = fals
       },
     },
     "@/components/emailTemplate/invitationEmail": { ProjectInvitationEmail: () => "" },
-    "@/components/emailTemplate/projectMemberConfirmationEmail": {
-      ProjectMemberConfirmationEmail: () => "",
-    },
+    "@/lib/project-invitations": { hashInvitationToken },
     zod: { default: z, z },
     "@/lib/recent-session": recentSession,
     "@/lib/rate-limit": rateLimit,
@@ -449,14 +448,14 @@ test(
       );
       assert.equal(await roleOf("BILLING"), "ADMIN");
 
-      // Un e-mail qui échoue n'annule pas l'ajout d'un compte existant…
+      // Régression : un compte existant n'est plus ajouté sans son accord.
       const outsider = await createUser(prisma, "Externe");
+      assert.equal((await owner.inviteTeamMember(outsider.email, "VIEWER", project.id)).success, true);
+      assert.equal(await prisma.projectMembership.count({ where: { projectId: project.id, userId: outsider.id } }), 0);
+      assert.equal(await prisma.invitation.count({ where: { email: outsider.email } }), 1);
+
+      // Une invitation sans e-mail est refusée et ne reste pas en base.
       const failing = loadTeamActions(prisma, users.OWNER, true);
-      const added = await failing.inviteTeamMember(outsider.email, "VIEWER", project.id);
-      assert.equal(added.success, true);
-      assert.match((added as { warning?: string }).warning ?? "", /e-mail/);
-      assert.ok(await prisma.projectMembership.findFirst({ where: { projectId: project.id, userId: outsider.id, role: "VIEWER" } }));
-      // …mais une invitation sans e-mail est refusée et ne reste pas en base.
       const pending = await failing.inviteTeamMember("absent@example.test", "AGENT", project.id);
       assert.equal(pending.success, false);
       assert.equal(await prisma.invitation.count({ where: { email: "absent@example.test" } }), 0);

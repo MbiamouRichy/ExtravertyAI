@@ -5,7 +5,6 @@ import { ChangeEmailTemplate } from "../components/emailTemplate/changeEmailTemp
 import { DeleteAccountEmailTemplate } from "../components/emailTemplate/DeleteAccountEmailTemplate";
 import { EmailTemplate } from "../components/emailTemplate/emailTemplate";
 import { ProjectInvitationEmail } from "../components/emailTemplate/invitationEmail";
-import { ProjectMemberConfirmationEmail } from "../components/emailTemplate/projectMemberConfirmationEmail";
 import { ResetPasswordTemplate } from "../components/emailTemplate/resetPasswordTemplate";
 
 const evil = '<img src=x onerror="alert(1)">';
@@ -16,8 +15,8 @@ const templates: ((link: string) => string)[] = [
   (link) => ResetPasswordTemplate({ url: link, email: evil }),
   (link) => ChangeEmailTemplate({ url: link, newEmail: evil }),
   (link) => DeleteAccountEmailTemplate({ url: link }),
-  (link) => ProjectInvitationEmail({ inviterName: evil, projectName: evil, role: "ADMIN", inviteUrl: link, email: evil }),
-  (link) => ProjectMemberConfirmationEmail({ userName: evil, inviterName: evil, projectName: evil, role: "AGENT", projectUrl: link, email: evil }),
+  (link) => ProjectInvitationEmail({ inviterName: evil, projectName: evil, role: "ADMIN", inviteUrl: link, email: evil, hasAccount: false }),
+  (link) => ProjectInvitationEmail({ inviterName: evil, projectName: evil, role: "AGENT", inviteUrl: link, email: evil, hasAccount: true }),
 ];
 
 test("account and team emails escape user-controlled values", () => {

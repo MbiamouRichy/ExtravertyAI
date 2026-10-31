@@ -1,12 +1,22 @@
-import { redirect } from "next/navigation";
 import prisma from "@/lib/prisma";
 import { getSession } from "@/lib/auth-server";
-import { ArrowLeft, Link2Off } from "lucide-react";
+import { ArrowLeft, Link2Off, LogIn } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { InviteShell } from "@/components/auth/invite-shell";
 import { InviteForm } from "@/components/dashboard/project/invite-form";
-import { consumeInvitation } from "../actions/invite";
+import { InviteDecision } from "@/components/dashboard/project/invite-decision";
+import { ReauthButton } from "@/components/dashboard/user/recent-session";
+import {
+  hashInvitationToken,
+  isInvitationToken,
+  sameEmail,
+} from "@/lib/project-invitations";
+import {
+  ROLE_DESCRIPTIONS,
+  isProjectRole,
+  roleLabel,
+} from "@/lib/project-permissions";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -23,13 +33,13 @@ export default async function InvitePage({
   // 2. On "await" searchParams avant de l'utiliser
   const { token } = await searchParams;
 
-  if (typeof token !== "string" || !token.trim() || token.length > 512) {
+  if (!isInvitationToken(token)) {
     return <ErrorState message="Lien d'invitation invalide ou manquant." />;
   }
 
   // 1. Vérifier l'invitation en base
   const invitation = await prisma.invitation.findUnique({
-    where: { token },
+    where: { token: hashInvitationToken(token) },
     include: {
       project: { select: { name: true } },
       inviter: { select: { name: true, email: true } },
@@ -48,53 +58,98 @@ export default async function InvitePage({
     );
   }
 
-  // 2. Gérer le cas où l'utilisateur est DÉJÀ connecté
+  const inviterName = invitation.inviter.name || invitation.inviter.email;
+  const card = { projectName: invitation.project.name, inviterName };
+  const inviteUrl = "/invite?token=" + token;
+
+  // 2. Ouvrir le lien n'accepte jamais rien : l'invité décide d'un clic explicite,
+  // sinon un simple lien piégé suffirait à le faire entrer dans un projet.
   const session = await getSession();
 
   if (session?.user) {
-    if (session.user.email === invitation.email) {
-      // Auto-acceptation si c'est le bon email
-      const result = await consumeInvitation(token);
-      if (result.success) {
-        redirect(`/projects/${result.projectId}`);
-      }
+    if (!sameEmail(session.user.email, invitation.email)) {
       return (
         <ErrorState
-          message={
-            result.error ||
-            "Impossible de rejoindre le projet. Veuillez réessayer."
-          }
-        />
-      );
-    } else {
-      // Connecté avec un MAUVAIS email
-      return (
-        <ErrorState
-          message={`Cette invitation est pour ${invitation.email}. Vous êtes connecté en tant que ${session.user.email}. Veuillez vous déconnecter d'abord.`}
+          message={`Cette invitation est pour ${invitation.email}. Vous êtes connecté en tant que ${session.user.email}.`}
+          switchAccountUrl={inviteUrl}
         />
       );
     }
+    return (
+      <InviteShell invitation={card}>
+        <InviteDecision
+          token={token}
+          email={invitation.email}
+          projectName={invitation.project.name}
+          inviterName={inviterName}
+          roleLabel={roleLabel(invitation.role)}
+          roleDescription={
+            isProjectRole(invitation.role)
+              ? ROLE_DESCRIPTIONS[invitation.role]
+              : ""
+          }
+        />
+      </InviteShell>
+    );
   }
 
-  // 3. Afficher le formulaire de création de compte
+  // 3. Compte existant : connexion d'abord, la décision vient ensuite.
+  const account = await prisma.user.findUnique({
+    where: { email: invitation.email },
+    select: { id: true },
+  });
+  if (account) {
+    return (
+      <InviteShell invitation={card}>
+        <div className="space-y-6">
+          <header className="space-y-3">
+            <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
+              Invitation à collaborer
+            </p>
+            <h1 className="text-3xl md:text-4xl">
+              Connectez-vous pour répondre.
+            </h1>
+            <p className="break-words text-sm leading-relaxed text-muted-foreground">
+              <span className="font-medium text-foreground">{inviterName}</span>{" "}
+              vous invite à rejoindre{" "}
+              <span className="font-medium text-foreground">
+                {invitation.project.name}
+              </span>
+              . Connectez-vous avec {invitation.email} pour accepter ou refuser.
+            </p>
+          </header>
+          <Button asChild size="lg" className="w-full">
+            <Link href={"/sign-in?callbackUrl=" + encodeURIComponent(inviteUrl)}>
+              <LogIn data-icon="inline-start" />
+              Se connecter
+            </Link>
+          </Button>
+        </div>
+      </InviteShell>
+    );
+  }
+
+  // 4. Afficher le formulaire de création de compte
   return (
-    <InviteShell
-      invitation={{
-        projectName: invitation.project.name,
-        inviterName: invitation.inviter.name || invitation.inviter.email,
-      }}
-    >
+    <InviteShell invitation={card}>
       <InviteForm
         email={invitation.email}
         token={token}
         projectName={invitation.project.name}
-        inviterName={invitation.inviter.name || invitation.inviter.email}
+        inviterName={inviterName}
       />
     </InviteShell>
   );
 }
 
-function ErrorState({ message }: { message: string }) {
+function ErrorState({
+  message,
+  switchAccountUrl,
+}: {
+  message: string;
+  /** Connecté avec un autre compte : reconnexion, retour sur l’invitation. */
+  switchAccountUrl?: string;
+}) {
   return (
     <InviteShell>
       <div className="space-y-6">
@@ -117,9 +172,17 @@ function ErrorState({ message }: { message: string }) {
           lien, puis ouvrez-le depuis son message.
         </p>
         <div className="flex flex-col gap-3">
-          <Button asChild>
-            <Link href="/sign-in">Accéder à mon compte</Link>
-          </Button>
+          {switchAccountUrl ? (
+            <ReauthButton
+              callbackUrl={switchAccountUrl}
+              label="Changer de compte"
+              variant="default"
+            />
+          ) : (
+            <Button asChild>
+              <Link href="/sign-in">Accéder à mon compte</Link>
+            </Button>
+          )}
           <Button asChild variant="ghost">
             <Link href="/">
               <ArrowLeft aria-hidden />
