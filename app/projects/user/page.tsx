@@ -83,35 +83,38 @@ export default async function ProfilePage() {
 
       <section
         aria-label="Identité"
-        className="relative isolate flex flex-col gap-5 overflow-hidden rounded-3xl border bg-card p-6 sm:flex-row sm:items-center sm:justify-between sm:p-8"
+        className="@container/identity relative isolate overflow-hidden rounded-3xl border bg-card p-5 sm:p-6"
       >
         <div
           aria-hidden="true"
           className="absolute inset-0 -z-10 bg-[radial-gradient(var(--border)_1px,transparent_1px)] mask-[radial-gradient(ellipse_at_top_left,black,transparent_60%)] bg-size-[18px_18px]"
         />
-        <div className="flex min-w-0 items-center gap-4">
-          <Avatar className="size-16 sm:size-20">
+        {/* Suit la largeur du bloc, pas celle de l’écran : la barre latérale la réduit. */}
+        <div className="flex flex-col gap-5 @3xl/identity:flex-row @3xl/identity:items-center @3xl/identity:justify-between">
+        <div className="flex min-w-0 flex-1 items-center gap-4">
+          <Avatar className="size-16 shrink-0 @lg/identity:size-20">
             <AvatarImage src={user.image || ""} alt="" />
             <AvatarFallback className="font-heading text-xl font-semibold">
               {getInitials(user.name)}
             </AvatarFallback>
           </Avatar>
           <div className="min-w-0">
-            <h2 className="truncate font-heading text-2xl font-bold tracking-tight">{user.name}</h2>
-            <p className="truncate text-sm text-muted-foreground">{user.email}</p>
+            <h2 className="line-clamp-2 wrap-anywhere font-heading text-xl font-bold tracking-tight @lg/identity:text-2xl">{user.name}</h2>
+            <p className="truncate text-sm text-muted-foreground" title={user.email}>{user.email}</p>
             <Badge variant={user.emailVerified ? "secondary" : "destructive"} className="mt-2">
               {user.emailVerified ? "E-mail vérifié" : "E-mail non vérifié"}
             </Badge>
           </div>
         </div>
-        <div className="flex flex-col gap-2 sm:flex-row">
+        <div className="grid shrink-0 gap-2 @md/identity:grid-cols-2 @3xl/identity:flex">
           <ModifierProfile user={user}>
-            <Button variant="outline">
+            <Button variant="outline" className="w-full">
               <UserCog data-icon="inline-start" />
               Modifier le profil
             </Button>
           </ModifierProfile>
           <SignOutButton />
+        </div>
         </div>
       </section>
 

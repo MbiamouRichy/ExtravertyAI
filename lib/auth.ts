@@ -47,6 +47,9 @@ function setPendingDeletion(userId: string, projects: string[], left: number) {
 // Exit-survey token handed from afterDelete to the after hook of the same
 // request, which owns the response and can set the cookie.
 const feedbackTokens = new WeakMap<Request, string>();
+// Better Auth swallows send errors and answers 200 anyway: the after hook of
+// the same request turns them into a real failure.
+const failedChangeEmails = new WeakSet<Request>();
 
 // Resend reports a refused send through `error` instead of rejecting.
 async function sendAuthEmail(message: Parameters<typeof resend.emails.send>[0]) {
@@ -86,6 +89,15 @@ export const auth = betterAuth({
       if (deleting) await assertNoOwnershipBlockers(session.session.userId);
     }),
     after: createAuthMiddleware(async (ctx) => {
+      if (ctx.path === "/change-email" && ctx.request) {
+        if (failedChangeEmails.delete(ctx.request))
+          throw new APIError("BAD_GATEWAY", {
+            code: "CHANGE_EMAIL_NOT_SENT",
+            message:
+              "L’e-mail de confirmation n’a pas pu être envoyé. Réessayez dans un instant.",
+          });
+        return;
+      }
       if (ctx.path !== "/delete-user" || !ctx.request) return;
       const token = feedbackTokens.get(ctx.request);
       if (!token) return;
@@ -229,13 +241,19 @@ export const auth = betterAuth({
     },
     changeEmail: {
       enabled: true,
-      sendChangeEmailConfirmation: async ({ user, newEmail, url }) => {
-        await sendAuthEmail({
-          to: user.email, // Sent to the CURRENT email
-          subject: "Approuver un changement d'email",
-          html: ChangeEmailTemplate({ newEmail, url }),
-          from: "ExtravertyAI <notification@extravertyai.com>",
-        });
+      sendChangeEmailConfirmation: async ({ user, newEmail, url }, request) => {
+        try {
+          await sendAuthEmail({
+            to: user.email, // Sent to the CURRENT email
+            subject: "Approuver un changement d'email",
+            html: ChangeEmailTemplate({ newEmail, url }),
+            from: "ExtravertyAI <notification@extravertyai.com>",
+          });
+        } catch (error) {
+          if (request) failedChangeEmails.add(request);
+          console.error("CHANGE_EMAIL_FAILED", error);
+          throw error;
+        }
       },
     },
     additionalFields: {
