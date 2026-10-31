@@ -47,6 +47,12 @@ function setPendingDeletion(userId: string, projects: string[], left: number) {
 // request, which owns the response and can set the cookie.
 const feedbackTokens = new WeakMap<Request, string>();
 
+// Resend reports a refused send through `error` instead of rejecting.
+async function sendAuthEmail(message: Parameters<typeof resend.emails.send>[0]) {
+  const { error } = await resend.emails.send(message);
+  if (error) throw new Error(`Resend: ${error.message}`);
+}
+
 async function assertNoOwnershipBlockers(userId: string) {
   const plan = await getAccountDeletionPlan(userId);
   if (plan.blockers.length)
@@ -125,7 +131,7 @@ export const auth = betterAuth({
   emailAndPassword: {
     enabled: true,
     sendResetPassword: async ({ user, url }) => {
-      await resend.emails.send({
+      await sendAuthEmail({
         to: user.email,
         subject: "Changement de mot de passe",
         html: ResetPasswordTemplate({ url, email: user.email }),
@@ -147,12 +153,18 @@ export const auth = betterAuth({
   emailVerification: {
     sendOnSignUp: true,
     sendVerificationEmail: async ({ user, url }) => {
-      await resend.emails.send({
-        to: user.email,
-        subject: "Verifier votre adresse e-mail",
-        html: EmailTemplate({ url, email: user.email }),
-        from: "ExtravertyAI <notification@extravertyai.com>",
-      });
+      // Never rethrown: /send-verification-email is public and would answer
+      // differently for an unverified account than for an unknown address.
+      try {
+        await sendAuthEmail({
+          to: user.email,
+          subject: "Verifier votre adresse e-mail",
+          html: EmailTemplate({ url, email: user.email }),
+          from: "ExtravertyAI <notification@extravertyai.com>",
+        });
+      } catch (error) {
+        console.error("VERIFICATION_EMAIL_FAILED", error);
+      }
     },
   },
   user: {
@@ -179,7 +191,7 @@ export const auth = betterAuth({
           }
         }
         try {
-          await resend.emails.send({
+          await sendAuthEmail({
             to: user.email,
             subject: "Votre compte ExtravertyAI a été supprimé",
             html: AccountDeletedEmailTemplate({
@@ -198,7 +210,7 @@ export const auth = betterAuth({
     changeEmail: {
       enabled: true,
       sendChangeEmailConfirmation: async ({ user, newEmail, url }) => {
-        await resend.emails.send({
+        await sendAuthEmail({
           to: user.email, // Sent to the CURRENT email
           subject: "Approuver un changement d'email",
           html: ChangeEmailTemplate({ newEmail, url }),
