@@ -8,10 +8,10 @@ import { PageLoading } from "@/components/page-loading";
 const ROLES = [
   { name: "w-24", lines: ["w-full", "w-2/3"] },
   { name: "w-28", lines: ["w-full", "w-3/4"] },
-  { name: "w-20", lines: ["w-full", "w-5/6"] },
+  { name: "w-20", lines: ["w-full", "w-11/12", "w-1/3"] },
   { name: "w-14", lines: ["w-full", "w-1/2"] },
-  { name: "w-16", lines: ["w-full", "w-2/3"] },
-  { name: "w-24", lines: ["w-full", "w-3/5"] },
+  { name: "w-16", lines: ["w-full", "w-5/6", "w-1/3"] },
+  { name: "w-24", lines: ["w-full", "w-4/5", "w-2/5"] },
 ];
 
 /** Le propriétaire n’a pas de bouton « Assigner », les suivants si. */
@@ -30,7 +30,9 @@ export default function TeamLoading() {
       <div className="space-y-8">
         <header className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-end">
           <div className="w-full min-w-0 max-w-xl sm:w-auto sm:flex-1">
-            <Skeleton className="h-3 w-14" />
+            <div className="flex h-4 items-center">
+              <Skeleton className="h-3 w-14" />
+            </div>
             <Skeleton className="mt-2 h-9 w-60 max-w-full md:h-10 md:w-72" />
             <Skeleton className="mt-3 h-3.5 w-full max-w-md" />
             <Skeleton className="mt-2 h-3.5 w-2/3" />
@@ -45,10 +47,15 @@ export default function TeamLoading() {
                 <Skeleton className="size-8 rounded-lg" />
                 <Skeleton className="h-7 w-5" />
               </div>
-              <Skeleton className={`mt-3 h-4 ${name}`} />
-              <div className="mt-2 space-y-1.5">
+              <div className="mt-3 flex h-5 items-center">
+                <Skeleton className={`h-4 ${name}`} />
+              </div>
+              {/* Lignes de 20 px, comme les descriptions réelles. */}
+              <div className="mt-0.5">
                 {lines.map((width) => (
-                  <Skeleton key={width} className={`h-3 ${width}`} />
+                  <div key={width} className="flex h-5 items-center">
+                    <Skeleton className={`h-3 ${width}`} />
+                  </div>
                 ))}
               </div>
             </div>
