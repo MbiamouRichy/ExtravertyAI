@@ -81,6 +81,15 @@ export function ChangePasswordDialog({
         },
     });
 
+    // Rouvert après une fermeture, le formulaire repart toujours de zéro.
+    function handleOpenChange(isOpen: boolean) {
+        setOpen(isOpen);
+        if (isOpen) return;
+        form.reset();
+        setNewPasswordVisible(false);
+        setConfirmPasswordVisible(false);
+    }
+
     // La connexion récente fait foi : aucun mot de passe actuel à confirmer.
     async function onSubmit(data: FormValues) {
         setLoading(true);
@@ -114,7 +123,7 @@ export function ChangePasswordDialog({
     }
 
     return (
-        <Dialog open={open} onOpenChange={setOpen}>
+        <Dialog open={open} onOpenChange={handleOpenChange}>
             <DialogTrigger className="cursor-pointer" asChild>
                 {children}
             </DialogTrigger>
@@ -236,7 +245,7 @@ export function ChangePasswordDialog({
                         <Button
                             type="button"
                             variant="ghost"
-                            onClick={() => setOpen(false)}
+                            onClick={() => handleOpenChange(false)}
                             disabled={loading}
                         >
                             Annuler

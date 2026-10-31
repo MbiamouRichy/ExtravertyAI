@@ -167,7 +167,7 @@ export default function ChangeEmailForm({
                 <Button
                   type="button"
                   variant="ghost"
-                  onClick={() => setOpen(false)}
+                  onClick={() => handleOpenChange(false)}
                   disabled={loading}
                 >
                   Annuler
@@ -194,7 +194,7 @@ export default function ChangeEmailForm({
               adresse.
             </DialogDescription>
             <div className="pt-4 w-full">
-              <Button className="w-full" onClick={() => setOpen(false)}>
+              <Button className="w-full" onClick={() => handleOpenChange(false)}>
                 Terminer
               </Button>
             </div>
