@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { authClient } from "@/lib/auth-client";
 import { setAccountPasswordAction } from "@/app/actions/set-password";
 import { useRouter } from "next/navigation";
 import { KeyRound, Loader2, KeySquareIcon, EyeOff, Eye } from "lucide-react";
@@ -35,19 +34,16 @@ import { toast } from "sonner";
 import { useHaptics } from "@/lib/webHaptics";
 
 // 1. Correction du schéma Zod
-const formSchema = (hasPassword: boolean) => z
+const formSchema = z
     .object({
-        currentPassword: hasPassword
-            ? z.string().min(1, "Le mot de passe actuel est requis.")
-            : z.string(),
         newPassword: z
             .string()
             .min(8, "Le mot de passe doit contenir au moins 8 caractères.")
-            .max(256, "Le mot de passe doit contenir au maximum 256 caractères."),
+            .max(128, "Le mot de passe doit contenir au maximum 128 caractères."),
         confirmPassword: z
             .string()
             .min(8, "Le mot de passe doit contenir au moins 8 caractères.")
-            .max(256, "Le mot de passe doit contenir au maximum 256 caractères."),
+            .max(128, "Le mot de passe doit contenir au maximum 128 caractères."),
         // On retire le .optional() pour aligner parfaitement les types TypeScript
         revokeSessions: z.boolean(),
     })
@@ -56,14 +52,14 @@ const formSchema = (hasPassword: boolean) => z
         path: ["confirmPassword"],
     });
 
-type FormValues = z.infer<ReturnType<typeof formSchema>>;
+type FormValues = z.infer<typeof formSchema>;
 
 export function ChangePasswordDialog({
     children,
     hasPassword,
 }: {
     children: React.ReactNode;
-    /** Faux pour un compte Google ou TikTok, qui n’a rien à confirmer. */
+    /** Faux pour un compte Google ou TikTok, qui n’en a pas encore. */
     hasPassword: boolean;
 }) {
     const { playHaptic } = useHaptics();
@@ -71,87 +67,45 @@ export function ChangePasswordDialog({
 
     const [open, setOpen] = useState(false);
     const [loading, setLoading] = useState(false);
-    const [currentPasswordVisible, setCurrentPasswordVisible] = useState(false);
     const [newPasswordVisible, setNewPasswordVisible] = useState(false);
     const [confirmPasswordVisible, setConfirmPasswordVisible] = useState(false);
 
     // On supprime les state de revokeSessions, React Hook Form gère cela maintenant
     const form = useForm<FormValues>({
-        resolver: zodResolver(formSchema(hasPassword)),
+        resolver: zodResolver(formSchema),
         mode: "onChange",
         defaultValues: {
-            currentPassword: "",
             newPassword: "",
             confirmPassword: "",
             revokeSessions: true,
         },
     });
 
-    function finish(message: string) {
-        setLoading(false);
-        setOpen(false);
-        form.reset(); // Réinitialise tout le formulaire d'un coup
-
-        toast.success(message, { position: "top-center" });
-        router.refresh();
-    }
-
-    async function defineFirstPassword(newPassword: string) {
-        const result = await setAccountPasswordAction(newPassword).catch(() => ({
+    // La connexion récente fait foi : aucun mot de passe actuel à confirmer.
+    async function onSubmit(data: FormValues) {
+        setLoading(true);
+        const result = await setAccountPasswordAction({
+            newPassword: data.newPassword,
+            revokeOtherSessions: hasPassword && data.revokeSessions,
+        }).catch(() => ({
             success: false as const,
             error: "Une erreur réseau est survenue.",
         }));
+        setLoading(false);
+
         if (!result.success) {
             playHaptic("error");
-            setLoading(false);
             toast.error(result.error, { position: "top-center" });
+            router.refresh();
             return;
         }
-        finish("Mot de passe défini avec succès.");
-    }
 
-    async function onSubmit(data: FormValues) {
-        setLoading(true);
-        if (!hasPassword) return defineFirstPassword(data.newPassword);
-
-        // 2. Appel à l'API Better Auth direct (Zod a déjà validé les longueurs et correspondances !)
-        const { error: authError } = await authClient.changePassword({
-            newPassword: data.newPassword,
-            currentPassword: data.currentPassword,
-            revokeOtherSessions: data.revokeSessions,
+        setOpen(false);
+        form.reset(); // Réinitialise tout le formulaire d'un coup
+        toast.success(hasPassword ? "Mot de passe modifié avec succès." : "Mot de passe défini avec succès.", {
+            position: "top-center",
         });
-
-        if (authError) {
-            playHaptic("error");
-            setLoading(false);
-
-            if (authError.code === "REAUTH_REQUIRED") {
-                toast.error(authError.message, { position: "top-center" });
-                router.refresh();
-            } else if (authError.status === 403 || authError.code === "INVALID_PASSWORD") {
-                toast.error("L'ancien mot de passe est incorrect.", {
-                    position: "top-center",
-                    action: (
-                        <Button
-                            onClick={() => {
-                                form.setValue("currentPassword", "");
-                                form.setFocus("currentPassword");
-                            }}
-                        >
-                            Réessayer
-                        </Button>
-                    )
-                });
-            } else {
-                toast.error(authError.message || "Une erreur est survenue.", {
-                    position: "top-center",
-                });
-            }
-            return;
-        }
-
-        // 3. Succès : On nettoie et on ferme
-        finish("Mot de passe modifié avec succès.");
+        router.refresh();
     }
 
     // Gestion des erreurs Zod (si le formulaire est invalide à la soumission)
@@ -180,40 +134,6 @@ export function ChangePasswordDialog({
 
                     <div className="space-y-4 py-4">
                         <FieldGroup>
-                            {hasPassword && <Controller
-                                name="currentPassword"
-                                control={form.control}
-                                render={({ field, fieldState }) => (
-                                    <Field data-invalid={fieldState.invalid}>
-                                        <FieldLabel htmlFor={field.name}>Mot de passe actuel</FieldLabel>
-                                        <InputGroup>
-                                            <InputGroupInput
-                                                {...field}
-                                                id={field.name}
-                                                aria-invalid={fieldState.invalid}
-                                                placeholder="••••••••"
-                                                autoComplete="off"
-                                                type={currentPasswordVisible ? "text" : "password"}
-                                            />
-                                            <InputGroupAddon align="inline-start">
-                                                <KeySquareIcon />
-                                            </InputGroupAddon>
-                                            <InputGroupAddon align="inline-end">
-                                                <InputGroupButton
-                                                    variant="ghost"
-                                                    size="icon-sm"
-                                                    onClick={() => setCurrentPasswordVisible(!currentPasswordVisible)}
-                                                    type="button"
-                                                >
-                                                    {currentPasswordVisible ? <Eye /> : <EyeOff />}
-                                                </InputGroupButton>
-                                            </InputGroupAddon>
-                                        </InputGroup>
-                                        {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
-                                    </Field>
-                                )}
-                            />}
-
                             <Controller
                                 name="newPassword"
                                 control={form.control}

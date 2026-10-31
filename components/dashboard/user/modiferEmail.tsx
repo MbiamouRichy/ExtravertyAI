@@ -90,7 +90,7 @@ export default function ChangeEmailForm({
             setSent(true);
             setNewEmail(data.newEmail);
             playHaptic("success");
-            toast.success("Email modifié avec succès.", {
+            toast.success("Lien de confirmation envoyé.", {
               position: "top-center",
             });
           },
@@ -188,13 +188,10 @@ export default function ChangeEmailForm({
             </div>
             <DialogTitle>Vérifiez votre boîte mail</DialogTitle>
             <DialogDescription className="text-base">
-              Un lien de confirmation a été envoyé à <strong>{newEmail}</strong>
-              . Cliquez sur le lien pour confirmer le changement. <br />
-              <br />
-              <span className="p-4 bg-muted rounded-lg inline-flex border-l-4 border-foreground leading-relaxed text-sm text-muted-foreground">
-                Un email de sécurité a également été envoyé à votre ancienne
-                adresse pour vous informer du changement.
-              </span>
+              Un lien de confirmation a été envoyé à votre adresse actuelle.
+              Cliquez dessus pour autoriser le passage à{" "}
+              <strong>{newEmail}</strong>, puis confirmez depuis cette nouvelle
+              adresse.
             </DialogDescription>
             <div className="pt-4 w-full">
               <Button className="w-full" onClick={() => setOpen(false)}>
