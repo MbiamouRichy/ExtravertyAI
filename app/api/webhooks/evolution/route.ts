@@ -48,7 +48,7 @@ export async function POST(req: Request) {
     const eventName = event.toLowerCase().replaceAll("_", ".");
     // Présence d’un contact : relayée en direct, rien n’est enregistré.
     if (eventName === "presence.update") {
-      await relayPresenceUpdate(prisma, project.id, data);
+      await relayPresenceUpdate(prisma, project.id, instance, data);
       return NextResponse.json({ success: true });
     }
     await prisma.$transaction(

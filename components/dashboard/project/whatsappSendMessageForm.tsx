@@ -1764,7 +1764,7 @@ export default function WhatsappWorkspace({
                         aria-current={selected ? "true" : undefined}
                         onClick={() => selectClient(client.id)}
                         className={cn(
-                          "relative flex h-auto w-full items-start justify-start gap-3 whitespace-normal rounded-lg px-2.5 py-2.5 text-left font-normal",
+                          "relative flex h-21 w-full items-center justify-start gap-3 overflow-hidden whitespace-normal rounded-lg px-2.5 py-2 text-left font-normal",
                           "transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none",
                           selected
                             ? "bg-muted hover:bg-muted"

@@ -5,6 +5,7 @@ import { getSession } from "@/lib/auth-server";
 import prisma from "@/lib/prisma";
 import {
   setInstancePresence,
+  jidAliases,
   subscribeContactPresence,
   upgradeWebhookEvents,
 } from "@/lib/contact-presence";
@@ -76,15 +77,21 @@ export async function POST(
   const contacts = project.contacts.filter(
     (contact) => !recent.has(`${projectId}:${contact.id}`),
   );
-  if (!contacts.length) return json({ subscribed: true });
   for (const contact of contacts) recent.set(`${projectId}:${contact.id}`, now);
   try {
     await upgradeWebhookEvents(prisma, project);
+    // Toujours renouvelé : un membre a pu repasser le compte hors ligne.
     if (managed) await setInstancePresence(project.instanceName, "available");
+    if (!contacts.length) return json({ subscribed: true });
+    const aliases = await jidAliases(
+      project.instanceName,
+      contacts[0].remoteJid,
+    );
     const results = await Promise.allSettled(
-      contacts.map((contact) =>
-        subscribeContactPresence(project.instanceName, contact.remoteJid),
-      ),
+      contacts.flatMap((contact) => {
+        const alias = aliases.get(contact.remoteJid);
+        return [contact.remoteJid, ...(alias ? [alias] : [])];
+      }).map((jid) => subscribeContactPresence(project.instanceName, jid)),
     );
     if (results.some((result) => result.status === "rejected"))
       throw new Error("PRESENCE_SUBSCRIBE_FAILED");

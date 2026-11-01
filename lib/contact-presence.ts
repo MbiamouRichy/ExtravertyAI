@@ -4,6 +4,7 @@ import type { PrismaClient } from "../src/generated/prisma/client";
 import { getChatPusher, projectChatChannel } from "./chat-realtime";
 import {
   CONTACT_PRESENCE_EVENT,
+  jidAliasesFromChats,
   parsePresenceUpdate,
   type ContactPresence,
 } from "./contact-presence-shared";
@@ -53,17 +54,32 @@ function evolutionConfig() {
 export async function relayPresenceUpdate(
   prisma: PrismaClient,
   projectId: string,
+  instanceName: string,
   data: unknown,
 ) {
   const updates = parsePresenceUpdate(data);
   if (!updates.length) return 0;
-  const contacts = await prisma.contact.findMany({
-    where: { projectId, remoteJid: { in: updates.map((u) => u.remoteJid) } },
-    select: { id: true, remoteJid: true },
+  const findContacts = (remoteJids: string[]) =>
+    prisma.contact.findMany({
+      where: { projectId, remoteJid: { in: remoteJids } },
+      select: { id: true, remoteJid: true },
+    });
+  const contacts = await findContacts(updates.map((u) => u.remoteJid));
+  const known = new Set(contacts.map((contact) => contact.remoteJid));
+  const unknown = updates.filter((u) => !known.has(u.remoteJid));
+  // Contact enregistré sous son numéro, présence signalée par son @lid.
+  const aliases = unknown.length
+    ? await jidAliases(instanceName, unknown[0].remoteJid)
+    : new Map<string, string>();
+  const resolved = unknown.flatMap((u) => {
+    const remoteJid = aliases.get(u.remoteJid);
+    return remoteJid ? [{ remoteJid, presence: u.presence }] : [];
   });
+  if (resolved.length)
+    contacts.push(...(await findContacts(resolved.map((u) => u.remoteJid))));
   let sent = 0;
   for (const contact of contacts) {
-    const presence = updates.find(
+    const presence = [...updates, ...resolved].find(
       (u) => u.remoteJid === contact.remoteJid,
     )?.presence;
     if (!presence) continue;
@@ -71,6 +87,46 @@ export async function relayPresenceUpdate(
     sent += 1;
   }
   return sent;
+}
+
+const ALIASES_REFRESH_MS = 60_000;
+const aliasCache = new Map<
+  string,
+  { at: number; aliases: Map<string, string> }
+>();
+
+/** Correspondances numéro ↔ @lid de l’instance, relues si `jid` y est absent. */
+export async function jidAliases(
+  instanceName: string,
+  jid: string,
+  fetchImpl: typeof fetch = fetch,
+) {
+  const cached = aliasCache.get(instanceName);
+  if (
+    cached &&
+    (cached.aliases.has(jid) || Date.now() - cached.at < ALIASES_REFRESH_MS)
+  )
+    return cached.aliases;
+  const config = evolutionConfig();
+  if (!config) return new Map<string, string>();
+  try {
+    const response = await fetchImpl(
+      `${config.base}/chat/findChats/${encodeURIComponent(instanceName)}`,
+      {
+        method: "POST",
+        headers: { apikey: config.key, "Content-Type": "application/json" },
+        body: JSON.stringify({ where: {} }),
+        signal: AbortSignal.timeout(8000),
+      },
+    );
+    if (!response.ok) throw new Error(`ALIASES_HTTP_${response.status}`);
+    const aliases = jidAliasesFromChats(await response.json());
+    aliasCache.set(instanceName, { at: Date.now(), aliases });
+    return aliases;
+  } catch {
+    console.error("[presence] Correspondances de contacts indisponibles.");
+    return cached?.aliases ?? new Map<string, string>();
+  }
 }
 
 async function notifyContactPresence(

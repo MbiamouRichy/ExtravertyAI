@@ -63,6 +63,38 @@ const PresenceUpdateSchema = z.object({
   ),
 });
 
+/**
+ * Numéro et @lid d’un même contact, lus sur les discussions Evolution : ses
+ * messages peuvent porter l’un quand sa présence arrive avec l’autre.
+ */
+export function jidAliasesFromChats(chats: unknown) {
+  const aliases = new Map<string, string>();
+  const parsed = z
+    .array(
+      z.object({
+        lastMessage: z
+          .object({
+            key: z
+              .object({
+                remoteJid: z.string().max(250).optional(),
+                remoteJidAlt: z.string().max(250).optional(),
+              })
+              .nullish(),
+          })
+          .nullish(),
+      }),
+    )
+    .safeParse(chats);
+  for (const chat of parsed.success ? parsed.data : []) {
+    const { remoteJid, remoteJidAlt } = chat.lastMessage?.key ?? {};
+    if (!remoteJid || !remoteJidAlt) continue;
+    if (!isContactJid(remoteJid) || !isContactJid(remoteJidAlt)) continue;
+    aliases.set(remoteJid, remoteJidAlt);
+    aliases.set(remoteJidAlt, remoteJid);
+  }
+  return aliases;
+}
+
 const isContactJid = (jid: string) =>
   jid.endsWith("@s.whatsapp.net") || jid.endsWith("@lid");
 

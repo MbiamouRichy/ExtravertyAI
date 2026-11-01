@@ -13,7 +13,7 @@ export function ConversationListLoading() {
         {[0, 1, 2, 3, 4, 5, 6].map((index) => (
           <li
             key={index}
-            className="flex items-start gap-3 rounded-lg px-2.5 py-2.5"
+            className="flex h-21 items-center gap-3 rounded-lg px-2.5 py-2"
           >
             <Skeleton className="size-9 shrink-0 rounded-full" />
             <div className="min-w-0 flex-1">
