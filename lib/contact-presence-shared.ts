@@ -20,6 +20,9 @@ export const PRESENCE_TTL_MS: Record<
   recording: 25_000,
 };
 
+/** Conversations de la liste suivies en même temps, les plus récentes d’abord. */
+export const PRESENCE_MAX_CONTACTS = 8;
+
 /** Abonnement renouvelé tant que la conversation reste ouverte. */
 export const PRESENCE_SUBSCRIBE_EVERY_MS = 4 * 60_000;
 
@@ -27,9 +30,9 @@ export const PRESENCE_LABEL: Record<
   Exclude<ContactPresence, "offline">,
   string
 > = {
-  online: "en ligne",
-  typing: "écrit…",
-  recording: "enregistre un vocal…",
+  online: "En ligne",
+  typing: "Écrit…",
+  recording: "Enregistre un vocal…",
 };
 
 /** Correspondance des états Baileys (lastKnownPresence). */
@@ -60,15 +63,27 @@ const PresenceUpdateSchema = z.object({
   ),
 });
 
+const isContactJid = (jid: string) =>
+  jid.endsWith("@s.whatsapp.net") || jid.endsWith("@lid");
+
 /** Statuts des contacts individuels d’un événement `presence.update`. */
 export function parsePresenceUpdate(data: unknown) {
   const parsed = PresenceUpdateSchema.safeParse(data);
   if (!parsed.success) return [];
-  return Object.entries(parsed.data.presences)
-    .filter(([jid]) => jid.endsWith("@s.whatsapp.net") || jid.endsWith("@lid"))
-    .slice(0, 20)
-    .flatMap(([jid, value]) => {
+  const entries = Object.entries(parsed.data.presences)
+    .filter(([jid]) => isContactJid(jid))
+    .slice(0, 20);
+  return entries.flatMap(([jid, value]) => {
       const presence = mapProviderPresence(value.lastKnownPresence);
-      return presence ? [{ remoteJid: jid, presence }] : [];
+      if (!presence) return [];
+      // WhatsApp peut désigner un même contact par son numéro ou son @lid.
+      const alias =
+        entries.length === 1 &&
+        parsed.data.id &&
+        parsed.data.id !== jid &&
+        isContactJid(parsed.data.id)
+          ? [{ remoteJid: parsed.data.id, presence }]
+          : [];
+      return [{ remoteJid: jid, presence }, ...alias];
     });
 }

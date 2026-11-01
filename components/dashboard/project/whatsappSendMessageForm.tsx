@@ -19,6 +19,7 @@ import {
 import Link from "next/link";
 import {
   PRESENCE_LABEL,
+  PRESENCE_MAX_CONTACTS,
   PRESENCE_SUBSCRIBE_EVERY_MS,
   PRESENCE_TTL_MS,
   type ContactPresence,
@@ -339,6 +340,17 @@ function WaitingBadge({ since, now }: { since: string; now: number }) {
         de l’équipe répond.
       </TooltipContent>
     </Tooltip>
+  );
+}
+
+/** Point « en ligne » posé sur les initiales d’un prospect. */
+function PresenceDot() {
+  return (
+    <span
+      aria-label="En ligne sur WhatsApp"
+      role="img"
+      className="absolute -bottom-0.5 -right-0.5 size-3 rounded-full border-2 border-background bg-emerald-500"
+    />
   );
 }
 
@@ -694,6 +706,21 @@ function ChatBubble({
   );
 }
 
+function sendPresence(
+  projectId: string,
+  body: { contactIds: string[] } | { leave: true },
+) {
+  void fetch(
+    `/api/projects/${encodeURIComponent(projectId)}/chat/contact-presence`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+      keepalive: true,
+    },
+  ).catch(() => undefined);
+}
+
 const MAIN_FILTERS = [
   ["all", "Toutes"],
   ["mine", "À moi"],
@@ -787,25 +814,6 @@ export default function WhatsappWorkspace({
     [],
   );
   useChatRealtime(project.id, refresh, onPresence);
-  // WhatsApp n’envoie la présence qu’aux abonnés : abonnement à l’ouverture,
-  // renouvelé tant que la conversation reste ouverte et l’onglet visible.
-  useEffect(() => {
-    if (!activeId) return;
-    const subscribe = () => {
-      if (document.visibilityState !== "visible") return;
-      void fetch(
-        `/api/projects/${encodeURIComponent(project.id)}/chat/contact-presence`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ contactId: activeId }),
-        },
-      ).catch(() => undefined);
-    };
-    subscribe();
-    const timer = window.setInterval(subscribe, PRESENCE_SUBSCRIBE_EVERY_MS);
-    return () => window.clearInterval(timer);
-  }, [activeId, project.id]);
   // Un statut sans nouvelle de WhatsApp finit par s’effacer.
   useEffect(() => {
     if (!Object.keys(presences).length) return;
@@ -1008,6 +1016,45 @@ export default function WhatsappWorkspace({
     clients.find((client) => client.id === activeId) ??
     (selectedClient?.id === activeId ? selectedClient : undefined);
   const activePresence = activeClient ? presenceOf(activeClient.id) : null;
+
+  // WhatsApp n’envoie la présence qu’aux abonnés : la conversation ouverte et
+  // les plus récentes de la liste, renouvelées tant que l’onglet reste visible.
+  const presenceIds = [
+    ...new Set([
+      ...(activeId ? [activeId] : []),
+      ...visibleClients.flatMap((client) => (client.resolvedAt ? [] : [client.id])),
+    ]),
+  ]
+    .slice(0, PRESENCE_MAX_CONTACTS)
+    .join(",");
+  useEffect(() => {
+    if (!presenceIds) return;
+    const subscribe = () => {
+      if (document.visibilityState !== "visible") return;
+      sendPresence(project.id, { contactIds: presenceIds.split(",") });
+    };
+    subscribe();
+    const timer = window.setInterval(subscribe, PRESENCE_SUBSCRIBE_EVERY_MS);
+    document.addEventListener("visibilitychange", subscribe);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", subscribe);
+    };
+  }, [presenceIds, project.id]);
+  // Le compte ne reste pas affiché en ligne une fois la messagerie quittée.
+  useEffect(() => {
+    const leave = () => sendPresence(project.id, { leave: true });
+    const onVisibility = () => {
+      if (document.visibilityState === "hidden") leave();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("pagehide", leave);
+    return () => {
+      leave();
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("pagehide", leave);
+    };
+  }, [project.id]);
   const aiActive = activeClient
     ? (aiOverrides[activeClient.id] ?? activeClient.aiActive)
     : false;
@@ -1700,6 +1747,7 @@ export default function WhatsappWorkspace({
                 {visibleClients.map((client) => {
                   const selected = activeId === client.id;
                   const hasDraft = !!drafts[client.id]?.trim();
+                  const clientPresence = presenceOf(client.id);
 
                   return (
                     <li key={client.id}>
@@ -1723,11 +1771,14 @@ export default function WhatsappWorkspace({
                             : "hover:bg-muted/60",
                         )}
                       >
-                        <Avatar className="size-9 shrink-0">
-                          <AvatarFallback className="bg-muted font-heading text-xs font-semibold">
-                            {getInitials(client.name)}
-                          </AvatarFallback>
-                        </Avatar>
+                        <span className="relative shrink-0">
+                          <Avatar className="size-9">
+                            <AvatarFallback className="bg-muted font-heading text-xs font-semibold">
+                              {getInitials(client.name)}
+                            </AvatarFallback>
+                          </Avatar>
+                          {clientPresence && <PresenceDot />}
+                        </span>
 
                         <span className="min-w-0 flex-1">
                           <span className="flex items-center justify-between gap-2">
@@ -1773,7 +1824,15 @@ export default function WhatsappWorkspace({
                                   : "text-muted-foreground",
                               )}
                             >
-                              {hasDraft ? (
+                              {clientPresence === "typing" ||
+                              clientPresence === "recording" ? (
+                                <span
+                                  role="status"
+                                  className="font-medium text-emerald-600 dark:text-emerald-400"
+                                >
+                                  {PRESENCE_LABEL[clientPresence]}
+                                </span>
+                              ) : hasDraft ? (
                                 <>
                                   <span className="font-medium text-foreground">
                                     Brouillon :{" "}
@@ -1885,12 +1944,7 @@ export default function WhatsappWorkspace({
                           {getInitials(activeClient.name)}
                         </AvatarFallback>
                       </Avatar>
-                      {activePresence && (
-                        <span
-                          aria-hidden="true"
-                          className="absolute -bottom-0.5 -right-0.5 size-3 rounded-full border-2 border-background bg-emerald-500"
-                        />
-                      )}
+                      {activePresence && <PresenceDot />}
                     </span>
 
                     <span className="block min-w-0 flex-1">
@@ -2352,6 +2406,7 @@ export default function WhatsappWorkspace({
             <ChatContactPanel
               projectId={project.id}
               client={activeClient}
+              presence={activePresence}
               aiActive={aiActive}
               resolved={activeResolved}
               automationPaused={project.automationPaused}
@@ -2387,6 +2442,7 @@ export default function WhatsappWorkspace({
             <ChatContactPanel
               projectId={project.id}
               client={activeClient}
+              presence={activePresence}
               aiActive={aiActive}
               resolved={activeResolved}
               automationPaused={project.automationPaused}

@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
-import { Bot, Check, CircleCheck, Copy, Download, Loader2, Moon, Sunrise, UsersRound } from "lucide-react";
+import { Bot, Check, CircleCheck, Clock3, Copy, Download, Loader2, Moon, Sparkles, Sunrise, UsersRound } from "lucide-react";
 
 import { getInitials } from "@/components/getInitials";
 import {
@@ -12,6 +12,7 @@ import {
   AvatarImage,
 } from "@/components/ui/avatar";
 import type { ChatAgent, ChatClient, ChatTag } from "@/lib/chat";
+import { PRESENCE_LABEL, type ContactPresence } from "@/lib/contact-presence-shared";
 import type { ChatContactDetails } from "@/lib/contact-details";
 import { revealContactPhone } from "@/app/actions/contact-phone";
 import { wakeAssistantAction } from "@/app/actions/ai-quiet";
@@ -81,6 +82,7 @@ function statusOf({
 export function ChatContactPanel({
   projectId,
   client,
+  presence = null,
   aiActive,
   resolved,
   automationPaused,
@@ -97,6 +99,8 @@ export function ChatContactPanel({
 }: {
   projectId: string;
   client: ChatClient;
+  /** Statut WhatsApp du prospect, en direct. */
+  presence?: Exclude<ContactPresence, "offline"> | null;
   aiActive: boolean;
   resolved: boolean;
   automationPaused: boolean;
@@ -167,13 +171,26 @@ export function ChatContactPanel({
   return (
     <div className="flex flex-col divide-y px-5 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
       <header className="flex min-w-0 items-center gap-3 py-5">
-        <Avatar className="size-11">
-          <AvatarFallback className="font-heading text-sm font-semibold">
-            {getInitials(client.name)}
-          </AvatarFallback>
-        </Avatar>
+        <span className="relative shrink-0">
+          <Avatar className="size-11">
+            <AvatarFallback className="font-heading text-sm font-semibold">
+              {getInitials(client.name)}
+            </AvatarFallback>
+          </Avatar>
+          {presence && (
+            <span
+              aria-hidden="true"
+              className="absolute -right-0.5 -bottom-0.5 size-3.5 rounded-full border-2 border-background bg-emerald-500"
+            />
+          )}
+        </span>
         <div className="min-w-0 flex-1">
           <p className="truncate font-heading text-base font-semibold">{client.name}</p>
+          {presence && (
+            <p role="status" className="text-xs text-emerald-600 dark:text-emerald-400">
+              {PRESENCE_LABEL[presence]}
+            </p>
+          )}
           {details?.maskedPhone && (
             <div className="flex items-center gap-1 text-xs text-muted-foreground">
               <span className="font-mono tabular-nums" aria-label="Numéro masqué">
@@ -219,15 +236,21 @@ export function ChatContactPanel({
             </span>
           </Row>
           <Row label="Intérêt">
-            <span className="truncate">
-              {instinct === "interesting"
-                ? "Prospect intéressant"
-                : instinct === "follow_up"
-                  ? "À suivre"
-                  : instinct === "none"
-                    ? "Aucun détecté"
-                    : "En attente"}
-            </span>
+            {instinct === "interesting" ? (
+              <span className="inline-flex min-w-0 items-center gap-1.5 rounded-md bg-primary px-2 py-1 font-medium text-primary-foreground">
+                <Sparkles aria-hidden="true" className="size-3.5 shrink-0" />
+                <span className="truncate">Prospect intéressant</span>
+              </span>
+            ) : instinct === "follow_up" ? (
+              <span className="inline-flex min-w-0 items-center gap-1.5 rounded-md border px-2 py-1 font-medium">
+                <Clock3 aria-hidden="true" className="size-3.5 shrink-0" />
+                <span className="truncate">À suivre</span>
+              </span>
+            ) : (
+              <span className="truncate text-muted-foreground">
+                {instinct === "none" ? "Aucun détecté" : "En attente"}
+              </span>
+            )}
           </Row>
           <Row label="Suivie par">
             {agents.length > 0 && (

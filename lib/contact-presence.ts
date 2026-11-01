@@ -118,6 +118,29 @@ export async function subscribeContactPresence(
   if (!response.ok) throw new Error(`PRESENCE_HTTP_${response.status}`);
 }
 
+/**
+ * WhatsApp ne transmet « écrit… » et « enregistre un vocal… » qu’à un compte
+ * disponible : celui-ci l’est le temps qu’un membre garde la messagerie ouverte.
+ */
+export async function setInstancePresence(
+  instanceName: string,
+  presence: "available" | "unavailable",
+  fetchImpl: typeof fetch = fetch,
+) {
+  const config = evolutionConfig();
+  if (!config) throw new Error("EVOLUTION_CONFIG_MISSING");
+  const response = await fetchImpl(
+    `${config.base}/instance/setPresence/${encodeURIComponent(instanceName)}`,
+    {
+      method: "POST",
+      headers: { apikey: config.key, "Content-Type": "application/json" },
+      body: JSON.stringify({ presence }),
+      signal: AbortSignal.timeout(8000),
+    },
+  );
+  if (!response.ok) throw new Error(`PRESENCE_HTTP_${response.status}`);
+}
+
 /** Met à jour les événements du webhook d’un numéro déjà connecté (une seule fois). */
 export async function upgradeWebhookEvents(
   prisma: PrismaClient,

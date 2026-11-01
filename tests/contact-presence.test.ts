@@ -25,5 +25,16 @@ test("WhatsApp presence updates map to online, typing and offline", () => {
     }),
     [{ remoteJid: "24166845039@s.whatsapp.net", presence: "typing" }],
   );
+  // Un contact connu sous son numéro peut être signalé par son @lid.
+  assert.deepEqual(
+    parsePresenceUpdate({
+      id: "24166845039@s.whatsapp.net",
+      presences: { "123@lid": { lastKnownPresence: "recording" } },
+    }),
+    [
+      { remoteJid: "123@lid", presence: "recording" },
+      { remoteJid: "24166845039@s.whatsapp.net", presence: "recording" },
+    ],
+  );
   assert.deepEqual(parsePresenceUpdate({ nope: true }), []);
 });
