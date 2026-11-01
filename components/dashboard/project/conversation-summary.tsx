@@ -138,9 +138,16 @@ export function ConversationSummaryCard({
           </div>
         ) : (
           result && (
-            <div className="space-y-3 pt-2 [&_.leading-7]:leading-5 [&_p]:text-xs">
-              <SummarySections key={result.generatedAt} result={result} />
-            </div>
+            <ScrollFadeArea
+              label="Résumé IA de la conversation"
+              surface="background"
+              className="mt-2"
+              viewportClassName="h-64"
+            >
+              <div className="space-y-3 pb-2 [&_.leading-7]:leading-5 [&_p]:text-xs">
+                <SummarySections key={result.generatedAt} result={result} />
+              </div>
+            </ScrollFadeArea>
           )
         )}
         {error && (

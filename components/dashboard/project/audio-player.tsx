@@ -10,6 +10,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+import { ScrollFadeArea } from "./scroll-fade-area";
 const time = (seconds: number) =>
   Math.floor(seconds / 60) +
   ":" +
@@ -287,6 +288,7 @@ export function AudioPlayer({
         <AiInsight
           insight={transcript}
           label="Transcription IA"
+          surface={outgoing ? "primary" : "muted"}
           className={
             outgoing
               ? "bg-primary-foreground/10 text-primary-foreground [&_.text-muted-foreground]:text-primary-foreground/70"
@@ -299,67 +301,17 @@ export function AudioPlayer({
   );
 }
 
-/**
- * Texte long dans une hauteur bornée : il défile sur place, et un flou apparaît
- * sur le bord où il reste du contenu à lire.
- */
-function FadingScroll({ label, children }: { label: string; children: ReactNode }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [edges, setEdges] = useState({ top: false, bottom: false });
-  const measure = () => {
-    const box = ref.current;
-    if (!box) return;
-    const top = box.scrollTop > 2;
-    const bottom = box.scrollTop + box.clientHeight < box.scrollHeight - 2;
-    setEdges((current) =>
-      current.top === top && current.bottom === bottom ? current : { top, bottom },
-    );
-  };
-  useEffect(() => {
-    const box = ref.current;
-    if (!box) return;
-    const observer = new ResizeObserver(() => measure());
-    observer.observe(box);
-    if (box.firstElementChild) observer.observe(box.firstElementChild);
-    return () => observer.disconnect();
-  }, []);
-  const scrollable = edges.top || edges.bottom;
-  const blur = "pointer-events-none absolute inset-x-0 h-8 backdrop-blur-[2px] transition-opacity duration-200";
-  return (
-    <div className="relative mt-1">
-      <div
-        ref={ref}
-        onScroll={measure}
-        role={scrollable ? "region" : undefined}
-        aria-label={scrollable ? label : undefined}
-        tabIndex={scrollable ? 0 : undefined}
-        style={{
-          maskImage: `linear-gradient(to bottom, ${edges.top ? "transparent" : "black"}, black 2rem, black calc(100% - 2rem), ${edges.bottom ? "transparent" : "black"})`,
-        }}
-        className="max-h-44 overflow-y-auto rounded-sm outline-none [scrollbar-width:none] focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-scrollbar]:hidden"
-      >
-        {children}
-      </div>
-      <span
-        aria-hidden="true"
-        className={cn(blur, "top-0 [mask-image:linear-gradient(to_bottom,black,transparent)]", edges.top ? "opacity-100" : "opacity-0")}
-      />
-      <span
-        aria-hidden="true"
-        className={cn(blur, "bottom-0 [mask-image:linear-gradient(to_top,black,transparent)]", edges.bottom ? "opacity-100" : "opacity-0")}
-      />
-    </div>
-  );
-}
-
 /** Bloc repliable « Transcription IA » / « Analyse IA » affiché dans une bulle. */
 export function AiInsight({
   insight,
   label,
+  surface = "muted",
   className,
 }: {
   insight: AudioTranscript;
   label: string;
+  /** Fond de la bulle, repris par les bords flous du texte. */
+  surface?: "muted" | "primary";
   className?: string;
 }) {
   const [open, setOpen] = useState(true);
@@ -389,11 +341,16 @@ export function AiInsight({
             />
           </button>
           {open && (
-            <FadingScroll label={label}>
+            <ScrollFadeArea
+              label={label}
+              surface={surface}
+              className="mt-1"
+              viewportClassName="max-h-44"
+            >
               <p dir="auto" className="whitespace-pre-wrap leading-relaxed wrap-anywhere">
                 {insight.text}
               </p>
-            </FadingScroll>
+            </ScrollFadeArea>
           )}
         </>
       ) : (

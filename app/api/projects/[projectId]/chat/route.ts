@@ -6,7 +6,7 @@ import {
   contactSourceLabel,
   maskContactPhone,
 } from "@/lib/contact-details";
-import { currentProspectClassification } from "@/lib/instinct-classification";
+import { lastProspectClassification } from "@/lib/instinct-classification";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -205,11 +205,8 @@ export async function GET(
             select: { tag: { select: { id: true, name: true } } },
           },
           instinctClassification: true,
-          instinctSourceId: true,
-          instinctConfigVersion: true,
           project: {
             select: {
-              agentConfigVersion: true,
               agentQualifyLeads: true,
               showWaitingTime: true,
             },
@@ -309,10 +306,7 @@ export async function GET(
         projectTags: tags,
         items: page.map((contact) => {
           const latest = contact.messages[0];
-          const prospectClassification = currentProspectClassification(
-            contact,
-            latest?.id,
-          );
+          const prospectClassification = lastProspectClassification(contact);
 
           return {
             id: contact.id,

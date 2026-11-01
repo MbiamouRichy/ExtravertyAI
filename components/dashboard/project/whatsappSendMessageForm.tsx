@@ -1771,6 +1771,12 @@ export default function WhatsappWorkspace({
                             : "hover:bg-muted/60",
                         )}
                       >
+                        {selected && (
+                          <span
+                            aria-hidden="true"
+                            className="absolute inset-y-1.5 right-0 w-1 rounded-full bg-primary motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-200"
+                          />
+                        )}
                         <span className="relative shrink-0">
                           <Avatar className="size-9">
                             <AvatarFallback className="bg-muted font-heading text-xs font-semibold">
@@ -1958,24 +1964,25 @@ export default function WhatsappWorkspace({
                           loading={historyQuery.isLoading}
                         />
                       </span>
-                      {activePresence ? (
-                        <span
-                          role="status"
-                          className="mt-0.5 flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400"
-                        >
+                      <span className="mt-0.5 flex min-w-0 items-center gap-2 empty:hidden">
+                        {activePresence && (
                           <span
-                            aria-hidden="true"
-                            className="size-1.5 rounded-full bg-emerald-500 sm:hidden"
-                          />
-                          {PRESENCE_LABEL[activePresence]}
-                        </span>
-                      ) : (
-                        <span className="mt-0.5 hidden sm:flex">
-                          <InstinctBadge
-                            classification={activeClient.prospectClassification}
-                          />
-                        </span>
-                      )}
+                            role="status"
+                            className="flex min-w-0 items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400"
+                          >
+                            <span
+                              aria-hidden="true"
+                              className="size-1.5 shrink-0 rounded-full bg-emerald-500 sm:hidden"
+                            />
+                            <span className="truncate">
+                              {PRESENCE_LABEL[activePresence]}
+                            </span>
+                          </span>
+                        )}
+                        <InstinctBadge
+                          classification={activeClient.prospectClassification}
+                        />
+                      </span>
                     </span>
                   </button>
                 </div>
