@@ -136,6 +136,7 @@ import { cn } from "@/lib/utils";
 import { AiResponseText, AiThinking, useLiveAiResponses } from "./ai-response";
 import { ChatComposer } from "./chat-composer";
 import { ChatContactPanel } from "./chat-contact-panel";
+import { InternalNotesStrip } from "./chat-internal-notes";
 import { downloadConversation } from "./export-conversation";
 import { ConversationSummaryView } from "./conversation-summary";
 import { useConversationRead } from "@/hooks/use-conversation-read";
@@ -1892,11 +1893,25 @@ export default function WhatsappWorkspace({
                           </span>
 
                           {(client.prospectClassification === "interesting" ||
-                            client.prospectClassification === "follow_up") && (
-                            <span className="mt-1 flex">
+                            client.prospectClassification === "follow_up" ||
+                            !!client.noteCount) && (
+                            <span className="mt-1 flex items-center gap-2">
                               <InstinctBadge
                                 classification={client.prospectClassification}
                               />
+                              {!!client.noteCount && (
+                                <Hint
+                                  label={`${client.noteCount} note${client.noteCount > 1 ? "s" : ""} interne${client.noteCount > 1 ? "s" : ""} de l’équipe.`}
+                                >
+                                  <span className="inline-flex shrink-0 items-center gap-1 text-[11px] text-muted-foreground tabular-nums">
+                                    <Lock aria-hidden="true" className="size-3" />
+                                    {client.noteCount}
+                                    <span className="sr-only">
+                                      notes internes
+                                    </span>
+                                  </span>
+                                </Hint>
+                              )}
                             </span>
                           )}
                         </span>
@@ -2156,6 +2171,13 @@ export default function WhatsappWorkspace({
                   </Tooltip>
                 </div>
               </header>
+
+              {!summaryOpen && !!historyQuery.notes?.total && (
+                <InternalNotesStrip
+                  notes={historyQuery.notes}
+                  formatDate={(iso) => dateFormatter.format(new Date(iso))}
+                />
+              )}
 
               {!summaryOpen &&
                 !activeResolved &&

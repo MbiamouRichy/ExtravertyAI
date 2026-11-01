@@ -23,6 +23,7 @@ export type ChatClient = {
   assignee?: ChatAgent | null;
   // Conversation reprise par l’équipe dont le dernier message vient du client.
   waitingSince?: string | null;
+  noteCount?: number;
   // Fin de conversation : l’IA ignore les simples accusés de réception.
   aiQuietSince?: string | null;
   pipelineStage?: PipelineStageId;
@@ -30,6 +31,16 @@ export type ChatClient = {
 };
 
 export type ChatTag = { id: string; name: string };
+
+export type ChatNote = {
+  id: string;
+  content: string;
+  timestamp: string;
+  author: ChatAgent | null;
+};
+
+/** Notes internes d’une conversation, indépendantes de la page de messages. */
+export type ChatNotes = { total: number; recent: ChatNote[] };
 
 export type ChatFilter =
   | "all"
@@ -59,6 +70,8 @@ export type ChatGeneration = {
 export type ChatMessagesPage = ChatPage<ChatMessage> & {
   agents?: ChatAgent[];
   contact?: ChatContactDetails;
+  /** Première page uniquement. */
+  notes?: ChatNotes;
   hasClientMessage: boolean;
   generation: ChatGeneration | null;
 };

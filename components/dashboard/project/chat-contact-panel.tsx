@@ -357,9 +357,9 @@ export function ChatContactPanel({
         </dl>
         <Button
           type="button"
-          variant="ghost"
+          variant="outline"
           size="sm"
-          className="mt-3 -ml-2 text-muted-foreground"
+          className="mt-3"
           disabled={exporting}
           aria-busy={exporting}
           onClick={async () => {

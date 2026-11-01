@@ -50,6 +50,7 @@ const QuerySchema = z.object({
 });
 
 const NOTES_PER_PAGE = 100;
+const PINNED_NOTES = 20;
 
 function encodeCursor(date: Date, id: string): string {
   return Buffer.from(
@@ -266,7 +267,7 @@ export async function GET(
             unassigned,
           }));
 
-      const [unreadCounts, authors, unreadConversations, tags] =
+      const [unreadCounts, authors, unreadConversations, tags, noteCounts] =
         await Promise.all([
           conversationUnreadCounts(
             prisma,
@@ -298,6 +299,11 @@ export async function GET(
             tag,
           ),
           cursor ? undefined : projectTags(prisma, projectId),
+          prisma.internalNote.groupBy({
+            by: ["contactId"],
+            where: { projectId, contactId: { in: contactIds } },
+            _count: { _all: true },
+          }),
         ]);
 
       const result: ChatPage<ChatClient> = {
@@ -331,6 +337,9 @@ export async function GET(
             prospectClassification,
             interestingProspect: prospectClassification === "interesting",
             unreadCount: unreadCounts.get(contact.id) ?? 0,
+            noteCount:
+              noteCounts.find((note) => note.contactId === contact.id)?._count
+                ._all ?? 0,
             agents: authors
               .filter((author) => author.contactId === contact.id)
               .flatMap((author) => (author.agent ? [author.agent] : [])),
@@ -503,6 +512,25 @@ export async function GET(
       },
     });
 
+    // Notes épinglées : toute la conversation, pas seulement cette page.
+    const noteWhere = { projectId, contactId };
+    const [noteTotal, recentNotes] = cursor
+      ? [0, []]
+      : await Promise.all([
+          prisma.internalNote.count({ where: noteWhere }),
+          prisma.internalNote.findMany({
+            where: noteWhere,
+            orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+            take: PINNED_NOTES,
+            select: {
+              id: true,
+              content: true,
+              createdAt: true,
+              author: { select: { id: true, name: true, image: true } },
+            },
+          }),
+        ]);
+
     // Journal IA (activation / pause), intercalé dans la même fenêtre.
     const events = await prisma.contactEvent.findMany({
       where: {
@@ -594,6 +622,19 @@ export async function GET(
         })),
       ],
       nextCursor: hasMore ? encodeCursor(last.createdAt, last.id) : null,
+      ...(cursor
+        ? {}
+        : {
+            notes: {
+              total: noteTotal,
+              recent: recentNotes.map((note) => ({
+                id: note.id,
+                content: note.content,
+                timestamp: note.createdAt.toISOString(),
+                author: note.author,
+              })),
+            },
+          }),
     };
 
     return json(result);
