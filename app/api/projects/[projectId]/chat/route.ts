@@ -13,6 +13,7 @@ import { z } from "zod";
 import prisma from "@/lib/prisma";
 import {
   conversationUnreadCounts,
+  unreadContactIds,
   unreadConversationCount,
 } from "@/lib/conversation-reads";
 import { getSession } from "@/lib/auth-server";
@@ -43,7 +44,7 @@ const QuerySchema = z.object({
   cursor: z.string().max(1000).optional(),
   q: z.string().trim().max(100).default(""),
   filter: z
-    .enum(["all", "ai", "manual", "resolved", "mine", "unassigned"])
+    .enum(["all", "unread", "ai", "manual", "resolved", "mine", "unassigned"])
     .default("all"),
   tag: z.string().cuid().optional(),
 });
@@ -131,6 +132,10 @@ export async function GET(
 
     if (parsed.data.view === "contacts") {
       const { q, filter, tag } = parsed.data;
+      const unreadIds =
+        filter === "unread" || !cursor
+          ? await unreadContactIds(prisma, projectId, session.user.id)
+          : [];
 
       const rows = await prisma.contact.findMany({
         where: {
@@ -138,7 +143,9 @@ export async function GET(
           // Seul « Résolues » montre les conversations fermées.
           ...(filter === "resolved"
             ? { resolvedAt: { not: null } }
-            : filter === "ai" || filter === "manual"
+            : filter === "unread"
+              ? { id: { in: unreadIds } }
+              : filter === "ai" || filter === "manual"
               ? { aiActive: filter === "ai", resolvedAt: null }
               : filter === "mine"
                 ? { assigneeId: session.user.id, resolvedAt: null }
@@ -251,8 +258,10 @@ export async function GET(
               where: { ...scope, assigneeId: session.user.id, resolvedAt: null },
             }),
             prisma.contact.count({ where: { ...scope, assigneeId: null, resolvedAt: null } }),
-          ]).then(([all, ai, manual, resolved, mine, unassigned]) => ({
+            prisma.contact.count({ where: { ...scope, id: { in: unreadIds } } }),
+          ]).then(([all, ai, manual, resolved, mine, unassigned, unread]) => ({
             all,
+            unread,
             ai,
             manual,
             resolved,

@@ -33,6 +33,7 @@ export type ChatTag = { id: string; name: string };
 
 export type ChatFilter =
   | "all"
+  | "unread"
   | "ai"
   | "manual"
   | "resolved"

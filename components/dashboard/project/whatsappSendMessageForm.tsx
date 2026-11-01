@@ -73,6 +73,7 @@ import {
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
   DropdownMenuSeparator,
@@ -355,9 +356,8 @@ function InstinctBadge({
     <Tooltip>
       <TooltipTrigger asChild>
         <span
-          tabIndex={0}
           className={cn(
-            "inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-sm text-[11px] outline-none focus-visible:ring-2 focus-visible:ring-ring",
+            "inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-sm text-[11px]",
             interesting
               ? "bg-primary px-1.5 py-px font-medium text-primary-foreground"
               : "border px-1.5 text-muted-foreground",
@@ -701,6 +701,7 @@ const MAIN_FILTERS = [
 ] as const;
 
 const MORE_FILTERS = [
+  ["unread", "Non lues"],
   ["ai", "Assistant IA"],
   ["manual", "Équipe"],
   ["unassigned", "Non assignées"],
@@ -971,6 +972,7 @@ export default function WhatsappWorkspace({
       .filter((client) => {
         const matchesFilter =
           filter === "all" ||
+          (filter === "unread" && !!client.unreadCount) ||
           (filter === "resolved" && !!client.resolvedAt) ||
           (filter === "ai" && !client.resolvedAt && client.aiActive) ||
           (filter === "manual" && !client.resolvedAt && !client.aiActive) ||
@@ -1499,7 +1501,18 @@ export default function WhatsappWorkspace({
           <p>
             Projet en pause : l’IA ne répond à aucun contact, même si son
             réglage individuel est activé. La réactivation globale se fait dans
-            les paramètres du projet.
+            les{" "}
+            {canManageAi ? (
+              <Link
+                href={`/projects/${project.id}/settings`}
+                className="font-medium underline underline-offset-2 hover:no-underline"
+              >
+                paramètres du projet
+              </Link>
+            ) : (
+              "paramètres du projet"
+            )}
+            .
           </p>
         </div>
       )}
@@ -1612,9 +1625,12 @@ export default function WhatsappWorkspace({
                       </DropdownMenuRadioItem>
                     ))}
                   </DropdownMenuRadioGroup>
-                  {!!contactsQuery.projectTags.length && (
+                  <DropdownMenuSeparator />
+                  <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">
+                    Étiquettes
+                  </DropdownMenuLabel>
+                  {contactsQuery.projectTags.length ? (
                     <>
-                      <DropdownMenuSeparator />
                       {contactsQuery.projectTags.map((tag) => (
                         <DropdownMenuCheckboxItem
                           key={tag.id}
@@ -1630,6 +1646,10 @@ export default function WhatsappWorkspace({
                         </DropdownMenuCheckboxItem>
                       ))}
                     </>
+                  ) : (
+                    <p className="px-2 pb-1.5 text-xs leading-relaxed text-muted-foreground">
+                      Ajoutez-en depuis la fiche d’un contact.
+                    </p>
                   )}
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -1788,6 +1808,15 @@ export default function WhatsappWorkspace({
                               </Hint>
                             )}
                           </span>
+
+                          {(client.prospectClassification === "interesting" ||
+                            client.prospectClassification === "follow_up") && (
+                            <span className="mt-1 flex">
+                              <InstinctBadge
+                                classification={client.prospectClassification}
+                              />
+                            </span>
+                          )}
                         </span>
                       </Button>
                     </li>
