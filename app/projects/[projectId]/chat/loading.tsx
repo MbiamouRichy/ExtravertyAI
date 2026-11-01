@@ -16,23 +16,20 @@ export default function ChatLoading() {
       <div className="flex min-h-0 w-full flex-1 overflow-hidden">
         {/* Liste des conversations */}
         <div className="flex w-full min-h-0 shrink-0 flex-col overflow-hidden border-r bg-background md:w-80 lg:w-[22rem]">
-          <div className="space-y-3 border-b px-3 pb-3 pt-4">
-            <div className="space-y-1.5 px-1">
-              <Skeleton className="h-3 w-24" />
-              <Skeleton className="h-6 w-32" />
-              <Skeleton className="h-3 w-28" />
-            </div>
+          <div className="space-y-2 border-b px-3 py-3">
             <div className="flex h-9 items-center gap-2 rounded-md border px-2.5">
               <Skeleton className="size-4 rounded-full" />
               <Skeleton className="h-3 w-36" />
-              <Skeleton className="ml-auto h-5 w-5 rounded-sm" />
             </div>
-            <div className="flex flex-wrap gap-1">
-              {["w-14", "w-24", "w-16", "w-18"].map((width) => (
-                <Skeleton key={width} className={`h-6 rounded-full ${width}`} />
+            <div className="flex items-center gap-1">
+              {["w-14", "w-14", "w-16"].map((width, index) => (
+                <Skeleton
+                  key={index}
+                  className={`h-6 rounded-full ${width}`}
+                />
               ))}
+              <Skeleton className="ml-auto size-6 rounded-full" />
             </div>
-            <Skeleton className="h-7 w-full rounded-md" />
           </div>
           <div className="min-h-0 flex-1 overflow-hidden p-1.5">
             <ConversationListLoading />

@@ -37,13 +37,6 @@ import {
   InputGroupTextarea,
 } from "@/components/ui/input-group";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
   addContactTagAction,
   removeContactTagAction,
 } from "@/app/actions/conversation-workflow";
@@ -399,46 +392,6 @@ export function ContactTagsEditor({
   );
 }
 
-const ALL_TAGS = "__all";
-
-export function TagFilter({
-  tags,
-  value,
-  onChange,
-}: {
-  tags: Array<ChatTag & { count: number }>;
-  value: string | null;
-  onChange: (value: string | null) => void;
-}) {
-  if (!tags.length && !value) return null;
-  return (
-    <Select
-      value={value ?? ALL_TAGS}
-      onValueChange={(next) => onChange(next === ALL_TAGS ? null : next)}
-    >
-      <SelectTrigger
-        size="sm"
-        aria-label="Filtrer par étiquette"
-        className="h-7 w-full text-xs"
-      >
-        <Tag aria-hidden="true" className="size-3.5 text-muted-foreground" />
-        <SelectValue placeholder="Toutes les étiquettes" />
-      </SelectTrigger>
-      <SelectContent>
-        <SelectItem value={ALL_TAGS}>Toutes les étiquettes</SelectItem>
-        {tags.map((tag) => (
-          <SelectItem key={tag.id} value={tag.id}>
-            {tag.name}
-            <span className="ml-1 text-muted-foreground tabular-nums">
-              {tag.count}
-            </span>
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
-  );
-}
-
 export function ComposerModeToggle({
   mode,
   onChange,
@@ -498,6 +451,19 @@ export function ComposerModeToggle({
         Note interne
       </Button>
       {extra}
+      {mode === "note" && (
+        <Button
+          type="button"
+          size="icon-xs"
+          variant="ghost"
+          aria-label="Fermer la note interne"
+          title="Fermer la note interne"
+          onClick={() => (onNoteClose ? onNoteClose() : onChange("reply"))}
+          className="ml-auto shrink-0 text-muted-foreground"
+        >
+          <X aria-hidden="true" />
+        </Button>
+      )}
       {hint && (
         <span className="ml-auto hidden min-w-0 truncate pr-1.5 text-[11px] text-muted-foreground sm:inline">
           {hint}

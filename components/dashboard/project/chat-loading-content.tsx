@@ -28,15 +28,6 @@ export function ConversationListLoading() {
                   className={cn("h-3", index % 3 ? "w-4/5" : "w-full")}
                 />
               </div>
-              {/* Étiquette ou statut « Résolue » sur une ligne sur deux. */}
-              {index % 2 === 0 && (
-                <div className="mt-1.5 flex gap-1.5">
-                  <Skeleton className="h-4 w-14 rounded-md" />
-                  {index % 4 === 0 && (
-                    <Skeleton className="h-4 w-10 rounded-md" />
-                  )}
-                </div>
-              )}
             </div>
           </li>
         ))}

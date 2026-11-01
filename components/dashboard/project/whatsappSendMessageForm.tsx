@@ -34,14 +34,13 @@ import {
   Check,
   CheckCheck,
   CircleAlert,
-  CircleCheck,
   Download,
   Ellipsis,
   Clock3,
   Loader2,
   Lock,
   MessageCircle,
-  Moon,
+  ListFilter,
   PanelRightClose,
   PanelRightOpen,
   Pause,
@@ -60,7 +59,6 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Kbd } from "@/components/ui/kbd";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import {
@@ -72,8 +70,11 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   DropdownMenu,
+  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -119,7 +120,6 @@ import {
   ComposerModeToggle,
   InternalNoteComposer,
   ResolveConversationButton,
-  TagFilter,
   type ComposerMode,
 } from "./chat-workflow";
 import {
@@ -549,13 +549,16 @@ function ChatBubble({
         aria-label={`Message de ${author}`}
         className="flex w-full justify-end"
       >
-        <Message align="end" className="w-4/5 max-w-prose py-2">
+        <Message align="end" className="w-fit max-w-[85%] py-2 sm:max-w-[72%]">
           <MessageContent className="gap-1.5">
             <MessageHeader className="justify-end gap-1.5 px-1 text-[11px]">
               <Bot aria-hidden="true" className="size-3.5" />
               {author}
             </MessageHeader>
-            <AiResponseText content={message.content} animate={animate} />
+            {/* Justifié : les lignes pleines atteignent le bord droit de la bulle. */}
+            <div className="rounded-2xl rounded-br-md bg-muted px-3.5 py-2 text-justify hyphens-auto shadow-xs">
+              <AiResponseText content={message.content} animate={animate} />
+            </div>
             <MessageFooter className="flex-wrap justify-end gap-x-2 gap-y-1 px-1 text-[10px] font-normal">
               {!message.id.startsWith("local-") && (
                 <AiFeedbackControls
@@ -602,7 +605,7 @@ function ChatBubble({
       className={cn(
         "flex w-full items-end gap-2",
         outgoing ? "justify-end" : "justify-start",
-        grouped ? "-mt-3" : "mt-1",
+        !grouped && "mt-1",
       )}
     >
       <div
@@ -681,6 +684,18 @@ function ChatBubble({
   );
 }
 
+const MAIN_FILTERS = [
+  ["all", "Toutes"],
+  ["mine", "À moi"],
+  ["resolved", "Résolues"],
+] as const;
+
+const MORE_FILTERS = [
+  ["ai", "Assistant IA"],
+  ["manual", "Équipe"],
+  ["unassigned", "Non assignées"],
+] as const;
+
 export default function WhatsappWorkspace({
   project,
   user,
@@ -729,6 +744,9 @@ export default function WhatsappWorkspace({
   });
 
   const clients = contactsQuery.items;
+  const moreFilterLabel =
+    contactsQuery.projectTags.find((tag) => tag.id === tagFilter)?.name ??
+    MORE_FILTERS.find(([value]) => value === filter)?.[1];
 
   const messages = useMemo<Record<string, ChatMessage[]>>(
     () => (activeId ? { [activeId]: historyQuery.items } : {}),
@@ -1483,20 +1501,13 @@ export default function WhatsappWorkspace({
             mobileChat ? "hidden md:flex" : "flex",
           )}
         >
-          <header className="space-y-3 border-b px-3 pb-3 pt-4">
-            <div className="px-1">
-              <p className="truncate text-xs text-muted-foreground">
-                {project.name}
-              </p>
-              <h1 className="font-heading text-xl font-bold tracking-tight">
-                Messagerie
-              </h1>
-              <p aria-live="polite" className="text-xs text-muted-foreground">
-                {contactsQuery.unreadConversations
-                  ? `${contactsQuery.unreadConversations} discussion${contactsQuery.unreadConversations > 1 ? "s" : ""} non lue${contactsQuery.unreadConversations > 1 ? "s" : ""}`
-                  : "Tout est lu"}
-              </p>
-            </div>
+          <header className="space-y-2 border-b px-3 py-3">
+            <h1 className="sr-only">Messagerie</h1>
+            <p aria-live="polite" className="sr-only">
+              {contactsQuery.unreadConversations
+                ? `${contactsQuery.unreadConversations} discussion${contactsQuery.unreadConversations > 1 ? "s" : ""} non lue${contactsQuery.unreadConversations > 1 ? "s" : ""}`
+                : "Tout est lu"}
+            </p>
 
             <InputGroup>
               <InputGroupInput
@@ -1508,7 +1519,7 @@ export default function WhatsappWorkspace({
                 onKeyDown={(event) => {
                   if (event.key === "Escape") setSearch("");
                 }}
-                placeholder="Rechercher un contact…"
+                placeholder="Rechercher"
                 aria-label="Rechercher un contact par nom"
                 autoComplete="off"
                 maxLength={100}
@@ -1516,8 +1527,8 @@ export default function WhatsappWorkspace({
               <InputGroupAddon align="inline-start">
                 <Search />
               </InputGroupAddon>
-              <InputGroupAddon align="inline-end">
-                {search ? (
+              {search && (
+                <InputGroupAddon align="inline-end">
                   <InputGroupButton
                     size="icon-xs"
                     aria-label="Effacer la recherche"
@@ -1528,87 +1539,90 @@ export default function WhatsappWorkspace({
                   >
                     <X />
                   </InputGroupButton>
-                ) : (
-                  <Kbd aria-hidden="true">/</Kbd>
-                )}
-              </InputGroupAddon>
+                </InputGroupAddon>
+              )}
             </InputGroup>
 
             <div
               role="group"
               aria-label="Filtrer les conversations"
-              className="flex flex-wrap gap-1"
+              className="flex items-center gap-1"
             >
-              {(
-                [
-                  ["all", "Toutes", "Toutes les conversations"],
-                  [
-                    "ai",
-                    "Assistant IA",
-                    "L’assistant répond seul à ces contacts",
-                  ],
-                  [
-                    "manual",
-                    "Équipe",
-                    "Un membre de l’équipe a repris la main",
-                  ],
-                  [
-                    "resolved",
-                    "Résolues",
-                    "Traitées. Elles reviennent si le client réécrit",
-                  ],
-                  [
-                    "mine",
-                    "À moi",
-                    "Conversations ouvertes qui vous sont assignées",
-                  ],
-                  [
-                    "unassigned",
-                    "Non assignées",
-                    "Conversations ouvertes sans responsable",
-                  ],
-                ] as const
-              ).map(([value, label, hint]) => (
-                <Tooltip key={value}>
-                  <TooltipTrigger asChild>
-                    <Button
-                      type="button"
-                      size="xs"
-                      variant={filter === value ? "secondary" : "ghost"}
-                      aria-pressed={filter === value}
-                      onClick={() => setFilter(value)}
-                      className={cn(
-                        "rounded-full px-2.5",
-                        filter === value
-                          ? "text-foreground"
-                          : "text-muted-foreground",
-                      )}
-                    >
-                      {label}
-                      {contactsQuery.filterCounts && (
-                        <span
-                          className={cn(
-                            "ml-1 tabular-nums",
-                            filter === value
-                              ? "text-foreground/70"
-                              : "text-muted-foreground/70",
-                          )}
-                        >
-                          {contactsQuery.filterCounts[value]}
-                          <span className="sr-only"> conversations</span>
-                        </span>
-                      )}
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>{hint}</TooltipContent>
-                </Tooltip>
+              {MAIN_FILTERS.map(([value, label]) => (
+                <Button
+                  key={value}
+                  type="button"
+                  size="xs"
+                  variant={filter === value ? "secondary" : "ghost"}
+                  aria-pressed={filter === value}
+                  onClick={() => setFilter(value)}
+                  className={cn(
+                    "rounded-full px-2.5",
+                    filter === value
+                      ? "text-foreground"
+                      : "text-muted-foreground",
+                  )}
+                >
+                  {label}
+                </Button>
               ))}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    type="button"
+                    size="xs"
+                    variant={moreFilterLabel ? "secondary" : "ghost"}
+                    aria-label={
+                      moreFilterLabel
+                        ? `Autres filtres : ${moreFilterLabel}`
+                        : "Autres filtres"
+                    }
+                    className="ml-auto min-w-0 rounded-full"
+                  >
+                    <ListFilter aria-hidden="true" />
+                    {moreFilterLabel && (
+                      <span className="truncate">{moreFilterLabel}</span>
+                    )}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-52">
+                  <DropdownMenuRadioGroup
+                    value={filter}
+                    onValueChange={(value) => setFilter(value as Filter)}
+                  >
+                    {MORE_FILTERS.map(([value, label]) => (
+                      <DropdownMenuRadioItem key={value} value={value}>
+                        {label}
+                        {!!contactsQuery.filterCounts?.[value] && (
+                          <span className="ml-auto text-xs text-muted-foreground tabular-nums">
+                            {contactsQuery.filterCounts[value]}
+                          </span>
+                        )}
+                      </DropdownMenuRadioItem>
+                    ))}
+                  </DropdownMenuRadioGroup>
+                  {!!contactsQuery.projectTags.length && (
+                    <>
+                      <DropdownMenuSeparator />
+                      {contactsQuery.projectTags.map((tag) => (
+                        <DropdownMenuCheckboxItem
+                          key={tag.id}
+                          checked={tagFilter === tag.id}
+                          onCheckedChange={(checked) =>
+                            setTagFilter(checked ? tag.id : null)
+                          }
+                        >
+                          <span className="truncate">{tag.name}</span>
+                          <span className="ml-auto text-xs text-muted-foreground tabular-nums">
+                            {tag.count}
+                          </span>
+                        </DropdownMenuCheckboxItem>
+                      ))}
+                    </>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
-            <TagFilter
-              tags={contactsQuery.projectTags}
-              value={tagFilter}
-              onChange={setTagFilter}
-            />
           </header>
 
           <nav
@@ -1676,12 +1690,6 @@ export default function WhatsappWorkspace({
                             : "hover:bg-muted/60",
                         )}
                       >
-                        {selected && (
-                          <span
-                            aria-hidden="true"
-                            className="absolute inset-y-2 left-0 w-0.5 rounded-full bg-foreground"
-                          />
-                        )}
                         <Avatar className="size-9 shrink-0">
                           <AvatarFallback className="bg-muted font-heading text-xs font-semibold">
                             {getInitials(client.name)}
@@ -1744,6 +1752,12 @@ export default function WhatsappWorkspace({
                                 "Aucun message pour le moment"
                               )}
                             </span>
+                            {client.waitingSince && now && (
+                              <WaitingBadge
+                                since={client.waitingSince}
+                                now={now}
+                              />
+                            )}
                             {!!client.unreadCount && (
                               <Hint
                                 label={`${client.unreadCount} message${client.unreadCount > 1 ? "s" : ""} non lu${client.unreadCount > 1 ? "s" : ""} dans cette conversation.`}
@@ -1757,94 +1771,6 @@ export default function WhatsappWorkspace({
                                   <span className="sr-only">
                                     {client.unreadCount} messages non lus
                                   </span>
-                                </span>
-                              </Hint>
-                            )}
-                          </span>
-
-                          {/* Ligne de statut toujours réservée : toutes les lignes ont la même hauteur. */}
-                          <span className="mt-1.5 flex h-5 min-w-0 items-center gap-1.5 overflow-hidden text-[11px] text-muted-foreground">
-                            {client.waitingSince && now && (
-                              <WaitingBadge
-                                since={client.waitingSince}
-                                now={now}
-                              />
-                            )}
-                            {client.assignee && (
-                              <Hint
-                                label={
-                                  client.assignee.id === user.id
-                                    ? "Conversation qui vous est assignée : vous êtes responsable de son suivi."
-                                    : `Conversation assignée à ${client.assignee.name?.trim() || "un membre"}, responsable de son suivi.`
-                                }
-                              >
-                                <span className="inline-flex shrink-0 items-center gap-1">
-                                  <Avatar className="size-4">
-                                    <AvatarImage
-                                      src={client.assignee.image || undefined}
-                                      alt=""
-                                    />
-                                    <AvatarFallback className="text-[8px] font-semibold">
-                                      {getInitials(
-                                        client.assignee.name?.trim() ||
-                                          "Membre",
-                                      )}
-                                    </AvatarFallback>
-                                  </Avatar>
-                                  <span className="sr-only">
-                                    Assignée à{" "}
-                                    {client.assignee.name ?? "un membre"}
-                                  </span>
-                                  {client.assignee.id === user.id && (
-                                    <span aria-hidden="true">Vous</span>
-                                  )}
-                                </span>
-                              </Hint>
-                            )}
-                            {(client.prospectClassification === "interesting" ||
-                              client.prospectClassification ===
-                                "follow_up") && (
-                              <InstinctBadge
-                                classification={client.prospectClassification}
-                              />
-                            )}
-                            {client.resolvedAt && (
-                              <Hint label="Conversation traitée. Elle revient dans les conversations ouvertes si le client réécrit.">
-                                <span className="inline-flex shrink-0 items-center gap-1">
-                                  <CircleCheck
-                                    aria-hidden="true"
-                                    className="size-3"
-                                  />
-                                  Résolue
-                                </span>
-                              </Hint>
-                            )}
-                            {client.aiQuietSince &&
-                              client.aiActive &&
-                              !client.resolvedAt && (
-                                <Hint label="Fin de conversation : l’IA ignore les simples « merci » jusqu’au prochain vrai message du client.">
-                                  <span className="inline-flex shrink-0 items-center gap-1">
-                                    <Moon
-                                      aria-hidden="true"
-                                      className="size-3"
-                                    />
-                                    En veille
-                                  </span>
-                                </Hint>
-                              )}
-                            {client.tags?.[0] && (
-                              <Hint
-                                label={`Étiquette${client.tags.length > 1 ? "s" : ""} : ${client.tags.map((tag) => tag.name).join(", ")}. Visible uniquement par votre équipe.`}
-                              >
-                                <span className="min-w-0 truncate rounded-md border px-1.5 py-px">
-                                  <span className="sr-only">Étiquette : </span>
-                                  {client.tags[0].name}
-                                  {client.tags.length > 1 && (
-                                    <span className="text-muted-foreground">
-                                      {" "}
-                                      +{client.tags.length - 1}
-                                    </span>
-                                  )}
                                 </span>
                               </Hint>
                             )}
@@ -2225,6 +2151,18 @@ export default function WhatsappWorkspace({
                                 )
                               : undefined;
 
+                            const grouped =
+                              day === previousDay &&
+                              !!previousMessage &&
+                              message.senderType !== "bot" &&
+                              message.senderType !== "system" &&
+                              !message.mediaUrl &&
+                              !previousMessage.mediaUrl &&
+                              previousMessage.senderType ===
+                                message.senderType &&
+                              (previousMessage.agent?.id ?? null) ===
+                                (message.agent?.id ?? null);
+
                             return (
                               <MessageScrollerItem
                                 key={
@@ -2233,6 +2171,9 @@ export default function WhatsappWorkspace({
                                     : message.id
                                 }
                                 messageId={message.id}
+                                // Marge sur l’élément et non sur la bulle : son
+                                // content-visibility coupe tout ce qui en dépasse.
+                                className={cn(grouped && "-mt-3")}
                               >
                                 {day !== previousDay && (
                                   <div className="mb-5 mt-2 flex justify-center">
@@ -2246,21 +2187,7 @@ export default function WhatsappWorkspace({
 
                                 <ChatBubble
                                   message={message}
-                                  grouped={
-                                    day === previousDay &&
-                                    !!previousMessage &&
-                                    message.senderType !== "bot" &&
-                                    message.senderType !== "system" &&
-                                    // Les médias gardent leur espacement : la marge
-                                    // négative du regroupement les faisait passer
-                                    // sous la bulle précédente (haut coupé).
-                                    !message.mediaUrl &&
-                                    !previousMessage.mediaUrl &&
-                                    previousMessage.senderType ===
-                                      message.senderType &&
-                                    (previousMessage.agent?.id ?? null) ===
-                                      (message.agent?.id ?? null)
-                                  }
+                                  grouped={grouped}
                                   animate={animatedAiIds.has(message.id)}
                                   contactName={activeClient.name}
                                   projectId={project.id}
