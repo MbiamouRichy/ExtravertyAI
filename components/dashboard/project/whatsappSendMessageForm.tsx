@@ -1712,6 +1712,23 @@ export default function WhatsappWorkspace({
             !visibleClients.length &&
             (search || contactsQuery.filterCounts?.[filter] !== 0) ? (
               <ConversationListLoading />
+            ) : contactsQuery.error && !visibleClients.length ? (
+              <div role="alert" className="px-6 py-12 text-center">
+                <p className="text-sm font-medium">
+                  Conversations indisponibles
+                </p>
+                <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+                  Vos données sont intactes. Le chargement a échoué.
+                </p>
+                <Button
+                  type="button"
+                  variant="link"
+                  className="mt-3"
+                  onClick={() => void contactsQuery.mutate()}
+                >
+                  Réessayer
+                </Button>
+              </div>
             ) : visibleClients.length === 0 ? (
               <div className="px-6 py-12 text-center">
                 <Search
