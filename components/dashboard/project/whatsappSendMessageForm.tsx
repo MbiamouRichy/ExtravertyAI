@@ -555,8 +555,9 @@ function ChatBubble({
               <Bot aria-hidden="true" className="size-3.5" />
               {author}
             </MessageHeader>
-            {/* Justifié : les lignes pleines atteignent le bord droit de la bulle. */}
-            <div className="rounded-2xl rounded-br-md bg-muted px-3.5 py-2 text-justify hyphens-auto shadow-xs">
+            {/* Justifié : les lignes pleines atteignent le bord droit de la bulle.
+                Pas sur téléphone, où la colonne étroite creuserait le texte. */}
+            <div className="rounded-2xl rounded-br-md bg-muted px-3.5 py-2 hyphens-auto shadow-xs sm:text-justify">
               <AiResponseText content={message.content} animate={animate} />
             </div>
             <MessageFooter className="flex-wrap justify-end gap-x-2 gap-y-1 px-1 text-[10px] font-normal">
