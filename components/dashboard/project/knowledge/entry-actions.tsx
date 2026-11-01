@@ -53,23 +53,25 @@ export function EntryActions({
         Utiliser « {title} » dans les réponses
       </Label>
       <Tooltip>
+        {/* Le déclencheur écrit son propre data-state : il ne doit pas toucher celui du switch. */}
         <TooltipTrigger asChild>
-          <Switch
-            id={switchId}
-            size="sm"
-            checked={shown}
-            disabled={pending}
-            onCheckedChange={(checked) => {
-              setOptimistic(checked);
-              startTransition(async () => {
-                const result = await setKnowledgeEntryEnabledAction({ projectId, id: entryId, enabled: checked });
-                if (result.success) return onChanged();
-                setOptimistic(null);
-                toast.error(result.error);
-              });
-            }}
-            className="mr-1"
-          />
+          <span className="mr-1 inline-flex">
+            <Switch
+              id={switchId}
+              size="sm"
+              checked={shown}
+              disabled={pending}
+              onCheckedChange={(checked) => {
+                setOptimistic(checked);
+                startTransition(async () => {
+                  const result = await setKnowledgeEntryEnabledAction({ projectId, id: entryId, enabled: checked });
+                  if (result.success) return onChanged();
+                  setOptimistic(null);
+                  toast.error(result.error);
+                });
+              }}
+            />
+          </span>
         </TooltipTrigger>
         <TooltipContent>
           {shown ? "Ne plus utiliser dans les réponses" : "Utiliser dans les réponses"}
