@@ -203,6 +203,25 @@ export function chunkPosition(title: string): number {
   return Number(title.match(/(\d+)\/\d+$/)?.[1] ?? 0);
 }
 
+/**
+ * Texte extrait → titres et paragraphes, pour le relire comme une page.
+ * Une ligne courte sans ponctuation finale est un titre ; les numéros
+ * décoratifs (« 01 », « 02.1 ») et les doublons voisins disparaissent.
+ */
+export function extractBlocks(passages: string[]) {
+  const blocks: { type: "heading" | "paragraph"; text: string }[] = [];
+  for (const line of passages.flatMap((passage) => passage.split("\n"))) {
+    const text = line.trim();
+    if (!text || /^\d{1,2}(\.\d{0,2})?$/.test(text) || blocks.at(-1)?.text === text) continue;
+    const heading = text.length <= 70 && !/[.!?:;,…]$/.test(text);
+    blocks.push({ type: heading ? "heading" : "paragraph", text });
+  }
+  // Une liste de lignes courtes reste une liste : un titre annonce un paragraphe.
+  return blocks.map((block, index) =>
+    blocks[index + 1]?.type === "paragraph" ? block : { ...block, type: "paragraph" as const },
+  );
+}
+
 export type RetrievedEntry = {
   id: string;
   kind: KnowledgeKindId;

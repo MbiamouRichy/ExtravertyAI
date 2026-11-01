@@ -297,8 +297,8 @@ export function Improvements({
           </ul>
         ) : (
           <p className="rounded-2xl border border-dashed p-6 text-center text-sm text-muted-foreground">
-            Aucune correction en attente. Dans la messagerie, cliquez sur 👎 sous
-            une réponse de l’IA pour proposer une meilleure formulation.
+            Aucune correction en attente. Les corrections des membres sans accès à
+            l’Assistant IA arrivent ici pour validation.
           </p>
         )}
       </section>

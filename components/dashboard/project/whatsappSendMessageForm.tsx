@@ -157,6 +157,8 @@ type WorkspaceProps = {
   };
   isSuccess: boolean;
   canManageAi: boolean;
+  /** Publie ses corrections dans l’Assistant IA (vérifié à nouveau côté serveur). */
+  canPublishCorrection?: boolean;
   /** Propriétaire ou administrateur (vérifié à nouveau côté serveur). */
   canCopyPhone?: boolean;
   /** Offre Pro ou Business : étape et montant dans la fiche contact. */
@@ -467,6 +469,8 @@ function ChatBubble({
   onRestore,
   animate = false,
   grouped = false,
+  question = "",
+  canPublishCorrection = false,
 }: {
   message: DisplayMessage;
   projectId: string;
@@ -475,6 +479,9 @@ function ChatBubble({
   animate?: boolean;
   /** Message consécutif du même auteur : nom masqué, espacement réduit. */
   grouped?: boolean;
+  /** Dernier message du client avant cette réponse de l’IA. */
+  question?: string;
+  canPublishCorrection?: boolean;
 }) {
   const { timeFormatter, dateFormatter, timeZone } = useChatDates();
   const incoming = message.senderType === "client";
@@ -565,6 +572,8 @@ function ChatBubble({
                 <AiFeedbackControls
                   projectId={projectId}
                   messageId={message.id}
+                  question={question}
+                  canPublish={canPublishCorrection}
                   feedback={
                     "feedback" in message ? (message.feedback ?? null) : null
                   }
@@ -702,6 +711,7 @@ export default function WhatsappWorkspace({
   user,
   isSuccess,
   canManageAi,
+  canPublishCorrection = false,
   canCopyPhone = false,
   pipeline,
   initialClient,
@@ -2189,6 +2199,14 @@ export default function WhatsappWorkspace({
                                 <ChatBubble
                                   message={message}
                                   grouped={grouped}
+                                  question={
+                                    message.senderType === "bot"
+                                      ? (activeMessages
+                                          .slice(0, index)
+                                          .findLast((item) => item.senderType === "client")?.content ?? "")
+                                      : ""
+                                  }
+                                  canPublishCorrection={canPublishCorrection}
                                   animate={animatedAiIds.has(message.id)}
                                   contactName={activeClient.name}
                                   projectId={project.id}

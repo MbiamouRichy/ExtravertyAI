@@ -40,7 +40,7 @@ import {
   getKnowledgeSourceContentAction,
   retryKnowledgeSourceAction,
 } from "@/app/actions/knowledge";
-import { KNOWLEDGE_LIMITS, sourceErrorLabel } from "@/lib/knowledge-shared";
+import { KNOWLEDGE_LIMITS, extractBlocks, sourceErrorLabel } from "@/lib/knowledge-shared";
 import type { KnowledgeSourceView, KnowledgeUsage } from "./types";
 
 const UrlFormSchema = z.object({
@@ -186,9 +186,22 @@ function SourceContentDialog({
         </DialogHeader>
         <div className="min-h-32 flex-1 overflow-y-auto overscroll-contain" tabIndex={0}>
           {state.status === "ready" ? (
-            <div className="space-y-4 text-sm leading-relaxed whitespace-pre-wrap wrap-anywhere">
+            <div className="pr-2 text-sm leading-relaxed wrap-anywhere">
               {state.passages.length ? (
-                state.passages.map((passage) => <p key={passage.id}>{passage.content}</p>)
+                extractBlocks(state.passages.map((passage) => passage.content)).map((block, index) =>
+                  block.type === "heading" ? (
+                    <h3
+                      key={index}
+                      className="mt-5 font-heading text-sm font-semibold tracking-normal first:mt-0 [h3+&]:mt-0.5"
+                    >
+                      {block.text}
+                    </h3>
+                  ) : (
+                    <p key={index} className="mt-1 text-muted-foreground">
+                      {block.text}
+                    </p>
+                  ),
+                )
               ) : (
                 <p className="text-muted-foreground">Aucun texte conservé.</p>
               )}

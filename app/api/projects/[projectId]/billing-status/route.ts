@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth-server";
 import prisma from "@/lib/prisma";
-import { getBillingAccess } from "@/lib/billing-access";
+import { getBillingAccess, getBillingUsage } from "@/lib/billing-access";
+import { can } from "@/lib/project-permissions";
 
 export const runtime = "nodejs";
 export async function GET(
@@ -18,14 +19,16 @@ export async function GET(
   const { projectId } = await params;
   const member = await prisma.projectMembership.findUnique({
     where: { userId_projectId: { userId: session.user.id, projectId } },
-    select: { id: true },
+    select: { role: true },
   });
   if (!member)
     return NextResponse.json(
       { error: "Projet indisponible." },
       { status: 404, headers },
     );
-  return NextResponse.json(await getBillingAccess(prisma, projectId), {
-    headers,
-  });
+  const [access, usage] = await Promise.all([
+    getBillingAccess(prisma, projectId),
+    can(member.role, "billing.view") ? getBillingUsage(prisma, projectId) : null,
+  ]);
+  return NextResponse.json({ ...access, usage }, { headers });
 }

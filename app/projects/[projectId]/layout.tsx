@@ -3,7 +3,7 @@ import { after } from "next/server";
 import { getSession } from "@/lib/auth-server";
 import prisma from "@/lib/prisma";
 import { can } from "@/lib/project-permissions";
-import { getBillingAccess } from "@/lib/billing-access";
+import { getBillingAccess, getBillingUsage } from "@/lib/billing-access";
 import { needsInitialCheckout } from "@/lib/billing-display";
 import { BillingNotice } from "@/components/dashboard/project/billing-notice";
 import { ProjectIdentitySync } from "@/components/dashboard/project-identity";
@@ -54,7 +54,11 @@ export default async function ProjectLayout({
         console.error("[webhook] Mise à jour du webhook Evolution reportée."),
       ),
     );
-  const access = await getBillingAccess(prisma, projectId);
+  const canViewBilling = can(member.role, "billing.view");
+  const [access, usage] = await Promise.all([
+    getBillingAccess(prisma, projectId),
+    canViewBilling ? getBillingUsage(prisma, projectId) : null,
+  ]);
   return (
     <>
       <ProjectIdentitySync
@@ -65,9 +69,9 @@ export default async function ProjectLayout({
       />
       <BillingNotice
         projectId={projectId}
-        initial={access}
+        initial={{ ...access, usage }}
         canManageBilling={can(member.role, "billing.manage")}
-        canViewBilling={can(member.role, "billing.view")}
+        canViewBilling={canViewBilling}
         needsCheckout={needsInitialCheckout(member.project)}
       />
       {children}

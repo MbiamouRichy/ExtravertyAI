@@ -320,17 +320,13 @@ export function ContactTagsEditor({
   }
 
   return (
-    <section aria-labelledby={`tags-${contactId}`}>
+    <section aria-labelledby={`tags-${contactId}`} className="py-5">
       <h2
         id={`tags-${contactId}`}
-        className="font-mono text-[11px] font-normal uppercase tracking-wider text-muted-foreground"
+        className="mb-2 font-mono text-[11px] font-normal uppercase tracking-wider text-muted-foreground"
       >
         Étiquettes
       </h2>
-      <p className="mb-2 mt-1 text-xs text-muted-foreground">
-        Classez vos contacts pour les retrouver et les filtrer. Visible
-        uniquement par votre équipe.
-      </p>
       <ul
         aria-label={`Étiquettes de ${contactName}`}
         className="flex flex-wrap gap-1.5"

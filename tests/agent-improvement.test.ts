@@ -8,7 +8,9 @@ import {
   improvementOverview,
   promoteCorrection,
   rateAiMessage,
+  submitCorrection,
 } from "../lib/ai-feedback";
+import { notificationFeed } from "../lib/notifications";
 import { MISSING_INFO_MARKER, splitMissingInfo } from "../lib/missing-info";
 import { saveEntry } from "../lib/knowledge";
 import { SettingsError } from "../lib/project-settings";
@@ -149,6 +151,48 @@ test("agent improvement loop", { timeout: 180000 }, async (t) => {
         dismissCorrection(prisma, { projectId: project.id, userId: owner.id, feedbackId }),
         /déjà été traitée/,
       );
+    });
+
+    await t.test("managers publish corrections; other members submit them for review", async () => {
+      const reply = await prisma.message.findFirstOrThrow({
+        where: { projectId: project.id, senderType: "BOT" },
+        orderBy: { createdAt: "desc" },
+      });
+      const correction = { projectId: project.id, messageId: reply.id, correction: "Oui, sous 72 h.", question: "Délai pour Oyem ?" };
+      const published = await submitCorrection(prisma, { ...correction, userId: owner.id, kind: "TEXT" });
+      assert.equal(published.published, true);
+      const entry = await prisma.knowledgeEntry.findFirstOrThrow({ where: { projectId: project.id, title: "Délai pour Oyem ?" } });
+      assert.equal(entry.kind, "TEXT");
+      assert.equal((await improvementOverview(prisma, project.id)).corrections.length, 0);
+      // Correcting again replaces the entry instead of adding a second one.
+      await submitCorrection(prisma, { ...correction, userId: owner.id, kind: "FAQ", correction: "Oui, sous 48 h." });
+      const updated = await prisma.knowledgeEntry.findUniqueOrThrow({ where: { id: entry.id } });
+      assert.deepEqual([updated.kind, updated.content], ["FAQ", "Oui, sous 48 h."]);
+      assert.equal(await prisma.knowledgeEntry.count({ where: { projectId: project.id, title: "Délai pour Oyem ?" } }), 1);
+      await assert.rejects(
+        submitCorrection(prisma, { ...correction, userId: owner.id, kind: "FAQ", question: "" }),
+        /Au moins 3 caractères/,
+      );
+
+      const asked = await prisma.knowledgeEntry.count({ where: { projectId: project.id } });
+      const pending = await submitCorrection(prisma, { ...correction, userId: member.id, kind: "FAQ" });
+      assert.equal(pending.published, false);
+      assert.equal(await prisma.knowledgeEntry.count({ where: { projectId: project.id } }), asked);
+      assert.equal((await improvementOverview(prisma, project.id)).corrections.length, 1);
+
+      const notices = async (userId: string) =>
+        (await notificationFeed(prisma, userId)).items.filter((item) => item.key.startsWith("correction:"));
+      const viewer = await createUser(prisma);
+      await addMember(prisma, project.id, viewer.id, "VIEWER");
+      const [ownerPending, ownerPublished] = [
+        (await notices(owner.id)).find((item) => item.title.includes("à valider")),
+        (await notices(member.id)).find((item) => item.title.includes("corrigé")),
+      ];
+      assert.match(ownerPending?.href ?? "", /knowledge$/);
+      assert.match(ownerPublished?.href ?? "", /chat\?contactId=/);
+      // Nobody is told about their own correction, and viewers never see conversations.
+      assert.equal((await notices(member.id)).some((item) => item.title.includes("à valider")), false);
+      assert.equal((await notices(viewer.id)).length, 0);
     });
 
     await t.test("the sandbox uses production generation within a daily limit", async () => {

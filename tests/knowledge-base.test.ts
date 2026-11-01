@@ -5,6 +5,7 @@ import {
   KNOWLEDGE_LIMITS,
   buildSearchQuery,
   chunkText,
+  extractBlocks,
   formatKnowledgeBlock,
   normalizeSearchText,
   parseCsv,
@@ -96,6 +97,18 @@ test("neighbouring HTML blocks stay separate words", async () => {
     '<html><body><article><div><h2>Contact</h2><div>Réponse humaine sur WhatsApp, du lundi au samedi, pour toutes vos demandes.</div></div><div><a href="/x">Téléphone</a><a href="/y">E-mail</a></div></article></body></html>',
   );
   assert.doesNotMatch(text, /ContactRéponse|TéléphoneE-mail/);
+});
+
+test("modern page markup keeps its lines, and reads as titles and paragraphs", async () => {
+  const { text } = await htmlToText(
+    `<html><body><article><h2>Ce que votre agent ne fera jamais.</h2><p>Ces règles font partie des consignes de chaque agent et ne peuvent pas être retirées par la suite.</p><ol><li><div><p><span>02.<!-- -->1</span></p><div><p>Jamais</p><h3>Inventer un prix</h3><p>Il s’appuie sur vos informations vérifiées et dit clairement ce qu’il ne sait pas.</p></div></div></li></ol><p><span>Contact</span><span>Réponse humaine sur WhatsApp du lundi au samedi, pour toutes vos demandes et celles de vos clients.</span></p></article></body></html>`,
+  );
+  assert.match(text, /Jamais\n+Inventer un prix\n+Il s’appuie/);
+  assert.match(text, /Contact Réponse humaine/);
+  assert.deepEqual(extractBlocks(["01\nInventer un prix\nInventer un prix\nIl dit ce qu’il ne sait pas."]), [
+    { type: "heading", text: "Inventer un prix" },
+    { type: "paragraph", text: "Il dit ce qu’il ne sait pas." },
+  ]);
 });
 
 test("PDF text is extracted", async () => {

@@ -4,7 +4,7 @@ import { chatContactName } from "./chat-privacy";
 import { KNOWLEDGE_LIMITS, entrySearchText } from "./knowledge-shared";
 import { planFeatures } from "./plan-features";
 import { requireProjectAdmin } from "./project-settings";
-import { rolesWith } from "./project-permissions";
+import { can, rolesWith } from "./project-permissions";
 
 // Safe to show as is to the user.
 export class FeedbackError extends Error {}
@@ -65,6 +65,69 @@ export async function rateAiMessage(
   });
 }
 
+/**
+ * Correction d’une réponse de l’IA. Un membre qui gère le projet la publie
+ * directement dans l’Assistant IA ; les autres la soumettent à « À améliorer ».
+ * Le droit est relu ici : le formulaire ne décide de rien.
+ */
+export async function submitCorrection(
+  db: PrismaClient,
+  input: {
+    projectId: string;
+    userId: string;
+    messageId: string;
+    correction: string;
+    question?: string | null;
+    kind: "FAQ" | "TEXT";
+  },
+) {
+  const correction = CorrectionSchema.parse(input.correction);
+  const membership = await db.projectMembership.findUnique({
+    where: { userId_projectId: { userId: input.userId, projectId: input.projectId } },
+    select: { role: true },
+  });
+  if (!can(membership?.role, "project.manage")) {
+    const feedback = await rateAiMessage(db, { ...input, rating: "DOWN", correction });
+    return { feedback, published: false };
+  }
+  const draft = FaqDraftSchema.safeParse({ question: input.question ?? "", answer: correction });
+  if (!draft.success) throw new FeedbackError(draft.error.issues[0]?.message ?? "Question invalide.");
+  return db.$transaction(async (tx) => {
+    const project = await lockAdmin(tx, input.projectId, input.userId);
+    const message = await tx.message.findFirst({
+      where: { id: input.messageId, projectId: input.projectId, senderType: "BOT" },
+      select: { id: true },
+    });
+    if (!message) throw new FeedbackError("Réponse introuvable.");
+    const key = { messageId: message.id, authorId: input.userId };
+    const previous = await tx.aiFeedback.findUnique({
+      where: { messageId_authorId: key },
+      select: { entryId: true },
+    });
+    // Corriger à nouveau remplace l’entrée publiée au lieu d’en créer une seconde.
+    const entry = previous?.entryId
+      ? await tx.knowledgeEntry.update({
+          where: { id: previous.entryId },
+          data: {
+            kind: input.kind,
+            title: draft.data.question,
+            content: draft.data.answer,
+            searchText: entrySearchText({ title: draft.data.question, content: draft.data.answer }),
+          },
+          select: { id: true },
+        })
+      : await createEntry(tx, project, input.userId, draft.data, input.kind);
+    const reviewed = { rating: "DOWN" as const, correction, entryId: entry.id, reviewedAt: new Date() };
+    const feedback = await tx.aiFeedback.upsert({
+      where: { messageId_authorId: key },
+      create: { ...key, projectId: input.projectId, ...reviewed },
+      update: reviewed,
+      select: { rating: true, correction: true },
+    });
+    return { feedback, published: true };
+  });
+}
+
 async function lockAdmin(tx: Prisma.TransactionClient, projectId: string, userId: string) {
   await tx.$queryRaw`SELECT id FROM project WHERE id = ${projectId} FOR UPDATE`;
   const { project } = await requireProjectAdmin(tx, projectId, userId);
@@ -72,11 +135,12 @@ async function lockAdmin(tx: Prisma.TransactionClient, projectId: string, userId
   return project;
 }
 
-async function createFaq(
+async function createEntry(
   tx: Prisma.TransactionClient,
   project: { id: string; plan: string },
   userId: string,
   draft: z.infer<typeof FaqDraftSchema>,
+  kind: "FAQ" | "TEXT" = "FAQ",
 ) {
   const used = await tx.knowledgeEntry.count({ where: { projectId: project.id } });
   if (used >= planFeatures(project.plan).knowledgeEntries) {
@@ -85,7 +149,7 @@ async function createFaq(
   return tx.knowledgeEntry.create({
     data: {
       projectId: project.id,
-      kind: "FAQ",
+      kind,
       title: draft.question,
       content: draft.answer,
       searchText: entrySearchText({ title: draft.question, content: draft.answer }),
@@ -108,7 +172,7 @@ export async function answerGap(
       select: { id: true },
     });
     if (!gap) throw new FeedbackError("Cette question a déjà été traitée.");
-    const entry = await createFaq(tx, project, input.userId, draft);
+    const entry = await createEntry(tx, project, input.userId, draft);
     await tx.knowledgeGap.update({
       where: { id: gap.id },
       data: { status: "ANSWERED", entryId: entry.id, resolvedById: input.userId, resolvedAt: new Date() },
@@ -144,7 +208,7 @@ export async function promoteCorrection(
       select: { id: true },
     });
     if (!feedback) throw new FeedbackError("Cette correction a déjà été traitée.");
-    const entry = await createFaq(tx, project, input.userId, draft);
+    const entry = await createEntry(tx, project, input.userId, draft);
     await tx.aiFeedback.update({
       where: { id: feedback.id },
       data: { entryId: entry.id, reviewedAt: new Date() },

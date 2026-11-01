@@ -178,6 +178,7 @@ export default async function ChatPage({ params, searchParams }: PageProps) {
         }}
         isSuccess={query.success === "true"}
         canManageAi={true}
+        canPublishCorrection={canManageAi}
         canCopyPhone={can(project.userRole, "contacts.view")}
         pipeline={{
           enabled: planAllows(project.plan, "pipeline"),

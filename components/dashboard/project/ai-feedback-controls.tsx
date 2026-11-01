@@ -16,29 +16,49 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Field, FieldDescription, FieldError, FieldLabel } from "@/components/ui/field";
+import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
-import { rateAiMessageAction } from "@/app/actions/agent-improvement";
+import { rateAiMessageAction, submitCorrectionAction } from "@/app/actions/agent-improvement";
 import type { ChatFeedback } from "@/lib/chat";
 import { KNOWLEDGE_LIMITS } from "@/lib/knowledge-shared";
 import { cn } from "@/lib/utils";
 
 const CorrectionFormSchema = z.object({
+  question: z.string().trim().max(KNOWLEDGE_LIMITS.titleMax, `${KNOWLEDGE_LIMITS.titleMax} caractères au maximum.`),
   correction: z
     .string()
     .trim()
-    .min(3, "Proposez une réponse d’au moins 3 caractères.")
+    .min(3, "Écrivez au moins 3 caractères.")
     .max(KNOWLEDGE_LIMITS.contentMax, `${KNOWLEDGE_LIMITS.contentMax} caractères au maximum.`),
+  kind: z.enum(["FAQ", "TEXT"]),
 });
 
-/** Team feedback on one AI reply: approve, flag, or propose a better answer. */
+const PublishFormSchema = CorrectionFormSchema.extend({
+  question: CorrectionFormSchema.shape.question.min(3, "Au moins 3 caractères."),
+});
+
+const DESTINATIONS = [
+  { value: "FAQ", label: "Questions" },
+  { value: "TEXT", label: "Informations" },
+] as const;
+
+/** Team feedback on one AI reply: approve, flag, or correct it. */
 export function AiFeedbackControls({
   projectId,
   messageId,
+  question,
+  canPublish,
   feedback,
 }: {
   projectId: string;
   messageId: string;
+  /** Message du client auquel cette réponse a répondu. */
+  question: string;
+  /** Ajoute directement à l’Assistant IA ; le serveur revérifie ce droit. */
+  canPublish: boolean;
   feedback: ChatFeedback | null;
 }) {
   const id = useId();
@@ -46,22 +66,38 @@ export function AiFeedbackControls({
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
   const form = useForm<z.input<typeof CorrectionFormSchema>, unknown, z.output<typeof CorrectionFormSchema>>({
-    resolver: zodResolver(CorrectionFormSchema),
-    defaultValues: { correction: feedback?.correction ?? "" },
+    resolver: zodResolver(canPublish ? PublishFormSchema : CorrectionFormSchema),
+    defaultValues: {
+      question: question.slice(0, KNOWLEDGE_LIMITS.titleMax),
+      correction: feedback?.correction ?? "",
+      kind: "FAQ",
+    },
   });
 
-  function rate(rating: "UP" | "DOWN", correction: string | null = null, after?: () => void) {
+  function rate(rating: "UP" | "DOWN") {
     const previous = current;
-    setCurrent({ rating, correction });
+    setCurrent({ rating, correction: null });
     startTransition(async () => {
-      const result = await rateAiMessageAction({ projectId, messageId, rating, correction });
+      const result = await rateAiMessageAction({ projectId, messageId, rating });
       if (!result.success) {
         setCurrent(previous);
         toast.error(result.error);
         return;
       }
       setCurrent(result.feedback);
-      after?.();
+    });
+  }
+
+  function submit(values: z.output<typeof CorrectionFormSchema>) {
+    startTransition(async () => {
+      const result = await submitCorrectionAction({ projectId, messageId, ...values });
+      if (!result.success) {
+        toast.error(result.error);
+        return;
+      }
+      setCurrent(result.feedback);
+      setOpen(false);
+      toast.success(result.published ? "Réponse ajoutée à l’Assistant IA" : "Correction envoyée à l’équipe");
     });
   }
 
@@ -103,59 +139,99 @@ export function AiFeedbackControls({
           onClick={() => setOpen(true)}
         >
           <PenLine data-icon="inline-start" />
-          {current.correction ? "Correction proposée" : "Corriger"}
+          {current.correction ? "Corrigée" : "Corriger"}
         </Button>
       )}
 
       <Dialog open={open} onOpenChange={(next) => !pending && setOpen(next)}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Proposer une meilleure réponse</DialogTitle>
+            <DialogTitle>Corriger la réponse</DialogTitle>
             <DialogDescription>
-              Un administrateur pourra l’ajouter à la base de connaissances : l’assistant
-              répondra correctement la prochaine fois.
+              {canPublish
+                ? "Ajoutée à l’Assistant IA dès maintenant. L’équipe est prévenue."
+                : "Un administrateur la validera. L’équipe est prévenue."}
             </DialogDescription>
           </DialogHeader>
-          <form
-            id={id}
-            noValidate
-            onSubmit={form.handleSubmit(({ correction }) =>
-              rate("DOWN", correction, () => {
-                setOpen(false);
-                toast.success("Merci, votre correction est transmise");
-              }),
-            )}
-          >
-            <Controller
-              name="correction"
-              control={form.control}
-              render={({ field, fieldState }) => (
-                <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor={`${id}-correction`}>Réponse attendue</FieldLabel>
-                  <Textarea
-                    {...field}
-                    id={`${id}-correction`}
-                    rows={5}
-                    autoFocus
-                    maxLength={KNOWLEDGE_LIMITS.contentMax}
-                    aria-invalid={fieldState.invalid}
-                    aria-describedby={`${id}-help`}
-                  />
-                  <FieldDescription id={`${id}-help`}>
-                    Écrivez la réponse telle que l’assistant aurait dû la donner.
-                  </FieldDescription>
-                  {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
-                </Field>
+          <form id={id} noValidate onSubmit={form.handleSubmit(submit)}>
+            <FieldGroup className="gap-4">
+              {canPublish ? (
+                <Controller
+                  name="question"
+                  control={form.control}
+                  render={({ field, fieldState }) => (
+                    <Field data-invalid={fieldState.invalid}>
+                      <FieldLabel htmlFor={`${id}-question`}>Question du client</FieldLabel>
+                      <Input
+                        {...field}
+                        id={`${id}-question`}
+                        autoComplete="off"
+                        aria-invalid={fieldState.invalid}
+                      />
+                      {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                    </Field>
+                  )}
+                />
+              ) : (
+                question && (
+                  <blockquote className="border-l-2 pl-3 text-sm text-muted-foreground wrap-anywhere">
+                    <p className="line-clamp-3">{question}</p>
+                  </blockquote>
+                )
               )}
-            />
+              <Controller
+                name="correction"
+                control={form.control}
+                render={({ field, fieldState }) => (
+                  <Field data-invalid={fieldState.invalid}>
+                    <FieldLabel htmlFor={`${id}-correction`}>Bonne réponse</FieldLabel>
+                    <Textarea
+                      {...field}
+                      id={`${id}-correction`}
+                      rows={4}
+                      autoFocus
+                      maxLength={KNOWLEDGE_LIMITS.contentMax}
+                      aria-invalid={fieldState.invalid}
+                    />
+                    {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                  </Field>
+                )}
+              />
+              {canPublish && (
+                <Controller
+                  name="kind"
+                  control={form.control}
+                  render={({ field }) => (
+                    <Field>
+                      <FieldLabel id={`${id}-kind`}>Ajouter dans</FieldLabel>
+                      <RadioGroup
+                        value={field.value}
+                        onValueChange={field.onChange}
+                        aria-labelledby={`${id}-kind`}
+                        className="flex gap-6"
+                      >
+                        {DESTINATIONS.map((destination) => (
+                          <div key={destination.value} className="flex items-center gap-2">
+                            <RadioGroupItem value={destination.value} id={`${id}-${destination.value}`} />
+                            <Label htmlFor={`${id}-${destination.value}`} className="font-normal">
+                              {destination.label}
+                            </Label>
+                          </div>
+                        ))}
+                      </RadioGroup>
+                    </Field>
+                  )}
+                />
+              )}
+            </FieldGroup>
           </form>
           <DialogFooter>
-            <Button type="button" variant="outline" disabled={pending} onClick={() => setOpen(false)}>
-              Plus tard
+            <Button type="button" variant="ghost" disabled={pending} onClick={() => setOpen(false)}>
+              Annuler
             </Button>
             <Button type="submit" form={id} disabled={pending}>
               {pending && <Loader2 aria-hidden="true" className="animate-spin motion-reduce:animate-none" />}
-              Envoyer la correction
+              {canPublish ? "Ajouter" : "Envoyer"}
             </Button>
           </DialogFooter>
         </DialogContent>
