@@ -37,9 +37,7 @@ export async function htmlToText(raw: string): Promise<{ title: string; text: st
   const title = (document.title || "").trim();
   // textContent colle les blocs voisins : « ContactRéponse », « 29E-mail ».
   for (const element of document.querySelectorAll(BLOCK_TAGS)) {
-    element.appendChild(document.createTextNode(element.tagName === "A" ? " " : "
-
-"));
+    element.appendChild(document.createTextNode(element.tagName === "A" ? " " : "\n\n"));
   }
   const article = new Readability(document as unknown as Document).parse();
   const text = (article?.textContent || document.body?.textContent || "").trim();
