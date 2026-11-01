@@ -58,7 +58,6 @@ export function EntryActions({
           <span className="mr-1 inline-flex">
             <Switch
               id={switchId}
-              size="sm"
               checked={shown}
               disabled={pending}
               onCheckedChange={(checked) => {

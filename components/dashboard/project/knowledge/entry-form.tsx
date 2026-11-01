@@ -34,6 +34,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { saveKnowledgeEntryAction } from "@/app/actions/knowledge";
 import { KNOWLEDGE_LIMITS } from "@/lib/knowledge-shared";
 import { currencyDigits, parseDealValue } from "@/lib/pipeline-shared";
+import { cn } from "@/lib/utils";
 import type { KnowledgeEntryView } from "./types";
 
 type EditableKind = "FAQ" | "TEXT" | "PRODUCT";
@@ -57,6 +58,12 @@ const COPY: Record<EditableKind, { create: string; edit: string; title: string; 
     hint: "Matières, tailles, couleurs : tout ce qui aide à répondre.",
   },
 };
+
+function OptionalHint() {
+  return <span className="ml-auto text-xs font-normal text-muted-foreground">Facultatif</span>;
+}
+
+const nearLimit = (value: string) => value.length > KNOWLEDGE_LIMITS.contentMax * 0.8;
 
 function plainAmount(minor: number | null, currency: string) {
   if (minor === null) return "";
@@ -152,10 +159,10 @@ export function EntryFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={(next) => !saving && onOpenChange(next)}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className={kind === "PRODUCT" ? "sm:max-w-md" : "sm:max-w-lg"}>
         <DialogHeader>
-          <DialogTitle>{entry ? copy.edit : copy.create}</DialogTitle>
-          <DialogDescription>{copy.hint}</DialogDescription>
+          <DialogTitle className="text-lg!">{entry ? copy.edit : copy.create}</DialogTitle>
+          <DialogDescription className={cn(kind === "PRODUCT" && "sr-only")}>{copy.hint}</DialogDescription>
         </DialogHeader>
         <form id={id} noValidate onSubmit={form.handleSubmit(submit)}>
           <FieldGroup className="gap-4">
@@ -178,13 +185,16 @@ export function EntryFormDialog({
               )}
             />
             {kind === "PRODUCT" && (
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid grid-cols-2 gap-3">
                 <Controller
                   name="price"
                   control={form.control}
                   render={({ field, fieldState }) => (
                     <Field data-invalid={fieldState.invalid}>
-                      <FieldLabel htmlFor={`${id}-price`}>Prix</FieldLabel>
+                      <FieldLabel htmlFor={`${id}-price`}>
+                        Prix
+                        <OptionalHint />
+                      </FieldLabel>
                       <InputGroup>
                         <InputGroupInput
                           {...field}
@@ -208,18 +218,19 @@ export function EntryFormDialog({
                   control={form.control}
                   render={({ field, fieldState }) => (
                     <Field data-invalid={fieldState.invalid}>
-                      <FieldLabel htmlFor={`${id}-stock`}>Stock</FieldLabel>
+                      <FieldLabel htmlFor={`${id}-stock`}>
+                        Stock
+                        <OptionalHint />
+                      </FieldLabel>
                       <Input
                         {...field}
                         id={`${id}-stock`}
                         inputMode="numeric"
                         autoComplete="off"
                         aria-invalid={fieldState.invalid}
-                        aria-describedby={`${id}-stock-help`}
-                        placeholder="Facultatif"
+                        placeholder="Non suivi"
                         className="tabular-nums"
                       />
-                      <FieldDescription id={`${id}-stock-help`}>Vide si vous ne suivez pas le stock.</FieldDescription>
                       {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
                     </Field>
                   )}
@@ -233,19 +244,21 @@ export function EntryFormDialog({
                 <Field data-invalid={fieldState.invalid}>
                   <FieldLabel htmlFor={`${id}-content`}>
                     {copy.content}
-                    {kind === "PRODUCT" && <span className="font-normal text-muted-foreground"> (facultatif)</span>}
+                    {kind === "PRODUCT" && <OptionalHint />}
                   </FieldLabel>
                   <Textarea
                     {...field}
                     id={`${id}-content`}
-                    rows={6}
+                    rows={kind === "PRODUCT" ? 3 : 6}
                     maxLength={KNOWLEDGE_LIMITS.contentMax}
                     aria-invalid={fieldState.invalid}
-                    aria-describedby={`${id}-content-help`}
+                    aria-describedby={nearLimit(field.value) ? `${id}-content-help` : undefined}
                   />
-                  <FieldDescription id={`${id}-content-help`}>
-                    {field.value.length.toLocaleString("fr-FR")} / {KNOWLEDGE_LIMITS.contentMax.toLocaleString("fr-FR")} caractères
-                  </FieldDescription>
+                  {nearLimit(field.value) && (
+                    <FieldDescription id={`${id}-content-help`}>
+                      {field.value.length.toLocaleString("fr-FR")} / {KNOWLEDGE_LIMITS.contentMax.toLocaleString("fr-FR")} caractères
+                    </FieldDescription>
+                  )}
                   {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
                 </Field>
               )}
@@ -253,7 +266,7 @@ export function EntryFormDialog({
           </FieldGroup>
         </form>
         <DialogFooter>
-          <Button type="button" variant="outline" disabled={saving} onClick={() => onOpenChange(false)}>
+          <Button type="button" variant="ghost" disabled={saving} onClick={() => onOpenChange(false)}>
             Annuler
           </Button>
           <Button type="submit" form={id} disabled={saving}>

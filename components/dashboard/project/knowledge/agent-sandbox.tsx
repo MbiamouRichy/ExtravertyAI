@@ -5,7 +5,7 @@ import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
-import { Bot, CircleAlert, FlaskConical, Loader2, Moon, RotateCcw, SendHorizontal, UserRound } from "lucide-react";
+import { Bot, CircleAlert, ChevronRight, FlaskConical, Loader2, Moon, RotateCcw, SendHorizontal, UserRound } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
@@ -42,45 +42,58 @@ const ComposerSchema = z.object({
 
 function Trace({ trace }: { trace: SandboxTrace }) {
   return (
-    <div className="mt-2 space-y-2 rounded-xl border bg-muted/30 p-3 text-xs">
-      <p className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Trace de la réponse</p>
-      {trace.sources.length ? (
-        <div>
-          <p className="text-muted-foreground">Données utilisées :</p>
-          <ul className="mt-1 flex flex-wrap gap-1.5">
-            {trace.sources.map((source) => (
-              <li key={source.id} className="max-w-full truncate rounded-md border bg-background px-1.5 py-0.5">
-                <span className="text-muted-foreground">{KIND_LABEL[source.kind] ?? source.kind} · </span>
-                {source.title}
-              </li>
-            ))}
-          </ul>
+    <div className="mt-1.5 w-full min-w-0 space-y-1.5 text-xs">
+      <details className="group/trace min-w-0 rounded-xl border bg-muted/30">
+        <summary className="flex cursor-pointer list-none items-center gap-1.5 rounded-xl px-2.5 py-2 text-muted-foreground outline-none focus-visible:ring-3 focus-visible:ring-ring/50 [&::-webkit-details-marker]:hidden">
+          <ChevronRight
+            aria-hidden="true"
+            className="size-3.5 shrink-0 transition-transform group-open/trace:rotate-90 motion-reduce:transition-none"
+          />
+          <span className="truncate">
+            Trace de la réponse · {trace.sources.length} source{trace.sources.length > 1 ? "s" : ""}
+          </span>
+        </summary>
+        <div className="min-w-0 space-y-2 border-t p-2.5">
+          {trace.sources.length ? (
+            <ul className="flex min-w-0 flex-col items-start gap-1.5">
+              {trace.sources.map((source) => (
+                <li
+                  key={source.id}
+                  title={source.title}
+                  className="max-w-full truncate rounded-md border bg-background px-1.5 py-0.5"
+                >
+                  <span className="text-muted-foreground">{KIND_LABEL[source.kind] ?? source.kind} · </span>
+                  {source.title}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-muted-foreground">
+              Aucune entrée ciblée par cette question : l’assistant a consulté l’ensemble de vos données.
+            </p>
+          )}
+          <p className="text-muted-foreground">
+            Ton {trace.settings.tone.toLowerCase()} · longueur {trace.settings.length.toLowerCase()} ·{" "}
+            {trace.settings.language.toLowerCase()} · emojis {trace.settings.emojis ? "autorisés" : "désactivés"}
+          </p>
         </div>
-      ) : (
-        <p className="text-muted-foreground">
-          Aucune entrée ciblée par cette question : l’assistant a consulté l’ensemble de vos données.
-        </p>
-      )}
-      <p className="text-muted-foreground">
-        Ton {trace.settings.tone.toLowerCase()} · longueur {trace.settings.length.toLowerCase()} ·{" "}
-        {trace.settings.language.toLowerCase()} · emojis {trace.settings.emojis ? "autorisés" : "désactivés"}
-      </p>
+      </details>
       {trace.ending === "end" && (
-        <p className="flex items-start gap-1.5 font-medium">
+        <p className="flex items-start gap-1.5 px-1 font-medium">
           <Moon aria-hidden="true" className="mt-0.5 size-3.5 shrink-0" />
           Fin de conversation : en réel, l’IA se mettrait en veille et ne
           répondrait plus aux simples « merci » ou « d’accord ».
         </p>
       )}
       {trace.ending === "repeated" && (
-        <p className="flex items-start gap-1.5 font-medium">
+        <p className="flex items-start gap-1.5 px-1 font-medium">
           <CircleAlert aria-hidden="true" className="mt-0.5 size-3.5 shrink-0" />
           Réponse retenue : elle répétait un message précédent. En réel, elle
           ne serait pas envoyée et l’équipe en serait informée.
         </p>
       )}
       {trace.missingInfo && (
-        <p className="flex items-start gap-1.5 font-medium">
+        <p className="flex items-start gap-1.5 px-1 font-medium">
           <CircleAlert aria-hidden="true" className="mt-0.5 size-3.5 shrink-0" />
           Information manquante signalée. En conversation réelle, la question
           apparaîtrait dans « À améliorer » pour que vous y répondiez une fois pour toutes.
@@ -133,7 +146,7 @@ export function AgentSandbox({ projectId, initialRemaining }: { projectId: strin
     <div className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_18rem]">
       <section
         aria-labelledby={`${id}-title`}
-        className="flex h-[min(32rem,75dvh)] min-w-0 flex-col overflow-hidden rounded-2xl border bg-card"
+        className="flex h-[max(24rem,min(34rem,75dvh))] min-w-0 flex-col overflow-hidden rounded-2xl border bg-card"
       >
         <header className="flex min-w-0 items-center gap-2 border-b px-3 py-2.5 sm:px-4 sm:py-3">
           <h2
@@ -161,7 +174,7 @@ export function AgentSandbox({ projectId, initialRemaining }: { projectId: strin
           </Button>
         </header>
 
-        <div aria-live="polite" className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain p-3 sm:p-4">
+        <div aria-live="polite" className="min-h-0 flex-1 space-y-3 overflow-x-hidden overflow-y-auto overscroll-contain p-3 sm:space-y-4 sm:p-4">
           {!turns.length && (
             <div className="flex min-h-full flex-col items-center justify-center gap-4 py-4 text-center sm:py-8">
               <p className="max-w-sm text-pretty text-sm text-muted-foreground">
@@ -187,14 +200,15 @@ export function AgentSandbox({ projectId, initialRemaining }: { projectId: strin
           )}
           {turns.map((turn, index) => (
             <div key={index} className={cn("flex gap-2", turn.role === "assistant" && "flex-row-reverse")}>
-              <span className="mt-1 flex size-7 shrink-0 items-center justify-center rounded-full border bg-background">
+              {/* Téléphone : la largeur revient aux messages. */}
+              <span className="mt-1 hidden size-7 shrink-0 items-center justify-center rounded-full border bg-background sm:flex">
                 {turn.role === "user" ? (
                   <UserRound aria-hidden="true" className="size-3.5" />
                 ) : (
                   <Bot aria-hidden="true" className="size-3.5" />
                 )}
               </span>
-              <div className={cn("min-w-0 max-w-[85%]", turn.role === "assistant" && "flex flex-col items-end")}>
+              <div className={cn("min-w-0 max-w-[92%] sm:max-w-[85%]", turn.role === "assistant" && "flex flex-col items-end")}>
                 <p className="sr-only">{turn.role === "user" ? "Client test :" : "Assistant :"}</p>
                 {turn.role === "assistant" && turn.trace.ending === "silent" ? (
                   <p className="flex items-center gap-1.5 rounded-2xl rounded-br-md border border-dashed px-3.5 py-2 text-sm text-muted-foreground">
@@ -242,7 +256,7 @@ export function AgentSandbox({ projectId, initialRemaining }: { projectId: strin
                   <Textarea
                     {...field}
                     id={`${id}-message`}
-                    rows={2}
+                    rows={1}
                     maxLength={1000}
                     placeholder={remaining > 0 ? "Écrivez comme un client…" : "Limite quotidienne atteinte"}
                     disabled={thinking || remaining <= 0}
@@ -253,7 +267,7 @@ export function AgentSandbox({ projectId, initialRemaining }: { projectId: strin
                         void form.handleSubmit(send)();
                       }
                     }}
-                    className="min-h-11 min-w-0 resize-none"
+                    className="max-h-28 min-h-9 min-w-0 resize-none"
                   />
                   <Button type="submit" size="icon" className="shrink-0" disabled={thinking || remaining <= 0} aria-label="Envoyer le message de test">
                     {thinking ? (
