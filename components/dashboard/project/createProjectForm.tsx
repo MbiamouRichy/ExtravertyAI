@@ -234,7 +234,10 @@ export default function CreateProjectForm({
                       </SelectTrigger>
                       <SelectContent
                         position="popper"
-                        className="max-h-80 min-w-72"
+                        align="start"
+                        // Largeur bornée : les noms longs sont tronqués, jamais
+                        // l’indicatif, et la liste ne dépasse pas de l’écran.
+                        className="max-h-80 w-(--radix-select-trigger-width) min-w-[min(18rem,calc(100vw-2rem))] max-w-[calc(100vw-2rem)]"
                       >
                         {phoneCountries.map((country) => (
                           <SelectItem
