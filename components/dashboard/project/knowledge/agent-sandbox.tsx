@@ -58,7 +58,7 @@ function Trace({ trace }: { trace: SandboxTrace }) {
         </div>
       ) : (
         <p className="text-muted-foreground">
-          Aucune donnée de la base de connaissances ne correspondait : réponse fondée sur vos instructions seules.
+          Aucune entrée ciblée par cette question : l’assistant a consulté l’ensemble de vos données.
         </p>
       )}
       <p className="text-muted-foreground">
@@ -280,7 +280,7 @@ export function AgentSandbox({ projectId, initialRemaining }: { projectId: strin
         <hr />
         <p className="text-xs text-muted-foreground">
           Une réponse vous semble fausse ? Ajoutez l’information dans l’onglet
-          « Questions et infos », puis testez à nouveau.
+          « Questions », puis testez à nouveau.
         </p>
       </aside>
     </div>

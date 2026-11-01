@@ -42,6 +42,8 @@ export function EntryActions({
   const switchId = useId();
   const [optimistic, setOptimistic] = useState<boolean | null>(null);
   const [pending, startTransition] = useTransition();
+  // La valeur choisie reste affichée jusqu’à ce que l’actualisation la confirme.
+  if (optimistic === enabled) setOptimistic(null);
   const shown = optimistic ?? enabled;
 
   return (
@@ -58,9 +60,9 @@ export function EntryActions({
           setOptimistic(checked);
           startTransition(async () => {
             const result = await setKnowledgeEntryEnabledAction({ projectId, id: entryId, enabled: checked });
+            if (result.success) return onChanged();
             setOptimistic(null);
-            if (!result.success) toast.error(result.error);
-            else onChanged();
+            toast.error(result.error);
           });
         }}
         className="mr-1"
