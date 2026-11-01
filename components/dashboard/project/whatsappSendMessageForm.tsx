@@ -1641,7 +1641,9 @@ export default function WhatsappWorkspace({
             aria-busy={contactsQuery.isLoading}
             className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-1.5 pb-4"
           >
-            {contactsQuery.isLoading && !visibleClients.length ? (
+            {contactsQuery.isLoading &&
+            !visibleClients.length &&
+            (search || contactsQuery.filterCounts?.[filter] !== 0) ? (
               <ConversationListLoading />
             ) : visibleClients.length === 0 ? (
               <div className="px-6 py-12 text-center">

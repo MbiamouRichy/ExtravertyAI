@@ -111,9 +111,18 @@ export function useChatContacts(
     return [...byId.values()];
   }, [swr.data]);
 
+  // Changer de filtre ne dépend pas du réseau : les contacts déjà reçus, tous
+  // filtres confondus, s’affichent en attendant la réponse.
+  const [known, setKnown] = useState({ projectId, from: items, clients: items });
+  if (known.from !== items) {
+    const previous = known.projectId === projectId ? known.clients : [];
+    const merged = new Map([...previous, ...items].map((item) => [item.id, item]));
+    setKnown({ projectId, from: items, clients: [...merged.values()] });
+  }
+
   return {
     ...swr,
-    items,
+    items: swr.isLoading && known.projectId === projectId ? known.clients : items,
     unreadConversations: swr.data?.[0]?.unreadConversations ?? 0,
     filterCounts: swr.data?.[0]?.filterCounts,
     projectTags: swr.data?.[0]?.projectTags ?? [],
