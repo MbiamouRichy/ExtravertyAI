@@ -1774,7 +1774,7 @@ export default function WhatsappWorkspace({
                         {selected && (
                           <span
                             aria-hidden="true"
-                            className="absolute inset-y-1.5 right-0 w-1 rounded-full bg-primary motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-200"
+                            className="absolute inset-y-1.5 left-0 w-1 rounded-full bg-primary motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-200"
                           />
                         )}
                         <span className="relative shrink-0">
