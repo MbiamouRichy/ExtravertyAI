@@ -4,6 +4,17 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* Messagerie : l’écran moins la barre du haut et le bandeau d’abonnement. */
+.chat-viewport {
+  height: calc(100dvh - var(--spacing) * 14 - var(--billing-notice-height, 0px));
+}
+
+@media (width >= 48rem) {
+  .chat-viewport {
+    height: calc(100dvh - var(--spacing) * 18 - var(--billing-notice-height, 0px));
+  }
+}
+
 /* Soft edges overlap only the message viewport, never its interactive controls. */
 .chat-floating-header::after,
 .chat-floating-composer::before {

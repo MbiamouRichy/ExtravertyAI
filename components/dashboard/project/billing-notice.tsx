@@ -29,6 +29,26 @@ const titles = {
   inactive: "Abonnement suspendu ou terminé",
 };
 
+/** Publie la hauteur du bandeau : la messagerie occupe exactement le reste de l’écran. */
+function trackNoticeHeight(notice: HTMLElement | null) {
+  if (!notice) return;
+  const root = document.documentElement;
+  const update = () => {
+    const margin = Number.parseFloat(getComputedStyle(notice).marginTop) || 0;
+    root.style.setProperty(
+      "--billing-notice-height",
+      `${notice.getBoundingClientRect().height + margin}px`,
+    );
+  };
+  const observer = new ResizeObserver(update);
+  observer.observe(notice);
+  update();
+  return () => {
+    observer.disconnect();
+    root.style.removeProperty("--billing-notice-height");
+  };
+}
+
 export function BillingNotice({
   projectId,
   initial,
@@ -80,6 +100,7 @@ export function BillingNotice({
 
   return (
     <aside
+      ref={trackNoticeHeight}
       aria-label="État de l’abonnement"
       className={cn(
         "mx-4 mt-3 rounded-xl border px-3 py-2 sm:mx-6 xl:mx-8",

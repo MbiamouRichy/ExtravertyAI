@@ -11,11 +11,11 @@ export default function ChatLoading() {
   return (
     <PageLoading
       label="Chargement de la messagerie…"
-      className="flex h-[calc(100dvh-var(--spacing)*14)] min-h-0 w-full flex-col overflow-hidden bg-background md:h-[calc(100dvh-var(--spacing)*18)]"
+      className="flex chat-viewport min-h-0 w-full flex-col overflow-hidden bg-background"
     >
       <div className="flex min-h-0 w-full flex-1 overflow-hidden">
         {/* Liste des conversations */}
-        <div className="flex w-full min-h-0 shrink-0 flex-col overflow-hidden border-r bg-background md:w-80 lg:w-[22rem]">
+        <div className="flex w-full min-h-0 shrink-0 flex-col overflow-hidden border-r bg-background md:w-64 lg:w-80 xl:w-[22rem]">
           <div className="space-y-2 border-b px-3 py-3">
             <div className="flex h-9 items-center gap-2 rounded-md border px-2.5">
               <Skeleton className="size-4 rounded-full" />

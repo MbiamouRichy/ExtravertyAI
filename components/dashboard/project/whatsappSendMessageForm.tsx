@@ -1538,7 +1538,7 @@ export default function WhatsappWorkspace({
   }
 
   return (
-    <div className="flex h-[calc(100dvh-var(--spacing)*14)] min-h-0 w-full flex-col overflow-hidden bg-background md:h-[calc(100dvh-var(--spacing)*18)]">
+    <div className="flex chat-viewport min-h-0 w-full flex-col overflow-hidden bg-background">
       {project.automationPaused && (
         <div
           role="status"
@@ -1568,7 +1568,7 @@ export default function WhatsappWorkspace({
         <aside
           aria-label="Conversations"
           className={cn(
-            "w-full min-h-0 shrink-0 flex-col overflow-hidden border-r bg-background md:w-80 lg:w-[22rem]",
+            "w-full min-h-0 shrink-0 flex-col overflow-hidden border-r bg-background md:w-64 lg:w-80 xl:w-[22rem]",
             mobileChat ? "hidden md:flex" : "flex",
           )}
         >
@@ -1617,7 +1617,7 @@ export default function WhatsappWorkspace({
             <div
               role="group"
               aria-label="Filtrer les conversations"
-              className="flex items-center gap-1"
+              className="flex min-w-0 items-center gap-1"
             >
               {MAIN_FILTERS.map(([value, label]) => (
                 <Button
@@ -1648,11 +1648,11 @@ export default function WhatsappWorkspace({
                         ? `Autres filtres : ${moreFilterLabel}`
                         : "Autres filtres"
                     }
-                    className="ml-auto min-w-0 rounded-full"
+                    className="ml-auto min-w-0 shrink rounded-full"
                   >
                     <ListFilter aria-hidden="true" />
                     {moreFilterLabel && (
-                      <span className="truncate">{moreFilterLabel}</span>
+                      <span className="truncate md:max-lg:hidden">{moreFilterLabel}</span>
                     )}
                   </Button>
                 </DropdownMenuTrigger>
@@ -1944,7 +1944,7 @@ export default function WhatsappWorkspace({
                     aria-label={`Voir la fiche de ${activeClient.name}`}
                     className="flex min-w-0 flex-1 items-center gap-2 rounded-lg p-1 text-left outline-none hover:bg-muted/60 focus-visible:ring-3 focus-visible:ring-ring/50 sm:gap-3"
                   >
-                    <span className="relative hidden shrink-0 sm:flex">
+                    <span className="relative hidden shrink-0 sm:flex md:hidden lg:flex">
                       <Avatar className="size-9">
                         <AvatarFallback className="font-heading text-xs font-semibold">
                           {getInitials(activeClient.name)}
@@ -2003,7 +2003,7 @@ export default function WhatsappWorkspace({
                       )}
                       <Label
                         htmlFor="chat-ai-toggle"
-                        className="hidden cursor-pointer text-xs sm:block"
+                        className="hidden cursor-pointer text-xs sm:block md:hidden xl:block"
                       >
                         Assistant IA
                       </Label>
