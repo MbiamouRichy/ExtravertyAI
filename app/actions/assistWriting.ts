@@ -9,6 +9,7 @@ import {
   generateWritingAssistance,
 } from "@/lib/writing-assistance";
 import { getBillingAccess } from "@/lib/billing-access";
+import { knowledgeContext } from "@/lib/knowledge";
 import { z } from "zod";
 
 /** Message clair selon la cause, sans exposer de détail technique sensible. */
@@ -67,6 +68,7 @@ export async function assistWriting(input: unknown) {
               status: true,
               statusBeforePause: true,
               agentSystemMessage: true,
+              currency: true,
             },
           },
         },
@@ -138,13 +140,26 @@ export async function assistWriting(input: unknown) {
           "Un média est en cours d’analyse. Réessayez dans quelques instants.",
       };
     }
+    // Mêmes données que l’assistant ; sans elles, les consignes suffisent.
+    const knowledge =
+      mode === "suggest"
+        ? await knowledgeContext(
+            prisma,
+            projectId,
+            contact.project.currency,
+            messages
+              .filter((message) => message.senderType === "CLIENT")
+              .map((message) => message.extractedText ?? message.content)
+              .reverse(),
+          ).catch(() => ({ block: "" }))
+        : { block: "" };
     const replies = await generateWritingAssistance({
       mode,
       draft: parsed.data.mode === "rewrite" ? parsed.data.draft : undefined,
       history: prepareSummaryHistory(messages).history,
       instructions:
         mode === "suggest"
-          ? contact.project.agentSystemMessage.slice(0, 12000)
+          ? contact.project.agentSystemMessage.slice(0, 12000) + knowledge.block
           : "",
     });
     const current = await authorizedContact();

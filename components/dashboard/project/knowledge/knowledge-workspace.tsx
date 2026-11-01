@@ -19,67 +19,6 @@ import type {
   KnowledgeUsage,
 } from "./types";
 
-function UsageMeter({
-  label,
-  short,
-  hint,
-  used,
-  limit,
-}: {
-  label: string;
-  /** Libellé court affiché sur mobile. */
-  short: string;
-  hint?: string;
-  used: number;
-  limit: number;
-}) {
-  const ratio = Math.min(1, limit ? used / limit : 0);
-  const full = limit > 0 && used >= limit;
-  return (
-    <div className="min-w-0 px-4 py-3.5 sm:px-5">
-      <p className="flex min-w-0 items-baseline gap-1.5 text-xs text-muted-foreground">
-        <span className="truncate">
-          <span className="sm:hidden" aria-hidden="true">
-            {short}
-          </span>
-          <span className="max-sm:sr-only">{label}</span>
-        </span>
-        {hint && (
-          <span className="hidden shrink-0 text-[11px] text-muted-foreground/70 md:inline">
-            · {hint}
-          </span>
-        )}
-      </p>
-      <p className="mt-1 flex items-baseline gap-1 tabular-nums">
-        <span className="font-heading text-xl font-semibold tracking-tight sm:text-2xl">
-          {used.toLocaleString("fr-FR")}
-        </span>
-        <span className="text-xs text-muted-foreground">
-          / {limit.toLocaleString("fr-FR")}
-        </span>
-        {full && (
-          <span className="ml-auto rounded-full border border-destructive/30 px-1.5 text-[10px] font-medium text-destructive">
-            Limite
-          </span>
-        )}
-      </p>
-      <div
-        role="meter"
-        aria-label={label}
-        aria-valuemin={0}
-        aria-valuemax={limit}
-        aria-valuenow={used}
-        className="mt-2 h-1 overflow-hidden rounded-full bg-muted"
-      >
-        <div
-          className={`h-full rounded-full transition-[width] motion-reduce:transition-none ${full ? "bg-destructive" : "bg-foreground"}`}
-          style={{ width: `${ratio * 100}%` }}
-        />
-      </div>
-    </div>
-  );
-}
-
 export type AgentSettingsView = {
   projectName: string;
   config: AgentConfig;
@@ -87,7 +26,7 @@ export type AgentSettingsView = {
   aiQuietEnabled: boolean;
 };
 
-/** Onglets qui consomment le quota : la jauge n’apparaît que pour eux. */
+/** Onglets qui consomment le quota : l’utilisation n’apparaît que pour eux. */
 const DATA_TABS = new Set(["entries", "products", "documents"]);
 
 export function KnowledgeWorkspace({
@@ -125,17 +64,13 @@ export function KnowledgeWorkspace({
 
   return (
     <Tabs value={tab} onValueChange={setTab} className="gap-6">
-      <div className="-mx-4 overflow-x-auto overflow-y-hidden px-4 sm:mx-0 sm:px-0">
-        <TabsList>
-          <TabsTrigger value="agent">Personnalité &amp; consignes</TabsTrigger>
-          <TabsTrigger value="entries">Questions et infos</TabsTrigger>
-          <TabsTrigger value="products">
-            Produits · {products.length}
-          </TabsTrigger>
-          <TabsTrigger value="documents">
-            Documents · {sources.length}
-          </TabsTrigger>
-          <TabsTrigger value="test">Tester l’agent</TabsTrigger>
+      <div className="-mx-4 overflow-x-auto overflow-y-hidden border-b px-4 [scrollbar-width:none] sm:mx-0 sm:px-0">
+        <TabsList variant="line" className="h-10!">
+          <TabsTrigger value="agent">Consignes</TabsTrigger>
+          <TabsTrigger value="entries">Questions</TabsTrigger>
+          <TabsTrigger value="products">Produits</TabsTrigger>
+          <TabsTrigger value="documents">Documents</TabsTrigger>
+          <TabsTrigger value="test">Tester</TabsTrigger>
           <TabsTrigger value="improve">
             À améliorer
             {pendingImprovements > 0 && (
@@ -149,24 +84,12 @@ export function KnowledgeWorkspace({
         </TabsList>
       </div>
       {DATA_TABS.has(tab) && (
-        <section
-          aria-label="Utilisation de la base de connaissances"
-          className="grid grid-cols-2 divide-x rounded-2xl border bg-card"
-        >
-          <UsageMeter
-            label="Entrées utilisées"
-            short="Entrées"
-            used={usage.entries}
-            limit={usage.entryLimit}
-          />
-          <UsageMeter
-            label="Documents importés"
-            short="Documents"
-            hint="PDF et pages web"
-            used={usage.documents}
-            limit={usage.documentLimit}
-          />
-        </section>
+        <p className="text-xs text-muted-foreground tabular-nums">
+          {usage.entries.toLocaleString("fr-FR")} /{" "}
+          {usage.entryLimit.toLocaleString("fr-FR")} entrées ·{" "}
+          {usage.documents.toLocaleString("fr-FR")} /{" "}
+          {usage.documentLimit.toLocaleString("fr-FR")} documents
+        </p>
       )}
       {/* Toujours monté : un enregistrement auto en attente survit au changement d’onglet. */}
       <TabsContent

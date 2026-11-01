@@ -6,7 +6,6 @@ import {
   CloudUpload,
   Loader2,
   Pencil,
-  Sparkles,
   Undo2,
   Wand2,
   X,
@@ -113,7 +112,7 @@ export function SystemMessageDialog({
   const trigger = useRef<HTMLButtonElement>(null);
   const editor = useRef<HTMLTextAreaElement | null>(null);
   const [open, setOpen] = useState(false);
-  const [pending, setPending] = useState<"generate" | "rewrite" | null>(null);
+  const [pending, setPending] = useState(false);
   const busyRef = useRef(false);
   const [availableAt, setAvailableAt] = useState(0);
   const [previous, setPrevious] = useState<string | null>(null);
@@ -153,18 +152,22 @@ export function SystemMessageDialog({
     };
   }, [open]);
 
-  async function assist(mode: "generate" | "rewrite") {
+  async function rewrite() {
     if (busyRef.current) return;
     if (Date.now() < availableAt) {
       toast.info("Patientez 30 secondes entre deux demandes IA.");
       return;
     }
     busyRef.current = true;
-    setPending(mode);
+    setPending(true);
     setAvailableAt(Date.now() + 30000);
     const draft = config.agentSystemMessage;
     try {
-      const result = await assistSystemMessage({ projectId, config, mode });
+      const result = await assistSystemMessage({
+        projectId,
+        config,
+        mode: "rewrite",
+      });
       if (!result.success) {
         toast.error(result.error);
         return;
@@ -172,12 +175,12 @@ export function SystemMessageDialog({
       setPrevious(draft);
       onChange(result.systemMessage);
       requestAnimationFrame(measureEdges);
-      toast.success("Message préparé. Relisez-le : il est déjà enregistré.");
+      toast.success("Message reformulé. Relisez-le : il est déjà enregistré.");
     } catch {
       toast.error("L’IA est indisponible. Votre texte est conservé.");
     } finally {
       busyRef.current = false;
-      setPending(null);
+      setPending(false);
     }
   }
   function changeOpen(value: boolean) {
@@ -196,12 +199,12 @@ export function SystemMessageDialog({
         aria-haspopup="dialog"
         aria-invalid={!!error}
         aria-describedby="agent-system-description agent-system-error"
-        className="h-auto min-h-32 w-full items-start justify-between gap-4 whitespace-normal rounded-xl p-4 text-left font-normal"
+        className="h-auto w-full items-start justify-between gap-4 whitespace-normal rounded-xl p-4 text-left font-normal"
         onClick={() => setOpen(true)}
       >
-        <span className="line-clamp-5 min-w-0 whitespace-pre-wrap break-words text-sm leading-relaxed">
+        <span className="line-clamp-3 min-w-0 whitespace-pre-wrap break-words text-sm leading-relaxed text-muted-foreground">
           {config.agentSystemMessage ||
-            "Cliquez pour écrire la mission et les connaissances de votre agent…"}
+            "Décrivez la mission de votre agent…"}
         </span>
         <Pencil
           aria-hidden
@@ -223,12 +226,10 @@ export function SystemMessageDialog({
             if (pending) event.preventDefault();
           }}
         >
-          {/* En-tête : titre, statut d’enregistrement, fermeture */}
-          <div className="flex shrink-0 items-center gap-3 border-b px-4 py-3 sm:px-6">
+          {/* Une seule barre : titre, statut, reformulation, fermeture */}
+          <div className="flex shrink-0 items-center gap-2 border-b px-4 py-3 sm:px-6">
             <div className="min-w-0 flex-1">
-              <DialogTitle className="text-base sm:text-lg">
-                Message système
-              </DialogTitle>
+              <DialogTitle className="text-base">Message système</DialogTitle>
               <DialogDescription className="sr-only">
                 Modifiez les instructions de votre agent.{" "}
                 {onboarding
@@ -241,60 +242,14 @@ export function SystemMessageDialog({
                   error={saveError}
                   onboarding={onboarding}
                 />
-                {/* Sur mobile, la longueur rejoint le statut pour libérer la barre d’outils. */}
                 <span
-                  className="shrink-0 text-xs tabular-nums text-muted-foreground sm:hidden"
+                  className="shrink-0 text-xs tabular-nums text-muted-foreground"
                   aria-label={`${length} caractères sur ${MAX_LENGTH}`}
                 >
                   · {length.toLocaleString("fr-FR")} / 12 000
                 </span>
               </div>
             </div>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              disabled={!!pending}
-              aria-label="Fermer l’éditeur"
-              onClick={() => changeOpen(false)}
-            >
-              <X aria-hidden />
-            </Button>
-          </div>
-
-          {/* Barre d’outils : actions IA à gauche, longueur à droite */}
-          <div className="flex shrink-0 items-center gap-2 border-b px-4 py-2.5 sm:px-6 sm:py-2">
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              className="max-sm:h-9 max-sm:flex-1"
-              disabled={!!pending}
-              onClick={() => void assist("generate")}
-            >
-              {pending === "generate" ? (
-                <Loader2 data-icon="inline-start" className="animate-spin" />
-              ) : (
-                <Sparkles data-icon="inline-start" />
-              )}
-              <span className="hidden sm:inline">Générer par IA</span>
-              <span className="sm:hidden">Générer</span>
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="max-sm:h-9 max-sm:flex-1 sm:border-transparent sm:shadow-none"
-              disabled={!!pending || config.agentSystemMessage.trim().length < 40}
-              onClick={() => void assist("rewrite")}
-            >
-              {pending === "rewrite" ? (
-                <Loader2 data-icon="inline-start" className="animate-spin" />
-              ) : (
-                <Wand2 data-icon="inline-start" />
-              )}
-              Reformuler
-            </Button>
             {previous !== null && (
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -302,8 +257,8 @@ export function SystemMessageDialog({
                     type="button"
                     variant="ghost"
                     size="icon-sm"
-                    aria-label="Annuler la proposition IA"
-                    disabled={!!pending}
+                    aria-label="Annuler la reformulation"
+                    disabled={pending}
                     onClick={() => {
                       onChange(previous);
                       setPrevious(null);
@@ -315,23 +270,30 @@ export function SystemMessageDialog({
                 <TooltipContent>Revenir au texte précédent</TooltipContent>
               </Tooltip>
             )}
-            <div className="ml-auto hidden shrink-0 items-center gap-2 sm:flex">
-              <div
-                aria-hidden="true"
-                className="hidden h-1 w-16 overflow-hidden rounded-full bg-muted sm:block"
-              >
-                <div
-                  className="h-full rounded-full bg-foreground/60"
-                  style={{ width: `${Math.min(100, (length / MAX_LENGTH) * 100)}%` }}
-                />
-              </div>
-              <span
-                className="text-xs tabular-nums text-muted-foreground"
-                aria-label={`${length} caractères sur ${MAX_LENGTH}`}
-              >
-                {length.toLocaleString("fr-FR")} / 12 000
-              </span>
-            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={pending || config.agentSystemMessage.trim().length < 40}
+              onClick={() => void rewrite()}
+            >
+              {pending ? (
+                <Loader2 data-icon="inline-start" className="animate-spin" />
+              ) : (
+                <Wand2 data-icon="inline-start" />
+              )}
+              Reformuler
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              disabled={pending}
+              aria-label="Fermer l’éditeur"
+              onClick={() => changeOpen(false)}
+            >
+              <X aria-hidden />
+            </Button>
           </div>
 
           {/* Éditeur avec fondus selon le défilement */}
@@ -352,15 +314,15 @@ export function SystemMessageDialog({
                   requestAnimationFrame(measureEdges);
                 }}
                 onScroll={measureEdges}
-                disabled={!!pending}
+                disabled={pending}
                 maxLength={MAX_LENGTH}
                 autoComplete="off"
                 spellCheck
                 rows={1}
                 aria-invalid={!!error}
                 aria-describedby={error ? "system-editor-error" : undefined}
-                placeholder="Décrivez votre entreprise, vos offres, vos règles et ce que l’agent ne doit jamais promettre…"
-                className="h-full min-h-0 resize-none field-sizing-fixed overflow-y-auto overscroll-contain rounded-none border-0 bg-background px-4 py-5 font-mono text-base leading-relaxed shadow-none focus-visible:ring-0 sm:px-6 sm:text-sm"
+                placeholder="Votre entreprise, vos règles, ce que l’agent ne doit jamais promettre…"
+                className="h-full min-h-0 resize-none field-sizing-fixed overflow-y-auto overscroll-contain rounded-none border-0 bg-background px-4 py-5 text-base leading-relaxed shadow-none focus-visible:ring-0 sm:px-6 sm:text-sm"
               />
               <div
                 aria-hidden="true"

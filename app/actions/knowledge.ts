@@ -15,6 +15,7 @@ import {
   retrySource,
   saveEntry,
   setEntryEnabled,
+  sourceContent,
 } from "@/lib/knowledge";
 import { removeKnowledgeFile } from "@/lib/knowledge-extract";
 import { KNOWLEDGE_LIMITS } from "@/lib/knowledge-shared";
@@ -89,6 +90,22 @@ export async function addKnowledgeUrlAction(input: z.input<typeof UrlSchema>) {
     const source = await addUrlSource(prisma, { ...data, userId });
     return { id: source.id };
   });
+}
+
+// Lecture seule : ne déclenche aucune actualisation chez les autres membres.
+export async function getKnowledgeSourceContentAction(input: z.input<typeof SourceTarget>) {
+  const parsed = SourceTarget.safeParse(input);
+  if (!parsed.success) return { success: false as const, error: "Demande invalide." };
+  const session = await getSession();
+  if (!session?.user?.id) return { success: false as const, error: "Connexion requise." };
+  try {
+    const passages = await sourceContent(prisma, { ...parsed.data, userId: session.user.id });
+    return { success: true as const, passages };
+  } catch (error) {
+    if (error instanceof KnowledgeError) return { success: false as const, error: error.message };
+    console.error("[knowledge] Échec : lire la source.");
+    return { success: false as const, error: "Impossible d’afficher ce contenu. Réessayez." };
+  }
 }
 
 export async function retryKnowledgeSourceAction(input: z.input<typeof SourceTarget>) {

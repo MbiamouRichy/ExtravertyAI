@@ -12,17 +12,10 @@ import {
   ArrowLeft,
   ArrowRight,
   Bot,
-  BriefcaseBusiness,
   Check,
   CheckCheck,
-  FileText,
-  Heart,
   Languages,
   Loader2,
-  MessageSquare,
-  ShieldCheck,
-  SlidersHorizontal,
-  Zap,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -66,22 +59,11 @@ import {
   type AgentConfig,
 } from "@/lib/agent-config";
 
-const toneIcons = {
-  warm: Heart,
-  professional: BriefcaseBusiness,
-  direct: Zap,
-} as const;
 const lengths = [
   { value: "concise", label: "Concis", hint: "Recommandé sur WhatsApp" },
   { value: "balanced", label: "Équilibré", hint: "Réponses structurées" },
   { value: "detailed", label: "Détaillé", hint: "Explications complètes" },
 ] as const;
-const missionTips = [
-  "Votre activité et votre clientèle",
-  "Ce que l’agent doit obtenir ou proposer",
-  "Vos règles : horaires, zones, délais",
-  "Ce que l’agent ne doit jamais promettre",
-];
 const behaviors = [
   {
     key: "agentAskOneQuestion" as const,
@@ -110,44 +92,16 @@ const behaviors = [
 ];
 
 function SectionHeader({
-  eyebrow,
-  icon: Icon,
   title,
   description,
 }: {
-  eyebrow?: string;
-  icon: typeof Bot;
   title: string;
   description: string;
 }) {
   return (
-    // Mobile : icône et étiquette sur une ligne, puis titre et description en
-    // pleine largeur. À partir de sm : texte aligné à droite de l’icône.
-    <div className="mb-6 grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-3 gap-y-1">
-      <span
-        className={cn(
-          "flex size-10 shrink-0 items-center justify-center rounded-xl border bg-background",
-          eyebrow && "sm:row-span-3 sm:self-start",
-        )}
-      >
-        <Icon aria-hidden="true" className="size-5" />
-      </span>
-      {eyebrow && (
-        <p className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">
-          {eyebrow}
-        </p>
-      )}
-      <h2
-        className={cn(
-          "font-heading text-lg font-semibold tracking-tight",
-          eyebrow && "col-span-2 mt-2 sm:col-span-1 sm:col-start-2 sm:mt-0",
-        )}
-      >
-        {title}
-      </h2>
-      <p className="col-span-2 text-sm text-muted-foreground sm:col-span-1 sm:col-start-2">
-        {description}
-      </p>
+    <div className="mb-4">
+      <h2 className="text-base! font-semibold! tracking-tight!">{title}</h2>
+      <p className="mt-0.5 text-sm text-muted-foreground">{description}</p>
     </div>
   );
 }
@@ -367,7 +321,7 @@ export function AgentEditor({
             ? ""
             : onboarding
               ? "lg:grid-cols-[minmax(0,1fr)_320px]"
-              : "2xl:grid-cols-[minmax(0,1fr)_300px]",
+              : "",
         )}
       >
         <div className="min-w-0 space-y-6">
@@ -387,12 +341,10 @@ export function AgentEditor({
               className="min-w-0 space-y-6"
             >
               {show(0) && (
-                <section className="rounded-2xl border bg-card p-5 sm:p-6">
+                <section className="rounded-xl border p-4 sm:p-5">
                   <SectionHeader
-                    eyebrow={onboarding ? undefined : `01 · ${steps[0]}`}
-                    icon={Bot}
-                    title="Donnez-lui une identité"
-                    description="Un nom que vos clients reconnaîtront."
+                    title="Identité"
+                    description="Le nom vu par vos clients."
                   />
                   <Controller
                     name="agentName"
@@ -445,44 +397,18 @@ export function AgentEditor({
               )}
 
               {show(1) && (
-                <section className="rounded-2xl border bg-card p-5 sm:p-6">
+                <section className="rounded-xl border p-4 sm:p-5">
                   <SectionHeader
-                    eyebrow={onboarding ? undefined : `02 · ${steps[1]}`}
-                    icon={FileText}
-                    title="Sa mission, avec vos mots"
-                    description="Le message système guide chaque réponse de l’agent."
+                    title="Mission"
+                    description="Ce que l’agent doit faire et ne jamais promettre."
                   />
-                  <div className="mb-5 rounded-xl border border-dashed p-4">
-                    <p className="text-sm font-medium">
-                      Un bon message système contient
-                    </p>
-                    <ul className="mt-3 grid gap-2 sm:grid-cols-2">
-                      {missionTips.map((tip) => (
-                        <li
-                          key={tip}
-                          className="flex items-start gap-2 text-xs text-muted-foreground"
-                        >
-                          <Check
-                            aria-hidden="true"
-                            className="mt-0.5 size-3.5 shrink-0 text-foreground"
-                          />
-                          {tip}
-                        </li>
-                      ))}
-                    </ul>
-                    <p className="mt-3 text-xs text-muted-foreground">
-                      Uniquement des informations vérifiées, sans identifiants
-                      ni secrets. Prix, produits et documents se rangent dans
-                      la base de connaissances : l’agent y cherche les faits.
-                    </p>
-                  </div>
                   <Controller
                     name="agentSystemMessage"
                     control={form.control}
                     render={({ fieldState }) => (
                       <Field data-invalid={fieldState.invalid}>
-                        <FieldLabel htmlFor="agent-system">
-                          Message système de votre entreprise
+                        <FieldLabel htmlFor="agent-system" className="sr-only">
+                          Message système
                         </FieldLabel>
                         <SystemMessageDialog
                           projectId={projectId}
@@ -498,35 +424,9 @@ export function AgentEditor({
                           error={fieldState.error}
                           onboarding={onboarding}
                         />
-                        <div className="space-y-1.5">
-                          <div
-                            aria-hidden="true"
-                            className="h-1 overflow-hidden rounded-full bg-muted"
-                          >
-                            <div
-                              className={cn(
-                                "h-full rounded-full transition-[width]",
-                                config.agentSystemMessage.trim().length >= 40
-                                  ? "bg-foreground"
-                                  : "bg-muted-foreground/50",
-                              )}
-                              style={{
-                                width: `${Math.min(100, (config.agentSystemMessage.length / 12000) * 100)}%`,
-                              }}
-                            />
-                          </div>
-                          <FieldDescription
-                            id="agent-system-description"
-                            className="flex flex-wrap justify-between gap-2"
-                          >
-                            <span className="ml-auto tabular-nums">
-                              {config.agentSystemMessage.length.toLocaleString(
-                                "fr-FR",
-                              )}{" "}
-                              / 12 000
-                            </span>
-                          </FieldDescription>
-                        </div>
+                        <p id="agent-system-description" className="sr-only">
+                          {config.agentSystemMessage.length} caractères sur 12 000
+                        </p>
                         <FieldError
                           id="agent-system-error"
                           errors={[fieldState.error]}
@@ -538,12 +438,10 @@ export function AgentEditor({
               )}
 
               {show(2) && (
-                <section className="rounded-2xl border bg-card p-5 sm:p-6">
+                <section className="rounded-xl border p-4 sm:p-5">
                   <SectionHeader
-                    eyebrow={onboarding ? undefined : `03 · ${steps[2]}`}
-                    icon={SlidersHorizontal}
-                    title="La bonne façon de répondre"
-                    description="Des comportements adaptés aux conversations WhatsApp."
+                    title="Style"
+                    description="Sa façon de répondre sur WhatsApp."
                   />
                   <div className="space-y-7">
                     <Controller
@@ -554,14 +452,6 @@ export function AgentEditor({
                           <FieldLegend variant="label">
                             Ton de l’agent
                           </FieldLegend>
-                          <FieldDescription
-                            id="agent-tone-help"
-                            className="-mt-1.5"
-                          >
-                            Ajoute une consigne de ton aux réponses de l’agent,
-                            appliquée dès l’enregistrement. Votre message
-                            système reste la référence.
-                          </FieldDescription>
                           <RadioGroup
                             name={field.name}
                             ref={field.ref}
@@ -574,11 +464,10 @@ export function AgentEditor({
                               )
                             }
                             aria-invalid={fieldState.invalid}
-                            aria-describedby="agent-tone-help agent-tone-error"
+                            aria-describedby="agent-tone-error"
                             className="grid gap-2 sm:grid-cols-3"
                           >
                             {AGENT_TONES.map((tone) => {
-                              const Icon = toneIcons[tone.value];
                               return (
                                 <FieldLabel
                                   key={tone.value}
@@ -586,13 +475,7 @@ export function AgentEditor({
                                   className="w-full! cursor-pointer items-stretch rounded-xl border p-3 font-normal transition-colors hover:bg-muted/40 has-data-[state=checked]:border-primary has-data-[state=checked]:bg-muted/50"
                                 >
                                   <span className="flex h-full w-full flex-col gap-2.5">
-                                    <span className="flex items-center justify-between gap-2">
-                                      <span className="flex size-8 shrink-0 items-center justify-center rounded-lg border bg-background">
-                                        <Icon
-                                          aria-hidden="true"
-                                          className="size-4"
-                                        />
-                                      </span>
+                                    <span className="flex items-start justify-between gap-2">
                                       <RadioGroupItem
                                         id={`agent-tone-${tone.value}`}
                                         value={tone.value}
@@ -646,7 +529,7 @@ export function AgentEditor({
                             aria-describedby="agent-length-error"
                             className="grid grid-cols-1 gap-2 sm:grid-cols-3"
                           >
-                            {lengths.map((option, index) => (
+                            {lengths.map((option) => (
                               <FieldLabel
                                 key={option.value}
                                 htmlFor={`agent-length-${option.value}`}
@@ -654,23 +537,6 @@ export function AgentEditor({
                               >
                                 {/* Mobile : ligne (illustration, texte) ; à partir de sm : carte verticale. */}
                                 <span className="flex w-full min-w-0 items-center gap-3 sm:flex-col sm:items-stretch sm:gap-2">
-                                  <span
-                                    aria-hidden="true"
-                                    className="flex w-10 shrink-0 flex-col gap-1 sm:w-full"
-                                  >
-                                    {Array.from(
-                                      { length: index + 1 },
-                                      (_, line) => (
-                                        <span
-                                          key={line}
-                                          className="h-1 rounded-full bg-foreground/60"
-                                          style={{
-                                            width: `${100 - line * 18}%`,
-                                          }}
-                                        />
-                                      ),
-                                    )}
-                                  </span>
                                   <span className="min-w-0 flex-1">
                                     <span className="block text-sm font-medium">
                                       {option.label}
@@ -840,10 +706,7 @@ export function AgentEditor({
                   <ArrowLeft data-icon="inline-start" /> Précédent
                 </Button>
               ) : (
-                <span className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <ShieldCheck aria-hidden="true" className="size-4" /> Réglages
-                  réservés à votre équipe
-                </span>
+                <span />
               )}
               {onboarding ? (
                 <Button disabled={pending} type="submit" size="lg">
@@ -876,19 +739,16 @@ export function AgentEditor({
           </form>
         </div>
 
-        {!dataActive && (
+        {onboarding && !dataActive && (
           <aside
             aria-label="Aperçu du style"
             className={cn(
               // Masqué sur mobile : il repoussait les réglages sous un long aperçu.
               "self-start rounded-2xl border bg-muted/40 p-4 max-md:hidden",
-              onboarding ? "lg:sticky lg:top-6" : "2xl:sticky 2xl:top-24",
+              "lg:sticky lg:top-6",
             )}
           >
-            <p className="mb-3 flex items-center gap-2 font-mono text-[11px] uppercase tracking-wider text-muted-foreground">
-              <MessageSquare aria-hidden="true" className="size-3.5" /> Aperçu
-              en direct
-            </p>
+            <p className="mb-3 text-xs text-muted-foreground">Aperçu</p>
             <div className="overflow-hidden rounded-2xl border bg-card shadow-sm">
               <div className="flex items-center gap-3 border-b px-4 py-3">
                 <span className="flex size-9 items-center justify-center rounded-full bg-primary text-primary-foreground">
@@ -916,56 +776,6 @@ export function AgentEditor({
                   />
                 </div>
               </div>
-            </div>
-            <ul
-              aria-label="Réglages actifs"
-              className="mt-3 flex flex-wrap gap-1.5 text-[11px]"
-            >
-              <li className="rounded-full border bg-background px-2 py-0.5">
-                {
-                  AGENT_TONES.find((tone) => tone.value === config.agentTone)
-                    ?.label
-                }
-              </li>
-              <li className="rounded-full border bg-background px-2 py-0.5">
-                {
-                  lengths.find(
-                    (option) => option.value === config.agentResponseLength,
-                  )?.label
-                }
-              </li>
-              {behaviors
-                .filter((item) => config[item.key])
-                .map((item) => (
-                  <li
-                    key={item.key}
-                    className="rounded-full border bg-background px-2 py-0.5"
-                  >
-                    {item.title}
-                  </li>
-                ))}
-            </ul>
-            <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
-              Exemple illustratif : les réponses réelles dépendent de votre
-              message système et de la conversation.
-            </p>
-            <div className="mt-4 border-t pt-4">
-              <p className="mb-2 text-sm font-medium">Toujours dans le cadre</p>
-              <ul className="space-y-2 text-xs leading-relaxed text-muted-foreground">
-                {[
-                  "Ne pas inventer d’informations commerciales.",
-                  "Ne pas demander de mot de passe ni de carte bancaire.",
-                  "Permettre à votre équipe de reprendre la main.",
-                ].map((text) => (
-                  <li key={text} className="flex gap-2">
-                    <ShieldCheck
-                      aria-hidden="true"
-                      className="mt-0.5 size-3.5 shrink-0 text-foreground"
-                    />
-                    {text}
-                  </li>
-                ))}
-              </ul>
             </div>
           </aside>
         )}

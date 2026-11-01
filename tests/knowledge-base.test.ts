@@ -17,6 +17,7 @@ import {
   claimKnowledgeSource,
   importProductsCsv,
   knowledgeContext,
+  sourceContent,
   retrieveKnowledge,
   runKnowledgeSource,
   saveEntry,
@@ -144,6 +145,34 @@ test("knowledge base", { timeout: 180000 }, async (t) => {
       assert.equal(hidden.some((entry) => entry.id === shoes.id), false);
       const context = await knowledgeContext(prisma, project.id, "XAF", ["Port-Gentil ?"]);
       assert.match(context.block, /Port-Gentil/);
+    });
+
+    await t.test("the assistant sees every enabled entry, even without a matching word", async () => {
+      const greeting = await knowledgeContext(prisma, project.id, "XAF", ["Bonjour"]);
+      assert.match(greeting.block, /Port-Gentil/);
+      assert.equal(greeting.entries.length, 0);
+      // Une entrée désactivée reste écartée, celles d’un autre projet aussi.
+      assert.doesNotMatch(greeting.block, /Sneakers Urban/);
+      assert.doesNotMatch(greeting.block, /Autre boutique/);
+    });
+
+    await t.test("imported text is readable in order, by project admins only", async () => {
+      const source = await prisma.knowledgeSource.create({
+        data: { projectId: project.id, type: "URL", name: "Page", url: "https://example.com/lu", status: "READY" },
+      });
+      for (const index of [10, 2, 1]) {
+        await prisma.knowledgeEntry.create({
+          data: { projectId: project.id, sourceId: source.id, kind: "CHUNK", title: `Page · ${index}/10`, content: `Passage ${index}`, searchText: `passage ${index}` },
+        });
+      }
+      const passages = await sourceContent(prisma, { ...admin, sourceId: source.id });
+      assert.deepEqual(passages.map((passage) => passage.content), ["Passage 1", "Passage 2", "Passage 10"]);
+      const outsider = await createUser(prisma);
+      await assert.rejects(
+        sourceContent(prisma, { projectId: project.id, userId: outsider.id, sourceId: source.id }),
+        /Accès refusé/,
+      );
+      await prisma.knowledgeSource.delete({ where: { id: source.id } });
     });
 
     await t.test("CSV imports stop at the plan limit and are flagged", async () => {
