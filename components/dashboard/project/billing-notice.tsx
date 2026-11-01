@@ -156,8 +156,8 @@ export function BillingNotice({
             ) : (
               canViewBilling && (
                 <Button variant="ghost" size="sm" asChild>
-                  <Link href={`/projects/${projectId}/billing`}>
-                    Facturation
+                  <Link href={`/projects/${projectId}/billing`} aria-label="Facturation">
+                    <span className="hidden sm:inline">Facturation</span>
                     <ArrowUpRight data-icon="inline-end" />
                   </Link>
                 </Button>
