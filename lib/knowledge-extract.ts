@@ -3,6 +3,8 @@ import { KnowledgeError, type KnowledgeExtractors } from "./knowledge";
 import { safeRequest } from "./safe-fetch";
 
 const HTML_TYPES = new Set(["text/html", "application/xhtml+xml"]);
+const BLOCK_TAGS =
+  "address,article,aside,blockquote,button,dd,div,dl,dt,figcaption,footer,h1,h2,h3,h4,h5,h6,header,li,main,nav,p,pre,section,td,th,tr,a";
 
 /** Public page → readable article text. Network access goes through safeRequest only. */
 export async function fetchWebPage(url: string): Promise<{ title: string; text: string }> {
@@ -33,6 +35,12 @@ export async function htmlToText(raw: string): Promise<{ title: string; text: st
     node.remove();
   }
   const title = (document.title || "").trim();
+  // textContent colle les blocs voisins : « ContactRéponse », « 29E-mail ».
+  for (const element of document.querySelectorAll(BLOCK_TAGS)) {
+    element.appendChild(document.createTextNode(element.tagName === "A" ? " " : "
+
+"));
+  }
   const article = new Readability(document as unknown as Document).parse();
   const text = (article?.textContent || document.body?.textContent || "").trim();
   return { title: (article?.title || title).trim().slice(0, 150), text };

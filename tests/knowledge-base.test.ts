@@ -91,6 +91,13 @@ test("HTML pages are reduced to their readable text", async () => {
   assert.doesNotMatch(text, /alert/);
 });
 
+test("neighbouring HTML blocks stay separate words", async () => {
+  const { text } = await htmlToText(
+    '<html><body><article><div><h2>Contact</h2><div>Réponse humaine sur WhatsApp, du lundi au samedi, pour toutes vos demandes.</div></div><div><a href="/x">Téléphone</a><a href="/y">E-mail</a></div></article></body></html>',
+  );
+  assert.doesNotMatch(text, /ContactRéponse|TéléphoneE-mail/);
+});
+
 test("PDF text is extracted", async () => {
   const pdf = new jsPDF();
   pdf.text("Retours acceptes sous 14 jours avec le ticket de caisse.", 10, 10);
