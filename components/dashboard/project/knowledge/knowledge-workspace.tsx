@@ -71,7 +71,7 @@ export function KnowledgeWorkspace({
           className="grid! h-auto! w-full grid-cols-3 gap-0 sm:flex! sm:h-10! sm:w-fit sm:gap-1 [&>button]:h-9 [&>button]:px-1 [&>button]:text-xs sm:[&>button]:h-full sm:[&>button]:px-2 sm:[&>button]:text-sm"
         >
           <TabsTrigger value="agent">Consignes</TabsTrigger>
-          <TabsTrigger value="entries">Questions</TabsTrigger>
+          <TabsTrigger value="entries">Informations</TabsTrigger>
           <TabsTrigger value="products">Produits</TabsTrigger>
           <TabsTrigger value="documents">Documents</TabsTrigger>
           <TabsTrigger value="test">Tester</TabsTrigger>

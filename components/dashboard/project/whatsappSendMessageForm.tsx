@@ -2458,12 +2458,8 @@ export default function WhatsappWorkspace({
               automationPaused={project.automationPaused}
               agents={conversationAgents}
               hasClientMessage={historyQuery.hasClientMessage}
-              lastActivityLabel={dateFormatter.format(
-                new Date(activeClient.lastActivityAt),
-              )}
               details={historyQuery.contact}
               canCopyPhone={canCopyPhone}
-              formatDate={(iso) => dateFormatter.format(new Date(iso))}
               currentUserId={user.id}
               pipeline={pipeline}
               onContactChanged={() => void contactsQuery.mutate()}
@@ -2494,12 +2490,8 @@ export default function WhatsappWorkspace({
               automationPaused={project.automationPaused}
               agents={conversationAgents}
               hasClientMessage={historyQuery.hasClientMessage}
-              lastActivityLabel={dateFormatter.format(
-                new Date(activeClient.lastActivityAt),
-              )}
               details={historyQuery.contact}
               canCopyPhone={canCopyPhone}
-              formatDate={(iso) => dateFormatter.format(new Date(iso))}
               currentUserId={user.id}
               pipeline={pipeline}
               onContactChanged={() => void contactsQuery.mutate()}

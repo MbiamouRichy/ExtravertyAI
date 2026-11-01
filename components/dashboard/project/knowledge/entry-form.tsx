@@ -38,21 +38,17 @@ import type { KnowledgeEntryView } from "./types";
 
 type EditableKind = "FAQ" | "TEXT" | "PRODUCT";
 
+const INFORMATION_COPY = {
+  create: "Nouvelle information",
+  edit: "Modifier l’information",
+  title: "Titre ou question",
+  content: "Contenu",
+  hint: "Horaires, livraison, retours, ou une question que vos clients posent souvent.",
+};
+
 const COPY: Record<EditableKind, { create: string; edit: string; title: string; content: string; hint: string }> = {
-  FAQ: {
-    create: "Nouvelle question fréquente",
-    edit: "Modifier la question",
-    title: "Question du client",
-    content: "Réponse de l’assistant",
-    hint: "Formulez la question comme vos clients la posent.",
-  },
-  TEXT: {
-    create: "Nouvelle information",
-    edit: "Modifier l’information",
-    title: "Titre",
-    content: "Contenu",
-    hint: "Horaires, conditions de livraison, politique de retour…",
-  },
+  FAQ: INFORMATION_COPY,
+  TEXT: INFORMATION_COPY,
   PRODUCT: {
     create: "Nouveau produit",
     edit: "Modifier le produit",
@@ -175,7 +171,7 @@ export function EntryFormDialog({
                     autoComplete="off"
                     maxLength={KNOWLEDGE_LIMITS.titleMax}
                     aria-invalid={fieldState.invalid}
-                    placeholder={kind === "FAQ" ? "Livrez-vous à Port-Gentil ?" : kind === "PRODUCT" ? "Sneakers Urban blanches" : "Horaires d’ouverture"}
+                    placeholder={kind === "PRODUCT" ? "Sneakers Urban blanches" : "Livrez-vous à Port-Gentil ?"}
                   />
                   {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
                 </Field>
@@ -242,7 +238,7 @@ export function EntryFormDialog({
                   <Textarea
                     {...field}
                     id={`${id}-content`}
-                    rows={kind === "FAQ" ? 4 : 6}
+                    rows={6}
                     maxLength={KNOWLEDGE_LIMITS.contentMax}
                     aria-invalid={fieldState.invalid}
                     aria-describedby={`${id}-content-help`}

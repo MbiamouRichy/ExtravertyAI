@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
-import { Bot, Check, CircleCheck, Clock3, Copy, Download, Loader2, Moon, Sparkles, Sunrise, UsersRound } from "lucide-react";
+import { Bot, CalendarDays, Check, CircleCheck, Clock3, Copy, Download, Link2, Loader2, MessagesSquare, Moon, Sparkles, Sunrise, UsersRound, type LucideIcon } from "lucide-react";
 
 import { getInitials } from "@/components/getInitials";
 import {
@@ -33,6 +33,32 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
     <div className="flex min-h-7 items-center justify-between gap-3 text-xs">
       <dt className="shrink-0 text-muted-foreground">{label}</dt>
       <dd className="flex min-w-0 items-center gap-1.5 text-right">{children}</dd>
+    </div>
+  );
+}
+
+const detailDate = new Intl.DateTimeFormat("fr-FR", {
+  day: "numeric",
+  month: "short",
+  year: "numeric",
+});
+
+function DetailRow({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: LucideIcon;
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="flex min-h-10 items-center gap-2.5 px-3 text-xs">
+      <Icon aria-hidden="true" className="size-3.5 shrink-0 text-muted-foreground" />
+      <dt className="shrink-0 text-muted-foreground">{label}</dt>
+      <dd title={value} className="min-w-0 flex-1 truncate text-right font-medium">
+        {value}
+      </dd>
     </div>
   );
 }
@@ -88,10 +114,8 @@ export function ChatContactPanel({
   automationPaused,
   agents,
   hasClientMessage,
-  lastActivityLabel,
   details,
   canCopyPhone,
-  formatDate,
   currentUserId,
   pipeline,
   onContactChanged,
@@ -106,11 +130,9 @@ export function ChatContactPanel({
   automationPaused: boolean;
   agents: ChatAgent[];
   hasClientMessage: boolean;
-  lastActivityLabel: string;
   details?: ChatContactDetails;
   /** Propriétaire ou administrateur : seul autorisé à copier le numéro. */
   canCopyPhone: boolean;
-  formatDate: (iso: string) => string;
   currentUserId: string;
   pipeline?: { enabled: boolean; currency: string };
   /** Rafraîchit la liste après une modification (étiquettes, assignation). */
@@ -345,15 +367,27 @@ export function ChatContactPanel({
         >
           Détails
         </h2>
-        <dl className="space-y-1">
+        <dl className="divide-y rounded-xl border">
           {details && (
             <>
-              <Row label="Premier contact">{formatDate(details.firstContactAt)}</Row>
-              <Row label="Messages reçus">{details.clientMessages.toLocaleString("fr-FR")}</Row>
-              <Row label="Source">{details.source}</Row>
+              <DetailRow
+                icon={CalendarDays}
+                label="Premier contact"
+                value={detailDate.format(new Date(details.firstContactAt))}
+              />
+              <DetailRow
+                icon={MessagesSquare}
+                label="Messages reçus"
+                value={details.clientMessages.toLocaleString("fr-FR")}
+              />
+              <DetailRow icon={Link2} label="Source" value={details.source} />
             </>
           )}
-          <Row label="Dernière activité">{lastActivityLabel}</Row>
+          <DetailRow
+            icon={Clock3}
+            label="Dernière activité"
+            value={detailDate.format(new Date(client.lastActivityAt))}
+          />
         </dl>
         <Button
           type="button"

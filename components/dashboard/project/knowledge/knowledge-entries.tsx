@@ -27,7 +27,7 @@ export function KnowledgeEntries({
   onChanged: () => void;
 }) {
   const [query, setQuery] = useState("");
-  const [editing, setEditing] = useState<{ kind: "FAQ" | "TEXT"; entry: KnowledgeEntryView | null } | null>(null);
+  const [editing, setEditing] = useState<{ entry: KnowledgeEntryView | null } | null>(null);
 
   const visible = useMemo(() => {
     const needle = normalizeSearchText(query);
@@ -35,11 +35,6 @@ export function KnowledgeEntries({
       ? entries.filter((entry) => normalizeSearchText(`${entry.title} ${entry.content}`).includes(needle))
       : entries;
   }, [entries, query]);
-
-  const groups = [
-    { kind: "FAQ" as const, title: "Questions fréquentes", empty: "Les questions que vos clients posent le plus." },
-    { kind: "TEXT" as const, title: "Informations", empty: "Horaires, livraison, retours, paiement…" },
-  ];
 
   return (
     <div className="space-y-6">
@@ -53,71 +48,53 @@ export function KnowledgeEntries({
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Rechercher"
-            aria-label="Rechercher dans les questions et informations"
+            aria-label="Rechercher dans les informations"
           />
         </InputGroup>
-        <div className="grid grid-cols-2 gap-2 sm:flex">
-          <Button type="button" variant="outline" onClick={() => setEditing({ kind: "TEXT", entry: null })}>
-            <Plus data-icon="inline-start" />
-            Information
-          </Button>
-          <Button type="button" onClick={() => setEditing({ kind: "FAQ", entry: null })}>
-            <Plus data-icon="inline-start" />
-            Question
-          </Button>
-        </div>
+        <Button type="button" className="w-full sm:w-auto" onClick={() => setEditing({ entry: null })}>
+          <Plus data-icon="inline-start" />
+          Information
+        </Button>
       </div>
 
-      {groups.map((group) => {
-        const items = visible.filter((entry) => entry.kind === group.kind);
-        return (
-          <section key={group.kind} aria-labelledby={`knowledge-${group.kind}`}>
-            <h2
-              id={`knowledge-${group.kind}`}
-              className="mb-2 text-sm! font-medium! tracking-normal!"
-            >
-              {group.title}
-            </h2>
-            {items.length ? (
-              <ul className="divide-y rounded-xl border">
-                {items.map((entry) => (
-                  <li key={entry.id} className="flex flex-col gap-1 px-4 py-3 sm:flex-row sm:items-start sm:gap-4">
-                    <div className={cn("min-w-0 flex-1", !entry.enabled && "opacity-60")}>
-                      <p className="text-sm font-medium">{entry.title}</p>
-                      <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{entry.content}</p>
-                      {!entry.enabled && (
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          Désactivée : l’assistant l’ignore.
-                        </p>
-                      )}
-                    </div>
-                    <EntryActions
-                      projectId={projectId}
-                      entryId={entry.id}
-                      title={entry.title}
-                      enabled={entry.enabled}
-                      onEdit={() => setEditing({ kind: group.kind, entry })}
-                      onChanged={onChanged}
-                    />
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="rounded-xl border border-dashed p-5 text-center text-sm text-muted-foreground">
-                {query ? "Aucun résultat." : group.empty}
-              </p>
-            )}
-          </section>
-        );
-      })}
+      {visible.length ? (
+        <ul aria-label="Informations" className="divide-y rounded-xl border">
+          {visible.map((entry) => (
+            <li key={entry.id} className="flex flex-col gap-1 px-4 py-3 sm:flex-row sm:items-start sm:gap-4">
+              <div className={cn("min-w-0 flex-1", !entry.enabled && "opacity-60")}>
+                <p className="text-sm font-medium">{entry.title}</p>
+                <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{entry.content}</p>
+                {!entry.enabled && (
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Désactivée : l’assistant l’ignore.
+                  </p>
+                )}
+              </div>
+              <EntryActions
+                projectId={projectId}
+                entryId={entry.id}
+                title={entry.title}
+                enabled={entry.enabled}
+                onEdit={() => setEditing({ entry })}
+                onChanged={onChanged}
+              />
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="rounded-xl border border-dashed p-5 text-center text-sm text-muted-foreground">
+          {query ? "Aucun résultat." : "Horaires, livraison, paiement, questions fréquentes…"}
+        </p>
+      )}
 
       {editing && (
         <EntryFormDialog
-          key={editing.entry?.id ?? `new-${editing.kind}`}
+          key={editing.entry?.id ?? "new"}
           open
           onOpenChange={(open) => !open && setEditing(null)}
           projectId={projectId}
-          kind={editing.kind}
+          // Les anciennes questions gardent leur type : seul l’affichage est réuni.
+          kind={editing.entry?.kind === "FAQ" ? "FAQ" : "TEXT"}
           currency={currency}
           entry={editing.entry}
           onSaved={onChanged}

@@ -18,6 +18,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   deleteKnowledgeEntryAction,
   setKnowledgeEntryEnabledAction,
@@ -51,33 +52,50 @@ export function EntryActions({
       <Label htmlFor={switchId} className="sr-only">
         Utiliser « {title} » dans les réponses
       </Label>
-      <Switch
-        id={switchId}
-        size="sm"
-        checked={shown}
-        disabled={pending}
-        onCheckedChange={(checked) => {
-          setOptimistic(checked);
-          startTransition(async () => {
-            const result = await setKnowledgeEntryEnabledAction({ projectId, id: entryId, enabled: checked });
-            if (result.success) return onChanged();
-            setOptimistic(null);
-            toast.error(result.error);
-          });
-        }}
-        className="mr-1"
-      />
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Switch
+            id={switchId}
+            size="sm"
+            checked={shown}
+            disabled={pending}
+            onCheckedChange={(checked) => {
+              setOptimistic(checked);
+              startTransition(async () => {
+                const result = await setKnowledgeEntryEnabledAction({ projectId, id: entryId, enabled: checked });
+                if (result.success) return onChanged();
+                setOptimistic(null);
+                toast.error(result.error);
+              });
+            }}
+            className="mr-1"
+          />
+        </TooltipTrigger>
+        <TooltipContent>
+          {shown ? "Ne plus utiliser dans les réponses" : "Utiliser dans les réponses"}
+        </TooltipContent>
+      </Tooltip>
       {onEdit && (
-        <Button type="button" variant="ghost" size="icon-sm" onClick={onEdit} aria-label={`Modifier « ${title} »`}>
-          <Pencil aria-hidden="true" />
-        </Button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button type="button" variant="ghost" size="icon-sm" onClick={onEdit} aria-label={`Modifier « ${title} »`}>
+              <Pencil aria-hidden="true" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Modifier</TooltipContent>
+        </Tooltip>
       )}
       <AlertDialog>
-        <AlertDialogTrigger asChild>
-          <Button type="button" variant="ghost" size="icon-sm" aria-label={`Supprimer « ${title} »`}>
-            <Trash2 aria-hidden="true" />
-          </Button>
-        </AlertDialogTrigger>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <AlertDialogTrigger asChild>
+              <Button type="button" variant="ghost" size="icon-sm" aria-label={`Supprimer « ${title} »`}>
+                <Trash2 aria-hidden="true" />
+              </Button>
+            </AlertDialogTrigger>
+          </TooltipTrigger>
+          <TooltipContent>Supprimer</TooltipContent>
+        </Tooltip>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Supprimer cette entrée ?</AlertDialogTitle>

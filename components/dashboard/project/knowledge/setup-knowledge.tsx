@@ -62,7 +62,7 @@ export function SetupKnowledge({
           Ce que votre agent doit savoir
         </h2>
         <p className="col-span-2 text-sm text-muted-foreground sm:col-span-1 sm:col-start-2">
-          Questions fréquentes, catalogue et documents : l’agent s’en sert pour
+          Informations, catalogue et documents : l’agent s’en sert pour
           donner les bons prix et les bonnes conditions. Vous pourrez compléter
           à tout moment dans Assistant IA.
         </p>
@@ -71,7 +71,7 @@ export function SetupKnowledge({
         <div className="-mx-5 overflow-x-auto overflow-y-hidden px-5 sm:mx-0 sm:px-0">
           <TabsList>
             <TabsTrigger value="entries">
-              Questions et infos · {entries.length}
+              Informations · {entries.length}
             </TabsTrigger>
             <TabsTrigger value="products">
               Produits · {products.length}

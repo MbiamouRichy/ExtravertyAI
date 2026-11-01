@@ -18,8 +18,6 @@ import {
 } from "@/components/ui/dialog";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
 import { rateAiMessageAction, submitCorrectionAction } from "@/app/actions/agent-improvement";
 import type { ChatFeedback } from "@/lib/chat";
@@ -39,11 +37,6 @@ const CorrectionFormSchema = z.object({
 const PublishFormSchema = CorrectionFormSchema.extend({
   question: CorrectionFormSchema.shape.question.min(3, "Au moins 3 caractères."),
 });
-
-const DESTINATIONS = [
-  { value: "FAQ", label: "Questions" },
-  { value: "TEXT", label: "Informations" },
-] as const;
 
 /** Team feedback on one AI reply: approve, flag, or correct it. */
 export function AiFeedbackControls({
@@ -197,32 +190,6 @@ export function AiFeedbackControls({
                   </Field>
                 )}
               />
-              {canPublish && (
-                <Controller
-                  name="kind"
-                  control={form.control}
-                  render={({ field }) => (
-                    <Field>
-                      <FieldLabel id={`${id}-kind`}>Ajouter dans</FieldLabel>
-                      <RadioGroup
-                        value={field.value}
-                        onValueChange={field.onChange}
-                        aria-labelledby={`${id}-kind`}
-                        className="flex gap-6"
-                      >
-                        {DESTINATIONS.map((destination) => (
-                          <div key={destination.value} className="flex items-center gap-2">
-                            <RadioGroupItem value={destination.value} id={`${id}-${destination.value}`} />
-                            <Label htmlFor={`${id}-${destination.value}`} className="font-normal">
-                              {destination.label}
-                            </Label>
-                          </div>
-                        ))}
-                      </RadioGroup>
-                    </Field>
-                  )}
-                />
-              )}
             </FieldGroup>
           </form>
           <DialogFooter>

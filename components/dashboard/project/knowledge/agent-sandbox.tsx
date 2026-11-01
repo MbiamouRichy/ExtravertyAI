@@ -19,7 +19,7 @@ type Turn =
   | { role: "assistant"; content: string; trace: SandboxTrace };
 
 const KIND_LABEL: Record<string, string> = {
-  FAQ: "Question",
+  FAQ: "Information",
   TEXT: "Information",
   PRODUCT: "Produit",
   CHUNK: "Document",
@@ -280,7 +280,7 @@ export function AgentSandbox({ projectId, initialRemaining }: { projectId: strin
         <hr />
         <p className="text-xs text-muted-foreground">
           Une réponse vous semble fausse ? Ajoutez l’information dans l’onglet
-          « Questions », puis testez à nouveau.
+          « Informations », puis testez à nouveau.
         </p>
       </aside>
     </div>
