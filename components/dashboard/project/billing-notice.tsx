@@ -88,7 +88,7 @@ export function BillingNotice({
     >
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
         <div
-          className={cn("min-w-0 text-sm", !usage && "flex-1")}
+          className={cn("min-w-0 flex-1 text-sm", usage && "sm:flex-none")}
           role="status"
           aria-live="polite"
         >
@@ -101,7 +101,7 @@ export function BillingNotice({
               {data.endsAt && (
                 <span className="font-normal text-muted-foreground">
                   {" "}
-                  · {data.reason === "trialing" ? "jusqu’au" : "échéance le"}{" "}
+                  · <span className="max-sm:hidden">{data.reason === "trialing" ? "jusqu’au " : "échéance le "}</span>
                   <LocalBillingDate value={data.endsAt} dateOnly />
                 </span>
               )}
