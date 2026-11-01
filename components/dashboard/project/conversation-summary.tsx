@@ -197,8 +197,8 @@ export function ConversationSummaryView({
   useEffect(() => {
     // Génération lancée hors du rendu ; l’annulation évite un double appel
     // quand React rejoue l’effet en développement.
-    const frame = requestAnimationFrame(() => void generate());
-    return () => cancelAnimationFrame(frame);
+    const timer = setTimeout(() => void generate());
+    return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
