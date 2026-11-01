@@ -361,7 +361,7 @@ export default function CreateProjectForm({
                           </span>
                           <span className="mt-0.5 block text-xs text-muted-foreground tabular-nums">
                             {formatMessageLimit(plan.messageLimit)} messages ·{" "}
-                            {plan.users} utilisateurs
+                            {plan.users} membres
                           </span>
                         </span>
                         <span className="shrink-0 text-right text-sm font-medium tabular-nums">
