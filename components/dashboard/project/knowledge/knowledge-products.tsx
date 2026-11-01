@@ -58,6 +58,10 @@ export function KnowledgeProducts({
       ? products.filter((product) => normalizeSearchText(`${product.title} ${product.content}`).includes(needle))
       : products;
   }, [products, query]);
+  const price = (product: KnowledgeEntryView) =>
+    product.price !== null ? formatDealValue(product.price, currency) : "—";
+  const stock = (product: KnowledgeEntryView) =>
+    product.stock === null ? "—" : product.stock === 0 ? "Rupture" : product.stock.toLocaleString("fr-FR");
 
   function importFile(file: File) {
     if (file.size > KNOWLEDGE_LIMITS.csvMaxBytes) {
@@ -149,7 +153,7 @@ export function KnowledgeProducts({
       )}
 
       {products.length === 0 ? (
-        <Empty className="rounded-2xl border border-dashed p-10">
+        <Empty className="rounded-2xl border border-dashed p-5 sm:p-10">
           <EmptyHeader>
             <EmptyMedia variant="icon">
               <Package aria-hidden="true" />
@@ -169,9 +173,9 @@ export function KnowledgeProducts({
             <TableHeader>
               <TableRow>
                 <TableHead>Produit</TableHead>
-                <TableHead className="text-right">Prix</TableHead>
-                <TableHead className="text-right">Stock</TableHead>
-                <TableHead className="w-36 text-right">
+                <TableHead className="hidden text-right sm:table-cell">Prix</TableHead>
+                <TableHead className="hidden text-right sm:table-cell">Stock</TableHead>
+                <TableHead className="w-28 text-right sm:w-36">
                   <span className="sr-only">Actions</span>
                 </TableHead>
               </TableRow>
@@ -179,17 +183,20 @@ export function KnowledgeProducts({
             <TableBody>
               {visible.map((product) => (
                 <TableRow key={product.id} className={cn(!product.enabled && "opacity-60")}>
-                  <TableCell className="max-w-80">
+                  <TableCell className="max-w-40 sm:max-w-80">
                     <p className="truncate font-medium">{product.title}</p>
                     {product.content !== product.title && (
                       <p className="truncate text-xs text-muted-foreground">{product.content}</p>
                     )}
+                    <p className="truncate font-mono text-xs text-muted-foreground tabular-nums sm:hidden">
+                      {price(product)} · {stock(product)}
+                    </p>
                   </TableCell>
-                  <TableCell className="text-right font-mono text-xs tabular-nums">
-                    {product.price !== null ? formatDealValue(product.price, currency) : "—"}
+                  <TableCell className="hidden text-right font-mono text-xs tabular-nums sm:table-cell">
+                    {price(product)}
                   </TableCell>
-                  <TableCell className="text-right font-mono text-xs tabular-nums">
-                    {product.stock === null ? "—" : product.stock === 0 ? "Rupture" : product.stock.toLocaleString("fr-FR")}
+                  <TableCell className="hidden text-right font-mono text-xs tabular-nums sm:table-cell">
+                    {stock(product)}
                   </TableCell>
                   <TableCell>
                     <div className="flex justify-end">
@@ -207,7 +214,7 @@ export function KnowledgeProducts({
               ))}
               {visible.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={4} className="py-8 text-center text-sm text-muted-foreground">
+                  <TableCell colSpan={4} className="py-8 text-center text-sm whitespace-normal text-muted-foreground">
                     Aucun produit ne correspond à « {query} ».
                   </TableCell>
                 </TableRow>

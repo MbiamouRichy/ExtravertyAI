@@ -311,7 +311,7 @@ export function KnowledgeDocuments({
           <ul className="divide-y rounded-xl border">
             {sources.map((source) => {
               return (
-                <li key={source.id} className="flex items-center gap-3 px-4 py-3">
+                <li key={source.id} className="flex items-start gap-2 px-4 py-3 sm:items-center sm:gap-3">
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium">{source.name}</p>
                     {source.url && (

@@ -27,6 +27,8 @@ async function fetchJson<T>(url: string): Promise<T> {
   const response = await fetch(url, {
     credentials: "same-origin",
     cache: "no-store",
+    // Une réponse perdue se réessaie au lieu de laisser la liste en chargement.
+    signal: AbortSignal.timeout(20_000),
   });
 
   if (!response.ok) {
@@ -91,6 +93,8 @@ export function useChatContacts(
       ...commonOptions,
       persistSize: false,
       refreshInterval: 15_000,
+      // La liste déjà chargée reste filtrée à l’écran pendant la requête.
+      keepPreviousData: true,
     },
   );
 

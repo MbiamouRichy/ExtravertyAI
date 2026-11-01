@@ -56,7 +56,7 @@ export function KnowledgeEntries({
             aria-label="Rechercher dans les questions et informations"
           />
         </InputGroup>
-        <div className="flex gap-2">
+        <div className="grid grid-cols-2 gap-2 sm:flex">
           <Button type="button" variant="outline" onClick={() => setEditing({ kind: "TEXT", entry: null })}>
             <Plus data-icon="inline-start" />
             Information
@@ -81,7 +81,7 @@ export function KnowledgeEntries({
             {items.length ? (
               <ul className="divide-y rounded-xl border">
                 {items.map((entry) => (
-                  <li key={entry.id} className="flex items-start gap-4 px-4 py-3">
+                  <li key={entry.id} className="flex flex-col gap-1 px-4 py-3 sm:flex-row sm:items-start sm:gap-4">
                     <div className={cn("min-w-0 flex-1", !entry.enabled && "opacity-60")}>
                       <p className="text-sm font-medium">{entry.title}</p>
                       <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{entry.content}</p>

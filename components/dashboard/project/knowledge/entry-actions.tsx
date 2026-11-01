@@ -47,7 +47,7 @@ export function EntryActions({
   const shown = optimistic ?? enabled;
 
   return (
-    <div className="flex shrink-0 items-center gap-1">
+    <div className="-mr-2 flex shrink-0 items-center justify-end gap-1 sm:mr-0">
       <Label htmlFor={switchId} className="sr-only">
         Utiliser « {title} » dans les réponses
       </Label>

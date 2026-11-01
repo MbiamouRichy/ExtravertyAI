@@ -270,7 +270,7 @@ export function AgentSandbox({ projectId, initialRemaining }: { projectId: strin
         </form>
       </section>
 
-      <aside className="min-w-0 space-y-3 rounded-2xl border bg-card p-4 text-sm">
+      <aside className="hidden min-w-0 space-y-3 rounded-2xl border bg-card p-4 text-sm lg:block">
         <p className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">Tests aujourd’hui</p>
         <p className="font-heading text-3xl font-bold tracking-tight tabular-nums">{remaining}</p>
         <p className="text-xs text-muted-foreground">

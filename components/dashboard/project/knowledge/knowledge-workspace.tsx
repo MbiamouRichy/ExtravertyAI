@@ -64,8 +64,12 @@ export function KnowledgeWorkspace({
 
   return (
     <Tabs value={tab} onValueChange={setTab} className="gap-6">
-      <div className="-mx-4 overflow-x-auto overflow-y-hidden border-b px-4 [scrollbar-width:none] sm:mx-0 sm:px-0">
-        <TabsList variant="line" className="h-10!">
+      {/* Téléphone : les six onglets restent visibles, sans défilement caché. */}
+      <div className="border-b sm:overflow-x-auto sm:overflow-y-hidden sm:[scrollbar-width:none]">
+        <TabsList
+          variant="line"
+          className="grid! h-auto! w-full grid-cols-3 gap-0 sm:flex! sm:h-10! sm:w-fit sm:gap-1 [&>button]:h-9 [&>button]:px-1 [&>button]:text-xs sm:[&>button]:h-full sm:[&>button]:px-2 sm:[&>button]:text-sm"
+        >
           <TabsTrigger value="agent">Consignes</TabsTrigger>
           <TabsTrigger value="entries">Questions</TabsTrigger>
           <TabsTrigger value="products">Produits</TabsTrigger>

@@ -182,18 +182,19 @@ export function Improvements({
     <div className="space-y-8">
       <dl className="grid grid-cols-3 gap-px overflow-hidden rounded-2xl border bg-border">
         {[
-          { label: "Réponses approuvées", value: data.ratings.up, icon: ThumbsUp },
-          { label: "Réponses à revoir", value: data.ratings.down, icon: ThumbsDown },
+          { label: "Approuvées", value: data.ratings.up, icon: ThumbsUp },
+          { label: "À revoir", value: data.ratings.down, icon: ThumbsDown },
           {
-            label: "Satisfaction de l’équipe",
+            label: "Satisfaction",
             value: total ? `${Math.round((data.ratings.up / total) * 100)} %` : "—",
             icon: null,
           },
         ].map((stat) => (
-          <div key={stat.label} className="flex flex-col-reverse gap-1 bg-card p-4">
-            <dt className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              {stat.icon && <stat.icon aria-hidden="true" className="size-3.5" />}
-              {stat.label} · 30 j
+          <div key={stat.label} className="flex min-w-0 flex-col-reverse justify-end gap-1 bg-card p-3 sm:p-4">
+            <dt className="text-xs text-muted-foreground">
+              {stat.icon && <stat.icon aria-hidden="true" className="mr-1.5 hidden size-3.5 align-text-bottom sm:inline" />}
+              {stat.label}
+              <span className="hidden sm:inline"> · 30 j</span>
             </dt>
             <dd className="font-heading text-2xl font-bold tracking-tight tabular-nums">{stat.value}</dd>
           </div>
@@ -213,7 +214,7 @@ export function Improvements({
         {gaps.length ? (
           <ul className="divide-y rounded-2xl border bg-card">
             {gaps.map((gap) => (
-              <li key={gap.id} className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center">
+              <li key={gap.id} className="flex flex-col gap-3 p-4 wrap-anywhere sm:flex-row sm:items-center">
                 <div className="min-w-0 flex-1">
                   <p className="text-sm">« {gap.question} »</p>
                   <p className="mt-1 text-xs text-muted-foreground">
@@ -261,7 +262,7 @@ export function Improvements({
         {corrections.length ? (
           <ul className="space-y-3">
             {corrections.map((item) => (
-              <li key={item.id} className="rounded-2xl border bg-card p-4">
+              <li key={item.id} className="rounded-2xl border bg-card p-4 wrap-anywhere">
                 <p className="text-xs text-muted-foreground">
                   {item.author} · conversation avec {item.contactName} · {date.format(new Date(item.updatedAt))}
                 </p>
