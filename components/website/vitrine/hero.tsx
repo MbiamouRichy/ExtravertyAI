@@ -72,9 +72,10 @@ export function Hero() {
         >
           <div>
             <p className="max-w-md text-pretty text-base text-muted-foreground md:text-lg">
-              ExtravertyAI répond à vos clients WhatsApp en quelques secondes,
-              de jour comme de nuit, qualifie vos prospects et passe la main à
-              votre équipe dès qu’un humain fait la différence.{" "}
+              <span className="text-foreground">Un client sans réponse achète ailleurs.</span>{" "}
+              ExtravertyAI lui répond sur WhatsApp en quelques secondes, jour et
+              nuit, repère vos meilleurs prospects et vous passe la main au
+              moment de conclure.{" "}
               <span className="text-foreground">Sans changer de numéro.</span>
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row md:flex-col md:items-start xl:items-stretch">

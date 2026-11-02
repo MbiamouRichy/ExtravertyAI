@@ -140,7 +140,7 @@ export function FeatureMatrix() {
           <tr>
             <th
               scope="col"
-              className="sticky top-16 z-10 w-3/5 bg-background/95 py-4 text-left align-bottom backdrop-blur sm:w-2/5"
+              className="sticky top-16 z-10 w-3/5 bg-background py-4 text-left align-bottom shadow-[inset_0_-1px_0_var(--border)] sm:w-2/5"
             >
               <span className="font-mono text-[11px] font-medium uppercase tracking-wider text-muted-foreground sm:sr-only">
                 Fonctionnalité
@@ -151,7 +151,7 @@ export function FeatureMatrix() {
                 key={plan.id}
                 scope="col"
                 className={cn(
-                  "sticky top-16 z-10 bg-background/95 px-2 py-4 text-center font-heading text-base font-bold backdrop-blur sm:w-1/5",
+                  "sticky top-16 z-10 bg-background px-2 py-4 text-center font-heading text-base font-bold shadow-[inset_0_-1px_0_var(--border)] sm:w-1/5",
                   plan.id !== mobilePlan && "hidden sm:table-cell",
                 )}
               >
