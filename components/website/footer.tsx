@@ -26,6 +26,8 @@ const columns = [
     title: "Légal",
     links: [
       { label: "Données et confidentialité", href: "/donneesEtConfidentialite" },
+      { label: "Conditions d’utilisation", href: "/conditions" },
+      { label: "Remboursement", href: "/remboursement" },
     ],
   },
 ];

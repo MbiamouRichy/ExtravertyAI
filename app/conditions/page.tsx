@@ -1,0 +1,246 @@
+import type { Metadata } from "next";
+import Link from "next/link";
+import {
+  Ban,
+  Bot,
+  CalendarClock,
+  CircleSlash,
+  CreditCard,
+  FileText,
+  Gauge,
+  Handshake,
+  RefreshCw,
+  Scale,
+  ServerCog,
+  UserCheck,
+} from "lucide-react";
+
+import { LegalPage, type LegalSection } from "@/components/website/legal-page";
+
+export const metadata: Metadata = {
+  title: "Conditions d’utilisation | ExtravertyAI",
+  description:
+    "Les règles d’utilisation d’ExtravertyAI : essai, abonnement, usages autorisés, responsabilités et résiliation.",
+  alternates: { canonical: "/conditions" },
+};
+export const dynamic = "force-static";
+
+const highlights = [
+  { icon: CalendarClock, title: "10 jours d’essai", text: "Annulez avant la fin : aucun prélèvement." },
+  { icon: RefreshCw, title: "Sans engagement", text: "Abonnement mensuel, résiliable à tout moment." },
+  { icon: UserCheck, title: "Pour les professionnels", text: "Vous restez responsable de vos messages." },
+];
+
+const sections: LegalSection[] = [
+  {
+    id: "service",
+    icon: Bot,
+    title: "Le service",
+    body: (
+      <p>
+        ExtravertyAI est un logiciel en ligne qui connecte le numéro WhatsApp
+        d’une entreprise à un assistant d’intelligence artificielle. Il répond à
+        ses clients, qualifie ses prospects et permet à son équipe de reprendre
+        une conversation à tout moment. En créant un compte ou en utilisant le
+        service, vous acceptez ces conditions.
+      </p>
+    ),
+  },
+  {
+    id: "compte",
+    icon: UserCheck,
+    title: "Votre compte",
+    body: (
+      <ul>
+        <li>Le service s’adresse aux professionnels et aux entreprises.</li>
+        <li>
+          Vous devez fournir des informations exactes et garder vos accès
+          confidentiels.
+        </li>
+        <li>
+          Vous êtes responsable des actions réalisées depuis votre compte et par
+          les membres que vous invitez.
+        </li>
+      </ul>
+    ),
+  },
+  {
+    id: "essai",
+    icon: CalendarClock,
+    title: "Essai gratuit",
+    body: (
+      <p>
+        Chaque nouvel abonnement peut bénéficier d’un essai gratuit de 10 jours,
+        limité à 150 messages. Un moyen de paiement est demandé au départ. Sans
+        annulation avant la fin de l’essai, l’abonnement choisi démarre et le
+        premier mois est prélevé automatiquement. Nous pouvons refuser un nouvel
+        essai à un client qui en a déjà bénéficié.
+      </p>
+    ),
+  },
+  {
+    id: "abonnement",
+    icon: CreditCard,
+    title: "Abonnement et paiement",
+    body: (
+      <>
+        <p>
+          Les abonnements sont mensuels et se renouvellent automatiquement. Le
+          prix en vigueur et les limites de chaque forfait figurent sur la page
+          des tarifs. Le paiement est traité par un prestataire spécialisé, qui
+          peut apparaître comme vendeur sur votre reçu et appliquer les taxes
+          dues ou proposer votre devise locale.
+        </p>
+        <p>
+          En cas d’échec de paiement, l’accès aux réponses automatiques peut être
+          suspendu jusqu’à régularisation. Tout changement de prix vous sera
+          annoncé avant son application.
+        </p>
+      </>
+    ),
+  },
+  {
+    id: "quotas",
+    icon: Gauge,
+    title: "Quotas de messages",
+    body: (
+      <p>
+        Chaque forfait inclut un volume de messages par période de facturation.
+        Une fois ce volume atteint, l’assistant peut cesser de répondre
+        automatiquement jusqu’à la période suivante ou jusqu’au passage à un
+        forfait supérieur. Les messages non utilisés ne sont pas reportés.
+      </p>
+    ),
+  },
+  {
+    id: "resiliation",
+    icon: CircleSlash,
+    title: "Résiliation et remboursement",
+    body: (
+      <p>
+        Vous pouvez résilier depuis votre espace de facturation. L’accès reste
+        ouvert jusqu’à la fin de la période déjà payée. Les remboursements sont
+        décrits dans notre{" "}
+        <Link href="/remboursement">politique de remboursement</Link>. Vous
+        pouvez supprimer un projet ou votre compte selon les modalités prévues
+        dans notre{" "}
+        <Link href="/donneesEtConfidentialite">
+          politique de confidentialité
+        </Link>
+        .
+      </p>
+    ),
+  },
+  {
+    id: "usages",
+    icon: Ban,
+    title: "Usages interdits",
+    body: (
+      <>
+        <p>Vous vous engagez à ne pas utiliser ExtravertyAI pour :</p>
+        <ul>
+          <li>
+            envoyer du spam, ou des messages de diffusion à des personnes qui
+            n’ont pas donné leur accord ;
+          </li>
+          <li>
+            tromper, harceler, usurper une identité ou promouvoir des produits
+            ou activités illégaux ;
+          </li>
+          <li>
+            enfreindre les règles de WhatsApp, les lois applicables ou les droits
+            d’un tiers ;
+          </li>
+          <li>
+            contourner les limites du service, compromettre sa sécurité ou
+            extraire ses données de façon automatisée.
+          </li>
+        </ul>
+      </>
+    ),
+  },
+  {
+    id: "contenus",
+    icon: FileText,
+    title: "Vos contenus et vos clients",
+    body: (
+      <p>
+        Vous restez propriétaire de vos contenus. Vous nous autorisez à les
+        traiter uniquement pour fournir le service. Vous êtes responsable des
+        informations données à l’assistant, de la base légale de vos échanges et
+        de l’information de vos propres clients sur l’usage de l’IA.
+      </p>
+    ),
+  },
+  {
+    id: "ia",
+    icon: Bot,
+    title: "Réponses de l’IA",
+    body: (
+      <p>
+        Les réponses générées peuvent être incomplètes ou inexactes. Il vous
+        appartient de vérifier la configuration de votre assistant et de
+        reprendre les conversations sensibles. L’assistant ne remplace pas un
+        conseil médical, juridique ou financier.
+      </p>
+    ),
+  },
+  {
+    id: "disponibilite",
+    icon: ServerCog,
+    title: "Disponibilité et services tiers",
+    body: (
+      <p>
+        Nous faisons notre possible pour assurer un service fiable, sans garantir
+        une disponibilité ininterrompue. Le service dépend de tiers, notamment
+        WhatsApp, les hébergeurs et les fournisseurs de modèles d’IA. Leur
+        indisponibilité, ou la restriction d’un numéro par WhatsApp, peut
+        affecter le fonctionnement du service.
+      </p>
+    ),
+  },
+  {
+    id: "responsabilite",
+    icon: Handshake,
+    title: "Suspension et responsabilité",
+    body: (
+      <p>
+        Nous pouvons suspendre un compte en cas de non-respect de ces conditions
+        ou de risque pour le service. Dans les limites permises par la loi, notre
+        responsabilité totale est limitée aux montants payés au cours des trois
+        derniers mois, et nous ne répondons pas des pertes indirectes comme la
+        perte de clients ou de chiffre d’affaires.
+      </p>
+    ),
+  },
+  {
+    id: "droit",
+    icon: Scale,
+    title: "Modifications et droit applicable",
+    body: (
+      <p>
+        Nous pouvons mettre à jour ces conditions. Toute modification importante
+        sera annoncée avant son entrée en vigueur. Ces conditions sont régies par
+        le droit gabonais, sans préjudice des droits impératifs dont vous pouvez
+        bénéficier. Nous cherchons d’abord une solution amiable à tout litige.
+      </p>
+    ),
+  },
+];
+
+export default function TermsPage() {
+  return (
+    <LegalPage
+      eyebrowIcon={FileText}
+      title="Conditions d’utilisation"
+      intro="Les règles qui encadrent votre utilisation d’ExtravertyAI, écrites le plus simplement possible."
+      updatedLabel="2 novembre 2026"
+      updatedDate="2026-11-02"
+      highlights={highlights}
+      sections={sections}
+      contactTitle="Une question sur ces conditions ?"
+      contactText="Notre équipe vous répond directement avant ou après votre inscription."
+      whatsAppMessage="Bonjour, j'ai une question concernant les conditions d'utilisation d'ExtravertyAI."
+    />
+  );
+}
