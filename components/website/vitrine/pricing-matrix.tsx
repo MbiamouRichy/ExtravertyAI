@@ -92,13 +92,14 @@ export function FeatureMatrix() {
         <div
           role="group"
           aria-label="Offre affichée dans le tableau"
-          className="inline-flex w-fit rounded-lg border p-0.5 sm:hidden"
+          className="grid w-full grid-cols-3 rounded-lg border p-0.5 sm:hidden"
         >
           {PRICING_PLANS.map((plan) => (
             <Button
               key={plan.id}
               type="button"
               size="sm"
+              className="min-w-0 px-1"
               variant={mobilePlan === plan.id ? "secondary" : "ghost"}
               aria-pressed={mobilePlan === plan.id}
               onClick={() => setMobilePlan(plan.id)}
@@ -133,15 +134,17 @@ export function FeatureMatrix() {
       <table
         id="matrice-tableau"
         aria-labelledby="matrice-titre"
-        className="mt-10 w-full border-collapse text-sm"
+        className="mt-10 w-full table-fixed border-collapse text-sm sm:table-auto"
       >
         <thead>
           <tr>
             <th
               scope="col"
-              className="sticky top-16 z-10 w-3/5 bg-background/95 py-4 text-left backdrop-blur sm:w-2/5"
+              className="sticky top-16 z-10 w-3/5 bg-background/95 py-4 text-left align-bottom backdrop-blur sm:w-2/5"
             >
-              <span className="sr-only">Fonctionnalité</span>
+              <span className="font-mono text-[11px] font-medium uppercase tracking-wider text-muted-foreground sm:sr-only">
+                Fonctionnalité
+              </span>
             </th>
             {PRICING_PLANS.map((plan) => (
               <th
@@ -153,13 +156,14 @@ export function FeatureMatrix() {
                 )}
               >
                 {plan.highlighted && (
-                  <span className="mx-auto mb-1.5 block w-fit rounded-full bg-primary px-2 py-0.5 font-mono text-[10px] font-medium uppercase tracking-wider text-primary-foreground">
+                  <span className="mx-auto mb-1.5 hidden w-fit rounded-full bg-primary px-2 py-0.5 font-mono text-[10px] font-medium uppercase tracking-wider text-primary-foreground sm:block">
                     Le plus choisi
                   </span>
                 )}
                 {plan.name}
-                <span className="block font-mono text-[11px] font-normal text-muted-foreground">
-                  {formatPlanPrice(plan.priceCents)} / mois
+                <span className="block font-mono text-[11px] font-normal whitespace-nowrap text-muted-foreground">
+                  {formatPlanPrice(plan.priceCents)}
+                  <span className="sr-only sm:not-sr-only"> / mois</span>
                 </span>
               </th>
             ))}
@@ -181,7 +185,7 @@ export function FeatureMatrix() {
                 key={row.label}
                 className="border-t transition-colors hover:bg-muted/40"
               >
-                <th scope="row" className="py-3.5 pr-4 text-left font-normal">
+                <th scope="row" className="py-3.5 pr-2 text-left font-normal wrap-break-word sm:pr-4">
                   {row.label}
                   {MATRIX_HINTS[row.label] && (
                     <FeatureHint
@@ -212,11 +216,12 @@ export function FeatureMatrix() {
         <Button
           type="button"
           variant="outline"
+          className="w-full sm:w-auto"
           aria-expanded={showAll}
           aria-controls="matrice-tableau"
           onClick={() => setShowAll((value) => !value)}
         >
-          {showAll ? "Masquer le détail" : "Voir toutes les fonctionnalités"}
+          {showAll ? "Masquer le détail" : "Voir tout le comparatif"}
           <ChevronDown
             data-icon="inline-end"
             className={cn(

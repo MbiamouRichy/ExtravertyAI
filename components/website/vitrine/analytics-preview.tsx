@@ -50,13 +50,13 @@ export function AnalyticsPreview() {
     <div ref={ref} className="px-4 pb-20 sm:px-8 lg:px-12">
       <div className="overflow-hidden rounded-xl border bg-card shadow-2xl shadow-foreground/5">
         <div className="flex flex-col gap-3 border-b px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
             <p className="text-sm font-medium">Analytique</p>
-            <span className="rounded-full border px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+            <span className="rounded-full border px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider whitespace-nowrap text-muted-foreground">
               Données de démonstration
             </span>
           </div>
-          <div role="group" aria-label="Période" className="inline-flex w-fit rounded-lg border bg-background p-0.5">
+          <div role="group" aria-label="Période" className="grid w-full grid-cols-3 rounded-lg border bg-background p-0.5 sm:inline-flex sm:w-fit">
             {ANALYTICS_RANGES.map((item) => {
               const selected = item.id === rangeId;
               return (
@@ -104,7 +104,7 @@ export function AnalyticsPreview() {
           </Kpi>
         </dl>
 
-        <div className="grid lg:grid-cols-12">
+        <div className="grid grid-cols-[minmax(0,1fr)] lg:grid-cols-12">
           <VolumeChart range={range} />
           <LiveFeed
             tick={tick}
@@ -136,9 +136,9 @@ function Kpi({ label, children, delta, deltaLabel, meter }: KpiProps) {
           {children}
         </span>
         {delta && (
-          <span className="mt-1 flex items-center gap-1 font-mono text-[11px]">
+          <span className="mt-1 flex flex-wrap items-center gap-x-1 font-mono text-[11px]">
             <ArrowUpRight aria-hidden="true" className="size-3" />
-            {delta}
+            <span className="whitespace-nowrap">{delta}</span>
             <span className="text-muted-foreground">{deltaLabel}</span>
           </span>
         )}
@@ -296,7 +296,7 @@ function LiveFeed({ tick, running, paused, reduce, onToggle }: LiveFeedProps) {
     .map((key) => ({ key, age: tick - key, event: FEED_POOL[key % FEED_POOL.length] }));
 
   return (
-    <section aria-label="Activité en direct" className="flex flex-col p-4 sm:p-6 lg:col-span-4">
+    <section aria-label="Activité en direct" className="flex min-w-0 flex-col p-4 sm:p-6 lg:col-span-4">
       <div className="flex items-center justify-between">
         <p className="flex items-center gap-2 text-sm font-medium">
           <span className="relative flex size-2">

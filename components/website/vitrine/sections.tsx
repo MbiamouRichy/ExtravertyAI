@@ -116,7 +116,7 @@ const PIPELINE_DEMO: readonly { stage: string; cards: readonly { name: string; d
 
 function PipelineWidget() {
   return (
-    <ol aria-label="Exemple de pipeline" className="mt-8 grid grid-cols-3 gap-2">
+    <ol aria-label="Exemple de pipeline" className="mt-8 grid gap-2 sm:grid-cols-3 md:grid-cols-1 xl:grid-cols-3">
       {PIPELINE_DEMO.map((column) => (
         <li key={column.stage} className="min-w-0 rounded-lg border bg-muted/40 p-2">
           <p className="mb-2 flex items-center justify-between gap-1 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
@@ -237,55 +237,55 @@ export function FeaturesSection() {
         description="Chaque brique est pensée pour que votre équipe intervienne moins souvent, mais toujours au bon moment. Essayez-les ci-dessous."
       />
       <div className="grid gap-px border-t bg-border md:grid-cols-6 lg:grid-cols-12">
-        <SpotlightCell className="p-6 sm:p-8 md:col-span-6 lg:col-span-7">
+        <SpotlightCell className="px-4 py-8 sm:p-8md:col-span-6 lg:col-span-7">
           <CellHeader index="02.1" icon={Hand} title="Reprise en main en un clic">
             Un interrupteur par conversation : l’IA se met en retrait et vous
             répondez vous-même, sans quitter le fil.
           </CellHeader>
           <TakeoverWidget />
         </SpotlightCell>
-        <SpotlightCell className="p-6 sm:p-8 md:col-span-6 lg:col-span-5">
+        <SpotlightCell className="px-4 py-8 sm:p-8md:col-span-6 lg:col-span-5">
           <CellHeader index="02.2" icon={AudioLines} title="Voix et images comprises">
             Les notes vocales sont retranscrites, les photos analysées. Vos
             clients s’expriment comme ils en ont l’habitude.
           </CellHeader>
           <VoiceWidget />
         </SpotlightCell>
-        <SpotlightCell className="p-6 sm:p-8 md:col-span-3 lg:col-span-4">
+        <SpotlightCell className="px-4 py-8 sm:p-8md:col-span-3 lg:col-span-4">
           <CellHeader index="02.3" icon={FileText} title="Résumés IA">
             Comprenez 80 messages en trois lignes avant de rappeler un client.
           </CellHeader>
           <SummaryWidget />
         </SpotlightCell>
-        <SpotlightCell className="p-6 sm:p-8 md:col-span-3 lg:col-span-4">
+        <SpotlightCell className="px-4 py-8 sm:p-8md:col-span-3 lg:col-span-4">
           <CellHeader index="02.4" icon={Sparkles} title="Instinct IA">
             Les prospects intéressants et ceux à relancer sont repérés après
             chaque message.
           </CellHeader>
           <InstinctWidget />
         </SpotlightCell>
-        <SpotlightCell className="p-6 sm:p-8 md:col-span-6 lg:col-span-4">
+        <SpotlightCell className="px-4 py-8 sm:p-8md:col-span-6 lg:col-span-4">
           <CellHeader index="02.5" icon={Users} title="Toute l’équipe, un seul fil">
             Propriétaire, administrateur, membre : chacun voit ce dont il a
             besoin, et l’IA travaille à côté de vous.
           </CellHeader>
           <TeamWidget />
         </SpotlightCell>
-        <SpotlightCell className="p-6 sm:p-8 md:col-span-3 lg:col-span-4">
+        <SpotlightCell className="px-4 py-8 sm:p-8md:col-span-3 lg:col-span-4">
           <CellHeader index="02.6" icon={SquareKanban} title="Pipeline de prospects" plan="dès Pro">
             De « Intéressé » à « Gagné » : suivez chaque prospect et la valeur
             de chaque affaire, sans tableur.
           </CellHeader>
           <PipelineWidget />
         </SpotlightCell>
-        <SpotlightCell className="p-6 sm:p-8 md:col-span-3 lg:col-span-4">
+        <SpotlightCell className="px-4 py-8 sm:p-8md:col-span-3 lg:col-span-4">
           <CellHeader index="02.7" icon={LibraryBig} title="Base de connaissances">
             Questions fréquentes, catalogue et PDF : l’IA répond avec vos prix
             et vos conditions. Testez-la avant de la laisser parler.
           </CellHeader>
           <KnowledgeWidget />
         </SpotlightCell>
-        <SpotlightCell className="p-6 sm:p-8 md:col-span-6 lg:col-span-4">
+        <SpotlightCell className="px-4 py-8 sm:p-8md:col-span-6 lg:col-span-4">
           <CellHeader index="02.8" icon={Plug} title="Intégrations" plan="dès Pro">
             Webhooks signés et Google Sheets : vos prospects arrivent dans vos
             outils dès qu’ils sont qualifiés.
