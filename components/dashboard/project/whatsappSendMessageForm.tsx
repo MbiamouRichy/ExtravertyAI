@@ -2014,10 +2014,10 @@ export default function WhatsappWorkspace({
                               aria-hidden="true"
                               className="size-1.5 shrink-0 rounded-full bg-emerald-500 sm:hidden md:block lg:hidden"
                             />
-                            <span className="truncate @max-[10.5rem]:sr-only">
+                            <span className="truncate @max-[9.5rem]:sr-only">
                               {PRESENCE_LABEL[activePresence]}
                             </span>
-                            <span aria-hidden="true" className="hidden truncate @max-[10.5rem]:inline">
+                            <span aria-hidden="true" className="hidden truncate @max-[9.5rem]:inline">
                               {activePresence === "recording"
                                 ? "Vocal…"
                                 : PRESENCE_LABEL[activePresence]}
