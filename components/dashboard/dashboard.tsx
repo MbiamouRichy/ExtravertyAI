@@ -17,14 +17,11 @@ import { getDashboardDiscussionsMetrics } from "@/app/actions/getDiscussionsMetr
 import { getTeamMembers } from "@/app/actions/team";
 import { can } from "@/lib/project-permissions";
 
-function SectionTitle({ id, title, description }: { id: string; title: string; description: string }) {
+function SectionTitle({ id, title }: { id: string; title: string }) {
   return (
-    <div className="mb-4">
-      <h2 id={id} className="font-heading text-lg font-semibold tracking-tight">
-        {title}
-      </h2>
-      <p className="mt-0.5 text-sm text-muted-foreground">{description}</p>
-    </div>
+    <h2 id={id} className="mb-3 text-sm font-medium text-muted-foreground">
+      {title}
+    </h2>
   );
 }
 
@@ -50,109 +47,89 @@ export async function Dashboard({
   const base = `/projects/${encodeURIComponent(projectId)}`;
 
   return (
-    <div className="mx-auto w-full min-w-0 max-w-(--breakpoint-2xl) space-y-8 p-4 md:p-6 xl:p-8">
-      <header className="flex flex-col justify-between gap-5 lg:flex-row lg:items-end">
-        <div className="min-w-0">
-          <p className="font-mono text-xs uppercase tracking-wider text-muted-foreground">
-            Tableau de bord
-          </p>
-          <h1 className="mt-1 truncate text-3xl md:text-4xl">{project.name}</h1>
-          <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2">
-            <WhatsAppConnectionStatus status={project.instanceStatus} />
-            {project.automationPaused && (
-              <span className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs">
-                <Pause aria-hidden="true" className="size-3.5" />
-                Automatisation en pause
-              </span>
-            )}
-          </div>
-        </div>
-        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
-          <Button asChild variant="outline" className="min-w-0">
-            <Link href={`${base}/analytics`}>
-              <BarChart3 data-icon="inline-start" />
-              <span className="truncate">
-                <span className="sm:hidden">Statistiques</span>
-                <span className="hidden sm:inline">Statistiques détaillées</span>
-              </span>
-            </Link>
-          </Button>
-          {canOpenChat && (
-            <Button asChild className="min-w-0">
-              <Link href={`${base}/chat`}>
-                <MessagesSquare data-icon="inline-start" />
-                <span className="truncate">
-                  <span className="sm:hidden">Messagerie</span>
-                  <span className="hidden sm:inline">Ouvrir la messagerie</span>
+    <div className="@container min-w-0">
+      <div className="mx-auto w-full max-w-7xl space-y-8 p-4 sm:p-6 lg:p-8">
+        <header className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
+          <div className="min-w-0">
+            <h1 className="text-2xl font-semibold tracking-tight">Tableau de bord</h1>
+            <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
+              <span className="min-w-0 truncate">{project.name}</span>
+              <WhatsAppConnectionStatus status={project.instanceStatus} compact />
+              {project.automationPaused && (
+                <span className="inline-flex items-center gap-1.5 text-xs">
+                  <Pause aria-hidden="true" className="size-3.5" />
+                  Automatisation en pause
                 </span>
+              )}
+            </div>
+          </div>
+          <div className="grid shrink-0 grid-cols-2 gap-2 sm:flex">
+            <Button asChild variant="outline" className="min-w-0">
+              <Link href={`${base}/analytics`}>
+                <BarChart3 data-icon="inline-start" />
+                <span className="truncate">Statistiques</span>
               </Link>
             </Button>
-          )}
-        </div>
-      </header>
-
-      <section aria-labelledby="overview-title">
-        <SectionTitle id="overview-title" title="Vue d’ensemble" description="Les indicateurs clés de votre projet." />
-        <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4 [&>*]:min-w-0">
-          <DashboardStats projectId={projectId} />
-        </div>
-      </section>
-
-      <section aria-labelledby="activity-title">
-        <SectionTitle
-          id="activity-title"
-          title="Activité"
-          description="Messages reçus, nouvelles discussions et réactivité de l’assistant."
-        />
-        <div className="space-y-5">
-          <div className="grid min-w-0 grid-cols-1 gap-5 xl:grid-cols-2 [&>*]:min-w-0">
-            <DashboardMessageRecu projectId={projectId} />
-            <DashboardDiscussionsChart data={discussions.chartData} growthPct={discussions.growthPct} />
+            {canOpenChat && (
+              <Button asChild className="min-w-0">
+                <Link href={`${base}/chat`}>
+                  <MessagesSquare data-icon="inline-start" />
+                  <span className="truncate">Messagerie</span>
+                </Link>
+              </Button>
+            )}
           </div>
-          <div className="grid min-w-0 grid-cols-1 items-start gap-5 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] [&>*]:min-w-0">
-            <FirstAiReplyTimeChart data={responseTimeChartData} />
-            <SourceMessageChart
-              data={statsResult.data}
-              otherSources={statsResult.otherSources}
-              totalMessages={statsResult.totalMessages}
-              trendPercentage={statsResult.trendPercentage}
-              error={statsResult.success ? undefined : "Impossible de charger les sources des messages."}
+        </header>
+
+        <section aria-labelledby="overview-title">
+          <SectionTitle id="overview-title" title="7 derniers jours" />
+          <DashboardStats projectId={projectId} />
+        </section>
+
+        <section aria-labelledby="activity-title">
+          <SectionTitle id="activity-title" title="Activité" />
+          <div className="space-y-4">
+            <div className="grid min-w-0 grid-cols-1 gap-4 @4xl:grid-cols-2 [&>*]:min-w-0">
+              <DashboardMessageRecu projectId={projectId} />
+              <DashboardDiscussionsChart data={discussions.chartData} growthPct={discussions.growthPct} />
+            </div>
+            <div className="grid min-w-0 grid-cols-1 gap-4 @4xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] [&>*]:min-w-0">
+              <FirstAiReplyTimeChart data={responseTimeChartData} />
+              <SourceMessageChart
+                data={statsResult.data}
+                otherSources={statsResult.otherSources}
+                totalMessages={statsResult.totalMessages}
+                trendPercentage={statsResult.trendPercentage}
+                error={statsResult.success ? undefined : "Impossible de charger les sources des messages."}
+              />
+            </div>
+          </div>
+        </section>
+
+        <section aria-labelledby="people-title">
+          <SectionTitle id="people-title" title={canSeeContacts ? "Contacts et équipe" : "Équipe"} />
+          <div
+            className={
+              canSeeContacts
+                ? "grid min-w-0 grid-cols-1 gap-4 @4xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] [&>*]:min-w-0"
+                : "grid min-w-0 max-w-xl grid-cols-1 gap-4 [&>*]:min-w-0"
+            }
+          >
+            {canSeeContacts && <DashboardContacts projectId={projectId} />}
+            <TeamOnDuty
+              initialTeammates={teamData}
+              projectId={projectId}
+              canDispatch={can(role, "conversations.dispatch")}
+              canManageTeam={can(role, "team.manage")}
             />
           </div>
-        </div>
-      </section>
+        </section>
 
-      <section aria-labelledby="people-title">
-        <SectionTitle
-          id="people-title"
-          title={canSeeContacts ? "Contacts et équipe" : "Équipe"}
-          description={
-            canSeeContacts
-              ? "Vos derniers prospects et qui est disponible."
-              : "Qui est disponible et combien de conversations chacun suit."
-          }
-        />
-        <div
-          className={
-            canSeeContacts
-              ? "grid min-w-0 grid-cols-1 items-start gap-5 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] [&>*]:min-w-0"
-              : "grid min-w-0 grid-cols-1 items-start gap-5 xl:max-w-xl [&>*]:min-w-0"
-          }
-        >
-          {canSeeContacts && <DashboardContacts projectId={projectId} />}
-          <TeamOnDuty
-            initialTeammates={teamData}
-            projectId={projectId}
-            canDispatch={can(role, "conversations.dispatch")}
-            canManageTeam={can(role, "team.manage")}
-          />
-        </div>
-      </section>
-
-      <section aria-labelledby="actions-title">
-        <SectionTitle id="actions-title" title="Actions rapides" description="Accédez directement aux outils de votre projet." />
-        <QuickActions projectId={projectId} role={role} />
-      </section>
+        <section aria-labelledby="actions-title">
+          <SectionTitle id="actions-title" title="Actions rapides" />
+          <QuickActions projectId={projectId} role={role} />
+        </section>
+      </div>
     </div>
   );
 }

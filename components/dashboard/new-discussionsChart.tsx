@@ -1,13 +1,7 @@
 "use client";
 
+import { MessagesSquare } from "lucide-react";
 import { CartesianGrid, Line, LineChart, XAxis } from "recharts";
-import {
-	Card,
-	CardContent,
-	CardDescription,
-	CardHeader,
-	CardTitle,
-} from "@/components/ui/card";
 import {
 	type ChartConfig,
 	ChartContainer,
@@ -15,6 +9,8 @@ import {
 	ChartTooltipContent,
 } from "@/components/ui/chart";
 import { Delta, DeltaIcon, DeltaValue } from "@/components/delta";
+import { AnalyticsCard } from "./analytics-card";
+import { ChartEmptyState } from "./chart-empty-state";
 
 
 export type DashboardDiscussionRow = {
@@ -44,31 +40,29 @@ export function DashboardDiscussionsChart({ data, growthPct }: DashboardDiscussi
 	const hasData = data.some((row) => row.currentWeek > 0 || row.previousWeek > 0);
 
 	return (
-		<Card className="gap-0">
-			<CardHeader>
-				<div className="min-w-0 space-y-2">
-					<div className="flex flex-wrap items-center gap-2">
-						<CardTitle>Nouvelles discussions</CardTitle>
-						{hasData && (
-							<Delta value={growthPct} variant="badge">
-								<DeltaIcon variant="trend" />
-								<DeltaValue />
-							</Delta>
-						)}
-					</div>
-					<CardDescription>
-						Comparaison des 7 derniers jours avec la période précédente.
-					</CardDescription>
-				</div>
-			</CardHeader>
-			<CardContent>
-				{!hasData ? (
-					<div className="flex aspect-auto h-60 w-full items-center justify-center text-muted-foreground md:h-80">
-						Aucune discussion récente.
-					</div>
-				) : (
+		<AnalyticsCard
+			title="Nouvelles discussions"
+			description="Comparées à la semaine précédente"
+			aside={
+				hasData && (
+					<Delta value={growthPct} className="text-xs font-medium">
+						<DeltaIcon variant="trend" />
+						<DeltaValue />
+					</Delta>
+				)
+			}
+		>
+			{!hasData ? (
+				<ChartEmptyState
+					icon={MessagesSquare}
+					title="Aucune discussion récente"
+					description="Les nouvelles discussions apparaîtront ici."
+					className="h-56 sm:h-64"
+				/>
+			) : (
+				<>
 					<ChartContainer
-						className="aspect-auto h-60 w-full p-0 md:h-80"
+						className="aspect-auto h-52 w-full p-0 sm:h-60"
 						config={chartConfig}
 					>
 						<LineChart
@@ -93,19 +87,31 @@ export function DashboardDiscussionsChart({ data, growthPct }: DashboardDiscussi
 								dot={false}
 								stroke="var(--color-previousWeek)"
 								strokeWidth={2}
-								type="step"
+								type="monotone"
 							/>
 							<Line
 								dataKey="currentWeek"
 								dot={false}
 								stroke="var(--color-currentWeek)"
 								strokeWidth={2}
-								type="step"
+								type="monotone"
 							/>
 						</LineChart>
 					</ChartContainer>
-				)}
-			</CardContent>
-		</Card>
+					<ul className="mt-1 flex flex-wrap justify-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+						{(["currentWeek", "previousWeek"] as const).map((key) => (
+							<li key={key} className="flex items-center gap-1.5">
+								<span
+									aria-hidden="true"
+									className="size-2 rounded-full"
+									style={{ backgroundColor: chartConfig[key].color }}
+								/>
+								{chartConfig[key].label}
+							</li>
+						))}
+					</ul>
+				</>
+			)}
+		</AnalyticsCard>
 	);
 }

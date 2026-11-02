@@ -25,8 +25,11 @@ const connectionStates = {
 
 export function WhatsAppConnectionStatus({
   status,
+  compact = false,
 }: {
   status: string | null;
+  /** Une seule ligne, sans l’indication d’action. */
+  compact?: boolean;
 }) {
   const state =
     status && Object.hasOwn(connectionStates, status)
@@ -37,6 +40,18 @@ export function WhatsAppConnectionStatus({
           icon: CircleHelp,
         };
   const Icon = state.icon;
+
+  if (compact) {
+    return (
+      <span className="inline-flex items-center gap-1.5 text-xs">
+        <Icon
+          aria-hidden="true"
+          className={`size-3.5 shrink-0 ${status === "connected" ? "text-primary" : ""}`}
+        />
+        {state.label}
+      </span>
+    );
+  }
 
   return (
     <div className="flex min-w-0 items-start gap-2 text-left">
