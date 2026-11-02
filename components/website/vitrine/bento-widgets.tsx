@@ -59,7 +59,7 @@ export function TakeoverWidget() {
 
   return (
     <div className="mt-8 overflow-hidden rounded-lg border bg-card">
-      <div className="flex items-center justify-between gap-3 border-b px-4 py-3">
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b px-4 py-3">
         <span className="flex min-w-0 items-center gap-2.5">
           <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-secondary font-heading text-[11px] font-bold">
             MK
@@ -71,8 +71,8 @@ export function TakeoverWidget() {
             </span>
           </span>
         </span>
-        <span className="flex items-center gap-2.5">
-          <Label htmlFor={switchId} className="font-mono text-[11px] font-normal text-muted-foreground">
+        <span className="ml-auto flex shrink-0 items-center gap-2.5">
+          <Label htmlFor={switchId} className="font-mono text-[11px] font-normal whitespace-nowrap text-muted-foreground">
             Réponses IA
           </Label>
           <Switch id={switchId} checked={aiActive} onCheckedChange={setAiActive} />
@@ -242,8 +242,8 @@ export function SummaryWidget() {
   return (
     <div className="mt-8 flex flex-1 flex-col rounded-lg border bg-card p-4">
       <div className="flex items-center justify-between gap-2 font-mono text-[11px] text-muted-foreground">
-        <span>Fatou N. · 84 messages</span>
-        <span>3 jours</span>
+        <span className="min-w-0 truncate">Fatou N. · 84 messages</span>
+        <span className="shrink-0">3 jours</span>
       </div>
       <div aria-live="polite" className="mt-4 min-h-24 flex-1">
         {status === "idle" && (
@@ -285,13 +285,13 @@ export function SummaryWidget() {
             Recommencer
           </Button>
         ) : (
-          <Button type="button" size="sm" onClick={summarize} disabled={status === "loading"}>
+          <Button type="button" size="sm" className="w-full sm:w-auto" onClick={summarize} disabled={status === "loading"}>
             {status === "loading" ? (
               <Loader2 data-icon="inline-start" className="animate-spin" />
             ) : (
               <Sparkles data-icon="inline-start" />
             )}
-            {status === "loading" ? "Résumé en cours…" : "Résumer la conversation"}
+            {status === "loading" ? "Résumé en cours…" : "Générer le résumé"}
           </Button>
         )}
       </div>

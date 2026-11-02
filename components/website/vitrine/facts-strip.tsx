@@ -12,14 +12,14 @@ export function FactsStrip() {
 
   return (
     <section aria-label="ExtravertyAI en chiffres" className="border-t">
-      <dl ref={ref} className="grid grid-cols-2 gap-px bg-border lg:grid-cols-4">
+      <dl ref={ref} className="grid gap-px bg-border sm:grid-cols-2 lg:grid-cols-4">
         {FACTS.map((fact) => (
           <div
             key={fact.label}
-            className="flex flex-col-reverse justify-end gap-3 bg-background px-4 py-8 sm:px-8 md:py-10 lg:px-12"
+            className="flex flex-row-reverse items-center justify-end gap-4 bg-background px-4 py-5 sm:flex-col-reverse sm:items-start sm:gap-3 sm:px-8 sm:py-8 md:py-10 lg:px-12"
           >
-            <dt className="max-w-48 text-xs text-muted-foreground sm:text-sm">{fact.label}</dt>
-            <dd className="font-heading text-4xl font-bold tracking-tight md:text-5xl">
+            <dt className="min-w-0 flex-1 text-sm text-muted-foreground sm:max-w-48 sm:flex-none">{fact.label}</dt>
+            <dd className="w-30 shrink-0 font-heading text-2xl font-bold tracking-tight whitespace-nowrap sm:w-auto sm:text-4xl md:text-5xl">
               <span className="sr-only">
                 {fact.prefix}
                 {fact.value}
