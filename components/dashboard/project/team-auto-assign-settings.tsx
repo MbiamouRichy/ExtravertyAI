@@ -91,21 +91,21 @@ export function TeamAutoAssignSettings({
           name="enabled"
           control={form.control}
           render={({ field }) => (
-            <Field orientation="horizontal" className="items-start gap-4">
+            <Field className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-x-4 gap-y-2">
               <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-lg border bg-background">
                 <Shuffle aria-hidden="true" className="size-4" />
               </span>
-              <FieldContent>
-                <FieldLabel htmlFor={`${id}-switch`}>
+              <FieldContent className="contents">
+                <FieldLabel htmlFor={`${id}-switch`} className="col-start-2 row-start-1 self-center sm:self-start">
                   Répartition automatique
                 </FieldLabel>
-                <FieldDescription id={`${id}-description`}>
+                <FieldDescription id={`${id}-description`} className="col-span-full sm:col-span-1 sm:col-start-2">
                   {available
                     ? "Chaque nouvelle conversation est confiée au membre en ligne qui en a le moins en cours, à tour de rôle. Le propriétaire n’est pas inclus. Si personne n’est en ligne, elle reste non assignée."
                     : "Disponible avec l’offre Business : chaque nouvelle conversation est confiée au membre en ligne le moins chargé."}
                 </FieldDescription>
               </FieldContent>
-              <div className="flex shrink-0 items-center gap-2 pt-0.5">
+              <div className="col-start-3 row-start-1 flex shrink-0 items-center gap-2 pt-0.5">
                 {saving && (
                   <Loader2
                     aria-hidden="true"
