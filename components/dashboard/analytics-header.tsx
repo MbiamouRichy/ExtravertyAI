@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { ArrowDownToLine, Loader2, Lock } from "lucide-react";
 import Link from "next/link";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -147,7 +148,7 @@ export function AnalyticsHeader({
 
       setExportMessage("Export CSV préparé, sans données de contact.");
     } catch {
-      setExportMessage("L’export n’a pas pu être préparé. Réessayez.");
+      toast.error("L’export n’a pas pu être préparé. Réessayez.");
     } finally {
       link?.remove();
 
@@ -256,14 +257,14 @@ export function AnalyticsHeader({
         </p>
       )}
 
-      {/* Announce only active navigation or export feedback. */}
+      {/* Seule l’actualisation s’affiche ; la fin d’export reste annoncée aux lecteurs d’écran. */}
       <div
         role="status"
         aria-live="polite"
         aria-atomic="true"
         className={cn(
           "items-center gap-2 text-xs text-muted-foreground",
-          isPending || exportMessage ? "flex" : "sr-only",
+          isPending ? "flex" : "sr-only",
         )}
       >
         {isPending ? (

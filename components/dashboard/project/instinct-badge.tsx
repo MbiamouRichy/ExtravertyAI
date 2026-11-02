@@ -49,7 +49,9 @@ export function InstinctCell({
       <TooltipContent className="max-w-60">
         {classification === null
           ? "Instinct IA : analyse pas encore disponible pour le dernier message, ou qualification désactivée."
-          : "Instinct IA : recalculé après chaque nouveau message, selon les objectifs de votre agent."}
+          : followUp
+            ? "Prospect à suivre"
+            : label}
       </TooltipContent>
     </Tooltip>
   );

@@ -385,9 +385,8 @@ function InstinctBadge({
           </span>
         </span>
       </TooltipTrigger>
-      <TooltipContent className="max-w-60">
-        Instinct IA : analyse recalculée après chaque nouveau message, selon les
-        objectifs de votre agent.
+      <TooltipContent>
+        {interesting ? "Prospect intéressant" : "Prospect à suivre"}
       </TooltipContent>
     </Tooltip>
   );
@@ -1641,6 +1640,11 @@ export default function WhatsappWorkspace({
                   )}
                 >
                   {label}
+                  {contactsQuery.filterCounts && (
+                    <span className="font-normal text-muted-foreground tabular-nums">
+                      {contactsQuery.filterCounts[value]}
+                    </span>
+                  )}
                 </Button>
               ))}
               <DropdownMenu>
@@ -1670,7 +1674,7 @@ export default function WhatsappWorkspace({
                     {MORE_FILTERS.map(([value, label]) => (
                       <DropdownMenuRadioItem key={value} value={value}>
                         {label}
-                        {!!contactsQuery.filterCounts?.[value] && (
+                        {contactsQuery.filterCounts && (
                           <span className="ml-auto text-xs text-muted-foreground tabular-nums">
                             {contactsQuery.filterCounts[value]}
                           </span>
@@ -1811,7 +1815,7 @@ export default function WhatsappWorkspace({
 
                         <span className="min-w-0 flex-1">
                           <span className="flex items-center justify-between gap-2">
-                            <span className="flex min-w-0 items-center gap-1.5">
+                            <span className="flex min-w-0 items-center gap-0.5">
                               <span
                                 className={cn(
                                   "truncate text-sm",
