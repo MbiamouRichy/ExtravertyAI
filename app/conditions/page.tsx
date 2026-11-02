@@ -206,10 +206,9 @@ const sections: LegalSection[] = [
     body: (
       <p>
         Nous pouvons suspendre un compte en cas de non-respect de ces conditions
-        ou de risque pour le service. Dans les limites permises par la loi, notre
-        responsabilité totale est limitée aux montants payés au cours des trois
-        derniers mois, et nous ne répondons pas des pertes indirectes comme la
-        perte de clients ou de chiffre d’affaires.
+        ou de risque pour le service. Dans les limites permises par la loi, nous
+        ne répondons pas des pertes indirectes comme la perte de clients ou de
+        chiffre d’affaires.
       </p>
     ),
   },
