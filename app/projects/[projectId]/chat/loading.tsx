@@ -23,7 +23,7 @@ export default function ChatLoading() {
             </div>
             <div className="flex items-start gap-1">
               <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1">
-                {["w-14", "w-18", "w-14", "w-16"].map((width, index) => (
+                {["w-14", "w-18", "w-14"].map((width, index) => (
                   <Skeleton
                     key={index}
                     className={`h-6 rounded-full ${width}`}

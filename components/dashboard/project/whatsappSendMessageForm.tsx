@@ -730,13 +730,13 @@ const MAIN_FILTERS = [
   ["all", "Toutes"],
   ["unread", "Non lues"],
   ["mine", "À moi"],
-  ["resolved", "Résolues"],
 ] as const;
 
 const MORE_FILTERS = [
   ["ai", "Assistant IA"],
   ["manual", "Équipe"],
   ["unassigned", "Non assignées"],
+  ["resolved", "Résolues"],
 ] as const;
 
 export default function WhatsappWorkspace({
