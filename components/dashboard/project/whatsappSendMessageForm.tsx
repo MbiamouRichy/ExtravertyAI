@@ -788,9 +788,18 @@ export default function WhatsappWorkspace({
   });
 
   const clients = contactsQuery.items;
-  const moreFilterLabel =
-    contactsQuery.projectTags.find((tag) => tag.id === tagFilter)?.name ??
-    MORE_FILTERS.find(([value]) => value === filter)?.[1];
+  const moreFilterLabel = MORE_FILTERS.find(([value]) => value === filter)?.[1];
+  const tagFilterLabel = contactsQuery.projectTags.find(
+    (tag) => tag.id === tagFilter,
+  )?.name;
+  const activeMoreFilters = [
+    ...(moreFilterLabel
+      ? [{ label: moreFilterLabel, clear: () => setFilter("all") }]
+      : []),
+    ...(tagFilterLabel
+      ? [{ label: tagFilterLabel, clear: () => setTagFilter(null) }]
+      : []),
+  ];
 
   const messages = useMemo<Record<string, ChatMessage[]>>(
     () => (activeId ? { [activeId]: historyQuery.items } : {}),
@@ -1654,18 +1663,15 @@ export default function WhatsappWorkspace({
                   <Button
                     type="button"
                     size="xs"
-                    variant={moreFilterLabel ? "secondary" : "ghost"}
+                    variant={activeMoreFilters.length ? "secondary" : "ghost"}
                     aria-label={
-                      moreFilterLabel
-                        ? `Autres filtres : ${moreFilterLabel}`
+                      activeMoreFilters.length
+                        ? `Autres filtres : ${activeMoreFilters.map(({ label }) => label).join(", ")}`
                         : "Autres filtres"
                     }
-                    className="max-w-28 min-w-0 shrink rounded-full"
+                    className="shrink-0 rounded-full"
                   >
                     <ListFilter aria-hidden="true" />
-                    {moreFilterLabel && (
-                      <span className="truncate md:max-lg:hidden">{moreFilterLabel}</span>
-                    )}
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-52">
@@ -1713,6 +1719,26 @@ export default function WhatsappWorkspace({
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
+
+            {/* Sous la barre : un nom de filtre ne décale jamais les filtres principaux. */}
+            {activeMoreFilters.length > 0 && (
+              <div className="flex min-w-0 flex-wrap items-center gap-1">
+                {activeMoreFilters.map(({ label, clear }) => (
+                  <Button
+                    key={label}
+                    type="button"
+                    size="xs"
+                    variant="secondary"
+                    aria-label={`Retirer le filtre ${label}`}
+                    onClick={clear}
+                    className="max-w-full min-w-0 rounded-full"
+                  >
+                    <span className="truncate">{label}</span>
+                    <X aria-hidden="true" />
+                  </Button>
+                ))}
+              </div>
+            )}
           </header>
 
           <nav
@@ -1760,7 +1786,7 @@ export default function WhatsappWorkspace({
                 {(search || filter !== "all" || tagFilter) && (
                   <Button
                     variant="link"
-                    className="mt-3"
+                    className="mt-3 h-auto max-w-full whitespace-normal"
                     onClick={() => {
                       setSearch("");
                       setFilter("all");
