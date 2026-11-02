@@ -1624,7 +1624,7 @@ export default function WhatsappWorkspace({
               aria-label="Filtrer les conversations"
               className="flex min-w-0 items-start gap-1"
             >
-              <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1">
+              <div className="flex min-w-0 flex-1 flex-wrap items-center gap-0.5">
                 {MAIN_FILTERS.map(([value, label]) => (
                   <Button
                     key={value}
