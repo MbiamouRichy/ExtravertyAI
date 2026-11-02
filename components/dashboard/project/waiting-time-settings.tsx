@@ -85,8 +85,8 @@ export function WaitingTimeSettings({
           name="enabled"
           control={form.control}
           render={({ field }) => (
-            <Field orientation="horizontal" className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-x-4 gap-y-2">
-              <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-lg border bg-background">
+            <Field orientation="horizontal" className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-x-4 gap-y-2 sm:gap-y-1">
+              <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-lg border bg-background sm:row-span-2">
                 <Hourglass aria-hidden="true" className="size-4" />
               </span>
               <FieldContent className="contents">
