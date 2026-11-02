@@ -2215,27 +2215,19 @@ export default function WhatsappWorkspace({
                 (!aiActive || project.automationPaused) && (
                   <div
                     role="status"
-                    className="flex shrink-0 items-center gap-2 bg-foreground px-4 py-2 text-xs text-background"
+                    className="flex shrink-0 items-center gap-1.5 bg-foreground px-3 py-1 text-[11px] text-background lg:gap-2 lg:px-4 lg:py-1.5 lg:text-xs"
                   >
-                    <Hand aria-hidden="true" className="size-3.5 shrink-0" />
-                    <span className="min-w-0 flex-1">
+                    <Hand aria-hidden="true" className="size-3 shrink-0 lg:size-3.5" />
+                    <span className="min-w-0 truncate lg:hidden">
+                      {project.automationPaused
+                        ? "Projet en pause : IA inactive"
+                        : "IA désactivée : votre équipe répond"}
+                    </span>
+                    <span className="min-w-0 truncate max-lg:hidden">
                       {project.automationPaused
                         ? "Projet en pause : l’assistant IA ne répond à aucun contact."
                         : "Assistant IA désactivé : votre équipe répond à ce contact."}
                     </span>
-                    {!project.automationPaused && canManageAi && (
-                      <Button
-                        type="button"
-                        size="xs"
-                        variant="secondary"
-                        className="shrink-0"
-                        disabled={aiBusyId !== null}
-                        onClick={() => void toggleAi()}
-                      >
-                        <Bot data-icon="inline-start" />
-                        Réactiver
-                      </Button>
-                    )}
                   </div>
                 )}
 
