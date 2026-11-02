@@ -39,8 +39,8 @@ export function OptedOutPanel({ projectId, total, initial }: { projectId: string
 
   return (
     <div className="space-y-4">
-      <p className="flex items-start gap-2 rounded-xl border bg-muted/30 p-3 text-sm text-muted-foreground">
-        <ShieldCheck aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-foreground" />
+      <p className="flex items-start gap-2 text-xs text-muted-foreground">
+        <ShieldCheck aria-hidden="true" className="size-3.5 shrink-0" />
         <span>
           {total.toLocaleString("fr-FR")} contact{total > 1 ? "s ont" : " a"} répondu STOP : exclu{total > 1 ? "s" : ""} de
           toutes les diffusions. Seul le client peut se réinscrire, en écrivant START. Les conversations restent ouvertes
@@ -54,7 +54,7 @@ export function OptedOutPanel({ projectId, total, initial }: { projectId: string
         </p>
       )}
       {page.rows.length ? (
-        <ul className="divide-y rounded-2xl border bg-card">
+        <ul className="divide-y rounded-xl border bg-card">
           {page.rows.map((row) => (
             <li key={row.contact.id} className="flex flex-col gap-1 p-3 sm:flex-row sm:items-center sm:justify-between sm:px-4">
               <div className="min-w-0">
@@ -65,7 +65,7 @@ export function OptedOutPanel({ projectId, total, initial }: { projectId: string
                   {row.contact.name}
                 </Link>
                 {row.contact.maskedPhone && (
-                  <span className="block font-mono text-[11px] text-muted-foreground">{row.contact.maskedPhone}</span>
+                  <span className="block text-xs text-muted-foreground">{row.contact.maskedPhone}</span>
                 )}
               </div>
               <span className="text-xs text-muted-foreground">
@@ -75,7 +75,7 @@ export function OptedOutPanel({ projectId, total, initial }: { projectId: string
           ))}
         </ul>
       ) : (
-        <Empty className="rounded-2xl border border-dashed p-10">
+        <Empty className="rounded-xl border border-dashed p-8">
           <EmptyHeader>
             <EmptyMedia variant="icon">
               <UserX aria-hidden="true" />

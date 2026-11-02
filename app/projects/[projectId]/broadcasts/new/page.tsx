@@ -52,7 +52,7 @@ export default async function NewBroadcastPage({ params }: { params: Promise<{ p
   ]);
 
   return (
-    <main className="mx-auto w-full max-w-6xl space-y-6 p-4 sm:p-6 xl:p-8">
+    <main className="mx-auto w-full max-w-5xl space-y-4 p-4 sm:p-6 lg:p-8">
       <header>
         <Button asChild variant="ghost" size="sm" className="-ml-2">
           <Link href={base}>
@@ -60,14 +60,11 @@ export default async function NewBroadcastPage({ params }: { params: Promise<{ p
             Diffusions
           </Link>
         </Button>
-        <h1 className="mt-2 text-3xl md:text-4xl">Nouvelle diffusion</h1>
-        <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-          Rédigez votre message, choisissez qui le reçoit, puis lancez-le maintenant ou programmez-le.
-        </p>
+        <h1 className="mt-1 text-2xl font-semibold tracking-tight">Nouvelle diffusion</h1>
       </header>
       {active ? (
-        <section className="rounded-2xl border bg-card p-6">
-          <h2 className="font-heading text-lg font-semibold tracking-tight">Une diffusion est déjà en cours</h2>
+        <section className="rounded-xl border bg-card p-4 sm:p-5">
+          <h2 className="text-sm font-medium">Une diffusion est déjà en cours</h2>
           <p className="mt-1 max-w-xl text-sm text-muted-foreground">
             « {active.name} » n’est pas terminée. Une seule diffusion à la fois protège votre numéro WhatsApp :
             attendez sa fin ou annulez-la pour en créer une nouvelle.

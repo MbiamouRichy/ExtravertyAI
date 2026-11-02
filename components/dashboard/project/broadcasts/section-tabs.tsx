@@ -47,7 +47,7 @@ export function SectionTabs({
         </TabsList>
       </div>
       {tabs.map((tab) => (
-        <TabsContent key={tab.id} value={tab.id} className="mt-6">
+        <TabsContent key={tab.id} value={tab.id} className="mt-4">
           {tab.content}
         </TabsContent>
       ))}

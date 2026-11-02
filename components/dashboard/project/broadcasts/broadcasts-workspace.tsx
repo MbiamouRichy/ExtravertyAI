@@ -4,7 +4,7 @@ import { LocalDate } from "@/components/local-date";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useTransition } from "react";
-import { ArrowRight, CircleAlert, Clock3, ImageIcon, Megaphone, Plus, WifiOff } from "lucide-react";
+import { ChevronRight, CircleAlert, Clock3, ImageIcon, Megaphone, Plus, WifiOff } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
@@ -50,21 +50,20 @@ export function StatusLine({ broadcast }: { broadcast: Pick<BroadcastView, "stat
   const reason = broadcast.pauseReason ? BROADCAST_REASON_LABEL[broadcast.pauseReason] : null;
   const tone =
     broadcast.status === "PAUSED"
-      ? "border-destructive/40 text-destructive"
+      ? "text-destructive"
       : broadcast.status === "SENDING"
-        ? "bg-primary text-primary-foreground border-transparent"
+        ? "font-medium text-foreground"
         : "text-muted-foreground";
   return (
     <div className="flex flex-col gap-1">
-      <span
-        className={cn(
-          "inline-flex w-fit items-center gap-1.5 rounded-full border px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider",
-          tone,
-        )}
-      >
-        {broadcast.status === "SENDING" && (
-          <span aria-hidden="true" className="size-1.5 animate-pulse rounded-full bg-current motion-reduce:animate-none" />
-        )}
+      <span className={cn("inline-flex w-fit items-center gap-1.5 text-xs", tone)}>
+        <span
+          aria-hidden="true"
+          className={cn(
+            "size-1.5 rounded-full bg-current",
+            broadcast.status === "SENDING" && "animate-pulse motion-reduce:animate-none",
+          )}
+        />
         {BROADCAST_STATUS_LABEL[broadcast.status]}
       </span>
       {broadcast.status === "SCHEDULED" && !reason && (
@@ -100,7 +99,7 @@ export function BroadcastProgress({ broadcast }: { broadcast: BroadcastView }) {
       >
         <div className="h-full rounded-full bg-foreground transition-[width]" style={{ width: `${ratio * 100}%` }} />
       </div>
-      <p className="mt-1.5 font-mono text-[11px] tabular-nums text-muted-foreground">
+      <p className="mt-1.5 text-xs tabular-nums text-muted-foreground">
         {number(done)} / {number(broadcast.recipientCount)} traités
       </p>
     </div>
@@ -121,17 +120,25 @@ export function BroadcastKpis({ broadcast, size = "sm" }: { broadcast: Broadcast
   return (
     <dl
       className={cn(
-        "grid gap-px overflow-hidden rounded-xl border bg-border",
-        size === "lg" ? "grid-cols-2 sm:grid-cols-5" : "grid-cols-3 sm:grid-cols-5",
+        "grid",
+        size === "lg"
+          ? "grid-cols-2 gap-px overflow-hidden rounded-xl border bg-border sm:grid-cols-5"
+          : "grid-cols-3 gap-x-4 gap-y-3 sm:grid-cols-5",
       )}
     >
       {items.map((item) => (
-        <div key={item.label} className={cn("flex flex-col-reverse gap-0.5 bg-card", size === "lg" ? "p-4" : "p-2.5")}>
-          <dt className="text-[11px] text-muted-foreground">
+        <div
+          key={item.label}
+          className={cn(
+            "flex min-w-0 flex-col-reverse gap-0.5",
+            size === "lg" && "bg-card p-3 last:col-span-2 sm:p-4 sm:last:col-span-1",
+          )}
+        >
+          <dt className="text-xs text-muted-foreground">
             {item.label}
             {item.extra}
           </dt>
-          <dd className={cn("font-heading font-semibold tabular-nums", size === "lg" ? "text-2xl" : "text-base")}>
+          <dd className={cn("font-semibold tabular-nums", size === "lg" ? "text-2xl tracking-tight" : "text-sm")}>
             {number(item.value)}
           </dd>
         </div>
@@ -161,26 +168,25 @@ export function BroadcastsWorkspace({
   const refresh = useCallback(() => startTransition(() => router.refresh()), [router]);
   // Progress is pushed by the worker on the project channel.
   useChatRealtime(projectId, refresh);
-  const active = broadcasts.find((broadcast) => ACTIVE_STATUSES.includes(broadcast.status));
   const base = `/projects/${projectId}/broadcasts`;
 
   return (
-    <div className="space-y-6">
-      <section aria-label="Utilisation" className="flex flex-col gap-5 rounded-2xl border bg-card p-4 sm:flex-row sm:p-5">
-        <Meter
-          label="Messages de diffusion ce mois-ci"
-          used={usage.monthly.used}
-          limit={usage.monthly.limit}
-          hint={usage.monthly.reserved ? `${number(usage.monthly.reserved)} encore prévus dans la diffusion en cours.` : undefined}
-        />
-        <Meter label="Aujourd’hui" used={usage.daily.used} limit={usage.daily.limit} />
-        <div className="min-w-0 flex-1 text-xs text-muted-foreground sm:max-w-64">
-          <p>
-            Jusqu’à <span className="text-foreground">{number(usage.recipientsLimit)} contacts</span> par diffusion,
-            envoyés entre {BROADCAST_WINDOW.startHour} h et {BROADCAST_WINDOW.endHour} h (heure de Libreville), au
-            rythme d’un message toutes les 8 à 15 secondes pour protéger votre numéro.
-          </p>
+    <div className="space-y-4">
+      <section aria-label="Utilisation" className="rounded-xl border bg-card p-4">
+        <div className="grid gap-x-8 gap-y-3 sm:grid-cols-2">
+          <Meter
+            label="Messages de diffusion ce mois-ci"
+            used={usage.monthly.used}
+            limit={usage.monthly.limit}
+            hint={usage.monthly.reserved ? `${number(usage.monthly.reserved)} encore prévus dans la diffusion en cours.` : undefined}
+          />
+          <Meter label="Aujourd’hui" used={usage.daily.used} limit={usage.daily.limit} />
         </div>
+        <p className="mt-3 text-xs text-muted-foreground">
+          Jusqu’à <span className="text-foreground">{number(usage.recipientsLimit)} contacts</span> par diffusion,
+          envoyés entre {BROADCAST_WINDOW.startHour} h et {BROADCAST_WINDOW.endHour} h (heure de Libreville), au
+          rythme d’un message toutes les 8 à 15 secondes pour protéger votre numéro.
+        </p>
       </section>
 
       {!connected && (
@@ -190,76 +196,56 @@ export function BroadcastsWorkspace({
         </p>
       )}
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="font-heading text-lg font-semibold tracking-tight">Vos diffusions</h2>
-        {canCreate &&
-          (active ? (
-            <p className="text-xs text-muted-foreground">Une seule diffusion à la fois : « {active.name} » est en cours.</p>
-          ) : (
-            <Button asChild>
-              <Link href={`${base}/new`}>
-                <Plus data-icon="inline-start" />
-                Nouvelle diffusion
-              </Link>
-            </Button>
-          ))}
-      </div>
-
       {broadcasts.length ? (
-        <ul className="space-y-3">
+        <ul aria-label="Vos diffusions" className="divide-y rounded-xl border bg-card">
           {broadcasts.map((broadcast) => (
-            <li key={broadcast.id} className="rounded-2xl border bg-card p-4 sm:p-5">
-              <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
-                <div className="min-w-0 flex-1 space-y-3">
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <h3 className="flex items-center gap-2 truncate text-base font-semibold">
-                        <Link
-                          href={`${base}/${broadcast.id}`}
-                          className="truncate underline-offset-4 outline-none hover:underline focus-visible:underline"
-                        >
-                          {broadcast.name}
-                        </Link>
-                        {broadcast.hasImage && (
-                          <ImageIcon aria-label="Avec image" className="size-3.5 shrink-0 text-muted-foreground" />
-                        )}
-                      </h3>
-                      <p className="mt-0.5 text-xs text-muted-foreground">
-                        {number(broadcast.recipientCount)} contact{broadcast.recipientCount > 1 ? "s" : ""} ·{" "}
-                        {broadcast.finishedAt ? "terminée le " : "créée le "}
-                        <LocalDate value={broadcast.finishedAt ?? broadcast.createdAt} options={dateTime} />
-                        {broadcast.author ? ` par ${broadcast.author}` : ""}
-                      </p>
-                    </div>
+            <li key={broadcast.id} className="space-y-3 p-4">
+              <div className="flex items-start gap-2">
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-1">
+                    <h3 className="flex min-w-0 max-w-full items-center gap-2 text-sm font-medium">
+                      <Link
+                        href={`${base}/${broadcast.id}`}
+                        className="truncate underline-offset-4 outline-none hover:underline focus-visible:underline"
+                      >
+                        {broadcast.name}
+                      </Link>
+                      {broadcast.hasImage && (
+                        <ImageIcon aria-label="Avec image" className="size-3.5 shrink-0 text-muted-foreground" />
+                      )}
+                    </h3>
                     <StatusLine broadcast={broadcast} />
                   </div>
-                  <BroadcastProgress broadcast={broadcast} />
-                  <BroadcastKpis broadcast={broadcast} />
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    {number(broadcast.recipientCount)} contact{broadcast.recipientCount > 1 ? "s" : ""} ·{" "}
+                    {broadcast.finishedAt ? "terminée le " : "créée le "}
+                    <LocalDate value={broadcast.finishedAt ?? broadcast.createdAt} options={dateTime} />
+                    {broadcast.author ? ` par ${broadcast.author}` : ""}
+                  </p>
                 </div>
-                <div className="flex shrink-0 flex-wrap items-center gap-2 lg:flex-col lg:items-end">
-                  {canManage && (
-                    <BroadcastActions
-                      projectId={projectId}
-                      broadcastId={broadcast.id}
-                      name={broadcast.name}
-                      status={broadcast.status}
-                      pending={broadcast.stats?.pending ?? 0}
-                      onChanged={refresh}
-                    />
-                  )}
-                  <Button asChild size="sm" variant="ghost">
-                    <Link href={`${base}/${broadcast.id}`}>
-                      Détail
-                      <ArrowRight data-icon="inline-end" />
-                    </Link>
-                  </Button>
-                </div>
+                <Button asChild size="icon-sm" variant="ghost" className="-mt-1 -mr-1 shrink-0">
+                  <Link href={`${base}/${broadcast.id}`} aria-label={`Détail de « ${broadcast.name} »`}>
+                    <ChevronRight aria-hidden="true" />
+                  </Link>
+                </Button>
               </div>
+              {ACTIVE_STATUSES.includes(broadcast.status) && <BroadcastProgress broadcast={broadcast} />}
+              <BroadcastKpis broadcast={broadcast} />
+              {canManage && (
+                <BroadcastActions
+                  projectId={projectId}
+                  broadcastId={broadcast.id}
+                  name={broadcast.name}
+                  status={broadcast.status}
+                  pending={broadcast.stats?.pending ?? 0}
+                  onChanged={refresh}
+                />
+              )}
             </li>
           ))}
         </ul>
       ) : (
-        <Empty className="rounded-2xl border border-dashed p-10">
+        <Empty className="rounded-xl border border-dashed p-8">
           <EmptyHeader>
             <EmptyMedia variant="icon">
               <Megaphone aria-hidden="true" />

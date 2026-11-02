@@ -44,7 +44,7 @@ export function RepliesPanel({ projectId, broadcastId, initial }: { projectId: s
 
   if (!page.rows.length) {
     return (
-      <Empty className="rounded-2xl border border-dashed p-10">
+      <Empty className="rounded-xl border border-dashed p-8">
         <EmptyHeader>
           <EmptyMedia variant="icon">
             <MessageCircleReply aria-hidden="true" />
@@ -67,40 +67,40 @@ export function RepliesPanel({ projectId, broadcastId, initial }: { projectId: s
           {error}
         </p>
       )}
-      <ul className="space-y-3">
+      <ul className="divide-y rounded-xl border bg-card">
         {page.rows.map((reply) => {
           const media = MEDIA[reply.type as keyof typeof MEDIA];
           const text = media && reply.content === `[${reply.type}]` ? "" : reply.content;
           return (
             <li key={reply.id}>
-              <article className="flex gap-3 rounded-2xl border bg-card p-4">
+              <article className="flex gap-3 p-3 sm:px-4">
                 <span
                   aria-hidden="true"
-                  className="flex size-9 shrink-0 items-center justify-center rounded-full border bg-muted/50 font-heading text-xs font-semibold"
+                  className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-medium"
                 >
                   {getInitials(reply.contact.name)}
                 </span>
                 <div className="min-w-0 flex-1">
                   <header className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
                     <h3 className="truncate text-sm font-medium">{reply.contact.name}</h3>
-                    <span className="font-mono text-[11px] tabular-nums text-muted-foreground">
+                    <span className="text-xs tabular-nums text-muted-foreground">
                       <LocalDate value={reply.createdAt} options={dateTime} />
                     </span>
                   </header>
                   {media && (
-                    <p className="mt-1.5 inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <p className="mt-1 inline-flex items-center gap-1.5 text-xs text-muted-foreground">
                       <media.icon aria-hidden="true" className="size-3.5" />
                       {media.label}
                     </p>
                   )}
                   {text && (
-                    <p dir="auto" className="mt-1.5 line-clamp-4 whitespace-pre-wrap wrap-anywhere text-sm leading-relaxed">
+                    <p dir="auto" className="mt-1 line-clamp-4 whitespace-pre-wrap wrap-anywhere text-sm leading-relaxed">
                       {text}
                     </p>
                   )}
                   <Link
                     href={`/projects/${projectId}/chat?contactId=${encodeURIComponent(reply.contact.id)}`}
-                    className="mt-2 inline-flex items-center gap-1 text-xs font-medium underline-offset-4 outline-none hover:underline focus-visible:underline"
+                    className="mt-1.5 flex w-fit items-center gap-1 text-xs text-muted-foreground underline-offset-4 hover:text-foreground outline-none hover:underline focus-visible:underline"
                   >
                     Ouvrir la conversation
                     <ArrowUpRight aria-hidden="true" className="size-3.5" />
