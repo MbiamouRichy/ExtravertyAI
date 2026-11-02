@@ -1,17 +1,11 @@
-import {
-    ArrowDownLeft,
-    ArrowDownRight,
-    ArrowUpRight,
-    Bot,
-    CheckCheck,
-    Info,
-    Minus,
-    UserPlus,
-    Users,
-    type LucideIcon,
-} from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, Info, Minus } from "lucide-react";
 
-import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import {
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
+} from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import {
     formatNumberFr,
@@ -32,7 +26,6 @@ interface KpiItem {
     unit: "%" | "pt";
     previous: string;
     definition: string;
-    icon: LucideIcon;
 }
 
 function Delta({
@@ -51,7 +44,7 @@ function Delta({
         const isNew = previous === 0 && !!current;
         return (
             <span
-                className="inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium text-muted-foreground"
+                className="font-medium"
                 title={
                     isNew
                         ? "Aucune activité sur la période précédente"
@@ -75,10 +68,8 @@ function Delta({
     return (
         <span
             className={cn(
-                "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums",
-                rounded === 0
-                    ? "bg-muted text-muted-foreground"
-                    : "bg-foreground text-background",
+                "inline-flex items-center gap-0.5 font-medium tabular-nums",
+                rounded !== 0 && "text-foreground",
             )}
         >
             <Icon aria-hidden="true" className="size-3" strokeWidth={2.4} />
@@ -100,7 +91,6 @@ export function AnalyticsKpiGrid({ kpis }: AnalyticsKpiGridProps) {
             previous: formatNumberFr(kpis.received.previous),
             definition:
                 "Messages envoyés par les clients pendant la période sélectionnée.",
-            icon: ArrowDownLeft,
         },
         {
             label: "Messages envoyés",
@@ -112,7 +102,6 @@ export function AnalyticsKpiGrid({ kpis }: AnalyticsKpiGridProps) {
             previous: formatNumberFr(kpis.sent.previous),
             definition:
                 "Messages sortants du bot et des agents, quel que soit leur statut de livraison.",
-            icon: ArrowUpRight,
         },
         {
             label: "Nouveaux contacts",
@@ -124,7 +113,6 @@ export function AnalyticsKpiGrid({ kpis }: AnalyticsKpiGridProps) {
             previous: formatNumberFr(kpis.discussions.previous),
             definition:
                 "Contacts créés pendant la période. Cet indicateur ne compte pas les sessions de discussion.",
-            icon: UserPlus,
         },
         {
             label: "Contacts actifs",
@@ -136,7 +124,6 @@ export function AnalyticsKpiGrid({ kpis }: AnalyticsKpiGridProps) {
             previous: formatNumberFr(kpis.activeContacts.previous),
             definition:
                 "Contacts associés à au moins un message pendant la période.",
-            icon: Users,
         },
         {
             label: "Taux de lecture",
@@ -148,7 +135,6 @@ export function AnalyticsKpiGrid({ kpis }: AnalyticsKpiGridProps) {
             previous: formatPctFr(kpis.readRate.previous),
             definition:
                 "Part des messages sortants de la période actuellement marqués comme lus. Les accusés peuvent arriver plus tard.",
-            icon: CheckCheck,
         },
         {
             label: "Part des envois IA",
@@ -160,60 +146,55 @@ export function AnalyticsKpiGrid({ kpis }: AnalyticsKpiGridProps) {
             previous: formatPctFr(kpis.aiAutonomy.previous),
             definition:
                 "Part des messages sortants envoyés par le bot. Ce n’est pas un taux de résolution autonome.",
-            icon: Bot,
         },
     ];
 
     return (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
+        <div className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border bg-border @3xl:grid-cols-3 @6xl:grid-cols-6">
             {items.map((item) => (
-                <Card
-                    key={item.label}
-                    className="flex min-w-0 flex-col gap-0 rounded-2xl border-border/70 bg-card p-4 shadow-sm"
-                >
-                    <div className="flex items-center justify-between gap-2">
-                        <p className="text-xs font-medium text-muted-foreground">
+                <div key={item.label} className="min-w-0 bg-card p-3 sm:p-4">
+                    <div className="flex items-center justify-between gap-1">
+                        <p className="truncate text-xs text-muted-foreground">
                             {item.label}
                         </p>
 
-                        <item.icon
-                            aria-hidden="true"
-                            className="size-4 shrink-0 text-muted-foreground"
-                            strokeWidth={1.7}
-                        />
+                        <Popover>
+                            <PopoverTrigger asChild>
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon-xs"
+                                    className="-my-1 -mr-1 shrink-0 text-muted-foreground"
+                                    aria-label={`Définition : ${item.label}`}
+                                >
+                                    <Info aria-hidden="true" />
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-64 p-3 text-xs leading-relaxed text-muted-foreground">
+                                {item.definition}
+                            </PopoverContent>
+                        </Popover>
                     </div>
 
-                    <div className="mt-4 flex items-end justify-between gap-2">
-                        <p className="text-3xl font-semibold tracking-tight tabular-nums">
-                            {item.value}
-                        </p>
-                        <span className="mb-1 shrink-0">
-                            <Delta
-                                value={item.delta}
-                                unit={item.unit}
-                                current={item.current}
-                                previous={item.previousValue}
-                            />
-                        </span>
-                    </div>
-
-                    <p className="mt-2 text-xs text-muted-foreground">
-                        {item.previousValue === null
-                            ? "Aucune donnée sur la période précédente"
-                            : `vs ${item.previous} sur la période précédente`}
+                    <p className="mt-1.5 text-2xl font-semibold tracking-tight tabular-nums">
+                        {item.value}
                     </p>
 
-                    <details className="mt-3 border-t border-border/60 pt-3 text-xs">
-                        <summary className="flex cursor-pointer list-none items-center gap-1.5 rounded text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                            <Info aria-hidden="true" className="size-3.5" />
-                            Définition
-                        </summary>
-
-                        <p className="mt-2 leading-relaxed text-muted-foreground">
-                            {item.definition}
-                        </p>
-                    </details>
-                </Card>
+                    <p className="mt-1 flex flex-wrap items-center gap-x-1.5 text-xs text-muted-foreground">
+                        <Delta
+                            value={item.delta}
+                            unit={item.unit}
+                            current={item.current}
+                            previous={item.previousValue}
+                        />
+                        <span>
+                            {item.previousValue === null
+                                ? "Aucune donnée"
+                                : `vs ${item.previous}`}
+                            <span className="sr-only"> sur la période précédente</span>
+                        </span>
+                    </p>
+                </div>
             ))}
         </div>
     );

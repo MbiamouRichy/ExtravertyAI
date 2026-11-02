@@ -7,14 +7,7 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { cn } from "@/lib/utils";
+import { AnalyticsCard } from "./analytics-card";
 import { ChartEmptyState } from "./chart-empty-state";
 import {
   responseTimeSeries,
@@ -37,15 +30,11 @@ export function FirstAiReplyTimeChart({
   const points = responseTimeSeries(data.samples, data.now, zone || "UTC");
   const count = points.reduce((sum, p) => sum + p.count, 0);
   return (
-    <Card className={cn("min-w-0 shadow-none dark:ring-0", className)}>
-      <CardHeader className="space-y-1">
-        <CardTitle>Temps de réponse IA · médiane</CardTitle>
-        <CardDescription>
-          Délai entre le message client et l’envoi confirmé de sa réponse IA,
-          sur les 7 derniers jours.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
+    <AnalyticsCard
+      title="Temps de réponse IA · médiane"
+      description="Délai entre le message client et l’envoi confirmé de sa réponse IA, sur les 7 derniers jours."
+      className={className}
+    >
         {data.error || !zone || !count ? (
           <ChartEmptyState
             icon={Clock3}
@@ -67,7 +56,7 @@ export function FirstAiReplyTimeChart({
             config={{
               seconds: { label: "Délai médian", color: "var(--chart-1)" },
             }}
-            className="aspect-video min-h-48 w-full min-w-0"
+            className="aspect-auto h-56 w-full min-w-0 sm:h-64"
           >
             <LineChart
               accessibilityLayer
@@ -148,7 +137,6 @@ export function FirstAiReplyTimeChart({
             </LineChart>
           </ChartContainer>
         )}
-      </CardContent>
-    </Card>
+    </AnalyticsCard>
   );
 }

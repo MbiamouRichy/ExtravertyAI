@@ -29,18 +29,17 @@ export function AnalyticsCard({
     return (
         <Card
             className={cn(
-                "flex h-full min-w-0 flex-col gap-0 overflow-hidden rounded-2xl",
-                "border-border/70 bg-card py-0 shadow-sm",
+                "flex h-full min-w-0 flex-col gap-0 overflow-hidden bg-card py-0",
                 className,
             )}
         >
-            <CardHeader className="flex flex-col gap-3 px-4 py-5 sm:flex-row sm:items-start sm:justify-between sm:px-6">
-                <div className="min-w-0 space-y-1.5">
-                    <CardTitle className="text-sm font-semibold tracking-tight">
+            <CardHeader className="flex flex-wrap items-start justify-between gap-x-4 gap-y-1 px-4 pt-4 pb-3 sm:px-5">
+                <div className="min-w-0 space-y-0.5">
+                    <CardTitle className="text-sm font-medium tracking-tight">
                         {title}
                     </CardTitle>
 
-                    <CardDescription className="text-xs leading-relaxed">
+                    <CardDescription className="text-xs">
                         {description}
                     </CardDescription>
                 </div>
@@ -48,12 +47,12 @@ export function AnalyticsCard({
                 {aside && <div className="shrink-0">{aside}</div>}
             </CardHeader>
 
-            <CardContent className="min-w-0 flex-1 px-4 pb-5 sm:px-6">
+            <CardContent className="min-w-0 flex-1 px-4 pb-4 sm:px-5">
                 {children}
             </CardContent>
 
             {footer && (
-                <div className="border-t border-border/60 bg-muted/20 px-4 py-3 text-xs leading-relaxed text-muted-foreground sm:px-6">
+                <div className="border-t px-4 py-2.5 text-xs leading-relaxed text-muted-foreground sm:px-5">
                     {footer}
                 </div>
             )}

@@ -338,30 +338,28 @@ export function IntegrationsWorkspace({
   return (
     <div className="space-y-8">
       <section aria-labelledby="google-sheets" className="rounded-2xl border bg-card p-4 sm:p-6">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-start gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
+          <div className="flex items-center gap-3">
             <span className="flex size-10 shrink-0 items-center justify-center rounded-xl border bg-muted/50">
               <Sheet aria-hidden="true" className="size-5" />
             </span>
-            <div>
-              <h2 id="google-sheets" className="font-heading text-lg font-semibold tracking-tight">
-                Google Sheets
-              </h2>
-              <p className="mt-1 max-w-xl text-sm text-muted-foreground">
-                Une ligne par événement dans une feuille créée pour vous. ExtravertyAI
-                n’accède qu’à cette feuille, jamais au reste de votre Drive.
-              </p>
-            </div>
+            <h2 id="google-sheets" className="font-heading text-lg font-semibold tracking-tight">
+              Google Sheets
+            </h2>
           </div>
+          <p className="w-full text-sm text-muted-foreground sm:order-last">
+            Une ligne par événement dans une feuille créée pour vous. ExtravertyAI
+            n’accède qu’à cette feuille, jamais au reste de votre Drive.
+          </p>
           {!sheets &&
             (googleAvailable ? (
-              <Button asChild className="shrink-0">
+              <Button asChild className="w-full shrink-0 sm:w-auto">
                 <a href={`/api/integrations/google/start?projectId=${encodeURIComponent(projectId)}`}>
                   Connecter Google Sheets
                 </a>
               </Button>
             ) : (
-              <Button type="button" disabled className="shrink-0">
+              <Button type="button" disabled className="w-full shrink-0 sm:w-auto">
                 Indisponible sur ce serveur
               </Button>
             ))}

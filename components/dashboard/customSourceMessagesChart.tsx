@@ -72,11 +72,12 @@ export function SourcesChart({ data, total, rangeLabel }: SourcesChartProps) {
                     icon={PieChartIcon}
                     title="Aucune source disponible"
                     description="La répartition apparaîtra après réception de messages sur cette période."
-                    className="h-full min-h-72"
+                    className="h-full"
                 />
             ) : (
-                <div className="flex h-full flex-col justify-center gap-6">
-                    <div className="relative mx-auto size-60 max-w-full">
+                <div className="@container h-full">
+                <div className="flex h-full flex-col justify-center gap-4 @lg:flex-row @lg:items-center @lg:gap-8">
+                    <div className="relative mx-auto size-44 max-w-full shrink-0">
                         <ChartContainer
                             config={config}
                             className="aspect-square size-full"
@@ -138,7 +139,7 @@ export function SourcesChart({ data, total, rangeLabel }: SourcesChartProps) {
                             aria-hidden="true"
                             className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center"
                         >
-                            <span className="font-heading text-2xl font-semibold tracking-tight tabular-nums">
+                            <span className="font-heading text-xl font-semibold tracking-tight tabular-nums">
                                 {formatNumberFr(total)}
                             </span>
                             <span className="mt-0.5 text-[11px] text-muted-foreground">
@@ -151,11 +152,11 @@ export function SourcesChart({ data, total, rangeLabel }: SourcesChartProps) {
                         {total.toLocaleString("fr-FR")} messages reçus.
                     </p>
 
-                    <ul className="divide-y rounded-xl border">
+                    <ul className="min-w-0 flex-1 divide-y">
                         {rows.map((row) => (
                             <li
                                 key={row.key}
-                                className="flex items-center justify-between gap-3 px-3 py-2.5 text-xs"
+                                className="flex items-center justify-between gap-3 py-2 text-xs"
                             >
                                 <span className="flex min-w-0 items-center gap-2">
                                     <span
@@ -176,6 +177,7 @@ export function SourcesChart({ data, total, rangeLabel }: SourcesChartProps) {
                             </li>
                         ))}
                     </ul>
+                </div>
                 </div>
             )}
         </AnalyticsCard>
