@@ -253,6 +253,10 @@ export function AuthPage({ callbackUrl }: { callbackUrl?: string }) {
 
 								<FieldDescription className="text-muted-foreground text-sm">
 									En cliquant sur continuer, vous acceptez nos{" "}
+										<Link className="underline underline-offset-4 hover:text-primary" href="/conditions">
+											Conditions d&apos;utilisation
+										</Link>{" "}
+										et notre{" "}
 									<Link
 										className="underline underline-offset-4 hover:text-primary"
 										href="/donneesEtConfidentialite"
