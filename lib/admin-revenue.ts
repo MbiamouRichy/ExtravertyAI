@@ -3,6 +3,8 @@ import "server-only";
 import { cache } from "react";
 import { unstable_cache } from "next/cache";
 import prisma from "@/lib/prisma";
+import { checkoutProvider } from "@/lib/billing-provider";
+import { listPaidPolarOrders } from "@/lib/polar";
 import { stripe } from "@/lib/stripe";
 import {
   bucketRevenue,
@@ -15,6 +17,19 @@ import {
 } from "@/lib/admin-dashboard";
 
 const MAX_INVOICES = 10_000;
+
+const paidPolarOrdersSince = unstable_cache(
+  async (sinceSeconds: number) =>
+    (await listPaidPolarOrders(new Date(sinceSeconds * 1000), MAX_INVOICES))
+      .filter((order) => order.total_amount > 0)
+      .map((order) => ({
+        amount: order.total_amount,
+        currency: order.currency,
+        paidAt: order.created_at,
+      })),
+  ["admin-paid-polar-orders"],
+  { revalidate: 3600 },
+);
 
 // Factures payées depuis une date, relues au plus une fois par heure.
 const paidInvoicesSince = unstable_cache(
@@ -41,21 +56,23 @@ const paidInvoicesSince = unstable_cache(
   { revalidate: 3600 },
 );
 
-/** Stripe d'abord (encaissé réel) ; à défaut, estimation depuis les mois payés. */
+/** Le fournisseur actif d'abord (encaissé réel) ; à défaut, estimation depuis les mois payés. */
 export const loadRevenue = cache(async (range: DashboardRange): Promise<RevenueStats> => {
   const period = dashboardPeriod(range);
-  if (process.env.STRIPE_SECRET_KEY) {
+  const polar = checkoutProvider() === "polar";
+  if (polar || process.env.STRIPE_SECRET_KEY) {
     try {
-      const raw = await paidInvoicesSince(
-        Math.floor(period.previousStart.getTime() / 1000),
-      );
+      const since = Math.floor(period.previousStart.getTime() / 1000);
+      const raw = await (polar
+        ? paidPolarOrdersSince(since)
+        : paidInvoicesSince(since));
       const invoices: PaidInvoice[] = raw.map((invoice) => ({
         ...invoice,
         paidAt: new Date(invoice.paidAt),
       }));
       return bucketRevenue(invoices, period);
     } catch {
-      console.error("[admin] Factures Stripe indisponibles, revenu estimé.");
+      console.error("[admin] Paiements indisponibles, revenu estimé.");
     }
   }
   return estimateRevenue(await loadBillingPeriods(prisma, period), period);

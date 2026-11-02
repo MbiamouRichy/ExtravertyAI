@@ -5,7 +5,16 @@ import { revalidatePath } from "next/cache";
 import prisma from "@/lib/prisma";
 import { getSession } from "@/lib/auth-server";
 import { stripe } from "@/lib/stripe";
-import { matchesCheckoutPrice } from "@/lib/checkout-price";
+import { checkoutProvider } from "@/lib/billing-provider";
+import {
+  matchesCheckoutPrice,
+  matchesPolarProduct,
+} from "@/lib/checkout-price";
+import {
+  createPolarCheckout,
+  getPolarProduct,
+  polarProductId,
+} from "@/lib/polar";
 import {
   ProjectCheckoutSchema,
   type ProjectCheckoutInput,
@@ -13,7 +22,7 @@ import {
 import z from "zod";
 import { allowRequest } from "@/lib/rate-limit";
 import { can } from "@/lib/project-permissions";
-import { resolvePlanId } from "@/lib/pricing";
+import { resolvePlanId, type PlanId } from "@/lib/pricing";
 import { needsInitialCheckout } from "@/lib/billing-display";
 import {
   createEvolutionInstance,
@@ -45,8 +54,7 @@ export async function createProjectAndCheckout(data: ProjectCheckoutInput) {
   data = parsed.data;
   const cleanedNumero = parsed.data.numero;
 
-  const priceId = STRIPE_PRICE_MAPPING[data.plan];
-  if (!priceId) {
+  if (!checkoutReference(data.plan)) {
     throw new Error(
       "Le plan sélectionné est invalide ou mal configuré côté serveur.",
     );
@@ -54,8 +62,7 @@ export async function createProjectAndCheckout(data: ProjectCheckoutInput) {
 
   // Check before creating a project or an external WhatsApp instance.
   try {
-    const price = await stripe.prices.retrieve(priceId);
-    if (!matchesCheckoutPrice(price, data.plan)) {
+    if (!(await isCheckoutPriceCurrent(data.plan))) {
       return {
         success: false,
         error:
@@ -119,16 +126,16 @@ export async function createProjectAndCheckout(data: ProjectCheckoutInput) {
     });
     createdProjectId = project.id;
 
-    const checkoutSession = await createCheckoutSession({
+    const url = await createCheckoutUrl({
       projectId: project.id,
-      priceId,
+      plan: data.plan,
       email: session.user.email,
       cancelPath: `/projects/new?plan=${data.plan}&canceled=true`,
     });
 
     revalidatePath("/projects");
 
-    return { success: true, url: checkoutSession.url };
+    return { success: true, url };
   } catch (error) {
     console.error("❌ Échec de la création (Rollback) :", error);
 
@@ -156,20 +163,45 @@ export async function createProjectAndCheckout(data: ProjectCheckoutInput) {
   }
 }
 
-/** Session Checkout d'abonnement (essai de 10 jours) pour un projet existant. */
-async function createCheckoutSession(input: {
+/** Prix Stripe ou produit Polar du forfait, selon le fournisseur actif. */
+function checkoutReference(plan: PlanId) {
+  return checkoutProvider() === "polar"
+    ? polarProductId(plan)
+    : STRIPE_PRICE_MAPPING[plan];
+}
+
+async function isCheckoutPriceCurrent(plan: PlanId) {
+  const reference = checkoutReference(plan)!;
+  return checkoutProvider() === "polar"
+    ? matchesPolarProduct(await getPolarProduct(reference), plan)
+    : matchesCheckoutPrice(await stripe.prices.retrieve(reference), plan);
+}
+
+/** Paiement d'abonnement (essai de 10 jours) pour un projet existant. */
+async function createCheckoutUrl(input: {
   projectId: string;
-  priceId: string;
+  plan: PlanId;
   email: string;
   cancelPath: string;
 }) {
   const origin = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "");
   if (!origin) throw new Error("NEXT_PUBLIC_APP_URL manquant");
+  const reference = checkoutReference(input.plan);
+  if (!reference) throw new Error("Forfait non configuré");
+  if (checkoutProvider() === "polar")
+    return createPolarCheckout({
+      productId: reference,
+      projectId: input.projectId,
+      plan: input.plan,
+      email: input.email,
+      successUrl: `${origin}/projects/${input.projectId}?success=true`,
+      returnUrl: `${origin}${input.cancelPath}`,
+    });
   const checkoutSession = await stripe.checkout.sessions.create({
     payment_method_types: ["card"],
     mode: "subscription",
     customer_email: input.email,
-    line_items: [{ price: input.priceId, quantity: 1 }],
+    line_items: [{ price: reference, quantity: 1 }],
     payment_method_collection: "always",
     metadata: { projectId: input.projectId },
     subscription_data: {
@@ -180,7 +212,7 @@ async function createCheckoutSession(input: {
     cancel_url: `${origin}${input.cancelPath}`,
   });
   if (!checkoutSession.url) throw new Error("URL Stripe non générée");
-  return checkoutSession;
+  return checkoutSession.url;
 }
 
 const ResumeSchema = z.object({ projectId: z.string().cuid() });
@@ -225,31 +257,29 @@ export async function resumeProjectCheckout(input: z.input<typeof ResumeSchema>)
       success: false as const,
       error: "Ce projet a déjà un abonnement : utilisez « Gérer l’abonnement ».",
     };
-  // Chaque appel ouvre une session Stripe : pas de rafale.
+  // Chaque appel ouvre une session de paiement : pas de rafale.
   if (!allowRequest(`checkout-resume:${projectId}`, 5, 10 * 60 * 1000))
     return {
       success: false as const,
       error: "Trop de tentatives. Réessayez dans quelques minutes.",
     };
   const plan = resolvePlanId(project.plan);
-  const priceId = STRIPE_PRICE_MAPPING[plan];
-  if (!priceId)
+  if (!checkoutReference(plan))
     return { success: false as const, error: "Ce forfait est temporairement indisponible." };
   try {
-    const price = await stripe.prices.retrieve(priceId);
-    if (!matchesCheckoutPrice(price, plan))
+    if (!(await isCheckoutPriceCurrent(plan)))
       return {
         success: false as const,
         error:
           "Ce forfait est temporairement indisponible. Son tarif de paiement est en cours de mise à jour.",
       };
-    const checkout = await createCheckoutSession({
+    const url = await createCheckoutUrl({
       projectId,
-      priceId,
+      plan,
       email: session.user.email,
       cancelPath: `/projects/${projectId}/billing?canceled=true`,
     });
-    return { success: true as const, url: checkout.url! };
+    return { success: true as const, url };
   } catch {
     console.error("[billing] Reprise du paiement impossible.");
     return {

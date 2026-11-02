@@ -220,7 +220,10 @@ model Project {
   billingRevision Int @default(0)
   stripeStatus String?
   billingNextCheckAt DateTime @default(now())
-  stripeCustomerId     String?        @unique
+  // Fournisseur des identifiants ci-dessous : les colonnes stripe* servent aussi à Polar,
+  // où un même client (une adresse e-mail) peut payer plusieurs projets.
+  billingProvider      String         @default("stripe")
+  stripeCustomerId     String?
   stripeSubscriptionId String?        @unique
   stripePriceId        String?
   stripeCurrentPeriodEnd DateTime?

@@ -12,6 +12,20 @@ import {
   writeProjectPause,
 } from "@/lib/project-settings";
 import { notifyChatChanged } from "@/lib/chat-realtime";
+import { matchesPolarProduct } from "@/lib/checkout-price";
+import {
+  createPolarCheckout,
+  createPolarPortalUrl,
+  getPolarOrder,
+  getPolarProduct,
+  getPolarSubscription,
+  isEndedPolarSubscription,
+  polarInvoiceUrl,
+  polarProductId,
+  resumePolarSubscription,
+  revokePolarSubscription,
+} from "@/lib/polar";
+import { resolvePlanId } from "@/lib/pricing";
 import { stripe } from "@/lib/stripe";
 import { syncWhatsAppSettings } from "@/lib/whatsapp-settings-sync";
 
@@ -189,6 +203,52 @@ export async function openProjectBillingPortal(
     const origin = process.env.NEXT_PUBLIC_APP_URL;
     if (!origin)
       throw new SettingsError("Le portail de facturation n’est pas configuré.");
+    if (project.billingProvider === "polar") {
+      if (project.stripeSubscriptionId) {
+        const current = await getPolarSubscription(project.stripeSubscriptionId);
+        if (current.customer_id !== project.stripeCustomerId)
+          throw new SettingsError("L’abonnement n’a pas pu être vérifié.");
+        const billingUrl = `${origin}/projects/${project.id}/billing`;
+        if (intent === "renew" && current.cancel_at_period_end) {
+          await resumePolarSubscription(current.id);
+          return { success: true as const, url: billingUrl };
+        }
+        if (intent === "renew" && isEndedPolarSubscription(current)) {
+          const plan = resolvePlanId(project.plan);
+          const productId = polarProductId(plan);
+          if (
+            !productId ||
+            !current.customer?.email ||
+            !matchesPolarProduct(await getPolarProduct(productId), plan)
+          )
+            throw new SettingsError("Ce forfait est temporairement indisponible.");
+          // Un abonnement impayé ne doit pas pouvoir repartir à côté du nouveau.
+          await revokePolarSubscription(current.id);
+          const url = await createPolarCheckout({
+            productId,
+            projectId: project.id,
+            plan,
+            email: current.customer.email,
+            successUrl: `${billingUrl}?success=true`,
+            returnUrl: billingUrl,
+            trial: false,
+          });
+          return { success: true as const, url };
+        }
+        if (
+          intent === "upgrade" &&
+          !["active", "trialing"].includes(current.status)
+        )
+          throw new SettingsError(
+            "Régularisez ou renouvelez l’abonnement avant de changer d’offre.",
+          );
+      }
+      const url = await createPolarPortalUrl(
+        project.stripeCustomerId,
+        `${origin}/projects/${project.id}/billing`,
+      );
+      return { success: true as const, url };
+    }
     const subscription = project.stripeSubscriptionId
       ? await stripe.subscriptions.retrieve(
           project.stripeSubscriptionId,
@@ -269,6 +329,34 @@ export async function openProjectBillingPortal(
       return_url: `${origin}/projects/${project.id}/billing`,
     });
     return { success: true as const, url: portal.url };
+  } catch (error) {
+    return { success: false as const, error: publicError(error) };
+  }
+}
+
+/** Facture PDF d'une commande Polar, limitée à l'abonnement du projet. */
+export async function openProjectInvoice(projectId: string, orderId: string) {
+  try {
+    Id.parse(projectId);
+    z.string().uuid().parse(orderId);
+    const userId = await actor();
+    const { project } = await prisma.$transaction((tx) =>
+      requireProjectPermission(tx, projectId, userId, "billing.view"),
+    );
+    if (project.billingProvider !== "polar" || !project.stripeSubscriptionId)
+      throw new SettingsError("Cette facture n’est pas disponible.");
+    const order = await getPolarOrder(orderId);
+    if (order.subscription_id !== project.stripeSubscriptionId)
+      throw new SettingsError("Cette facture n’est pas disponible.");
+    const url = await polarInvoiceUrl(order.id);
+    if (!url)
+      return {
+        success: false as const,
+        error: "Votre facture est en préparation. Réessayez dans quelques instants.",
+      };
+    if (new URL(url).protocol !== "https:")
+      throw new SettingsError("Cette facture n’est pas disponible.");
+    return { success: true as const, url };
   } catch (error) {
     return { success: false as const, error: publicError(error) };
   }

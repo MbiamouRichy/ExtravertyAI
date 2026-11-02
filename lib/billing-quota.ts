@@ -1,7 +1,8 @@
 import type Stripe from "stripe";
 import type { Prisma, PrismaClient } from "../src/generated/prisma/client";
+import type { BillingProvider } from "./billing-provider";
 
-export function subscriptionStatus(status: Stripe.Subscription.Status) {
+export function subscriptionStatus(status: string) {
   if (status === "trialing") return "trialing" as const;
   if (status === "active") return "active" as const;
   if (["past_due", "unpaid", "paused"].includes(status))
@@ -41,9 +42,9 @@ async function extendPaidPeriodDuringRenewal(
   tx: Prisma.TransactionClient,
   projectId: string,
   subscriptionId: string,
-  item: Stripe.SubscriptionItem,
+  cycle: { start: number; end: number },
 ) {
-  const cycleStart = item.current_period_start * 1000;
+  const cycleStart = cycle.start * 1000;
   const previous = await tx.quotaPeriod.findFirst({
     where: { projectId, isCurrent: true },
   });
@@ -58,7 +59,7 @@ async function extendPaidPeriodDuringRenewal(
   )
     return;
   const graceEnd = new Date(
-    Math.min(cycleStart + RENEWAL_GRACE_MS, item.current_period_end * 1000),
+    Math.min(cycleStart + RENEWAL_GRACE_MS, cycle.end * 1000),
   );
   if (previous.endsAt >= graceEnd) return;
   await tx.quotaPeriod.update({
@@ -67,8 +68,25 @@ async function extendPaidPeriodDuringRenewal(
   });
 }
 
+/** État d'un abonnement, commun à tous les fournisseurs. Dates en secondes Unix. */
+export type SubscriptionState = {
+  provider: BillingProvider;
+  id: string;
+  customerId: string;
+  /** Statut brut du fournisseur, conservé pour l'affichage et les e-mails. */
+  providerStatus: string;
+  status: ReturnType<typeof subscriptionStatus>;
+  plan: ReturnType<typeof planForPrice>;
+  priceId: string;
+  metadataProjectId?: string;
+  startsAt: number;
+  endsAt: number;
+  cycle: { start: number; end: number };
+  paidCycle: boolean;
+  renewalPending: boolean;
+};
+
 // The caller retrieves the current subscription with latest_invoice expanded.
-// Stable period keys preserve consumption on duplicate/reordered Stripe events.
 export async function syncSubscription(
   prisma: PrismaClient,
   sub: Stripe.Subscription,
@@ -76,12 +94,6 @@ export async function syncSubscription(
   fallbackProjectId?: string,
   expectedRevision?: number,
 ) {
-  const project = await prisma.project.findUnique({
-    where: { stripeSubscriptionId: sub.id },
-    select: { id: true },
-  });
-  const projectId = project?.id || sub.metadata.projectId || fallbackProjectId;
-  if (!projectId) return;
   const item = sub.items.data[0];
   if (!item || sub.items.data.length !== 1)
     throw new Error("UNSUPPORTED_SUBSCRIPTION_ITEMS");
@@ -92,12 +104,6 @@ export async function syncSubscription(
       ? sub.latest_invoice
       : null;
   const trial = status === "trialing";
-  const startsAt = new Date(
-    (trial ? sub.trial_start || 0 : item.current_period_start) * 1000,
-  );
-  const endsAt = new Date(
-    (trial ? sub.trial_end || 0 : item.current_period_end) * 1000,
-  );
   const invoiceCoversCycle =
     !!invoice &&
     invoice.lines.data.some(
@@ -116,6 +122,48 @@ export async function syncSubscription(
     !paidCycle &&
     invoiceCoversCycle &&
     (invoice?.status === "draft" || invoice?.status === "open");
+  await applySubscriptionState(
+    prisma,
+    {
+      provider: "stripe",
+      id: sub.id,
+      customerId:
+        typeof sub.customer === "string" ? sub.customer : sub.customer.id,
+      providerStatus: sub.status,
+      status,
+      plan,
+      priceId: item.price.id,
+      metadataProjectId: sub.metadata.projectId,
+      startsAt: trial ? sub.trial_start || 0 : item.current_period_start,
+      endsAt: trial ? sub.trial_end || 0 : item.current_period_end,
+      cycle: { start: item.current_period_start, end: item.current_period_end },
+      paidCycle,
+      renewalPending,
+    },
+    eventCreated,
+    fallbackProjectId,
+    expectedRevision,
+  );
+}
+
+// Stable period keys preserve consumption on duplicate/reordered provider events.
+export async function applySubscriptionState(
+  prisma: PrismaClient,
+  sub: SubscriptionState,
+  eventCreated: number,
+  fallbackProjectId?: string,
+  expectedRevision?: number,
+) {
+  const { status, plan, paidCycle, renewalPending } = sub;
+  const project = await prisma.project.findUnique({
+    where: { stripeSubscriptionId: sub.id },
+    select: { id: true },
+  });
+  const projectId = project?.id || sub.metadataProjectId || fallbackProjectId;
+  if (!projectId) return;
+  const trial = status === "trialing";
+  const startsAt = new Date(sub.startsAt * 1000);
+  const endsAt = new Date(sub.endsAt * 1000);
   const mayOpen = trial || paidCycle;
   if (mayOpen && (!startsAt.getTime() || endsAt <= startsAt))
     throw new Error("INVALID_BILLING_PERIOD");
@@ -130,7 +178,18 @@ export async function syncSubscription(
       current.billingRevision !== expectedRevision
     )
       return;
-    if (current.stripeSubscriptionId && current.stripeSubscriptionId !== sub.id)
+    // Un nouvel abonnement Polar ne remplace qu'un abonnement déjà terminé.
+    const replacesEnded =
+      sub.provider === "polar" &&
+      status !== "inactive" &&
+      ["canceled", "unpaid", "incomplete_expired"].includes(
+        current.stripeStatus ?? "",
+      );
+    if (
+      current.stripeSubscriptionId &&
+      current.stripeSubscriptionId !== sub.id &&
+      !replacesEnded
+    )
       return;
     if (eventCreated < current.billingEventCreated) return;
     await tx.project.update({
@@ -139,25 +198,26 @@ export async function syncSubscription(
         status: current.automationPaused ? "paused" : status,
         statusBeforePause: current.automationPaused ? status : null,
         plan,
+        billingProvider: sub.provider,
         stripeSubscriptionId: sub.id,
-        stripeCustomerId:
-          typeof sub.customer === "string" ? sub.customer : sub.customer.id,
-        stripePriceId: item.price.id,
-        stripeCurrentPeriodEnd: endsAt,
+        stripeCustomerId: sub.customerId,
+        stripePriceId: sub.priceId,
+        // Polar peut ne plus donner de fin de période sur un abonnement terminé.
+        ...(sub.endsAt ? { stripeCurrentPeriodEnd: endsAt } : {}),
         expiredAt: trial ? endsAt : null,
         billingEventCreated: eventCreated,
         billingRevision: { increment: 1 },
-        stripeStatus: sub.status,
+        stripeStatus: sub.providerStatus,
       },
     });
     if (renewalPending) {
-      await extendPaidPeriodDuringRenewal(tx, projectId, sub.id, item);
+      await extendPaidPeriodDuringRenewal(tx, projectId, sub.id, sub.cycle);
       return;
     }
     if (!mayOpen || limit === undefined) return;
     const key = trial
       ? `trial:${sub.id}`
-      : `cycle:${sub.id}:${item.current_period_start}`;
+      : `cycle:${sub.id}:${sub.cycle.start}`;
     const period = await tx.quotaPeriod.findUnique({
       where: { projectId_key: { projectId, key } },
     });

@@ -66,7 +66,7 @@ export default function PaymentCanceledDialog() {
             </AlertDialogTitle>
 
             <AlertDialogDescription className="text-sm leading-6">
-              Vous êtes revenu depuis Stripe sans terminer ce parcours.
+              Vous êtes revenu sans terminer ce parcours.
               Consultez vos projets pour vérifier leur état avant d’effectuer
               une nouvelle tentative.
             </AlertDialogDescription>

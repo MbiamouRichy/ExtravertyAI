@@ -88,6 +88,8 @@ function loadResume(role: string | null, project: Partial<Project> = {}) {
     "@/lib/project-permissions": permissions,
     "@/lib/pricing": pricing,
     "@/lib/billing-display": billingDisplay,
+    "@/lib/billing-provider": { checkoutProvider: () => "stripe" },
+    "@/lib/polar": {},
     "./evolutionAPI": {},
   };
   const exports: Record<string, (input: unknown) => Promise<{ success: boolean; url?: string; error?: string }>> = {};

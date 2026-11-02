@@ -1,5 +1,6 @@
-import crypto from "node:crypto";
 import type { PlanId } from "./pricing";
+
+export { verifyWebhookSignature } from "./standard-webhook";
 
 export type SandboxProvider = "polar" | "dodo";
 
@@ -11,8 +12,6 @@ export const SANDBOX_TRIAL_DAYS = 10;
 const POLAR_CHECKOUTS_URL = "https://sandbox-api.polar.sh/v1/checkouts/";
 const DODO_CHECKOUTS_URL = "https://test.dodopayments.com/checkouts";
 const DODO_SUBSCRIPTIONS_URL = "https://test.dodopayments.com/subscriptions";
-
-const WEBHOOK_TOLERANCE_SECONDS = 5 * 60;
 
 export function isSandboxProvider(value: unknown): value is SandboxProvider {
   return value === "polar" || value === "dodo";
@@ -111,37 +110,6 @@ export function checkoutUrlFrom(provider: SandboxProvider, response: unknown) {
   if (typeof url !== "string" || !url.startsWith("https://"))
     throw new Error("Réponse de paiement sans URL exploitable.");
   return url;
-}
-
-/** Vérifie une signature Standard Webhooks, utilisée par Polar et Dodo. */
-export function verifyWebhookSignature(input: {
-  secret: string;
-  body: string;
-  id: string | undefined;
-  timestamp: string | undefined;
-  signature: string | undefined;
-  nowMs?: number;
-}) {
-  const { secret, body, id, timestamp, signature } = input;
-  if (!id || !timestamp || !signature) return false;
-  const sentAt = Number(timestamp);
-  const now = (input.nowMs ?? Date.now()) / 1000;
-  if (!Number.isFinite(sentAt)) return false;
-  if (Math.abs(now - sentAt) > WEBHOOK_TOLERANCE_SECONDS) return false;
-  const key = Buffer.from(secret.replace(/^whsec_/, ""), "base64");
-  const expected = crypto
-    .createHmac("sha256", key)
-    .update(`${id}.${timestamp}.${body}`)
-    .digest();
-  return signature.split(" ").some((entry) => {
-    const [version, value] = entry.split(",");
-    if (version !== "v1" || !value) return false;
-    const received = Buffer.from(value, "base64");
-    return (
-      received.length === expected.length &&
-      crypto.timingSafeEqual(received, expected)
-    );
-  });
 }
 
 export type SandboxEventSummary = {

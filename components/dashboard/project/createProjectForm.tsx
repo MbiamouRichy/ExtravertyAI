@@ -125,11 +125,15 @@ export default function CreateProjectForm({
         return;
       }
 
-      // Only ever leave the app for Stripe Checkout.
+      // Only ever leave the app for the payment provider's hosted checkout.
       const checkoutUrl = new URL(result.url);
       if (
         checkoutUrl.protocol !== "https:" ||
-        checkoutUrl.hostname !== "checkout.stripe.com" ||
+        !(
+          checkoutUrl.hostname === "checkout.stripe.com" ||
+          checkoutUrl.hostname === "polar.sh" ||
+          checkoutUrl.hostname.endsWith(".polar.sh")
+        ) ||
         checkoutUrl.port ||
         checkoutUrl.username ||
         checkoutUrl.password

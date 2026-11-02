@@ -16,6 +16,12 @@ import {
 } from "lucide-react";
 import { getSession } from "@/lib/auth-server";
 import prisma from "@/lib/prisma";
+import {
+  getPolarSubscription,
+  listPolarOrders,
+  type PolarOrder,
+  type PolarSubscription,
+} from "@/lib/polar";
 import { stripe } from "@/lib/stripe";
 import { LocalBillingDate } from "@/components/dashboard/project/local-billing-date";
 import {
@@ -24,6 +30,7 @@ import {
   stripeDocumentUrl,
 } from "@/lib/billing-display";
 import { BillingActions } from "@/components/dashboard/project/billing-actions";
+import { BillingInvoiceButton } from "@/components/dashboard/project/billing-invoice-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
@@ -56,6 +63,7 @@ export default async function BillingPage({
           name: true,
           plan: true,
           status: true,
+          billingProvider: true,
           stripeCustomerId: true,
           stripeSubscriptionId: true,
           stripeCurrentPeriodEnd: true,
@@ -75,13 +83,37 @@ export default async function BillingPage({
     /^in_[A-Za-z0-9]{1,180}$/.test(query.after)
       ? query.after
       : undefined;
+  const ordersPage =
+    typeof query.page === "string" && /^[1-9]\d{0,3}$/.test(query.page)
+      ? Number(query.page)
+      : 1;
   let subscription: Stripe.Subscription | null = null;
   let customer: Stripe.Customer | null = null;
   let invoices: Stripe.Invoice[] = [];
+  let polarSubscription: PolarSubscription | null = null;
+  let orders: PolarOrder[] = [];
   let hasMore = false;
   let unavailable = false;
   const configured = !!p.stripeCustomerId && !!p.stripeSubscriptionId;
-  if (configured) {
+  if (configured && p.billingProvider === "polar") {
+    try {
+      const [sub, history] = await Promise.all([
+        getPolarSubscription(p.stripeSubscriptionId!),
+        listPolarOrders(p.stripeSubscriptionId!, ordersPage),
+      ]);
+      if (
+        sub.customer_id !== p.stripeCustomerId ||
+        history.orders.some((order) => order.subscription_id !== sub.id)
+      )
+        throw new Error("BILLING_SCOPE_INVALID");
+      polarSubscription = sub;
+      // L'essai crée une commande à 0 : ce n'est pas un paiement à afficher.
+      orders = history.orders.filter((order) => order.total_amount > 0);
+      hasMore = ordersPage < history.maxPage;
+    } catch {
+      unavailable = true;
+    }
+  } else if (configured) {
     try {
       const options = { timeout: 10000, maxNetworkRetries: 0 };
       const [sub, account, history] = await Promise.all([
@@ -132,16 +164,24 @@ export default async function BillingPage({
     typeof paymentMethod === "object" && paymentMethod?.type === "card"
       ? paymentMethod.card
       : null;
+  const polarEnd =
+    polarSubscription?.status === "trialing"
+      ? polarSubscription.trial_end
+      : polarSubscription?.current_period_end;
   const end =
     subscription?.status === "trialing"
       ? subscription.trial_end
       : item?.current_period_end;
-  const endsAt = end || p.stripeCurrentPeriodEnd;
+  const endsAt =
+    (polarEnd ? new Date(polarEnd) : end) || p.stripeCurrentPeriodEnd;
   const cancelling =
-    subscription?.cancel_at_period_end || !!subscription?.cancel_at;
-  const status = subscription?.status || p.status;
+    polarSubscription?.cancel_at_period_end ||
+    subscription?.cancel_at_period_end ||
+    !!subscription?.cancel_at;
+  const status = polarSubscription?.status || subscription?.status || p.status;
   const nextCursor = invoices.at(-1)?.id;
-  const renewal = !subscription
+  const synced = !!subscription || !!polarSubscription;
+  const renewal = !synced
     ? "À vérifier"
     : ["canceled", "incomplete_expired"].includes(status)
       ? "Abonnement terminé"
@@ -150,15 +190,28 @@ export default async function BillingPage({
         : ["active", "trialing"].includes(status)
           ? "Renouvellement automatique"
           : "À régulariser";
-  const price =
-    item?.price.unit_amount != null && subscription?.items.data.length === 1
+  const price = polarSubscription
+    ? formatStripeAmount(polarSubscription.amount, polarSubscription.currency)
+    : item?.price.unit_amount != null && subscription?.items.data.length === 1
       ? formatStripeAmount(item.price.unit_amount * (item.quantity ?? 1), item.price.currency)
       : null;
-  const interval = item?.price.recurring
-    ? `${item.price.recurring.interval_count > 1 ? `${item.price.recurring.interval_count} ` : ""}${
-        { day: "jour(s)", week: "semaine(s)", month: "mois", year: "an(s)" }[item.price.recurring.interval]
-      }`
-    : null;
+  const intervalLabels: Record<string, string> = {
+    day: "jour(s)",
+    week: "semaine(s)",
+    month: "mois",
+    year: "an(s)",
+  };
+  const interval = polarSubscription
+    ? intervalLabels[polarSubscription.recurring_interval]
+    : item?.price.recurring
+      ? `${item.price.recurring.interval_count > 1 ? `${item.price.recurring.interval_count} ` : ""}${
+          intervalLabels[item.price.recurring.interval]
+        }`
+      : null;
+  const billingName = polarSubscription?.customer?.name || customer?.name;
+  const billingEmail = polarSubscription?.customer?.email || customer?.email;
+  const billingAddress =
+    polarSubscription?.customer?.billing_address || customer?.address;
   const usedRatio = quota ? Math.min(1, quota.used / Math.max(1, quota.limit)) : 0;
 
   return (
@@ -184,7 +237,7 @@ export default async function BillingPage({
       {unavailable && (
         <div role="alert" className="flex gap-3 rounded-xl border border-dashed p-4 text-sm">
           <CircleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
-          La connexion à Stripe est temporairement indisponible. Les informations
+          Le service de paiement est temporairement indisponible. Les informations
           locales restent visibles ; montants et factures reviendront après
           actualisation.
         </div>
@@ -244,8 +297,8 @@ export default async function BillingPage({
             </div>
           </dl>
           <p className="mt-5 text-xs opacity-60">
-            {subscription
-              ? "Actualisé depuis Stripe. Taxes, remises et proratas figurent sur vos factures."
+            {synced
+              ? "Actualisé depuis notre prestataire de paiement. Taxes, remises et proratas figurent sur vos factures."
               : "Dernier état enregistré pour ce projet."}
           </p>
         </div>
@@ -323,7 +376,7 @@ export default async function BillingPage({
             </div>
           ) : (
             <p className="mt-4 text-sm text-muted-foreground">
-              Les moyens de paiement sont gérés depuis le portail Stripe.
+              Les moyens de paiement sont gérés depuis le portail de facturation.
             </p>
           )}
         </section>
@@ -332,18 +385,18 @@ export default async function BillingPage({
             <ShieldCheck aria-hidden="true" className="size-4" />
             Coordonnées de facturation
           </h2>
-          <p className="mt-4 break-words text-sm font-medium">{customer?.name || p.name}</p>
+          <p className="mt-4 break-words text-sm font-medium">{billingName || p.name}</p>
           <p className="mt-1 break-all text-sm text-muted-foreground">
-            {customer?.email || "À renseigner dans le portail de facturation"}
+            {billingEmail || "À renseigner dans le portail de facturation"}
           </p>
-          {customer?.address && (
+          {billingAddress && (
             <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
               {[
-                customer.address.line1,
-                customer.address.line2,
-                customer.address.postal_code,
-                customer.address.city,
-                customer.address.country,
+                billingAddress.line1,
+                billingAddress.line2,
+                billingAddress.postal_code,
+                billingAddress.city,
+                billingAddress.country,
               ]
                 .filter(Boolean)
                 .join(", ")}
@@ -359,9 +412,9 @@ export default async function BillingPage({
         </p>
       ) : (
         <p className="text-xs leading-relaxed text-muted-foreground">
-          Le renouvellement ouvre le paiement dû ou sa gestion sur Stripe. Un
-          abonnement actif se renouvelle automatiquement ; les changements
-          d’offre sont confirmés sur Stripe avant application.
+          Le renouvellement ouvre le paiement dû ou sa gestion dans le portail
+          de facturation. Un abonnement actif se renouvelle automatiquement ; les
+          changements d’offre y sont confirmés avant application.
         </p>
       )}
 
@@ -372,7 +425,71 @@ export default async function BillingPage({
           </h2>
           <p className="mt-0.5 text-xs text-muted-foreground">De la plus récente à la plus ancienne.</p>
         </div>
-        {invoices.length ? (
+        {orders.length ? (
+          <div
+            role="region"
+            aria-label="Historique des paiements"
+            tabIndex={0}
+            className="overflow-x-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <table className="w-full min-w-[36rem] text-left text-sm">
+              <thead className="bg-muted/40 text-xs text-muted-foreground">
+                <tr>
+                  {["Facture", "Date", "Montant", "Statut", ""].map((label, index) => (
+                    <th key={index} scope="col" className="px-5 py-2.5 font-normal">
+                      {label || <span className="sr-only">Documents</span>}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {orders.map((order) => (
+                  <tr key={order.id} className="transition-colors hover:bg-muted/30">
+                    <td className="whitespace-nowrap px-5 py-3.5 font-mono text-xs font-medium">
+                      {order.invoice_number || "En préparation"}
+                    </td>
+                    <td className="whitespace-nowrap px-5 py-3.5 text-muted-foreground">
+                      <LocalBillingDate value={new Date(order.created_at)} dateOnly />
+                    </td>
+                    <td className="whitespace-nowrap px-5 py-3.5 tabular-nums">
+                      {formatStripeAmount(order.total_amount, order.currency)}
+                    </td>
+                    <td className="px-5 py-3.5">
+                      <Badge variant={order.status === "paid" ? "secondary" : "outline"}>
+                        {billingStatusLabel(order.status)}
+                      </Badge>
+                    </td>
+                    <td className="px-5 py-2.5">
+                      <div className="flex justify-end">
+                        <BillingInvoiceButton
+                          projectId={projectId}
+                          orderId={order.id}
+                          label={`Télécharger la facture ${order.invoice_number || ""} en PDF`}
+                        />
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {(ordersPage > 1 || hasMore) && (
+              <div className="flex flex-wrap justify-end gap-2 border-t p-4 sm:px-5">
+                {ordersPage > 1 && (
+                  <Button variant="outline" size="sm" asChild>
+                    <Link href={`/projects/${projectId}/billing`}>Les plus récentes</Link>
+                  </Button>
+                )}
+                {hasMore && (
+                  <Button variant="outline" size="sm" asChild>
+                    <Link href={`/projects/${projectId}/billing?page=${ordersPage + 1}`}>
+                      Factures précédentes
+                    </Link>
+                  </Button>
+                )}
+              </div>
+            )}
+          </div>
+        ) : invoices.length ? (
           <>
             <div
               role="region"

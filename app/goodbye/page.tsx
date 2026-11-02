@@ -36,7 +36,7 @@ const completed = [
     icon: CreditCard,
     title: "Abonnements arrêtés",
     description:
-      "Les abonnements liés à ces projets ont été annulés et vos données de facturation effacées chez Stripe. Aucun nouveau prélèvement ne sera effectué.",
+      "Les abonnements liés à ces projets ont été annulés et vos données de facturation effacées chez notre prestataire de paiement. Aucun nouveau prélèvement ne sera effectué.",
   },
   {
     icon: MessageCircleOff,

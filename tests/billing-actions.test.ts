@@ -56,6 +56,9 @@ function setup(
         };
       },
     },
+    "@/lib/polar": {},
+    "@/lib/checkout-price": {},
+    "@/lib/pricing": {},
     "@/lib/stripe": {
       stripe: {
         prices: {
