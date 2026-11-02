@@ -175,7 +175,15 @@ export function FeatureMatrix() {
               <th
                 scope="colgroup"
                 colSpan={PRICING_PLANS.length + 1}
-                className="pb-3 pt-10 text-left font-mono text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground"
+                className="hidden pb-3 pt-10 text-left font-mono text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground sm:table-cell"
+              >
+                {group.title}
+              </th>
+              {/* Sur téléphone, un titre sur 4 colonnes laisserait deux colonnes vides à droite. */}
+              <th
+                scope="colgroup"
+                colSpan={2}
+                className="pb-3 pt-10 text-left font-mono text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground sm:hidden"
               >
                 {group.title}
               </th>
