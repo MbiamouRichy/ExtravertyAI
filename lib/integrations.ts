@@ -399,7 +399,16 @@ export async function runDelivery(
     if (!error) {
       await tx.integrationDelivery.update({
         where: { id: job.id },
-        data: { state: "DELIVERED", lastStatus: status, lastError: null, deliveredAt: new Date(), leaseToken: null, leaseUntil: null },
+        data: {
+          state: "DELIVERED",
+          lastStatus: status,
+          lastError: null,
+          deliveredAt: new Date(),
+          leaseToken: null,
+          leaseUntil: null,
+          // Le texte d’un client n’a plus à rester dans la file une fois livré.
+          ...(job.event === "message.received" ? { payload: {} } : {}),
+        },
       });
       await tx.integrationEndpoint.update({
         where: { id: endpoint.id },

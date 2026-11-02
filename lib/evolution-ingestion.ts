@@ -8,7 +8,11 @@ import { broadcastKeyword } from "./broadcast-shared";
 import { applyBroadcastKeyword } from "./broadcasts";
 import { isAcknowledgment } from "./conversation-end";
 import { openCsatSurvey, parseCsatScore } from "./csat";
-import { emitIntegrationEvent, integrationContact } from "./integration-events";
+import {
+  emitIntegrationEvent,
+  integrationContact,
+  integrationMessage,
+} from "./integration-events";
 
 export const IncomingSchema = z.object({
   key: z.object({
@@ -108,6 +112,19 @@ export async function reconcileReceipt(
   return true;
 }
 
+function emitMessageReceived(
+  tx: Prisma.TransactionClient,
+  projectId: string,
+  contactId: string,
+  message: { id: string; type: string; createdAt: Date },
+  text: string,
+) {
+  return emitIntegrationEvent(tx, projectId, "message.received", async () => ({
+    contact: await integrationContact(tx, contactId),
+    message: integrationMessage(message, text),
+  }));
+}
+
 export async function ingestMessage(
   tx: Prisma.TransactionClient,
   projectId: string,
@@ -160,13 +177,12 @@ export async function ingestMessage(
   // A short rating answering an open survey is recorded: it neither reopens
   // the resolved conversation nor triggers an AI reply.
   const score = type === "TEXT" ? parseCsatScore(text) : null;
-  const known = score
-    ? await tx.contact.findUnique({
-        where: { projectId_remoteJid: { projectId, remoteJid } },
-        select: { id: true },
-      })
-    : null;
-  const survey = known ? await openCsatSurvey(tx, known.id) : null;
+  // Le verrou du projet sérialise l’ingestion : un contact n’est créé qu’une fois.
+  const known = await tx.contact.findUnique({
+    where: { projectId_remoteJid: { projectId, remoteJid } },
+    select: { id: true },
+  });
+  const survey = known && score ? await openCsatSurvey(tx, known.id) : null;
   if (known && survey && score) {
     await tx.contact.update({
       where: { id: known.id },
@@ -192,6 +208,7 @@ export async function ingestMessage(
       where: { id: survey.id },
       data: { score, respondedAt: new Date(), responseMessageId: answer.id },
     });
+    await emitMessageReceived(tx, projectId, known.id, answer, text);
     await emitIntegrationEvent(tx, projectId, "csat.received", {
       contact: await integrationContact(tx, known.id),
       score,
@@ -254,6 +271,12 @@ export async function ingestMessage(
         : {}),
     },
   });
+  if (!known) {
+    await emitIntegrationEvent(tx, projectId, "contact.created", async () => ({
+      contact: await integrationContact(tx, contact.id),
+    }));
+  }
+  await emitMessageReceived(tx, projectId, contact.id, message, text);
   // STOP / START answer broadcasts: recorded in the conversation, never
   // answered by the AI (START only when it changes something).
   const keyword = type === "TEXT" ? broadcastKeyword(text) : null;
