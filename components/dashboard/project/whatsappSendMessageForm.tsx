@@ -728,12 +728,12 @@ function sendPresence(
 
 const MAIN_FILTERS = [
   ["all", "Toutes"],
+  ["unread", "Non lues"],
   ["mine", "À moi"],
   ["resolved", "Résolues"],
 ] as const;
 
 const MORE_FILTERS = [
-  ["unread", "Non lues"],
   ["ai", "Assistant IA"],
   ["manual", "Équipe"],
   ["unassigned", "Non assignées"],
@@ -1622,7 +1622,7 @@ export default function WhatsappWorkspace({
             <div
               role="group"
               aria-label="Filtrer les conversations"
-              className="flex min-w-0 items-center gap-1"
+              className="flex min-w-0 flex-wrap items-center gap-1"
             >
               {MAIN_FILTERS.map(([value, label]) => (
                 <Button

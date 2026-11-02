@@ -21,8 +21,8 @@ export default function ChatLoading() {
               <Skeleton className="size-4 rounded-full" />
               <Skeleton className="h-3 w-36" />
             </div>
-            <div className="flex items-center gap-1">
-              {["w-14", "w-14", "w-16"].map((width, index) => (
+            <div className="flex flex-wrap items-center gap-1">
+              {["w-14", "w-18", "w-14", "w-16"].map((width, index) => (
                 <Skeleton
                   key={index}
                   className={`h-6 rounded-full ${width}`}
