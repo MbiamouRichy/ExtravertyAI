@@ -1622,31 +1622,33 @@ export default function WhatsappWorkspace({
             <div
               role="group"
               aria-label="Filtrer les conversations"
-              className="flex min-w-0 flex-wrap items-center gap-1"
+              className="flex min-w-0 items-start gap-1"
             >
-              {MAIN_FILTERS.map(([value, label]) => (
-                <Button
-                  key={value}
-                  type="button"
-                  size="xs"
-                  variant={filter === value ? "secondary" : "ghost"}
-                  aria-pressed={filter === value}
-                  onClick={() => setFilter(value)}
-                  className={cn(
-                    "rounded-full px-2.5",
-                    filter === value
-                      ? "text-foreground"
-                      : "text-muted-foreground",
-                  )}
-                >
-                  {label}
-                  {contactsQuery.filterCounts && (
-                    <span className="font-normal text-muted-foreground tabular-nums">
-                      {contactsQuery.filterCounts[value]}
-                    </span>
-                  )}
-                </Button>
-              ))}
+              <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1">
+                {MAIN_FILTERS.map(([value, label]) => (
+                  <Button
+                    key={value}
+                    type="button"
+                    size="xs"
+                    variant={filter === value ? "secondary" : "ghost"}
+                    aria-pressed={filter === value}
+                    onClick={() => setFilter(value)}
+                    className={cn(
+                      "rounded-full px-1.5",
+                      filter === value
+                        ? "text-foreground"
+                        : "text-muted-foreground",
+                    )}
+                  >
+                    {label}
+                    {contactsQuery.filterCounts && (
+                      <span className="font-normal text-muted-foreground tabular-nums">
+                        {contactsQuery.filterCounts[value]}
+                      </span>
+                    )}
+                  </Button>
+                ))}
+              </div>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
@@ -1658,7 +1660,7 @@ export default function WhatsappWorkspace({
                         ? `Autres filtres : ${moreFilterLabel}`
                         : "Autres filtres"
                     }
-                    className="ml-auto min-w-0 shrink rounded-full"
+                    className="max-w-28 min-w-0 shrink rounded-full"
                   >
                     <ListFilter aria-hidden="true" />
                     {moreFilterLabel && (

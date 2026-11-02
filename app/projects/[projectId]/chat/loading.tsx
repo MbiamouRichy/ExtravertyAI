@@ -21,14 +21,16 @@ export default function ChatLoading() {
               <Skeleton className="size-4 rounded-full" />
               <Skeleton className="h-3 w-36" />
             </div>
-            <div className="flex flex-wrap items-center gap-1">
-              {["w-14", "w-18", "w-14", "w-16"].map((width, index) => (
-                <Skeleton
-                  key={index}
-                  className={`h-6 rounded-full ${width}`}
-                />
-              ))}
-              <Skeleton className="ml-auto size-6 rounded-full" />
+            <div className="flex items-start gap-1">
+              <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1">
+                {["w-14", "w-18", "w-14", "w-16"].map((width, index) => (
+                  <Skeleton
+                    key={index}
+                    className={`h-6 rounded-full ${width}`}
+                  />
+                ))}
+              </div>
+              <Skeleton className="size-6 rounded-full" />
             </div>
           </div>
           <div className="min-h-0 flex-1 overflow-hidden p-1.5">
