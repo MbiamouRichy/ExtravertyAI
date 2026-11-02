@@ -170,11 +170,11 @@ export default function AnalyticsLoading() {
         {/* Livraison & contacts */}
         <section className="space-y-3">
           <SectionTitle width="w-40" />
-          <div className="grid min-w-0 gap-4 @5xl:grid-cols-3">
+          <div className="grid min-w-0 gap-4">
             <ChartCard>
               <Rows />
             </ChartCard>
-            <ChartCard className="@5xl:col-span-2">
+            <ChartCard>
               <Skeleton className="mb-3 h-9 w-full rounded-md sm:max-w-xs" />
               <div className="divide-y rounded-xl border">
                 {Array.from({ length: 5 }, (_, row) => (

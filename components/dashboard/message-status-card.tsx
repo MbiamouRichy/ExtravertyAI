@@ -41,10 +41,10 @@ export function MessageStatusCard({
           description="Les statuts apparaîtront dès qu’un message sera envoyé par l’IA ou un agent."
         />
       ) : (
-        <div className="space-y-5">
+        <div className="@container space-y-4">
           <div
             aria-hidden="true"
-            className="flex h-3 gap-0.5 overflow-hidden rounded-full bg-muted"
+            className="flex h-2 gap-0.5 overflow-hidden rounded-full bg-muted"
           >
             {statuses
               .filter((item) => item.count > 0)
@@ -59,14 +59,14 @@ export function MessageStatusCard({
               ))}
           </div>
 
-          <ul className="divide-y divide-border/60">
+          <ul className="divide-y divide-border/60 @2xl:grid @2xl:auto-cols-fr @2xl:grid-flow-col @2xl:gap-4 @2xl:divide-y-0">
             {statuses.map(({ status, count }) => {
               const meta = MESSAGE_STATUS_META[status];
 
               return (
                 <li
                   key={status}
-                  className="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0"
+                  className="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0 @2xl:flex-col @2xl:items-start @2xl:gap-1 @2xl:py-0"
                 >
                   <span className="flex items-center gap-2.5 text-sm">
                     <span

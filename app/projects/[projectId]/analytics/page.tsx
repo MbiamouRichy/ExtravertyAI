@@ -268,20 +268,18 @@ export default async function AnalyticsPage({
         )}
 
         <AnalyticsSection id="analytics-quality-title" title="Livraison & contacts">
-          <div className="grid min-w-0 gap-4 @5xl:grid-cols-3">
+          {/* Pleine largeur : le tableau triable des contacts a besoin de place. */}
+          <div className="grid min-w-0 gap-4">
             <MessageStatusCard
               statuses={overview.statuses}
               total={statusesTotal}
               rangeLabel={overview.rangeLabel}
             />
-
-            <div className="min-w-0 @5xl:col-span-2">
-              <TopContactsCard
-                projectId={projectId}
-                contacts={overview.topContacts}
-                rangeLabel={overview.rangeLabel}
-              />
-            </div>
+            <TopContactsCard
+              projectId={projectId}
+              contacts={overview.topContacts}
+              rangeLabel={overview.rangeLabel}
+            />
           </div>
         </AnalyticsSection>
       </div>
