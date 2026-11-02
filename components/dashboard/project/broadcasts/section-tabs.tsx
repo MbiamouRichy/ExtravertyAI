@@ -32,7 +32,7 @@ export function SectionTabs({
 
   return (
     <Tabs value={current} onValueChange={select}>
-      <div className="-mx-4 overflow-x-auto overflow-y-hidden px-4 sm:mx-0 sm:px-0">
+      <div className="-mx-4 overflow-x-auto overflow-y-hidden px-4 [scrollbar-width:none] sm:mx-0 sm:px-0">
         <TabsList aria-label={label}>
           {tabs.map((tab) => (
             <TabsTrigger key={tab.id} value={tab.id}>

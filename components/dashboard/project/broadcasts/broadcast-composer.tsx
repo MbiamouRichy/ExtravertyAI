@@ -384,7 +384,7 @@ export function BroadcastComposer({
                 id={`${id}-image`}
                 type="file"
                 accept={IMAGE_TYPES.join(",")}
-                className="sr-only"
+                className="sr-only max-w-px"
                 onChange={(event) => {
                   const file = event.target.files?.[0];
                   event.target.value = "";

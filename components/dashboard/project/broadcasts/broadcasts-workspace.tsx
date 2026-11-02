@@ -109,7 +109,7 @@ export function BroadcastProgress({ broadcast }: { broadcast: BroadcastView }) {
 export function BroadcastKpis({ broadcast, size = "sm" }: { broadcast: BroadcastView; size?: "sm" | "lg" }) {
   const stats = broadcast.stats;
   const base = stats?.queued || 0;
-  const rate = (value: number) => (base ? ` · ${Math.round((value / base) * 100)} %` : "");
+  const rate = (value: number) => (base ? `${Math.round((value / base) * 100)} %` : "");
   const items = [
     { label: "Envoyés", value: stats?.sent ?? 0, extra: "" },
     { label: "Distribués", value: stats?.delivered ?? 0, extra: rate(stats?.delivered ?? 0) },
@@ -134,12 +134,12 @@ export function BroadcastKpis({ broadcast, size = "sm" }: { broadcast: Broadcast
             size === "lg" && "bg-card p-3 last:col-span-2 sm:p-4 sm:last:col-span-1",
           )}
         >
-          <dt className="text-xs text-muted-foreground">
-            {item.label}
-            {item.extra}
-          </dt>
+          <dt className="text-xs text-muted-foreground">{item.label}</dt>
           <dd className={cn("font-semibold tabular-nums", size === "lg" ? "text-2xl tracking-tight" : "text-sm")}>
             {number(item.value)}
+            {item.extra && (
+              <span className="ml-1.5 text-xs font-normal tracking-normal text-muted-foreground">{item.extra}</span>
+            )}
           </dd>
         </div>
       ))}
