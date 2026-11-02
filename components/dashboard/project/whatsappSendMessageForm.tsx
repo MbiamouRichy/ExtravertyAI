@@ -2014,20 +2014,32 @@ export default function WhatsappWorkspace({
                               aria-hidden="true"
                               className="size-1.5 shrink-0 rounded-full bg-emerald-500 sm:hidden md:block lg:hidden"
                             />
-                            <span className="truncate">
+                            <span className="truncate @max-[10.5rem]:sr-only">
                               {PRESENCE_LABEL[activePresence]}
+                            </span>
+                            <span aria-hidden="true" className="hidden truncate @max-[10.5rem]:inline">
+                              {activePresence === "recording"
+                                ? "Vocal…"
+                                : PRESENCE_LABEL[activePresence]}
                             </span>
                           </span>
                         )}
-                        {/* Le statut en direct passe avant le libellé du badge. */}
-                        <InstinctBadge
-                          classification={activeClient.prospectClassification}
-                          labelClassName={
-                            activePresence
-                              ? "@max-[20rem]:sr-only"
-                              : "@max-[8.5rem]:sr-only"
-                          }
-                        />
+                        {/* Statut éphémère : il passe avant le badge, qui revient ensuite. */}
+                        <span
+                          className={cn(
+                            "contents",
+                            activePresence && "@max-[15rem]:hidden",
+                          )}
+                        >
+                          <InstinctBadge
+                            classification={activeClient.prospectClassification}
+                            labelClassName={
+                              activePresence
+                                ? "@max-[20rem]:sr-only"
+                                : "@max-[8.5rem]:sr-only"
+                            }
+                          />
+                        </span>
                       </span>
                     </span>
                   </button>
