@@ -157,17 +157,19 @@ export function BillingNotice({
               <ArrowUpRight aria-hidden="true" className="size-3.5 shrink-0 text-muted-foreground" />
             </Link>
           </TooltipTrigger>
-          <TooltipContent className="max-w-56">
+          <TooltipContent collisionPadding={16} className="max-w-[min(15rem,calc(100vw-2rem))]">
             {/* Le contenu de l’infobulle est en flex : le texte doit rester d’un seul bloc. */}
-            <span>
-              {title}
-              {data.endsAt && (
-                <>
-                  {" jusqu’au "}
-                  <LocalBillingDate value={data.endsAt} dateOnly />
-                </>
-              )}
-              . Touchez pour ouvrir la facturation.
+            <span className="block">
+              <span className="block font-medium">
+                {title}
+                {data.endsAt && (
+                  <>
+                    {" jusqu’au "}
+                    <LocalBillingDate value={data.endsAt} dateOnly />
+                  </>
+                )}
+              </span>
+              <span className="block opacity-70">Messages utilisés sur votre quota</span>
             </span>
           </TooltipContent>
         </Tooltip>

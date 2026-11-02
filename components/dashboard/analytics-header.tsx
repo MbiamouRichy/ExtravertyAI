@@ -25,6 +25,17 @@ import {
   type VolumePoint,
 } from "@/lib/analytics";
 
+/** Sur très petit écran, seul le nombre tient : « jours » reste dans l’aria-label. */
+function PeriodLabel({ shortLabel }: { shortLabel: string }) {
+  const [days, unit] = shortLabel.split(" ");
+  return (
+    <span>
+      {days}
+      <span className="@max-[21rem]:hidden"> {unit}</span>
+    </span>
+  );
+}
+
 /** Nom de la première offre qui débloque la période, ou null si elle est incluse. */
 function planUnlocking(
   period: AnalyticsPeriod,
@@ -205,8 +216,8 @@ export function AnalyticsHeader({
                         onClick={(event) => event.preventDefault()}
                         className="h-9 min-w-0 cursor-not-allowed gap-0.5 rounded-md px-0 text-xs text-muted-foreground/60 hover:bg-transparent hover:text-muted-foreground/60 sm:gap-1 sm:px-3 sm:text-sm"
                       >
-                        <Lock aria-hidden="true" className="size-2.5 sm:size-3" />
-                        {option.shortLabel}
+                        <Lock aria-hidden="true" className="size-2.5 @max-[21rem]:hidden sm:size-3" />
+                        <PeriodLabel shortLabel={option.shortLabel} />
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent>
@@ -233,7 +244,7 @@ export function AnalyticsHeader({
                       : "text-muted-foreground hover:bg-transparent hover:text-foreground",
                   )}
                 >
-                  {option.shortLabel}
+                  <PeriodLabel shortLabel={option.shortLabel} />
                 </Button>
               );
             })}

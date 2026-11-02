@@ -66,7 +66,7 @@ export function MessageStatusCard({
               return (
                 <li
                   key={status}
-                  className="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0 @2xl:flex-col @2xl:items-start @2xl:gap-1 @2xl:py-0"
+                  className="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0 @2xl:flex-col @2xl:items-start @2xl:justify-start @2xl:gap-1 @2xl:py-0"
                 >
                   <span className="flex items-center gap-2.5 text-sm">
                     <span
@@ -76,12 +76,12 @@ export function MessageStatusCard({
                     {meta.label}
                   </span>
 
-                  <div className="text-right">
-                    <p className="text-sm font-medium tabular-nums">
+                  <div className="text-right @2xl:flex @2xl:items-baseline @2xl:gap-2 @2xl:text-left">
+                    <p className="text-sm font-medium tabular-nums @2xl:text-xl @2xl:font-semibold @2xl:tracking-tight">
                       {count.toLocaleString("fr-FR")}
                     </p>
 
-                    <p className="mt-0.5 text-xs tabular-nums text-muted-foreground">
+                    <p className="mt-0.5 text-xs tabular-nums text-muted-foreground @2xl:mt-0">
                       {formatPctFr((count / total) * 100)}
                     </p>
                   </div>
