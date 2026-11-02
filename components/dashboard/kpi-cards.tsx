@@ -152,9 +152,9 @@ export function AnalyticsKpiGrid({ kpis }: AnalyticsKpiGridProps) {
     return (
         <div className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border bg-border @3xl:grid-cols-3 @6xl:grid-cols-6">
             {items.map((item) => (
-                <div key={item.label} className="min-w-0 bg-card p-3 sm:p-4">
-                    <div className="flex items-center justify-between gap-1">
-                        <p className="truncate text-xs text-muted-foreground">
+                <div key={item.label} className="flex min-w-0 flex-col bg-card p-3 sm:p-4">
+                    <div className="flex items-start justify-between gap-1">
+                        <p className="min-w-0 text-xs text-muted-foreground">
                             {item.label}
                         </p>
 
@@ -176,7 +176,8 @@ export function AnalyticsKpiGrid({ kpis }: AnalyticsKpiGridProps) {
                         </Popover>
                     </div>
 
-                    <p className="mt-1.5 text-2xl font-semibold tracking-tight tabular-nums">
+                    {/* mt-auto : un libellé sur deux lignes ne décale pas les valeurs de sa rangée. */}
+                    <p className="mt-auto pt-1.5 text-2xl font-semibold tracking-tight tabular-nums">
                         {item.value}
                     </p>
 
