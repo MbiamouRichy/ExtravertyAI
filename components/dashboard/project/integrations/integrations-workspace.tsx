@@ -196,15 +196,17 @@ function EndpointRow({
               : "Reprendre les envois vers cette intégration"
           }
         >
-          <Switch
-            id={switchId}
-            checked={endpoint.enabled}
-            disabled={pending}
-            onCheckedChange={(enabled) =>
-              act(() => updateEndpointAction({ projectId, endpointId: endpoint.id, enabled }))
-            }
-            className="mr-2"
-          />
+          {/* Le déclencheur écrit son propre data-state : il ne doit pas toucher celui du switch. */}
+          <span className="mr-2 inline-flex">
+            <Switch
+              id={switchId}
+              checked={endpoint.enabled}
+              disabled={pending}
+              onCheckedChange={(enabled) =>
+                act(() => updateEndpointAction({ projectId, endpointId: endpoint.id, enabled }))
+              }
+            />
+          </span>
         </ActionTip>
         <ActionTip
           label={

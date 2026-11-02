@@ -6,6 +6,7 @@ import { useEffect } from "react";
 import { AlertCircle, ArrowUpRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { type billingAccess } from "@/lib/billing-access";
 
 import { LocalBillingDate } from "./local-billing-date";
@@ -97,17 +98,78 @@ export function BillingNotice({
   const usage = data.allowed ? data.usage : null;
   const limit = Math.max(1, usage?.limit ?? 1);
   const ratio = Math.min(1, (usage?.used ?? 0) / limit);
+  // Petits écrans : rien à décider ici, le quota suffit et mène à la facturation.
+  const compact = !!usage && canViewBilling && !blocked && !detail && !error;
+  const quota = usage && (
+    <>
+      <div
+        role="progressbar"
+        aria-label="Consommation du quota de messages"
+        aria-valuemin={0}
+        aria-valuemax={limit}
+        aria-valuenow={Math.min(usage.used, limit)}
+        className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-muted"
+      >
+        <div
+          className={cn(
+            "h-full rounded-full motion-safe:transition-[width] motion-safe:duration-500",
+            ratio >= 0.9 ? "bg-destructive" : "bg-foreground",
+          )}
+          style={{ width: `${ratio * 100}%` }}
+        />
+      </div>
+      <p className="shrink-0 text-xs text-muted-foreground tabular-nums">
+        <span className="text-foreground">{usage.used.toLocaleString("fr-FR")}</span>
+        {" / "}
+        {usage.limit.toLocaleString("fr-FR")} messages
+      </p>
+    </>
+  );
 
   return (
     <aside
       ref={trackNoticeHeight}
       aria-label="État de l’abonnement"
       className={cn(
-        "mx-4 mt-3 rounded-xl border px-3 py-2 sm:mx-6 xl:mx-8",
+        "mx-4 mt-3 rounded-xl border px-3 py-1.5 sm:mx-6 xl:mx-8",
         blocked ? "border-destructive/30 bg-destructive/5" : "bg-card",
+        compact && "max-lg:mt-2 max-lg:border-0 max-lg:bg-transparent max-lg:p-0",
       )}
     >
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
+      {compact && (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Link
+              href={`/projects/${projectId}/billing`}
+              className="flex h-9 items-center gap-3 rounded-xl border bg-card px-3 outline-none hover:bg-muted/60 focus-visible:ring-3 focus-visible:ring-ring/50 lg:hidden"
+            >
+              <span className="sr-only">
+                {title}
+                {data.endsAt && (
+                  <>
+                    {" jusqu’au "}
+                    <LocalBillingDate value={data.endsAt} dateOnly />
+                  </>
+                )}
+                . Ouvrir la facturation.
+              </span>
+              {quota}
+              <ArrowUpRight aria-hidden="true" className="size-3.5 shrink-0 text-muted-foreground" />
+            </Link>
+          </TooltipTrigger>
+          <TooltipContent className="max-w-60 text-balance">
+            {title}
+            {data.endsAt && (
+              <>
+                {" jusqu’au "}
+                <LocalBillingDate value={data.endsAt} dateOnly />
+              </>
+            )}{" "}
+            : messages utilisés sur votre quota. Ouvrez la facturation pour voir le détail ou changer d’offre.
+          </TooltipContent>
+        </Tooltip>
+      )}
+      <div className={cn("flex flex-wrap items-center gap-x-4 gap-y-1.5", compact && "max-lg:hidden")}>
         <div
           className={cn("min-w-0 flex-1 text-sm", usage && "sm:flex-none")}
           role="status"
@@ -142,27 +204,7 @@ export function BillingNotice({
         </div>
         {usage && (
           <div className="order-last flex w-full min-w-0 items-center gap-3 sm:order-none sm:w-auto sm:flex-1">
-            <div
-              role="progressbar"
-              aria-label="Consommation du quota de messages"
-              aria-valuemin={0}
-              aria-valuemax={limit}
-              aria-valuenow={Math.min(usage.used, limit)}
-              className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-muted"
-            >
-              <div
-                className={cn(
-                  "h-full rounded-full motion-safe:transition-[width] motion-safe:duration-500",
-                  ratio >= 0.9 ? "bg-destructive" : "bg-foreground",
-                )}
-                style={{ width: `${ratio * 100}%` }}
-              />
-            </div>
-            <p className="shrink-0 text-xs text-muted-foreground tabular-nums">
-              <span className="text-foreground">{usage.used.toLocaleString("fr-FR")}</span>
-              {" / "}
-              {usage.limit.toLocaleString("fr-FR")} messages
-            </p>
+            {quota}
           </div>
         )}
         {(canViewBilling || canManageBilling) && (

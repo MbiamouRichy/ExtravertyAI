@@ -357,8 +357,11 @@ function PresenceDot() {
 
 function InstinctBadge({
   classification,
+  labelClassName,
 }: {
   classification: ChatClient["prospectClassification"];
+  /** Permet de réduire le badge à son icône quand la place manque. */
+  labelClassName?: string;
 }) {
   if (classification !== "interesting" && classification !== "follow_up") {
     return null;
@@ -377,7 +380,9 @@ function InstinctBadge({
           )}
         >
           <Icon aria-hidden="true" className="size-3" />
-          {interesting ? "Prospect intéressant" : "À suivre"}
+          <span className={labelClassName}>
+            {interesting ? "Prospect intéressant" : "À suivre"}
+          </span>
         </span>
       </TooltipTrigger>
       <TooltipContent className="max-w-60">
@@ -1957,7 +1962,7 @@ export default function WhatsappWorkspace({
         >
           {activeClient ? (
             <>
-              <header className="chat-floating-header relative z-10 flex shrink-0 items-center gap-2 border-b border-border bg-background px-2 py-3 sm:gap-3 sm:px-5">
+              <header className="chat-floating-header relative z-10 flex shrink-0 items-center gap-2 border-b border-border bg-background px-2 py-2 sm:gap-3 sm:px-5 sm:py-3">
                 <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
                   <Button
                     type="button"
@@ -1985,18 +1990,21 @@ export default function WhatsappWorkspace({
                       {activePresence && <PresenceDot />}
                     </span>
 
-                    <span className="block min-w-0 flex-1">
+                    {/* La largeur vient de ce bloc, pas de l’écran : la sidebar et les actions la réduisent. */}
+                    <span className="@container block min-w-0 flex-1">
                       <span className="flex min-w-0 items-center gap-2">
                         <h2 className="truncate text-sm font-semibold sm:text-base">
                           {activeClient.name}
                         </h2>
-                        <ConversationParticipants
-                          active={aiActive}
-                          agents={conversationAgents}
-                          loading={historyQuery.isLoading}
-                        />
+                        <span className="contents @max-[13rem]:hidden">
+                          <ConversationParticipants
+                            active={aiActive}
+                            agents={conversationAgents}
+                            loading={historyQuery.isLoading}
+                          />
+                        </span>
                       </span>
-                      <span className="mt-0.5 flex min-w-0 items-center gap-2 empty:hidden">
+                      <span className="mt-0.5 flex min-w-0 items-center gap-1.5 empty:hidden">
                         {activePresence && (
                           <span
                             role="status"
@@ -2004,15 +2012,21 @@ export default function WhatsappWorkspace({
                           >
                             <span
                               aria-hidden="true"
-                              className="size-1.5 shrink-0 rounded-full bg-emerald-500 sm:hidden"
+                              className="size-1.5 shrink-0 rounded-full bg-emerald-500 sm:hidden md:block lg:hidden"
                             />
                             <span className="truncate">
                               {PRESENCE_LABEL[activePresence]}
                             </span>
                           </span>
                         )}
+                        {/* Le statut en direct passe avant le libellé du badge. */}
                         <InstinctBadge
                           classification={activeClient.prospectClassification}
+                          labelClassName={
+                            activePresence
+                              ? "@max-[20rem]:sr-only"
+                              : "@max-[8.5rem]:sr-only"
+                          }
                         />
                       </span>
                     </span>
@@ -2021,7 +2035,7 @@ export default function WhatsappWorkspace({
 
                 <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-2">
                   {canManageAi ? (
-                    <div className="flex shrink-0 items-center gap-2 rounded-lg border px-2.5 py-1.5">
+                    <div className="flex h-8 shrink-0 items-center gap-1.5 rounded-lg border px-1.5 sm:gap-2 sm:px-2.5">
                       {aiBusyId === activeClient.id ? (
                         <Loader2
                           aria-hidden="true"
@@ -2070,6 +2084,7 @@ export default function WhatsappWorkspace({
                         type="button"
                         variant="ghost"
                         size="icon"
+                        className="size-8 sm:size-9"
                         aria-label="Plus d’actions"
                       >
                         <Ellipsis aria-hidden="true" />
