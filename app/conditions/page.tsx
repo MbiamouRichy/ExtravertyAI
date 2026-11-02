@@ -214,15 +214,14 @@ const sections: LegalSection[] = [
     ),
   },
   {
-    id: "droit",
+    id: "modifications",
     icon: Scale,
-    title: "Modifications et droit applicable",
+    title: "Modifications et litiges",
     body: (
       <p>
         Nous pouvons mettre à jour ces conditions. Toute modification importante
-        sera annoncée avant son entrée en vigueur. Ces conditions sont régies par
-        le droit gabonais, sans préjudice des droits impératifs dont vous pouvez
-        bénéficier. Nous cherchons d’abord une solution amiable à tout litige.
+        sera annoncée avant son entrée en vigueur. Nous cherchons d’abord une
+        solution amiable à tout litige.
       </p>
     ),
   },
