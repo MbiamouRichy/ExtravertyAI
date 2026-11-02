@@ -159,7 +159,7 @@ export default function PrivacyPolicy() {
           </div>
         </section>
 
-        <div className="mx-auto grid w-full max-w-6xl gap-12 px-4 py-14 sm:px-6 md:grid-cols-[14rem_1fr] md:py-20 lg:gap-20">
+        <div className="mx-auto grid w-full max-w-6xl grid-cols-[minmax(0,1fr)] gap-12 px-4 py-14 sm:px-6 md:grid-cols-[14rem_minmax(0,1fr)] md:py-20 lg:gap-20">
           <nav aria-label="Sommaire" className="md:sticky md:top-24 md:self-start">
             <p className="mb-3 font-mono text-[11px] uppercase tracking-wider text-muted-foreground">
               Sommaire
