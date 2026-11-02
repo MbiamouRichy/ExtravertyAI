@@ -92,7 +92,6 @@ export default function Footer() {
       <div className="border-t">
         <div className="mx-auto flex w-full max-w-6xl flex-col gap-2 px-4 py-6 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:px-6">
           <p>© {new Date().getFullYear()} ExtravertyAI. Tous droits réservés.</p>
-          <p>WhatsApp est une marque de Meta Platforms, Inc.</p>
         </div>
       </div>
     </footer>
