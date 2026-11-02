@@ -95,7 +95,6 @@ export function SiteFooter() {
 
         <div className="flex flex-col gap-2 border-t px-4 py-5 font-mono text-[11px] text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:px-8 lg:px-12">
           <p>© {new Date().getFullYear()} ExtravertyAI. Tous droits réservés.</p>
-          <p>WhatsApp est une marque de Meta Platforms, Inc.</p>
         </div>
 
         <p
