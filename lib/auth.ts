@@ -1,5 +1,7 @@
 import { EmailTemplate } from "@/components/emailTemplate/emailTemplate";
 import { betterAuth } from "better-auth";
+import { emailOTP } from "better-auth/plugins/email-otp";
+import { after } from "next/server";
 import {
   APIError,
   createAuthMiddleware,
@@ -12,6 +14,9 @@ import prisma from "./prisma";
 import { resend } from "./resend";
 import { ResetPasswordTemplate } from "@/components/emailTemplate/resetPasswordTemplate";
 import { ChangeEmailTemplate } from "@/components/emailTemplate/changeEmailTemplate";
+import { VerificationCodeTemplate } from "@/components/emailTemplate/verificationCodeTemplate";
+import { ExistingAccountTemplate } from "@/components/emailTemplate/existingAccountTemplate";
+import { EMAIL_SITE_URL } from "@/components/emailTemplate/emailLayout";
 
 import { AccountDeletedEmailTemplate } from "@/components/emailTemplate/accountDeletedEmailTemplate";
 import { deleteProjectResources } from "./project-deletion";
@@ -57,6 +62,76 @@ async function sendAuthEmail(message: Parameters<typeof resend.emails.send>[0]) 
   if (error) throw new Error(`Resend: ${error.message}`);
 }
 
+const AUTH_EMAIL_FROM = "ExtravertyAI <notification@extravertyai.com>";
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || EMAIL_SITE_URL;
+
+// Address verification codes: short-lived, hashed at rest, a few tries each.
+const VERIFICATION_CODE_MINUTES = 10;
+// One "you already have an account" email per address and window, whatever
+// the number of sign-up attempts (the route itself is only rate limited per IP).
+const EXISTING_ACCOUNT_EMAIL_WINDOW_MS = 15 * 60 * 1000;
+
+// The email OTP plugin only serves address verification here: passwordless
+// sign-in, OTP password resets and OTP email changes stay closed.
+const UNUSED_OTP_PATHS = [
+  "/sign-in/email-otp",
+  "/email-otp/check-verification-otp",
+  "/email-otp/request-password-reset",
+  "/forget-password/email-otp",
+  "/email-otp/reset-password",
+  "/email-otp/request-email-change",
+  "/email-otp/change-email",
+];
+
+// Emails sent from public routes leave after the response, so the response
+// time does not reveal whether the address has an account.
+function runAfterResponse(task: Promise<unknown>) {
+  try {
+    after(task);
+  } catch {
+    // Outside a request (scripts, tests): the task is already running.
+  }
+}
+
+async function sendVerificationCode(email: string, otp: string) {
+  try {
+    await sendAuthEmail({
+      to: email,
+      subject: `${otp} est votre code de vérification ExtravertyAI`,
+      html: VerificationCodeTemplate({
+        code: otp,
+        email,
+        minutes: VERIFICATION_CODE_MINUTES,
+      }),
+      from: AUTH_EMAIL_FROM,
+    });
+  } catch (error) {
+    // Never rethrown: the public send route must answer the same way for
+    // known and unknown addresses.
+    console.error("VERIFICATION_CODE_FAILED", error);
+  }
+}
+
+async function claimExistingAccountEmail(userId: string) {
+  const identifier = `existing-account-sign-up:${userId}`;
+  const now = new Date();
+  const recent = await prisma.verification.findFirst({
+    where: { identifier, expiresAt: { gt: now } },
+    select: { id: true },
+  });
+  if (recent) return false;
+  await prisma.verification.deleteMany({ where: { identifier } });
+  await prisma.verification.create({
+    data: {
+      id: crypto.randomUUID(),
+      identifier,
+      value: "sent",
+      expiresAt: new Date(now.getTime() + EXISTING_ACCOUNT_EMAIL_WINDOW_MS),
+    },
+  });
+  return true;
+}
+
 async function assertNoOwnershipBlockers(userId: string) {
   const plan = await getAccountDeletionPlan(userId);
   if (plan.blockers.length)
@@ -70,11 +145,23 @@ async function assertNoOwnershipBlockers(userId: string) {
 
 export const auth = betterAuth({
   baseURL: process.env.NEXT_PUBLIC_APP_URL as string,
+  advanced: {
+    backgroundTasks: { handler: runAfterResponse },
+  },
+  disabledPaths: UNUSED_OTP_PATHS,
   database: prismaAdapter(prisma, {
     provider: "postgresql",
   }),
   hooks: {
     before: createAuthMiddleware(async (ctx) => {
+      if (
+        ctx.path === "/email-otp/send-verification-otp" &&
+        ctx.body?.type !== "email-verification"
+      )
+        throw new APIError("BAD_REQUEST", {
+          code: "OTP_TYPE_NOT_ALLOWED",
+          message: "Ce type de code n’est pas disponible.",
+        });
       if (!requiresRecentSession(ctx.path)) return;
       const deleting = ctx.path.startsWith("/delete-user");
       const session = await getAuthoritativeSessionFromCtx(ctx);
@@ -162,12 +249,33 @@ export const auth = betterAuth({
   },
   emailAndPassword: {
     enabled: true,
+    // No session before the address is confirmed. Sign-up then answers the
+    // same way for new and existing addresses.
+    requireEmailVerification: true,
+    onExistingUserSignUp: async ({ user }) => {
+      try {
+        if (!(await claimExistingAccountEmail(user.id))) return;
+        await sendAuthEmail({
+          to: user.email,
+          subject: "Vous avez déjà un compte ExtravertyAI",
+          html: ExistingAccountTemplate({
+            email: user.email,
+            signInUrl: `${APP_URL}/sign-in`,
+            resetUrl: `${APP_URL}/forget-password`,
+          }),
+          from: AUTH_EMAIL_FROM,
+        });
+      } catch (error) {
+        // Never rethrown: a failure would tell the visitor the address exists.
+        console.error("EXISTING_ACCOUNT_EMAIL_FAILED", error);
+      }
+    },
     sendResetPassword: async ({ user, url }) => {
       await sendAuthEmail({
         to: user.email,
         subject: "Changement de mot de passe",
         html: ResetPasswordTemplate({ url, email: user.email }),
-        from: "ExtravertyAI <notification@extravertyai.com>",
+        from: AUTH_EMAIL_FROM,
       });
     },
   },
@@ -184,21 +292,50 @@ export const auth = betterAuth({
   },
   emailVerification: {
     sendOnSignUp: true,
+    // A password sign-in on an unconfirmed address sends a fresh code.
+    sendOnSignIn: true,
+    // The code proves control of the inbox: it opens the session directly.
+    autoSignInAfterVerification: true,
     sendVerificationEmail: async ({ user, url }) => {
       // Never rethrown: /send-verification-email is public and would answer
       // differently for an unverified account than for an unknown address.
       try {
-        await sendAuthEmail({
-          to: user.email,
-          subject: "Verifier votre adresse e-mail",
-          html: EmailTemplate({ url, email: user.email }),
-          from: "ExtravertyAI <notification@extravertyai.com>",
+        const stored = await prisma.user.findUnique({
+          where: { id: user.id },
+          select: { email: true },
+        });
+        // A change of address carries the new email on the existing account:
+        // it is confirmed by link, the code flow only knows current addresses.
+        if (stored && stored.email !== user.email) {
+          await sendAuthEmail({
+            to: user.email,
+            subject: "Verifier votre adresse e-mail",
+            html: EmailTemplate({ url, email: user.email }),
+            from: AUTH_EMAIL_FROM,
+          });
+          return;
+        }
+        await auth.api.sendVerificationOTP({
+          body: { email: user.email, type: "email-verification" },
         });
       } catch (error) {
         console.error("VERIFICATION_EMAIL_FAILED", error);
       }
     },
   },
+  plugins: [
+    emailOTP({
+      otpLength: 6,
+      expiresIn: VERIFICATION_CODE_MINUTES * 60,
+      allowedAttempts: 5,
+      storeOTP: "hashed",
+      // Codes never create accounts: sign-up goes through the password form.
+      disableSignUp: true,
+      sendVerificationOTP: async ({ email, otp, type }) => {
+        if (type === "email-verification") await sendVerificationCode(email, otp);
+      },
+    }),
+  ],
   user: {
     deleteUser: {
       enabled: true,
@@ -232,7 +369,7 @@ export const auth = betterAuth({
               projects: summary?.projects ?? [],
               leftProjects: summary?.left ?? 0,
             }),
-            from: "ExtravertyAI <notification@extravertyai.com>",
+            from: AUTH_EMAIL_FROM,
           });
         } catch (error) {
           console.error("ACCOUNT_DELETED_EMAIL_FAILED", error);
@@ -247,7 +384,7 @@ export const auth = betterAuth({
             to: user.email, // Sent to the CURRENT email
             subject: "Approuver un changement d'email",
             html: ChangeEmailTemplate({ newEmail, url }),
-            from: "ExtravertyAI <notification@extravertyai.com>",
+            from: AUTH_EMAIL_FROM,
           });
         } catch (error) {
           if (request) failedChangeEmails.add(request);

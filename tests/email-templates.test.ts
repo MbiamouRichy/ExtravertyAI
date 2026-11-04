@@ -4,6 +4,8 @@ import { AccountDeletedEmailTemplate } from "../components/emailTemplate/account
 import { ChangeEmailTemplate } from "../components/emailTemplate/changeEmailTemplate";
 import { DeleteAccountEmailTemplate } from "../components/emailTemplate/DeleteAccountEmailTemplate";
 import { EmailTemplate } from "../components/emailTemplate/emailTemplate";
+import { ExistingAccountTemplate } from "../components/emailTemplate/existingAccountTemplate";
+import { VerificationCodeTemplate } from "../components/emailTemplate/verificationCodeTemplate";
 import { ProjectInvitationEmail } from "../components/emailTemplate/invitationEmail";
 import { ResetPasswordTemplate } from "../components/emailTemplate/resetPasswordTemplate";
 
@@ -13,6 +15,7 @@ const url = "https://app.example.test/path?a=1&b=2";
 const templates: ((link: string) => string)[] = [
   (link) => EmailTemplate({ url: link, email: evil }),
   (link) => ResetPasswordTemplate({ url: link, email: evil }),
+  (link) => ExistingAccountTemplate({ email: evil, signInUrl: link, resetUrl: link }),
   (link) => ChangeEmailTemplate({ url: link, newEmail: evil }),
   (link) => DeleteAccountEmailTemplate({ url: link }),
   (link) => ProjectInvitationEmail({ inviterName: evil, projectName: evil, role: "ADMIN", inviteUrl: link, email: evil, hasAccount: false }),
@@ -26,6 +29,14 @@ test("account and team emails escape user-controlled values", () => {
     assert.ok(html.includes('src="https://extravertyai.com/logo-email.png"'));
     assert.ok(html.includes('lang="fr"'));
   }
+});
+
+test("verification code email shows the code, escapes the address and refuses anything but digits", () => {
+  const html = VerificationCodeTemplate({ code: "048213", email: evil, minutes: 10 });
+  assert.ok(html.includes("048213"));
+  assert.ok(!html.includes("<img src=x"));
+  assert.ok(!html.includes('class="email-button'));
+  assert.throws(() => VerificationCodeTemplate({ code: "<b>1</b>", email: "a@example.test", minutes: 10 }));
 });
 
 test("account deleted email escapes project names and contains no action link", () => {

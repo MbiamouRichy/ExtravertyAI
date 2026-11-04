@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { runInNewContext } from "node:vm";
 import { test } from "node:test";
 import ts from "typescript";
-import { isRecentSession } from "../lib/recent-session";
+import { isRecentSession, requiresRecentSession } from "../lib/recent-session";
 
 test("direct account deletion and legacy callbacks require authoritative login under ten minutes", async () => {
   const now = Date.now();
@@ -45,6 +45,7 @@ test("direct account deletion and legacy callbacks require authoritative login u
       if (id === "./recent-session")
         return {
           isRecentSession: (value: unknown) => isRecentSession(value, now),
+          requiresRecentSession,
         };
       if (id === "./account-deletion")
         return {
@@ -52,6 +53,8 @@ test("direct account deletion and legacy callbacks require authoritative login u
         };
       if (id === "better-auth/adapters/prisma")
         return { prismaAdapter: () => ({}) };
+      if (id === "better-auth/plugins/email-otp")
+        return { emailOTP: (options: unknown) => ({ id: "email-otp", options }) };
       return {};
     },
   });

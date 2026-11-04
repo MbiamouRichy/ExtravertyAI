@@ -29,9 +29,10 @@ import { SignInSocialButton } from "./signInSocialButton";
 import Link from "next/link";
 import { signUp } from "@/lib/auth-client";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useHaptics } from "@/lib/webHaptics";
-import AlertVerifyEmail from "./alertVerifyEmail";
-import { signInAfterSignUpHref } from "@/lib/auth-redirects";
+import { EmailOtpStep } from "./email-otp-step";
+import { checkoutCallback, signInAfterSignUpHref } from "@/lib/auth-redirects";
 
 const formSchema = z
 	.object({
@@ -50,11 +51,15 @@ const formSchema = z
 
 export function AuthPage({ callbackUrl }: { callbackUrl?: string }) {
 	const signInHref = signInAfterSignUpHref(callbackUrl);
+	// The code opens the session: go straight to the checkout or the projects.
+	const destination = checkoutCallback(callbackUrl) ?? "/projects";
+	const router = useRouter();
 	const { playHaptic } = useHaptics();
 	const [loading, setLoading] = useState<boolean>(false);
 	const [showPassword, setShowPassword] = useState<boolean>(false);
-	const [showAlertDialog, setShowAlertDialog] = useState<boolean>(false);
-	const [submittedEmail, setSubmittedEmail] = useState<string>(""); // Correction : Fige l'email soumis
+	// Address waiting for its code. Same step for new and existing addresses:
+	// the owner of an existing one gets an email instead of a code.
+	const [pendingEmail, setPendingEmail] = useState<string | null>(null);
 
 	const form = useForm<z.infer<typeof formSchema>>({
 		resolver: zodResolver(formSchema),
@@ -74,24 +79,19 @@ export function AuthPage({ callbackUrl }: { callbackUrl?: string }) {
 					name: data.nom,
 					email: data.email,
 					password: data.password,
-					callbackURL: signInHref,
 				},
 				{
 					onSuccess: () => {
 						playHaptic("success");
-						setSubmittedEmail(data.email); // Enregistre l'email pour l'alerte
-						setShowAlertDialog(true);
-						toast.success("Vérifiez votre adresse email pour validation", {
-							position: "top-center",
-						});
-						form.reset()
+						setPendingEmail(data.email.trim().toLowerCase());
+						form.reset();
 					},
 					onError: (error) => {
 						playHaptic("error");
 						toast.error("Une erreur s'est produite.", {
 							description:
-								error.error.message === "User already exists. Use another email."
-									? "Cet email est déjà utilisé. Veuillez en utiliser un autre."
+								error.error.status === 429
+									? "Trop de tentatives. Patientez une minute avant de réessayer."
 									: "Quelque chose s'est mal passé. Veuillez réessayer.",
 							position: "top-center",
 							className: "text-muted-foreground text-sm bg-card",
@@ -137,6 +137,15 @@ export function AuthPage({ callbackUrl }: { callbackUrl?: string }) {
 					</Button>
 				</div>
 
+				{pendingEmail ? (
+					<div className="mx-auto w-full max-w-sm">
+						<EmailOtpStep
+							email={pendingEmail}
+							onVerified={() => router.push(destination)}
+							onChangeEmail={() => setPendingEmail(null)}
+						/>
+					</div>
+				) : (
 				<div className="mx-auto space-y-4 sm:w-sm">
 					<div className="flex flex-col space-y-1">
 						<h1 className="font-bold text-2xl tracking-wide">
@@ -283,8 +292,8 @@ export function AuthPage({ callbackUrl }: { callbackUrl?: string }) {
 						</Link>
 					</p>
 				</div>
+				)}
 			</div>
-			{showAlertDialog && <AlertVerifyEmail email={submittedEmail} callbackUrl={signInHref} />}
 		</main>
 	);
 }

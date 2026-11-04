@@ -25,6 +25,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { Controller, useForm } from "react-hook-form"
 import { Checkbox } from "../ui/checkbox";
 import { SignInSocialButton } from "./signInSocialButton";
+import { EmailOtpStep } from "./email-otp-step";
 import { LogoIcon } from "../logo";
 import { AuthShowcase } from "./auth-showcase";
 import { signUpHref } from "@/lib/auth-redirects";
@@ -44,6 +45,8 @@ export function AuthPage({ callbackUrl }: { callbackUrl: string }) {
 	const [loading, setLoading] = useState<boolean>(false);
 	const [showPassword, setShowPassword] = useState(false);
 	const [checked, setChecked] = useState(false);
+	// Correct password on an unconfirmed address: Better Auth just sent a code.
+	const [pendingEmail, setPendingEmail] = useState<string | null>(null);
 
 	const form = useForm<z.infer<typeof formSchema>>({
 		resolver: zodResolver(formSchema),
@@ -72,7 +75,13 @@ export function AuthPage({ callbackUrl }: { callbackUrl: string }) {
 						router.push(callbackUrl);
 						form.reset()
 					},
-					onError: () => {
+					onError: (context) => {
+						// Only reachable with the right password: safe to say so.
+						if (context.error.code === "EMAIL_NOT_VERIFIED") {
+							setPendingEmail(data.email.trim().toLowerCase());
+							form.reset();
+							return;
+						}
 						// Message unifié : ne révèle pas si le compte existe.
 						playHaptic("error");
 						toast.error("Échec de l'authentification", {
@@ -117,6 +126,15 @@ export function AuthPage({ callbackUrl }: { callbackUrl: string }) {
 				</div>
 
 				<div className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center py-12 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-500">
+					{pendingEmail ? (
+						<EmailOtpStep
+							email={pendingEmail}
+							onVerified={() => router.push(callbackUrl)}
+							onChangeEmail={() => setPendingEmail(null)}
+							changeEmailLabel="Retour à la connexion"
+						/>
+					) : (
+					<>
 					<h1 className="text-3xl md:text-4xl">Bon retour</h1>
 					<p className="mt-2 text-sm text-muted-foreground">
 						Connectez-vous pour retrouver vos conversations.
@@ -234,6 +252,8 @@ export function AuthPage({ callbackUrl }: { callbackUrl: string }) {
 							Démarrer l’essai gratuit
 						</Link>
 					</p>
+					</>
+					)}
 				</div>
 
 				<p className="text-center text-xs text-muted-foreground">
