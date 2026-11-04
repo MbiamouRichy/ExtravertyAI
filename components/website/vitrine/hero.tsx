@@ -42,7 +42,8 @@ export function Hero() {
           </span>
           {/* Une seule ligne : libellé court sur mobile, coupé en dernier recours. */}
           <span className="min-w-0 truncate">
-            <span className="sm:hidden">Pipeline et intégrations</span>
+            <span className="min-[360px]:hidden">Pipeline de vente</span>
+            <span className="max-[359px]:hidden sm:hidden">Pipeline et intégrations</span>
             <span className="max-sm:hidden">Pipeline de prospects et intégrations</span>
           </span>
           <ArrowRight
