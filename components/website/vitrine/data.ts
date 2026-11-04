@@ -446,6 +446,8 @@ export type RangeId = "jour" | "semaine" | "mois";
 export interface AnalyticsRange {
   id: RangeId;
   label: string;
+  /** Libellé du sélecteur sur les écrans de moins de 360 px. */
+  shortLabel: string;
   /** Short label used for the sr-only data table and tooltips. */
   unit: string;
   points: readonly { label: string; value: number }[];
@@ -472,6 +474,7 @@ export const ANALYTICS_RANGES: readonly AnalyticsRange[] = [
   {
     id: "jour",
     label: "Aujourd’hui",
+    shortLabel: "Auj.",
     unit: "heure",
     tickEvery: 6,
     points: hourly.map((value, hour) => ({ label: `${hour} h`, value })),
@@ -480,6 +483,7 @@ export const ANALYTICS_RANGES: readonly AnalyticsRange[] = [
   {
     id: "semaine",
     label: "7 jours",
+    shortLabel: "7 j",
     unit: "jour",
     tickEvery: 1,
     points: daily.map((value, index) => ({ label: dayNames[index], value })),
@@ -488,6 +492,7 @@ export const ANALYTICS_RANGES: readonly AnalyticsRange[] = [
   {
     id: "mois",
     label: "30 jours",
+    shortLabel: "30 j",
     unit: "jour",
     tickEvery: 5,
     points: monthly.map((value, index) => ({ label: `J${index + 1}`, value })),

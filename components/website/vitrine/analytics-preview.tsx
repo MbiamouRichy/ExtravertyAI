@@ -67,7 +67,7 @@ export function AnalyticsPreview() {
                   variant="ghost"
                   aria-pressed={selected}
                   onClick={() => setRangeId(item.id)}
-                  className={cn("relative px-2.5 text-muted-foreground hover:bg-transparent", selected && "text-foreground")}
+                  className={cn("relative min-w-0 px-2.5 text-muted-foreground hover:bg-transparent", selected && "text-foreground")}
                 >
                   {selected && (
                     <m.span
@@ -77,7 +77,12 @@ export function AnalyticsPreview() {
                       className="absolute inset-0 rounded-[inherit] bg-muted"
                     />
                   )}
-                  <span className="relative">{item.label}</span>
+                  <span className="relative truncate">
+                    <span aria-hidden="true" className="min-[360px]:hidden">
+                      {item.shortLabel}
+                    </span>
+                    <span className="max-[359px]:sr-only">{item.label}</span>
+                  </span>
                 </Button>
               );
             })}
