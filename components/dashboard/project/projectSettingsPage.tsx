@@ -27,6 +27,7 @@ import { ProjectLogoSettings } from "./project-logo-settings";
 import { TeamAutoAssignSettings } from "./team-auto-assign-settings";
 import { CsatSettings } from "./csat-settings";
 import { WaitingTimeSettings } from "./waiting-time-settings";
+import { TrialTestNumberSettings } from "./trial-test-number-settings";
 import type { ProjectSettingsView } from "@/lib/settings-types";
 import { formatStorage } from "@/lib/storage-quota";
 import {
@@ -278,6 +279,14 @@ export default function ProjectSettingsPage({
             <CsatSettings key={p.id} projectId={p.id} initial={p.csat} />
           </div>
           <div hidden={tab !== "general"} className="space-y-6">
+            {p.trialTest && (
+              <TrialTestNumberSettings
+                key={`trial-${p.id}`}
+                projectId={p.id}
+                initial={p.trialTest}
+                disabled={!canPause || p.deletionPending}
+              />
+            )}
             <ProjectLogoSettings
               key={`logo-${p.id}`}
               projectId={p.id}
@@ -534,6 +543,8 @@ export default function ProjectSettingsPage({
                                 ? "Mise en veille de l’IA activée"
                                 : item.action === "ai_quiet.disabled"
                                   ? "Mise en veille de l’IA désactivée"
+                              : item.action === "trial.test_number.updated"
+                                ? "Numéro de test modifié"
                               : item.action === "whatsapp.updated"
                                 ? "Réglages WhatsApp"
                                 : item.action === "project.paused"

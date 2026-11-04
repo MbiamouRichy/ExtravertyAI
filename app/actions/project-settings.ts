@@ -3,6 +3,7 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/auth-server";
 import prisma from "@/lib/prisma";
+import { isRecentSession } from "@/lib/recent-session";
 import { AgentConfigSchema } from "@/lib/agent-config";
 import {
   SettingsError,
@@ -356,12 +357,22 @@ export async function openProjectBillingPortal(
 /**
  * Résiliation depuis l'application. Un abonnement à jour s'arrête en fin de
  * période et reste renouvelable d'ici là ; un abonnement impayé s'arrête tout
- * de suite, puisqu'aucun accès payé n'est en cours.
+ * de suite, puisqu'aucun accès payé n'est en cours. Comme la suppression du
+ * projet, elle exige une connexion de moins de 10 minutes.
  */
 export async function cancelProjectSubscription(projectId: string) {
   try {
     Id.parse(projectId);
-    const userId = await actor();
+    const session = await getSession();
+    if (!session?.user?.id) throw new SettingsError("Connexion requise.");
+    if (!isRecentSession(session.session?.createdAt))
+      return {
+        success: false as const,
+        code: "REAUTH_REQUIRED" as const,
+        error:
+          "Par sécurité, votre connexion doit dater de moins de 10 minutes. Reconnectez-vous, puis confirmez la résiliation.",
+      };
+    const userId = session.user.id;
     const { project } = await prisma.$transaction((tx) =>
       requireProjectPermission(tx, projectId, userId, "billing.manage"),
     );

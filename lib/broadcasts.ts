@@ -19,6 +19,12 @@ import { MessageQuotaError, reserveMessageQuota } from "./message-quota";
 import { planAllows, planFeatures, planUpgradeMessage } from "./plan-features";
 import { projectBillingStatus } from "./project-status";
 import { can } from "./project-permissions";
+import {
+  isTrialRestricted,
+  TRIAL_RECIPIENT_BLOCKED,
+  trialAllowsJid,
+  trialContactWhere,
+} from "./trial-restrictions";
 
 // Safe to show as is to the user.
 export class BroadcastError extends Error {}
@@ -117,10 +123,16 @@ export async function estimateAudience(
   const project = await requireBroadcastAdmin(db, input.projectId, input.userId);
   const audience = AudienceSchema.parse(input.audience);
   const now = new Date();
+  const trial = trialContactWhere(project);
   const [count, optedOut] = await Promise.all([
-    db.contact.count({ where: audienceWhere(input.projectId, audience, now) }),
+    db.contact.count({ where: { ...audienceWhere(input.projectId, audience, now), ...trial } }),
+    // Même ciblage, désinscription comprise : le filtre de l'audience est remplacé.
     db.contact.count({
-      where: { ...audienceWhere(input.projectId, audience, now), broadcastOptOutAt: { not: null } },
+      where: {
+        ...audienceWhere(input.projectId, audience, now),
+        ...trial,
+        broadcastOptOutAt: { not: null },
+      },
     }),
   ]);
   return { count, optedOut, limit: planFeatures(project.plan).broadcastRecipients };
@@ -178,12 +190,18 @@ export async function createBroadcast(db: PrismaClient, input: BroadcastInput) {
       }
 
       const contacts = await tx.contact.findMany({
-        where: audienceWhere(input.projectId, audience, now),
+        where: {
+          AND: [audienceWhere(input.projectId, audience, now), trialContactWhere(project)],
+        },
         select: { id: true },
         orderBy: { id: "asc" },
       });
       if (!contacts.length) {
-        throw new BroadcastError("Aucun contact ne correspond à ces critères.");
+        throw new BroadcastError(
+          isTrialRestricted(project)
+            ? `${TRIAL_RECIPIENT_BLOCKED} Il doit aussi vous avoir écrit au moins une fois.`
+            : "Aucun contact ne correspond à ces critères.",
+        );
       }
       const usage = await broadcastUsage(tx, input.projectId, project.plan, now);
       if (contacts.length > usage.recipientsLimit) {
@@ -396,6 +414,13 @@ export async function runBroadcastTick(
         data: { state: "SKIPPED", skipReason: "OPTED_OUT" },
       });
       // No message left: the next recipient may go right away.
+      return result(false);
+    }
+    if (!trialAllowsJid(project, contact.remoteJid)) {
+      await tx.broadcastRecipient.update({
+        where: { id: next.id },
+        data: { state: "SKIPPED", skipReason: "TRIAL_TEST_ONLY" },
+      });
       return result(false);
     }
 

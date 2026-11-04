@@ -4,6 +4,7 @@ import type { PrismaClient } from "../src/generated/prisma/client";
 import { latestStatus } from "./evolution-ingestion";
 import { projectBillingStatus } from "./project-status";
 import { can } from "./project-permissions";
+import { trialAllowsJid } from "./trial-restrictions";
 
 export function createOutboundProcessor(
   prisma: PrismaClient,
@@ -107,6 +108,8 @@ export function createOutboundProcessor(
         !job.project.deletionPending &&
         senderAllowed &&
         contact?.projectId === job.projectId &&
+        // Pendant l'essai, seul le numéro de test reçoit des messages.
+        trialAllowsJid(job.project, contact.remoteJid) &&
         ["active", "trialing"].includes(billingStatus) &&
         job.project.instanceStatus === "connected" &&
         !!job.project.instanceName &&

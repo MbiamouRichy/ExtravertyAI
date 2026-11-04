@@ -98,6 +98,7 @@ export const BROADCAST_REASON_LABEL: Record<string, string> = {
 
 export const BROADCAST_SKIP_LABEL: Record<string, string> = {
   OPTED_OUT: "Désinscrit (STOP)",
+  TRIAL_TEST_ONLY: "Hors numéro de test (essai)",
   CANCELLED: "Diffusion annulée",
 };
 

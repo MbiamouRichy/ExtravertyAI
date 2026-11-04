@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowUpRight, CircleX, Loader2 } from "lucide-react";
+import { ArrowUpRight, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -19,6 +19,7 @@ import {
 } from "@/app/actions/project-settings";
 import { BillingPlanButton } from "./billing-plan-button";
 import { LocalBillingDate } from "./local-billing-date";
+import { ReauthButton, useRecentSession } from "../user/recent-session";
 
 export type BillingCancellation = {
   /** Abonnement à jour : il s'arrête en fin de période, sinon tout de suite. */
@@ -27,90 +28,78 @@ export type BillingCancellation = {
   endsAt: Date | number | null | undefined;
 };
 
+/** Une action principale selon l'état de l'abonnement, et l'accès au portail. */
 export function BillingActions({
   projectId,
-  canManage,
   configured,
   needsCheckout = false,
-  cancellation = null,
+  primary,
 }: {
   projectId: string;
-  canManage: boolean;
   configured: boolean;
   /** Paiement initial jamais abouti : seule action utile, le reprendre. */
   needsCheckout?: boolean;
-  /** Null quand l'abonnement est déjà terminé ou sa résiliation programmée. */
-  cancellation?: BillingCancellation | null;
+  primary: { intent: "renew" | "upgrade"; label: string } | null;
 }) {
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
   async function openPortal() {
     setBusy(true);
-    setError("");
     try {
       const result = await openProjectBillingPortal(projectId);
       if (result.success) window.location.assign(result.url);
-      else setError(result.error);
+      else toast.error(result.error);
     } catch {
-      setError("Le portail est temporairement indisponible. Réessayez.");
+      toast.error("Le portail est temporairement indisponible. Réessayez.");
     } finally {
       setBusy(false);
     }
   }
   if (needsCheckout)
-    return canManage ? (
-      <div className="min-w-0 space-y-2">
-        <BillingPlanButton projectId={projectId} intent="renew" needsCheckout />
-        <p className="max-w-xs text-xs text-muted-foreground">
-          Le paiement n’a pas abouti. Reprenez-le pour activer l’essai de 10 jours.
-        </p>
-      </div>
-    ) : null;
+    return <BillingPlanButton projectId={projectId} intent="renew" needsCheckout />;
   return (
-    <div className="min-w-0 space-y-3">
-      <div className="grid grid-cols-2 gap-2 *:first:col-span-2 sm:flex sm:flex-wrap sm:*:first:col-span-1">
-        {canManage && (
-          <>
-            <BillingPlanButton projectId={projectId} intent="renew" disabled={!configured} />
-            <BillingPlanButton projectId={projectId} intent="upgrade" disabled={!configured} />
-          </>
+    <div className="grid grid-cols-2 gap-2 sm:flex">
+      <Button
+        variant="outline"
+        className="h-auto min-h-9 whitespace-normal"
+        disabled={busy || !configured}
+        aria-busy={busy}
+        onClick={() => void openPortal()}
+      >
+        {busy ? (
+          <Loader2 aria-hidden="true" className="size-4 animate-spin motion-reduce:animate-none" />
+        ) : (
+          <ArrowUpRight aria-hidden="true" className="size-4" />
         )}
-        {canManage && (
-          <Button
-            variant="outline"
-            className="h-auto min-h-9 whitespace-normal text-center"
-            disabled={busy || !configured}
-            onClick={() => void openPortal()}
-          >
-            {busy ? (
-              <Loader2 className="size-4 animate-spin" aria-hidden="true" />
-            ) : (
-              <ArrowUpRight className="size-4" aria-hidden="true" />
-            )}
-            Gérer l’abonnement
-          </Button>
-        )}
-        {canManage && cancellation && (
-          <CancelSubscriptionButton projectId={projectId} cancellation={cancellation} />
-        )}
-      </div>
-      {error && (
-        <p role="alert" className="max-w-md text-sm text-destructive">
-          {error}
-        </p>
+        Gérer le paiement
+      </Button>
+      {primary && (
+        <BillingPlanButton
+          projectId={projectId}
+          intent={primary.intent}
+          label={primary.label}
+          variant="default"
+          disabled={!configured}
+        />
       )}
     </div>
   );
 }
 
-function CancelSubscriptionButton({
+/**
+ * Résiliation, en bas de page. Le bouton ne s'active qu'avec une connexion de
+ * moins de 10 minutes ; le serveur le revérifie à la confirmation.
+ */
+export function BillingCancelSection({
   projectId,
+  sessionCreatedAt,
   cancellation,
 }: {
   projectId: string;
+  sessionCreatedAt: string;
   cancellation: BillingCancellation;
 }) {
   const router = useRouter();
+  const recentLogin = useRecentSession(sessionCreatedAt);
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   async function confirm() {
@@ -119,11 +108,12 @@ function CancelSubscriptionButton({
       const result = await cancelProjectSubscription(projectId);
       if (!result.success) {
         toast.error(result.error);
+        if ("code" in result) setOpen(false);
         return;
       }
       toast.success(
         cancellation.atPeriodEnd
-          ? "Résiliation programmée. Vous pouvez renouveler le plan jusqu’à la fin de la période."
+          ? "Résiliation programmée. Vous pouvez réactiver l’abonnement jusqu’à la fin de la période."
           : "Abonnement résilié.",
       );
       setOpen(false);
@@ -135,52 +125,79 @@ function CancelSubscriptionButton({
     }
   }
   const date = cancellation.endsAt ? (
-    <strong className="text-foreground">
+    <strong className="font-medium text-foreground">
       <LocalBillingDate value={cancellation.endsAt} dateOnly />
     </strong>
   ) : null;
   return (
-    <AlertDialog open={open} onOpenChange={(next) => !busy && setOpen(next)}>
-      <Button
-        variant="destructive"
-        className="col-span-2 h-auto min-h-9 whitespace-normal text-center sm:col-span-1"
-        onClick={() => setOpen(true)}
-      >
-        <CircleX className="size-4" aria-hidden="true" />
-        Résilier l’abonnement
-      </Button>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>Résilier l’abonnement ?</AlertDialogTitle>
-          <AlertDialogDescription>
-            {!cancellation.atPeriodEnd ? (
-              <>
-                Le paiement en attente est abandonné et l’abonnement s’arrête
-                immédiatement. Vous pourrez souscrire de nouveau à tout moment.
-              </>
-            ) : cancellation.trial ? (
-              <>
-                Votre essai reste actif{date ? <> jusqu’au {date}</> : " jusqu’à son terme"}, et
-                vous ne serez pas prélevé. Vous pouvez changer d’avis d’ici là
-                avec « Renouveler le plan ».
-              </>
-            ) : (
-              <>
-                Votre offre reste active{date ? <> jusqu’au {date}</> : " jusqu’à la fin de la période"}, puis
-                aucun nouveau paiement n’est prélevé. Vous pouvez changer d’avis
-                d’ici là avec « Renouveler le plan ».
-              </>
-            )}
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel disabled={busy}>Garder l’abonnement</AlertDialogCancel>
-          <Button variant="destructive" disabled={busy} onClick={() => void confirm()}>
-            {busy && <Loader2 className="size-4 animate-spin" aria-hidden="true" />}
-            {busy ? "Résiliation…" : "Résilier"}
+    <section
+      aria-labelledby="cancel-title"
+      className="flex flex-col gap-4 border-t pt-8 sm:flex-row sm:items-center sm:justify-between"
+    >
+      <div className="min-w-0">
+        <h2 id="cancel-title" className="text-sm font-medium">
+          Résilier l’abonnement
+        </h2>
+        <p className="mt-1 max-w-lg text-sm text-muted-foreground">
+          {cancellation.atPeriodEnd
+            ? "Aucun nouveau prélèvement. Votre offre reste active jusqu’à la fin de la période en cours."
+            : "Le paiement en attente est abandonné et l’abonnement s’arrête immédiatement."}
+          {!recentLogin &&
+            " Par sécurité, reconnectez-vous d’abord : la résiliation reste possible 10 minutes après la connexion."}
+        </p>
+      </div>
+      <div className="flex shrink-0 flex-wrap gap-2">
+        {!recentLogin && (
+          <ReauthButton
+            callbackUrl={`/projects/${projectId}/billing`}
+            label="Se reconnecter"
+          />
+        )}
+        <AlertDialog open={open} onOpenChange={(next) => !busy && setOpen(next)}>
+          <Button
+            variant="destructive"
+            disabled={!recentLogin}
+            onClick={() => setOpen(true)}
+          >
+            Résilier
           </Button>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Résilier l’abonnement ?</AlertDialogTitle>
+              <AlertDialogDescription>
+                {!cancellation.atPeriodEnd ? (
+                  <>
+                    Le paiement en attente est abandonné et l’abonnement
+                    s’arrête immédiatement. Vous pourrez souscrire de nouveau à
+                    tout moment.
+                  </>
+                ) : cancellation.trial ? (
+                  <>
+                    Votre essai reste actif{date ? <> jusqu’au {date}</> : " jusqu’à son terme"}, et
+                    vous ne serez pas prélevé. Vous pouvez réactiver
+                    l’abonnement d’ici là.
+                  </>
+                ) : (
+                  <>
+                    Votre offre reste active{date ? <> jusqu’au {date}</> : " jusqu’à la fin de la période"}, puis
+                    aucun nouveau paiement n’est prélevé. Vous pouvez réactiver
+                    l’abonnement d’ici là.
+                  </>
+                )}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={busy}>Garder l’abonnement</AlertDialogCancel>
+              <Button variant="destructive" disabled={busy} onClick={() => void confirm()}>
+                {busy && (
+                  <Loader2 aria-hidden="true" className="size-4 animate-spin motion-reduce:animate-none" />
+                )}
+                {busy ? "Résiliation…" : "Résilier"}
+              </Button>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </div>
+    </section>
   );
 }

@@ -4,6 +4,7 @@ import { test } from "node:test";
 import { runInNewContext } from "node:vm";
 import ts from "typescript";
 import { z } from "zod";
+import { isRecentSession } from "../lib/recent-session";
 class SettingsError extends Error {}
 function setup(
   options: {
@@ -13,6 +14,8 @@ function setup(
     invoice?: boolean;
     status?: string;
     cancelling?: boolean;
+    /** Connexion de plus de 10 minutes. */
+    staleLogin?: boolean;
   } = {},
 ) {
   const calls: unknown[] = [];
@@ -28,8 +31,16 @@ function setup(
     "@/lib/whatsapp-settings-sync": {},
     "@/lib/auth-server": {
       getSession: async () =>
-        options.anonymous ? null : { user: { id: "actor" } },
+        options.anonymous
+          ? null
+          : {
+              user: { id: "actor" },
+              session: {
+                createdAt: new Date(Date.now() - (options.staleLogin ? 11 : 1) * 60_000),
+              },
+            },
     },
+    "@/lib/recent-session": { isRecentSession },
     "@/lib/prisma": {
       default: { $transaction: async (fn: (tx: object) => unknown) => fn({}) },
     },
@@ -207,4 +218,11 @@ test("renewal lifts a scheduled cancellation instead of opening the portal", asy
     update: "sub_ours",
     input: { cancel_at_period_end: false },
   });
+});
+test("cancellation refuses a login older than ten minutes before Stripe", async () => {
+  const s = setup({ staleLogin: true });
+  const result = (await s.cancel()) as { success: boolean; code?: string };
+  assert.equal(result.success, false);
+  assert.equal(result.code, "REAUTH_REQUIRED");
+  assert.equal(s.calls.length, 0);
 });

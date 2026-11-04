@@ -6,6 +6,8 @@ import { Dashboard } from "@/components/dashboard/dashboard";
 import { getProjectById } from "@/app/actions/projects";
 import prisma from "@/lib/prisma";
 import ProjectNotFoundDialog from "@/components/dashboard/project/projectNotfoundDialog";
+import { TrialTestNumberNotice } from "@/components/dashboard/project/trial-test-number-notice";
+import { isTrialRestricted } from "@/lib/trial-restrictions";
 export const dynamic = "force-dynamic";
 
 type PageProps = {
@@ -64,15 +66,33 @@ export default async function ProjectDashboardPage({ params }: PageProps) {
   if (!can(project.userRole, "stats.view")) {
     return redirect(homePath(projectId, project.userRole));
   }
+  const trial = await prisma.project.findUnique({
+    where: { id: projectId },
+    select: {
+      status: true,
+      automationPaused: true,
+      statusBeforePause: true,
+      trialTestNumber: true,
+      trialTestJid: true,
+    },
+  });
   return (
-    <Dashboard
-      projectId={projectId}
-      role={project.userRole}
-      project={{
-        name: project.name,
-        instanceStatus: project.instanceStatus,
-        automationPaused: project.automationPaused,
-      }}
-    />
+    <>
+      {trial && isTrialRestricted(trial) && !trial.trialTestNumber && (
+        <TrialTestNumberNotice
+          projectId={projectId}
+          canManage={can(project.userRole, "project.manage")}
+        />
+      )}
+      <Dashboard
+        projectId={projectId}
+        role={project.userRole}
+        project={{
+          name: project.name,
+          instanceStatus: project.instanceStatus,
+          automationPaused: project.automationPaused,
+        }}
+      />
+    </>
   );
 }

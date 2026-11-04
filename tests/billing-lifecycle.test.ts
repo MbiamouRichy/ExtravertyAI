@@ -123,6 +123,8 @@ test(
             instanceName: crypto.randomUUID(),
             status: "trialing",
             stripeStatus: "trialing",
+            // Pendant l'essai, seul ce numéro échange avec le projet.
+            trialTestNumber: "24100000002",
             instanceStatus: "connected",
             agentSetupCompletedAt: new Date(),
             agentSystemMessage:
