@@ -24,6 +24,7 @@ import { allowRequest } from "@/lib/rate-limit";
 import { can } from "@/lib/project-permissions";
 import { resolvePlanId, type PlanId } from "@/lib/pricing";
 import { needsInitialCheckout } from "@/lib/billing-display";
+import { isTrialAvailable, reserveTrial } from "@/lib/trial-eligibility";
 import {
   createEvolutionInstance,
   deleteEvolutionInstance,
@@ -38,11 +39,35 @@ const STRIPE_PRICE_MAPPING: Record<
   pro: process.env.STRIPE_PRO_PLAN_ID,
 };
 
-export async function createProjectAndCheckout(data: ProjectCheckoutInput) {
+const EMAIL_NOT_VERIFIED_ERROR =
+  "Confirmez votre adresse e-mail avant de créer un projet.";
+const TRIAL_UNAVAILABLE_ERROR =
+  "Ce numéro WhatsApp a déjà bénéficié de l’essai gratuit.";
+
+/** Le client confirme explicitement un paiement sans essai. */
+const CheckoutOptionsSchema = z
+  .object({ withoutTrial: z.boolean().optional() })
+  .optional();
+
+class TrialTakenError extends Error {}
+
+export async function createProjectAndCheckout(
+  data: ProjectCheckoutInput,
+  options?: { withoutTrial?: boolean },
+) {
   const session = await getSession();
   if (!session?.user?.id || !session?.user?.email) {
     throw new Error("Session expirée ou non autorisée.");
   }
+  // Un essai gratuit suppose une adresse dont on a prouvé la possession.
+  if (session.user.emailVerified !== true)
+    return {
+      success: false as const,
+      code: "EMAIL_NOT_VERIFIED" as const,
+      error: EMAIL_NOT_VERIFIED_ERROR,
+    };
+  const withoutTrial =
+    CheckoutOptionsSchema.safeParse(options).data?.withoutTrial === true;
 
   const parsed = ProjectCheckoutSchema.safeParse(data);
   if (!parsed.success) {
@@ -97,6 +122,15 @@ export async function createProjectAndCheckout(data: ProjectCheckoutInput) {
     };
   }
 
+  // Lecture avant toute création externe ; la réservation atomique suit.
+  const trial = await isTrialAvailable(prisma, cleanedNumero);
+  if (!trial && !withoutTrial)
+    return {
+      success: false as const,
+      code: "TRIAL_UNAVAILABLE" as const,
+      error: TRIAL_UNAVAILABLE_ERROR,
+    };
+
   const uniqueId = Math.random().toString(36).substring(2, 7);
   const instanceName = `ext_${Date.now()}_${uniqueId}`;
 
@@ -111,22 +145,28 @@ export async function createProjectAndCheckout(data: ProjectCheckoutInput) {
     await createEvolutionInstance(instanceName, cleanedNumero);
     isInstanceCreated = true;
 
-    const project = await prisma.project.create({
-      data: {
-        name: data.name,
-        numero: cleanedNumero,
-        instanceName: instanceName,
-        instanceToken: instanceToken, // Ajout selon le nouveau schéma
-        instanceStatus: "connecting",
-        plan: data.plan,
-        status: "inactive",
-        members: {
-          create: {
-            userId: session.user.id,
-            role: "OWNER",
+    const project = await prisma.$transaction(async (tx) => {
+      const created = await tx.project.create({
+        data: {
+          name: data.name,
+          numero: cleanedNumero,
+          instanceName: instanceName,
+          instanceToken: instanceToken, // Ajout selon le nouveau schéma
+          instanceStatus: "connecting",
+          plan: data.plan,
+          status: "inactive",
+          members: {
+            create: {
+              userId: session.user.id,
+              role: "OWNER",
+            },
           },
         },
-      },
+      });
+      // Deux comptes sur le même numéro : un seul obtient l’essai.
+      if (trial && !(await reserveTrial(tx, cleanedNumero, created.id)))
+        throw new TrialTakenError();
+      return created;
     });
     createdProjectId = project.id;
 
@@ -135,13 +175,16 @@ export async function createProjectAndCheckout(data: ProjectCheckoutInput) {
       plan: data.plan,
       email: session.user.email,
       cancelPath: `/projects/new?plan=${data.plan}&canceled=true`,
+      trial,
     });
 
     revalidatePath("/projects");
 
     return { success: true, url };
   } catch (error) {
-    console.error("❌ Échec de la création (Rollback) :", error);
+    const trialTaken = error instanceof TrialTakenError;
+    if (!trialTaken)
+      console.error("❌ Échec de la création (Rollback) :", error);
 
     if (createdProjectId) {
       try {
@@ -159,6 +202,12 @@ export async function createProjectAndCheckout(data: ProjectCheckoutInput) {
       }
     }
 
+    if (trialTaken)
+      return {
+        success: false as const,
+        code: "TRIAL_UNAVAILABLE" as const,
+        error: TRIAL_UNAVAILABLE_ERROR,
+      };
     return {
       success: false,
       error:
@@ -181,12 +230,14 @@ async function isCheckoutPriceCurrent(plan: PlanId) {
     : matchesCheckoutPrice(await stripe.prices.retrieve(reference), plan);
 }
 
-/** Paiement d'abonnement (essai de 10 jours) pour un projet existant. */
+/** Paiement d'abonnement, avec ou sans essai de 10 jours, pour un projet existant. */
 async function createCheckoutUrl(input: {
   projectId: string;
   plan: PlanId;
   email: string;
   cancelPath: string;
+  /** Faux : le numéro a déjà eu son essai, le premier mois est payé tout de suite. */
+  trial: boolean;
 }) {
   const origin = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "");
   if (!origin) throw new Error("NEXT_PUBLIC_APP_URL manquant");
@@ -200,6 +251,7 @@ async function createCheckoutUrl(input: {
       email: input.email,
       successUrl: `${origin}/projects/${input.projectId}?success=true`,
       returnUrl: `${origin}${input.cancelPath}`,
+      trial: input.trial,
     });
   const checkoutSession = await stripe.checkout.sessions.create({
     payment_method_types: ["card"],
@@ -210,8 +262,12 @@ async function createCheckoutUrl(input: {
     metadata: { projectId: input.projectId },
     subscription_data: {
       metadata: { projectId: input.projectId },
-      trial_period_days: 10,
+      ...(input.trial ? { trial_period_days: 10 } : {}),
     },
+    // La session ne doit pas survivre à la réservation de l'essai.
+    ...(input.trial
+      ? { expires_at: Math.floor(Date.now() / 1000) + 60 * 60 }
+      : {}),
     success_url: `${origin}/projects/${input.projectId}?success=true`,
     cancel_url: `${origin}${input.cancelPath}`,
   });
@@ -219,20 +275,32 @@ async function createCheckoutUrl(input: {
   return checkoutSession.url;
 }
 
-const ResumeSchema = z.object({ projectId: z.string().cuid() });
+const ResumeSchema = z.object({
+  projectId: z.string().cuid(),
+  withoutTrial: z.boolean().optional(),
+});
 
 /**
  * Reprend le paiement d'un projet dont le Checkout n'a pas abouti (onglet
  * fermé, carte refusée). Réservé au propriétaire et au rôle Facturation, tant
  * qu'aucun client ni abonnement Stripe n'est rattaché au projet.
  */
-export async function resumeProjectCheckout(input: z.input<typeof ResumeSchema>) {
+export async function resumeProjectCheckout(
+  input: z.input<typeof ResumeSchema>,
+) {
   const parsed = ResumeSchema.safeParse(input);
-  if (!parsed.success) return { success: false as const, error: "Demande invalide." };
+  if (!parsed.success)
+    return { success: false as const, error: "Demande invalide." };
   const session = await getSession();
   if (!session?.user?.id || !session.user.email)
     return { success: false as const, error: "Connexion requise." };
-  const { projectId } = parsed.data;
+  if (session.user.emailVerified !== true)
+    return {
+      success: false as const,
+      code: "EMAIL_NOT_VERIFIED" as const,
+      error: EMAIL_NOT_VERIFIED_ERROR,
+    };
+  const { projectId, withoutTrial } = parsed.data;
   const membership = await prisma.projectMembership.findUnique({
     where: { userId_projectId: { userId: session.user.id, projectId } },
     select: {
@@ -240,6 +308,7 @@ export async function resumeProjectCheckout(input: z.input<typeof ResumeSchema>)
       project: {
         select: {
           plan: true,
+          numero: true,
           status: true,
           deletionPending: true,
           stripeCustomerId: true,
@@ -255,11 +324,15 @@ export async function resumeProjectCheckout(input: z.input<typeof ResumeSchema>)
     };
   const { project } = membership;
   if (project.deletionPending)
-    return { success: false as const, error: "Ce projet est en cours de suppression." };
+    return {
+      success: false as const,
+      error: "Ce projet est en cours de suppression.",
+    };
   if (!needsInitialCheckout(project))
     return {
       success: false as const,
-      error: "Ce projet a déjà un abonnement : utilisez « Gérer l’abonnement ».",
+      error:
+        "Ce projet a déjà un abonnement : utilisez « Gérer l’abonnement ».",
     };
   // Chaque appel ouvre une session de paiement : pas de rafale.
   if (!allowRequest(`checkout-resume:${projectId}`, 5, 10 * 60 * 1000))
@@ -269,7 +342,10 @@ export async function resumeProjectCheckout(input: z.input<typeof ResumeSchema>)
     };
   const plan = resolvePlanId(project.plan);
   if (!checkoutReference(plan))
-    return { success: false as const, error: "Ce forfait est temporairement indisponible." };
+    return {
+      success: false as const,
+      error: "Ce forfait est temporairement indisponible.",
+    };
   try {
     if (!(await isCheckoutPriceCurrent(plan)))
       return {
@@ -277,18 +353,28 @@ export async function resumeProjectCheckout(input: z.input<typeof ResumeSchema>)
         error:
           "Ce forfait est temporairement indisponible. Son tarif de paiement est en cours de mise à jour.",
       };
+    // Réservé à nouveau à chaque reprise : un autre projet a pu l'obtenir.
+    const trial = await reserveTrial(prisma, project.numero, projectId);
+    if (!trial && !withoutTrial)
+      return {
+        success: false as const,
+        code: "TRIAL_UNAVAILABLE" as const,
+        error: TRIAL_UNAVAILABLE_ERROR,
+      };
     const url = await createCheckoutUrl({
       projectId,
       plan,
       email: session.user.email,
       cancelPath: `/projects/${projectId}/billing?canceled=true`,
+      trial,
     });
     return { success: true as const, url };
   } catch {
     console.error("[billing] Reprise du paiement impossible.");
     return {
       success: false as const,
-      error: "Le paiement n’a pas pu être préparé. Réessayez dans quelques instants.",
+      error:
+        "Le paiement n’a pas pu être préparé. Réessayez dans quelques instants.",
     };
   }
 }

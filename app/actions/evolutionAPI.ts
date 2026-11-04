@@ -242,6 +242,32 @@ export async function getEvolutionConnectionState(instanceName: string) {
     : null;
 }
 
+/** Identifiant WhatsApp du compte relié à l'instance (ownerJid), s'il est connu. */
+export async function getEvolutionOwnerJid(instanceName: string) {
+  const { EVOLUTION_API_URL, EVOLUTION_API_TOKEN } = getEnvVars();
+  const response = await fetch(
+    `${EVOLUTION_API_URL}/instance/fetchInstances?instanceName=${encodeURIComponent(instanceName.trim())}`,
+    {
+      headers: { apikey: EVOLUTION_API_TOKEN },
+      cache: "no-store",
+      signal: AbortSignal.timeout(8000),
+    },
+  );
+  if (!response.ok) throw new Error(`Erreur réseau (${response.status})`);
+  const data: unknown = await response.json();
+  const first = Array.isArray(data) ? data[0] : data;
+  const record =
+    first && typeof first === "object"
+      ? ((first as Record<string, unknown>).instance ?? first)
+      : null;
+  const jid =
+    record && typeof record === "object"
+      ? ((record as Record<string, unknown>).ownerJid ??
+        (record as Record<string, unknown>).owner)
+      : null;
+  return typeof jid === "string" ? jid : null;
+}
+
 /** Ferme une session en attente (QR affiché) avant une liaison par code. */
 export async function logoutEvolutionInstance(instanceName: string) {
   const { EVOLUTION_API_URL, EVOLUTION_API_TOKEN } = getEnvVars();

@@ -12,6 +12,7 @@ import {
   Check,
   ChevronDown,
   CircleAlert,
+  Info,
   Loader2,
 } from "lucide-react";
 
@@ -54,7 +55,8 @@ import {
 } from "@/lib/pricing";
 import { cn } from "@/lib/utils";
 
-// Trial terms enforced server-side (stripe-actions trial_period_days, billing-quota).
+// Trial terms enforced server-side (stripe-actions trial_period_days, billing-quota,
+// trial-eligibility: one trial per WhatsApp number).
 const TRIAL_DAYS = 10;
 const TRIAL_MESSAGES = 150;
 
@@ -77,6 +79,8 @@ export default function CreateProjectForm({
   // Synchronous guard against a double click before the next render. The
   // server action must remain idempotent on its own.
   const submissionLock = useRef(false);
+  // Numéro (E.164) dont l’essai a déjà été utilisé, signalé par le serveur.
+  const [trialUsedFor, setTrialUsedFor] = useState<string | null>(null);
 
   const {
     control,
@@ -98,6 +102,12 @@ export default function CreateProjectForm({
   const selectedPlan =
     PLANS.find((plan) => plan.id === watch("plan")) ?? PLANS[0];
   const serverError = errors.root?.server?.message;
+  const currentNumber = parseProjectPhone(
+    watch("numero"),
+    selectedCountry,
+  )?.number;
+  // Changer de numéro rouvre la question de l’essai.
+  const withoutTrial = !!trialUsedFor && trialUsedFor === currentNumber;
 
   async function onSubmit(values: ProjectCreationFormValues) {
     if (submissionLock.current) return;
@@ -112,11 +122,22 @@ export default function CreateProjectForm({
     };
 
     try {
-      const result = await createProjectAndCheckout({
-        name: values.name,
-        numero: parseProjectPhone(values.numero, values.country)!.number,
-        plan: values.plan,
-      });
+      const numero = parseProjectPhone(values.numero, values.country)!.number;
+      const result = await createProjectAndCheckout(
+        { name: values.name, numero, plan: values.plan },
+        { withoutTrial },
+      );
+      if (
+        !result.success &&
+        "code" in result &&
+        result.code === "TRIAL_UNAVAILABLE"
+      ) {
+        // Pas une erreur : on propose l’abonnement payé, que l’utilisateur confirme.
+        setTrialUsedFor(numero);
+        submissionLock.current = false;
+        setIsBusy(false);
+        return;
+      }
       if (!result.success || !result.url) {
         fail(
           result.error ||
@@ -165,7 +186,8 @@ export default function CreateProjectForm({
           Créer un projet
         </h1>
         <p className="mt-2 text-muted-foreground">
-          {TRIAL_DAYS} jours offerts, sans engagement.
+          {TRIAL_DAYS} jours offerts, sans engagement. Un essai par numéro
+          WhatsApp.
         </p>
       </header>
 
@@ -361,7 +383,10 @@ export default function CreateProjectForm({
                           <span className="flex items-center gap-2 text-sm font-medium">
                             {plan.name}
                             {plan.highlighted && (
-                              <Badge variant="secondary" className="font-normal">
+                              <Badge
+                                variant="secondary"
+                                className="font-normal"
+                              >
                                 Populaire
                               </Badge>
                             )}
@@ -433,15 +458,37 @@ export default function CreateProjectForm({
             <div className="flex items-baseline justify-between gap-4">
               <span className="text-sm font-medium">À payer aujourd’hui</span>
               <span className="text-2xl font-semibold tracking-tight tabular-nums">
-                {formatPlanPrice(0)}
+                {formatPlanPrice(withoutTrial ? selectedPlan.priceCents : 0)}
               </span>
             </div>
             <p className="mt-1 text-xs leading-5 text-muted-foreground">
-              Essai de {TRIAL_DAYS} jours limité à {TRIAL_MESSAGES} messages,
-              puis {formatPlanPrice(selectedPlan.priceCents)} / mois. Résiliable
-              avant la fin de l’essai.
+              {withoutTrial ? (
+                <>
+                  Abonnement {selectedPlan.name} sans essai,{" "}
+                  {formatPlanPrice(selectedPlan.priceCents)} / mois. Résiliable
+                  à tout moment depuis la facturation.
+                </>
+              ) : (
+                <>
+                  Essai de {TRIAL_DAYS} jours limité à {TRIAL_MESSAGES}{" "}
+                  messages, puis {formatPlanPrice(selectedPlan.priceCents)} /
+                  mois. Résiliable avant la fin de l’essai.
+                </>
+              )}
             </p>
           </div>
+
+          {withoutTrial && (
+            <Alert role="status">
+              <Info aria-hidden />
+              <AlertTitle>Essai déjà utilisé pour ce numéro</AlertTitle>
+              <AlertDescription>
+                L’essai gratuit est accordé une seule fois par numéro WhatsApp
+                professionnel. Vous pouvez créer le projet avec un abonnement
+                payé dès aujourd’hui, ou utiliser un autre numéro.
+              </AlertDescription>
+            </Alert>
+          )}
 
           {serverError && <ServerError message={serverError} />}
 
@@ -461,7 +508,9 @@ export default function CreateProjectForm({
               </>
             ) : (
               <>
-                Continuer vers le paiement
+                {withoutTrial
+                  ? `Payer ${formatPlanPrice(selectedPlan.priceCents)} et créer le projet`
+                  : "Continuer vers le paiement"}
                 <ArrowRight aria-hidden data-icon="inline-end" />
               </>
             )}

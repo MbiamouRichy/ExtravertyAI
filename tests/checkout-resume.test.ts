@@ -31,8 +31,13 @@ type Project = {
   stripeSubscriptionId: string | null;
 };
 
-function loadResume(role: string | null, project: Partial<Project> = {}) {
+function loadResume(
+  role: string | null,
+  project: Partial<Project> = {},
+  options: { trialAvailable?: boolean; emailVerified?: boolean } = {},
+) {
   const sessions: Array<Record<string, unknown>> = [];
+  const reservations: Array<[string, string]> = [];
   const plan = pricing.PRICING_PLANS.find((p) => p.id === "pro")!;
   const modules: Record<string, unknown> = {
     crypto: { default: crypto },
@@ -45,6 +50,7 @@ function loadResume(role: string | null, project: Partial<Project> = {}) {
               role,
               project: {
                 plan: "pro",
+                numero: "+24166000001",
                 status: "inactive",
                 deletionPending: false,
                 stripeCustomerId: null,
@@ -56,7 +62,13 @@ function loadResume(role: string | null, project: Partial<Project> = {}) {
       },
     },
     "@/lib/auth-server": {
-      getSession: async () => ({ user: { id: "u", email: "owner@example.test" } }),
+      getSession: async () => ({
+        user: {
+          id: "u",
+          email: "owner@example.test",
+          emailVerified: options.emailVerified ?? true,
+        },
+      }),
     },
     "@/lib/stripe": {
       stripe: {
@@ -91,6 +103,13 @@ function loadResume(role: string | null, project: Partial<Project> = {}) {
     "@/lib/billing-provider": { checkoutProvider: () => "stripe" },
     "@/lib/polar": {},
     "./evolutionAPI": {},
+    "@/lib/trial-eligibility": {
+      isTrialAvailable: async () => options.trialAvailable ?? true,
+      reserveTrial: async (_db: unknown, numero: string, projectId: string) => {
+        reservations.push([numero, projectId]);
+        return options.trialAvailable ?? true;
+      },
+    },
   };
   const exports: Record<string, (input: unknown) => Promise<{ success: boolean; url?: string; error?: string }>> = {};
   const source = ts.transpileModule(readFileSync("app/actions/stripe-actions.ts", "utf8"), {
@@ -110,14 +129,16 @@ function loadResume(role: string | null, project: Partial<Project> = {}) {
       return modules[name];
     },
   });
-  return { resume: exports.resumeProjectCheckout, sessions };
+  return { resume: exports.resumeProjectCheckout, sessions, reservations };
 }
 
 test("the owner and billing role resume an abandoned checkout for the same project", async () => {
   for (const role of ["OWNER", "BILLING"]) {
-    const { resume, sessions } = loadResume(role);
+    const { resume, sessions, reservations } = loadResume(role);
     const result = await resume({ projectId: PROJECT_ID });
     assert.equal(result.success, true, role);
+    // L'essai est réservé pour ce projet le temps du paiement.
+    assert.deepEqual(reservations, [["+24166000001", PROJECT_ID]]);
     assert.equal(result.url, "https://checkout.stripe.com/c/pay/test");
     const [params] = sessions as Array<{
       metadata: { projectId: string };
@@ -154,4 +175,30 @@ test("resuming is refused without the right role or once billing exists", async 
   }
   const { resume } = loadResume("OWNER");
   assert.equal((await resume({ projectId: "pas-un-id" })).success, false);
+});
+
+test("a number whose trial was used resumes only after an explicit paid confirmation", async () => {
+  const { resume, sessions } = loadResume("OWNER", {}, { trialAvailable: false });
+  const refused = (await resume({ projectId: PROJECT_ID })) as { success: boolean; code?: string };
+  assert.equal(refused.success, false);
+  assert.equal(refused.code, "TRIAL_UNAVAILABLE");
+  assert.equal(sessions.length, 0);
+
+  const paid = await resume({ projectId: PROJECT_ID, withoutTrial: true });
+  assert.equal(paid.success, true);
+  const [params] = sessions as Array<{
+    subscription_data: Record<string, unknown>;
+    expires_at?: number;
+  }>;
+  assert.equal("trial_period_days" in params.subscription_data, false);
+  assert.equal(params.expires_at, undefined);
+});
+
+test("an unverified email address cannot start a trial", async () => {
+  const { resume, sessions, reservations } = loadResume("OWNER", {}, { emailVerified: false });
+  const result = (await resume({ projectId: PROJECT_ID })) as { success: boolean; code?: string };
+  assert.equal(result.success, false);
+  assert.equal(result.code, "EMAIL_NOT_VERIFIED");
+  assert.equal(sessions.length, 0);
+  assert.equal(reservations.length, 0);
 });

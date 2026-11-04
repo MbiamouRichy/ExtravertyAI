@@ -1,6 +1,7 @@
 import type Stripe from "stripe";
 import type { Prisma, PrismaClient } from "../src/generated/prisma/client";
 import type { BillingProvider } from "./billing-provider";
+import { consumeTrial } from "./trial-eligibility";
 
 export function subscriptionStatus(status: string) {
   if (status === "trialing") return "trialing" as const;
@@ -210,6 +211,13 @@ export async function applySubscriptionState(
         stripeStatus: sub.providerStatus,
       },
     });
+    // Un seul essai par numéro WhatsApp : consommé dès l’entrée en essai.
+    if (trial)
+      await consumeTrial(tx, {
+        numero: current.numero,
+        projectId,
+        subscriptionId: sub.id,
+      });
     if (renewalPending) {
       await extendPaidPeriodDuringRenewal(tx, projectId, sub.id, sub.cycle);
       return;

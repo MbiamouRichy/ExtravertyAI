@@ -6,11 +6,16 @@ import { can } from "@/lib/project-permissions";
 import prisma from "@/lib/prisma";
 import { getSession } from "@/lib/auth-server";
 import { InstanceStatus } from "@/src/generated/prisma/client";
-import { confirmInstanceConnection } from "@/lib/instance-connection";
+import {
+  FOREIGN_TRIAL_NUMBER_ERROR,
+  confirmInstanceConnection,
+  isForeignTrialNumber,
+} from "@/lib/instance-connection";
 
 import {
   getEvolutionConnectionState,
   getEvolutionInstanceConnect,
+  getEvolutionOwnerJid,
   logoutEvolutionInstance,
   requestEvolutionPairingCode,
 } from "./evolutionAPI";
@@ -82,6 +87,31 @@ async function requireConnectionAdmin(projectId: string) {
   return membership.project;
 }
 
+type ConnectionProject = Awaited<ReturnType<typeof requireConnectionAdmin>>;
+
+/**
+ * Connexion confirmée par la passerelle. Pendant l'essai, un autre numéro que
+ * celui du projet est aussitôt déconnecté : un seul essai par numéro.
+ */
+async function confirmConnection(project: ConnectionProject) {
+  if (project.status === "trialing") {
+    const owner = await getEvolutionOwnerJid(project.instanceName).catch(
+      () => null,
+    );
+    if (isForeignTrialNumber(project, owner)) {
+      await logoutEvolutionInstance(project.instanceName).catch(
+        () => undefined,
+      );
+      await prisma.project.updateMany({
+        where: { id: project.id },
+        data: { instanceStatus: "disconnected" },
+      });
+      throw new ConnectionError(FOREIGN_TRIAL_NUMBER_ERROR);
+    }
+  }
+  return confirmInstanceConnection(prisma, project);
+}
+
 function publicError(error: unknown): string {
   return error instanceof ConnectionError
     ? error.message
@@ -110,7 +140,7 @@ export async function getConnectionData(
       return {
         status:
           state === "open"
-            ? await confirmInstanceConnection(prisma, project)
+            ? await confirmConnection(project)
             : state === "connecting"
               ? InstanceStatus.connecting
               : InstanceStatus.disconnected,
@@ -145,7 +175,7 @@ export async function getConnectionData(
     let status: InstanceStatus = project.instanceStatus;
 
     if (rawState === "open") {
-      status = await confirmInstanceConnection(prisma, project);
+      status = await confirmConnection(project);
     } else if (qr) {
       status = InstanceStatus.qr_ready;
     } else if (rawState === "connecting") {
@@ -215,7 +245,7 @@ export async function generatePairingCode(projectId: string) {
     // en attente est d’abord fermée, puis rouverte avec le numéro.
     const state = await getEvolutionConnectionState(project.instanceName);
     if (state === "open") {
-      await confirmInstanceConnection(prisma, project);
+      await confirmConnection(project);
       throw new ConnectionError("WhatsApp est déjà connecté.");
     }
     if (state === "connecting") {

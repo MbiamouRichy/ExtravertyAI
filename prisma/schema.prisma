@@ -557,6 +557,23 @@ model Invitation {
 
 // Proof that an account erasure was carried out, holding no personal data: the
 // e-mail is only stored as a keyed HMAC so a later request can be matched.
+// One free trial per WhatsApp business number. Keyed HMAC of the number, no
+// foreign key: the claim must outlive the project and the account.
+model TrialClaim {
+  numberHash     String    @id
+  /// Project holding the reservation or the trial (informational only).
+  projectId      String?
+  subscriptionId String?
+  /// Checkout in progress: the trial stays reserved for this project.
+  reservedUntil  DateTime?
+  /// Set once a subscription actually entered its trial.
+  consumedAt     DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @default(now()) @updatedAt
+
+  @@map("trial_claim")
+}
+
 model AccountDeletionRecord {
   id              String   @id @default(cuid())
   emailHash       String
