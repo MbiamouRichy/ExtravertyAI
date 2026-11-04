@@ -101,7 +101,12 @@ export function ConversationSimulator() {
                     className="absolute inset-0 rounded-[inherit] border bg-muted shadow-xs"
                   />
                 )}
-                <span className="relative">{item.label}</span>
+                <span className="relative truncate">
+                  <span aria-hidden="true" className="min-[360px]:hidden">
+                    {item.shortLabel}
+                  </span>
+                  <span className="max-[359px]:sr-only">{item.label}</span>
+                </span>
               </Button>
             );
           })}
