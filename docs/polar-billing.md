@@ -57,6 +57,7 @@ L'application relit toujours l'abonnement chez Polar avant de l'appliquer. Les d
 | Fonction | Avec Polar |
 | --- | --- |
 | Paiement en retard | Le client met sa carte à jour dans le portail, puis Polar relance le paiement |
+| Résiliation | Bouton « Résilier l'abonnement » de l'application : en fin de période (essai compris, sans prélèvement), ou tout de suite si l'abonnement est impayé |
 | Résiliation programmée | « Renouveler le plan » l'annule directement |
 | Abonnement terminé | « Renouveler le plan » ouvre un nouveau paiement, sans nouvel essai |
 | Carte enregistrée | Non affichée dans l'application : le jeton d'organisation n'y a pas accès. Elle reste visible dans le portail |

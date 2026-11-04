@@ -18,6 +18,7 @@ import { getSession } from "@/lib/auth-server";
 import prisma from "@/lib/prisma";
 import {
   getPolarSubscription,
+  isEndedPolarSubscription,
   listPolarOrders,
   type PolarOrder,
   type PolarSubscription,
@@ -181,6 +182,17 @@ export default async function BillingPage({
   const status = polarSubscription?.status || subscription?.status || p.status;
   const nextCursor = invoices.at(-1)?.id;
   const synced = !!subscription || !!polarSubscription;
+  const ended = polarSubscription
+    ? isEndedPolarSubscription(polarSubscription)
+    : ["canceled", "incomplete_expired"].includes(status);
+  const cancellation =
+    synced && !ended && !cancelling
+      ? {
+          atPeriodEnd: ["active", "trialing"].includes(status),
+          trial: status === "trialing",
+          endsAt,
+        }
+      : null;
   const renewal = !synced
     ? "À vérifier"
     : ["canceled", "incomplete_expired"].includes(status)
@@ -231,6 +243,7 @@ export default async function BillingPage({
           canManage={can(membership.role, "billing.manage")}
           configured={!!p.stripeCustomerId}
           needsCheckout={needsInitialCheckout(p)}
+          cancellation={cancellation}
         />
       </header>
 

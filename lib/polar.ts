@@ -168,6 +168,14 @@ export async function revokePolarSubscription(id: string) {
   }
 }
 
+/** Résiliation en fin de période : l'accès reste ouvert jusqu'à son terme. */
+export async function cancelPolarSubscription(id: string) {
+  await polarRequest(`/v1/subscriptions/${segment(id)}`, {
+    method: "PATCH",
+    body: { cancel_at_period_end: true },
+  });
+}
+
 /** Annule une résiliation programmée : l'abonnement se renouvelle de nouveau. */
 export async function resumePolarSubscription(id: string) {
   await polarRequest(`/v1/subscriptions/${segment(id)}`, {

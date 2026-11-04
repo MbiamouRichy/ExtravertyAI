@@ -14,6 +14,7 @@ import {
 import { notifyChatChanged } from "@/lib/chat-realtime";
 import { matchesPolarProduct } from "@/lib/checkout-price";
 import {
+  cancelPolarSubscription,
   createPolarCheckout,
   createPolarPortalUrl,
   getPolarOrder,
@@ -263,6 +264,24 @@ export async function openProjectBillingPortal(
         : subscription.customer.id) !== project.stripeCustomerId
     )
       throw new SettingsError("L’abonnement n’a pas pu être vérifié.");
+    if (
+      intent === "renew" &&
+      subscription &&
+      ["active", "trialing"].includes(subscription.status) &&
+      (subscription.cancel_at_period_end || subscription.cancel_at)
+    ) {
+      await stripe.subscriptions.update(
+        subscription.id,
+        subscription.cancel_at_period_end
+          ? { cancel_at_period_end: false }
+          : { cancel_at: "" },
+      );
+      invalidate(project.id);
+      return {
+        success: true as const,
+        url: `${origin}/projects/${project.id}/billing`,
+      };
+    }
     const invoice = subscription?.latest_invoice;
     if (
       intent === "renew" &&
@@ -329,6 +348,60 @@ export async function openProjectBillingPortal(
       return_url: `${origin}/projects/${project.id}/billing`,
     });
     return { success: true as const, url: portal.url };
+  } catch (error) {
+    return { success: false as const, error: publicError(error) };
+  }
+}
+
+/**
+ * Résiliation depuis l'application. Un abonnement à jour s'arrête en fin de
+ * période et reste renouvelable d'ici là ; un abonnement impayé s'arrête tout
+ * de suite, puisqu'aucun accès payé n'est en cours.
+ */
+export async function cancelProjectSubscription(projectId: string) {
+  try {
+    Id.parse(projectId);
+    const userId = await actor();
+    const { project } = await prisma.$transaction((tx) =>
+      requireProjectPermission(tx, projectId, userId, "billing.manage"),
+    );
+    if (project.deletionPending)
+      throw new SettingsError("Ce projet est en cours de suppression.");
+    if (!project.stripeCustomerId || !project.stripeSubscriptionId)
+      throw new SettingsError("Aucun abonnement à résilier pour ce projet.");
+    const ended = new SettingsError("Cet abonnement est déjà terminé.");
+    if (project.billingProvider === "polar") {
+      const current = await getPolarSubscription(project.stripeSubscriptionId);
+      if (current.customer_id !== project.stripeCustomerId)
+        throw new SettingsError("L’abonnement n’a pas pu être vérifié.");
+      if (isEndedPolarSubscription(current)) throw ended;
+      if (["active", "trialing"].includes(current.status)) {
+        if (!current.cancel_at_period_end)
+          await cancelPolarSubscription(current.id);
+      } else await revokePolarSubscription(current.id);
+    } else {
+      const current = await stripe.subscriptions.retrieve(
+        project.stripeSubscriptionId,
+        {},
+        { timeout: 10000, maxNetworkRetries: 0 },
+      );
+      if (
+        (typeof current.customer === "string"
+          ? current.customer
+          : current.customer.id) !== project.stripeCustomerId
+      )
+        throw new SettingsError("L’abonnement n’a pas pu être vérifié.");
+      if (["canceled", "incomplete_expired"].includes(current.status))
+        throw ended;
+      if (["active", "trialing"].includes(current.status)) {
+        if (!current.cancel_at_period_end && !current.cancel_at)
+          await stripe.subscriptions.update(current.id, {
+            cancel_at_period_end: true,
+          });
+      } else await stripe.subscriptions.cancel(current.id);
+    }
+    invalidate(project.id);
+    return { success: true as const };
   } catch (error) {
     return { success: false as const, error: publicError(error) };
   }
