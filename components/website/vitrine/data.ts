@@ -65,6 +65,8 @@ export type ScenarioId = "commande" | "rendez-vous" | "reclamation";
 export interface Scenario {
   id: ScenarioId;
   label: string;
+  /** Libellé des onglets sur les écrans de moins de 360 px. */
+  shortLabel: string;
   contact: { name: string; initials: string; business: string };
   agentName?: string;
   outcome: { label: string; detail: string };
@@ -75,6 +77,7 @@ export const SCENARIOS: readonly Scenario[] = [
   {
     id: "commande",
     label: "Commande",
+    shortLabel: "Achat",
     contact: { name: "Kevin M.", initials: "KM", business: "Urban Shoes · Yaoundé" },
     outcome: { label: "Prospect qualifié", detail: "Étiqueté « Intéressant » par Instinct IA" },
     beats: [
@@ -125,6 +128,7 @@ export const SCENARIOS: readonly Scenario[] = [
   {
     id: "rendez-vous",
     label: "Rendez-vous",
+    shortLabel: "RDV",
     contact: { name: "Aminata D.", initials: "AD", business: "Salon Nappy Queen · Dakar" },
     outcome: { label: "À relancer", detail: "Étiqueté « À suivre » en attente de confirmation" },
     beats: [
@@ -185,6 +189,7 @@ export const SCENARIOS: readonly Scenario[] = [
   {
     id: "reclamation",
     label: "Réclamation",
+    shortLabel: "SAV",
     contact: { name: "Grace T.", initials: "GT", business: "Maison Akwa · Douala" },
     agentName: "Clara",
     outcome: { label: "Transfert humain", detail: "Clara a repris la main avec le résumé IA" },
