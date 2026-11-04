@@ -125,7 +125,7 @@ export function AuthPage({ callbackUrl }: { callbackUrl: string }) {
 					</Button>
 				</div>
 
-				<div className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center py-12 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-500">
+				<div className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center py-8 sm:py-12 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-500">
 					{pendingEmail ? (
 						<EmailOtpStep
 							email={pendingEmail}
@@ -140,11 +140,11 @@ export function AuthPage({ callbackUrl }: { callbackUrl: string }) {
 						Connectez-vous pour retrouver vos conversations.
 					</p>
 
-					<div className="mt-8">
+					<div className="mt-6 sm:mt-8">
 						<SignInSocialButton callbackUrl={callbackUrl} text="Continuer avec" form="flex" />
 					</div>
 
-					<div className="my-6">
+					<div className="my-5 sm:my-6">
 						<AuthDivider>ou avec votre e-mail</AuthDivider>
 					</div>
 
@@ -182,13 +182,18 @@ export function AuthPage({ callbackUrl }: { callbackUrl: string }) {
 								control={form.control}
 								render={({ field, fieldState }) => (
 									<Field data-invalid={fieldState.invalid}>
-										<div className="flex w-full items-center justify-between">
-											<FieldLabel htmlFor={field.name}>Mot de passe</FieldLabel>
+										<div className="flex w-full items-center justify-between gap-3">
+											<FieldLabel htmlFor={field.name} className="shrink-0">
+												Mot de passe
+											</FieldLabel>
+											{/* Short label under 360 px so both stay on one line. */}
 											<Link
 												href="/forget-password"
-												className="text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline focus-visible:underline focus-visible:outline-none"
+												aria-label="Mot de passe oublié ?"
+												className="whitespace-nowrap text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline focus-visible:underline focus-visible:outline-none"
 											>
-												Mot de passe oublié ?
+												<span className="min-[360px]:hidden">Oublié ?</span>
+												<span className="max-[359px]:hidden">Mot de passe oublié ?</span>
 											</Link>
 										</div>
 										<InputGroup>
@@ -232,7 +237,7 @@ export function AuthPage({ callbackUrl }: { callbackUrl: string }) {
 									onCheckedChange={(value) => setChecked(value === true)}
 								/>
 								<FieldLabel htmlFor="remember-me" className="font-normal">
-									Rester connecté sur cet appareil
+									Se souvenir de moi
 								</FieldLabel>
 							</Field>
 
@@ -243,7 +248,7 @@ export function AuthPage({ callbackUrl }: { callbackUrl: string }) {
 						</FieldGroup>
 					</form>
 
-					<p className="mt-8 text-center text-sm text-muted-foreground">
+					<p className="mt-6 text-center text-sm text-muted-foreground sm:mt-8">
 						Pas encore de compte ?{" "}
 						<Link
 							className="font-medium text-foreground underline underline-offset-4"
