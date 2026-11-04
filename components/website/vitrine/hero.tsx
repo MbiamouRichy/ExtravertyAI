@@ -35,15 +35,19 @@ export function Hero() {
       <div className="px-4 pt-12 sm:px-8 md:pt-20 lg:px-12">
         <Link
           href="#fonctionnalites"
-          className={`group inline-flex items-center gap-2 rounded-full border bg-background/80 py-1 pl-1 pr-3 text-xs shadow-xs outline-none backdrop-blur transition-colors hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50 ${ENTER}`}
+          className={`group inline-flex max-w-full items-center gap-2 rounded-full border bg-background/80 py-1 pl-1 pr-3 text-xs shadow-xs outline-none backdrop-blur transition-colors hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50 ${ENTER}`}
         >
-          <span className="rounded-full bg-primary px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-primary-foreground">
+          <span className="shrink-0 rounded-full bg-primary px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-primary-foreground">
             Nouveau
           </span>
-          Pipeline de prospects et intégrations
+          {/* Une seule ligne : libellé court sur mobile, coupé en dernier recours. */}
+          <span className="min-w-0 truncate">
+            <span className="sm:hidden">Pipeline et intégrations</span>
+            <span className="max-sm:hidden">Pipeline de prospects et intégrations</span>
+          </span>
           <ArrowRight
             aria-hidden="true"
-            className="size-3 transition-transform group-hover:translate-x-0.5"
+            className="size-3 shrink-0 transition-transform group-hover:translate-x-0.5"
           />
         </Link>
 
