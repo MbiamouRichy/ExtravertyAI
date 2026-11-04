@@ -55,9 +55,13 @@ export async function createProjectAndCheckout(data: ProjectCheckoutInput) {
   const cleanedNumero = parsed.data.numero;
 
   if (!checkoutReference(data.plan)) {
-    throw new Error(
-      "Le plan sélectionné est invalide ou mal configuré côté serveur.",
-    );
+    // Variable d'environnement absente : à corriger côté hébergement, pas par le client.
+    console.error("CHECKOUT_REFERENCE_MISSING", checkoutProvider(), data.plan);
+    return {
+      success: false,
+      error:
+        "Ce forfait n’est pas encore disponible au paiement. Réessayez plus tard ou choisissez une autre offre.",
+    };
   }
 
   // Check before creating a project or an external WhatsApp instance.
