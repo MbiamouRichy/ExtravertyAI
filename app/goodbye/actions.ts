@@ -39,7 +39,9 @@ export async function submitDeletionFeedback(
         submittedAt: new Date(),
       },
     });
-    jar.delete({ name: DELETION_FEEDBACK_COOKIE, path: "/goodbye" });
+    // The cookie stays until it expires: it also opens the goodbye page, which
+    // now shows the thank-you note. Deleting it here would re-render the page
+    // in the same round trip and bounce the user home before they read it.
     return count
       ? { success: true }
       : { success: false, error: "Ce questionnaire n’est plus disponible." };

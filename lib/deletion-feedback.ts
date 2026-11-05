@@ -2,6 +2,7 @@ import { z } from "zod";
 
 // Shared by the goodbye survey (client) and its server action. Only `value`
 // is stored; `label` and `followUp` are display copy and can change freely.
+// Ordered so the chips pack two per row on a phone where they can.
 export const DELETION_FEEDBACK_REASONS = [
   {
     value: "too_expensive",
@@ -9,14 +10,14 @@ export const DELETION_FEEDBACK_REASONS = [
     followUp: "Quel prix vous aurait convenu\u00a0?",
   },
   {
-    value: "missing_features",
-    label: "Fonctionnalités manquantes",
-    followUp: "Quelle fonctionnalité vous a manqué\u00a0?",
-  },
-  {
     value: "too_complex",
     label: "Trop compliqué",
     followUp: "À quel moment avez-vous bloqué\u00a0?",
+  },
+  {
+    value: "missing_features",
+    label: "Fonctionnalités manquantes",
+    followUp: "Quelle fonctionnalité vous a manqué\u00a0?",
   },
   {
     value: "answers_quality",

@@ -27,6 +27,9 @@ import { submitDeletionFeedback } from "./actions";
 
 const COMMENT_MAX = 500;
 
+// The one card of the page, so the survey is the first thing seen.
+const card = "rounded-2xl border bg-card p-4 text-card-foreground shadow-sm sm:p-6";
+
 // The radio stays the focusable control, visually hidden (`absolute` beats the
 // radio's own `relative`, or it keeps its 16 px); the pill is its label.
 const chip = cn(
@@ -37,8 +40,15 @@ const chip = cn(
   "dark:has-data-[state=checked]:border-primary dark:has-data-[state=checked]:bg-primary",
 );
 
-export function ExitSurvey({ className }: { className?: string }) {
-  const [sent, setSent] = useState(false);
+export function ExitSurvey({
+  answered = false,
+  className,
+}: {
+  /** Already answered from this browser: only the thank-you note remains. */
+  answered?: boolean;
+  className?: string;
+}) {
+  const [sent, setSent] = useState(answered);
   const form = useForm<DeletionFeedbackValues>({
     resolver: zodResolver(DeletionFeedbackSchema),
     defaultValues: { reason: undefined, comment: "" },
@@ -63,7 +73,8 @@ export function ExitSurvey({ className }: { className?: string }) {
       <section
         role="status"
         className={cn(
-          "flex items-start gap-3 border-t pt-8 text-sm motion-safe:animate-in motion-safe:fade-in",
+          card,
+          "flex items-start gap-3 text-sm motion-safe:animate-in motion-safe:fade-in",
           className,
         )}
       >
@@ -86,26 +97,26 @@ export function ExitSurvey({ className }: { className?: string }) {
       aria-labelledby="exit-survey-title"
       aria-describedby="exit-survey-help"
       aria-busy={busy}
-      className={cn("border-t pt-8", className)}
+      className={cn(card, className)}
     >
-      <div className="flex items-baseline justify-between gap-3">
-        <h2
-          id="exit-survey-title"
-          className="text-base! font-semibold! leading-snug! tracking-tight!"
-        >
-          Pourquoi partez-vous&nbsp;?
-        </h2>
-        <span className="text-xs text-muted-foreground">Facultatif</span>
-      </div>
+      <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
+        Une dernière question
+      </p>
+      <h2
+        id="exit-survey-title"
+        className="mt-2 text-xl! font-bold! leading-tight! tracking-tight!"
+      >
+        Pourquoi partez-vous&nbsp;?
+      </h2>
       <p id="exit-survey-help" className="mt-1 text-sm text-muted-foreground">
-        Réponse anonyme, sans lien avec votre ancien compte.
+        10 secondes. Réponse anonyme, sans lien avec votre ancien compte.
       </p>
 
       <Controller
         name="reason"
         control={form.control}
         render={({ field, fieldState }) => (
-          <FieldSet data-invalid={fieldState.invalid} className="mt-4">
+          <FieldSet data-invalid={fieldState.invalid} className="mt-5">
             <FieldLegend variant="label" className="sr-only">
               Raison principale
             </FieldLegend>
@@ -156,7 +167,7 @@ export function ExitSurvey({ className }: { className?: string }) {
                   disabled={busy}
                   aria-invalid={fieldState.invalid}
                   aria-describedby="exit-comment-help"
-                  placeholder="Votre réponse…"
+                  placeholder="Facultatif"
                   className="resize-none"
                 />
                 <FieldDescription
@@ -174,12 +185,11 @@ export function ExitSurvey({ className }: { className?: string }) {
               </Field>
             )}
           />
-          {/* Secondary: "Retour à l’accueil" stays the page's one primary. */}
           <Button
             type="submit"
-            variant="secondary"
+            size="lg"
             disabled={busy}
-            className="w-full sm:w-auto"
+            className="w-full"
           >
             {busy && <Loader2 aria-hidden className="animate-spin" />}
             {busy ? "Envoi…" : "Envoyer ma réponse"}

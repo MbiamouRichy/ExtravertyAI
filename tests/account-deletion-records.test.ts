@@ -26,3 +26,37 @@ test("exit survey accepts known reasons and bounded comments only", () => {
   assert.ok(!DeletionFeedbackSchema.safeParse({ reason: "<script>", comment: "" }).success);
   assert.ok(!DeletionFeedbackSchema.safeParse({ reason: "other", comment: "x".repeat(501) }).success);
 });
+
+test("the goodbye page opens only for a live token from a real deletion", async () => {
+  const { default: prisma } = await import("../lib/prisma");
+  const { findDeletionFeedbackSlot } = await import("../lib/account-deletion-records");
+  const now = Date.now();
+  const slots = new Map([
+    [hashFeedbackToken("live"), { expiresAt: new Date(now + 60_000), submittedAt: null }],
+    [hashFeedbackToken("answered"), { expiresAt: new Date(now + 60_000), submittedAt: new Date(now) }],
+    [hashFeedbackToken("expired"), { expiresAt: new Date(now - 1), submittedAt: null }],
+  ]);
+  const lookups: string[] = [];
+  Object.defineProperty(prisma, "accountDeletionFeedback", {
+    configurable: true,
+    value: {
+      findUnique: async ({ where }: { where: { tokenHash: string } }) => {
+        lookups.push(where.tokenHash);
+        return slots.get(where.tokenHash) ?? null;
+      },
+    },
+  });
+
+  assert.deepEqual(await findDeletionFeedbackSlot("live"), { answered: false });
+  assert.deepEqual(await findDeletionFeedbackSlot("answered"), { answered: true });
+  assert.equal(await findDeletionFeedbackSlot("expired"), null);
+  assert.equal(await findDeletionFeedbackSlot("forged"), null);
+  // Only the hash is ever looked up, never the raw token.
+  assert.ok(!lookups.includes("live"));
+
+  const before = lookups.length;
+  assert.equal(await findDeletionFeedbackSlot(undefined), null);
+  assert.equal(await findDeletionFeedbackSlot(""), null);
+  assert.equal(await findDeletionFeedbackSlot("x".repeat(129)), null);
+  assert.equal(lookups.length, before, "no lookup without a plausible token");
+});
