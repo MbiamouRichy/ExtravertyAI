@@ -70,6 +70,8 @@ export function EmailOtpStep({
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: { otp: "" },
+    // A retyped code is checked when complete, not flagged at every digit.
+    reValidateMode: "onSubmit",
   });
 
   useEffect(() => {
@@ -188,6 +190,7 @@ export function EmailOtpStep({
                     const value = event.target.value
                       .replace(/\D/g, "")
                       .slice(0, CODE_LENGTH);
+                    if (fieldState.invalid) form.clearErrors("otp");
                     field.onChange(value);
                     if (value.length === CODE_LENGTH)
                       void form.handleSubmit(onSubmit)();
