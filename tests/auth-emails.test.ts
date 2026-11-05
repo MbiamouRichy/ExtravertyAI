@@ -3,17 +3,23 @@ import { readFileSync } from "node:fs";
 import { runInNewContext } from "node:vm";
 import { test } from "node:test";
 import ts from "typescript";
+import * as signUp from "../lib/sign-up";
 
-type Send = (input: Record<string, unknown>) => Promise<void>;
+type Send = (input: Record<string, unknown>, ctx?: unknown) => Promise<void>;
 type OtpOptions = {
   storeOTP: string;
   disableSignUp: boolean;
   sendVerificationOTP: Send;
 };
+type CreateUser = (
+  user: { name: string; email: string },
+  ctx: { path: string } | null,
+) => Promise<{ data: { name: string } } | void>;
 
 function loadAuth(
   result: { data: unknown; error: { message: string } | null },
-  db: { storedEmail?: string } = {},
+  // `unknownUser`: the address has no account.
+  db: { storedEmail?: string; unknownUser?: boolean } = {},
 ) {
   const sent: string[] = [];
   const logged: unknown[][] = [];
@@ -37,6 +43,7 @@ function loadAuth(
       onExistingUserSignUp: Send;
     };
     emailVerification: { sendVerificationEmail: Send };
+    databaseHooks: { user: { create: { before: CreateUser } } };
     user: {
       changeEmail: { sendChangeEmailConfirmation: Send };
       deleteUser: {
@@ -49,7 +56,8 @@ function loadAuth(
   }).outputText;
   const prisma = {
     user: {
-      findUnique: async () => ({ email: db.storedEmail ?? "a@example.test" }),
+      findUnique: async () =>
+        db.unknownUser ? null : { id: "u1", email: db.storedEmail ?? "a@example.test" },
     },
     verification: {
       findFirst: async ({ where }: { where: Parameters<typeof matches>[1] }) =>
@@ -104,6 +112,7 @@ function loadAuth(
       if (id === "./recent-session")
         return { requiresRecentSession: () => false, isRecentSession: () => true };
       if (id === "./prisma") return { __esModule: true, default: prisma };
+      if (id === "./sign-up") return signUp;
       if (id === "better-auth/adapters/prisma")
         return { prismaAdapter: () => ({}) };
       if (id === "./resend")
@@ -208,7 +217,8 @@ test("codes are hashed, verification is required and only verification and sign-
   const config = auth.config();
   assert.equal(config.emailAndPassword.requireEmailVerification, true);
   assert.equal(auth.otp().storeOTP, "hashed");
-  assert.equal(auth.otp().disableSignUp, true);
+  // Codes may create accounts: only from the sign-up form (tested below).
+  assert.equal(auth.otp().disableSignUp, false);
   assert.ok(!config.disabledPaths.includes("/sign-in/email-otp"));
   for (const path of [
     "/forget-password/email-otp",
@@ -264,6 +274,50 @@ test("a refused code email is logged but never thrown to the public route", asyn
     "123456 est votre code de vérification ExtravertyAI",
     "654321 est votre code de connexion ExtravertyAI",
   ]);
+});
+
+test("an unknown address gets a code only from the sign-up form", async () => {
+  const fromSignUp = {
+    headers: new Headers({ [signUp.SIGN_UP_INTENT_HEADER]: signUp.SIGN_UP_INTENT }),
+  };
+  const fromSignIn = { headers: new Headers() };
+  const code = { email: "new@example.test", otp: "123456", type: "sign-in" };
+
+  const unknown = loadAuth({ data: { id: "email_1" }, error: null }, { unknownUser: true });
+  // Sign-in form: no account, no email, as before.
+  await unknown.otp().sendVerificationOTP(code, fromSignIn);
+  await unknown.otp().sendVerificationOTP(code, undefined);
+  assert.deepEqual(unknown.sent, []);
+  // Sign-up form: a code that creates the account.
+  await unknown.otp().sendVerificationOTP(code, fromSignUp);
+  assert.deepEqual(unknown.sent, [
+    "123456 est votre code pour créer votre compte ExtravertyAI",
+  ]);
+
+  // An existing address gets a sign-in code from either form.
+  const known = loadAuth({ data: { id: "email_1" }, error: null });
+  await known.otp().sendVerificationOTP(code, fromSignUp);
+  await known.otp().sendVerificationOTP(code, fromSignIn);
+  assert.deepEqual(known.sent, [
+    "123456 est votre code de connexion ExtravertyAI",
+    "123456 est votre code de connexion ExtravertyAI",
+  ]);
+});
+
+test("an account created by code needs a real name, trimmed", async () => {
+  const auth = loadAuth({ data: { id: "email_1" }, error: null });
+  const create = auth.config().databaseHooks.user.create.before;
+  const byCode = { path: "/sign-in/email-otp" };
+  for (const name of ["", "  ", "J", "x".repeat(51)])
+    await assert.rejects(
+      create({ name, email: "new@example.test" }, byCode),
+      /SIGN_UP_NAME_REQUIRED/,
+    );
+  const created = await create({ name: "  Jane Doe ", email: "new@example.test" }, byCode);
+  assert.equal(created?.data.name, "Jane Doe");
+  // Other ways in (password sign-up, Google) keep their own rules.
+  assert.equal(await create({ name: "", email: "g@example.test" }, { path: "/callback/:id" }), undefined);
+  assert.equal(await create({ name: "", email: "s@example.test" }, null), undefined);
 });
 
 test("a sign-up on an existing address warns its owner once per window, silently", async () => {

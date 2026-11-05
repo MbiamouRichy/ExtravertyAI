@@ -1,12 +1,18 @@
 "use client";
 
-import * as React from "react";
+import { useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import * as z from "zod";
+import { AtSignIcon, ChevronLeftIcon, Loader, UserIcon } from "lucide-react";
 
-
+import { addSignUpPasswordAction } from "@/app/actions/set-password";
+import { AuthDivider } from "@/components/dashboard/auth-divider";
+import { LogoIcon } from "@/components/logo";
+import { Button } from "@/components/ui/button";
 import {
 	Field,
 	FieldDescription,
@@ -14,100 +20,95 @@ import {
 	FieldGroup,
 	FieldLabel,
 } from "@/components/ui/field";
-import { LogoIcon } from "@/components/logo";
-import { Button } from "@/components/ui/button";
 import {
 	InputGroup,
 	InputGroupAddon,
-	InputGroupButton,
 	InputGroupInput,
 } from "@/components/ui/input-group";
-import { AuthDivider } from "@/components/dashboard/auth-divider";
-import { AuthShowcase } from "./auth-showcase";
-import { ChevronLeftIcon, AtSignIcon, Loader, Eye, EyeOff, UserIcon, KeySquareIcon } from "lucide-react";
-import { SignInSocialButton } from "./signInSocialButton";
-import Link from "next/link";
-import { signUp } from "@/lib/auth-client";
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { useHaptics } from "@/lib/webHaptics";
-import { EmailOtpStep } from "./email-otp-step";
+import { emailOtp } from "@/lib/auth-client";
 import { checkoutCallback, signInAfterSignUpHref } from "@/lib/auth-redirects";
+import {
+	accountNameSchema,
+	SIGN_UP_INTENT,
+	SIGN_UP_INTENT_HEADER,
+} from "@/lib/sign-up";
+import { useHaptics } from "@/lib/webHaptics";
+import { AuthShowcase } from "./auth-showcase";
+import { EmailOtpStep } from "./email-otp-step";
+import { SignInSocialButton } from "./signInSocialButton";
 
-const formSchema = z
-	.object({
-		nom: z
-			.string()
-			.min(2, "Votre nom doit contenir au moins 02 caractères.")
-			.max(32, "Votre nom doit contenir au maximum 32 caractères."),
-		email: z.string().email("Entrez une adresse email valide."),
-		password: z
-			.string()
-			.min(8, "La mot de passe doit contenir au moins 8 caractères.")
-			.max(256, "La mot de passe doit contenir au maximum 256 caractères."),
+const formSchema = z.object({
+	name: accountNameSchema,
+	email: z.string().trim().email("Entrez une adresse e-mail valide."),
+});
 
-	});
+type FormValues = z.infer<typeof formSchema>;
 
-
+// Name and address only: the emailed code creates the account and opens the
+// session; a password can be added on the code step, never required.
 export function AuthPage({ callbackUrl }: { callbackUrl?: string }) {
 	const signInHref = signInAfterSignUpHref(callbackUrl);
-	// The code opens the session: go straight to the checkout or the projects.
+	// Every way in ends on the checkout or the projects, never on sign-in.
 	const destination = checkoutCallback(callbackUrl) ?? "/projects";
 	const router = useRouter();
 	const { playHaptic } = useHaptics();
-	const [loading, setLoading] = useState<boolean>(false);
-	const [showPassword, setShowPassword] = useState<boolean>(false);
-	// Address waiting for its code. Same step for new and existing addresses:
-	// the owner of an existing one gets an email instead of a code.
-	const [pendingEmail, setPendingEmail] = useState<string | null>(null);
+	const [loading, setLoading] = useState(false);
+	// Same step for new and existing addresses: an existing one gets a sign-in
+	// code instead, and the same screen signs it in.
+	const [pending, setPending] = useState<FormValues | null>(null);
 
-	const form = useForm<z.infer<typeof formSchema>>({
+	const form = useForm<FormValues>({
 		resolver: zodResolver(formSchema),
-		mode: "onChange",
-		defaultValues: {
-			nom: "",
-			email: "",
-			password: "",
-		},
+		defaultValues: { name: "", email: "" },
 	});
 
-	async function onSubmit(data: z.infer<typeof formSchema>) {
+	async function onSubmit(data: FormValues) {
 		setLoading(true);
 		try {
-			await signUp.email(
-				{
-					name: data.nom,
-					email: data.email,
-					password: data.password,
-				},
-				{
-					onSuccess: () => {
-						playHaptic("success");
-						setPendingEmail(data.email.trim().toLowerCase());
-						form.reset();
-					},
-					onError: (error) => {
-						playHaptic("error");
-						toast.error("Une erreur s'est produite.", {
-							description:
-								error.error.status === 429
-									? "Trop de tentatives. Patientez une minute avant de réessayer."
-									: "Quelque chose s'est mal passé. Veuillez réessayer.",
-							position: "top-center",
-							className: "text-muted-foreground text-sm bg-card",
-						});
-					},
-				}
+			const email = data.email.trim().toLowerCase();
+			const { error } = await emailOtp.sendVerificationOtp(
+				{ email, type: "sign-in" },
+				{ headers: { [SIGN_UP_INTENT_HEADER]: SIGN_UP_INTENT } },
 			);
+			if (error) {
+				playHaptic("error");
+				toast.error("Le code n’a pas pu être envoyé.", {
+					description:
+						error.code === "TOO_MANY_CODES"
+							? "Trop de codes demandés pour cette adresse. Réessayez dans une heure."
+							: error.status === 429
+								? "Trop de demandes. Patientez une minute avant de réessayer."
+								: "Réessayez dans un instant.",
+					position: "top-center",
+				});
+				return;
+			}
+			playHaptic("success");
+			setPending({ name: data.name.trim(), email });
 		} catch {
 			playHaptic("error");
 			toast.error("Erreur de connexion", {
-				description: "Veuillez vérifier votre connexion internet et réessayer."
+				description: "Vérifiez votre connexion internet et réessayez.",
+				position: "top-center",
 			});
 		} finally {
 			setLoading(false);
 		}
 	}
+
+	async function finish({ password }: { password?: string }) {
+		if (password) {
+			const result = await addSignUpPasswordAction({ newPassword: password });
+			if (!result.success)
+				toast(result.alreadySet ? "Mot de passe inchangé" : "Mot de passe non enregistré", {
+					description: result.error,
+					position: "top-center",
+				});
+		}
+		router.replace(destination);
+		router.refresh();
+	}
+
 	return (
 		<main className="relative md:min-h-screen h-full overflow-x-hidden lg:grid lg:grid-cols-2">
 			<AuthShowcase eyebrow="Essai gratuit · 10 jours" title="Votre assistant WhatsApp, prêt en quelques minutes." />
@@ -137,161 +138,134 @@ export function AuthPage({ callbackUrl }: { callbackUrl?: string }) {
 					</Button>
 				</div>
 
-				{pendingEmail ? (
+				{pending ? (
 					<div className="mx-auto w-full max-w-sm">
 						<EmailOtpStep
-							email={pendingEmail}
-							onVerified={() => router.push(destination)}
-							onChangeEmail={() => setPendingEmail(null)}
+							purpose="sign-up"
+							email={pending.email}
+							name={pending.name}
+							allowPassword
+							onVerified={finish}
+							onChangeEmail={() => {
+								// Back to the form, with what was typed.
+								form.reset(pending);
+								setPending(null);
+							}}
 						/>
 					</div>
 				) : (
-				<div className="mx-auto space-y-4 sm:w-sm">
-					<div className="flex flex-col space-y-1">
-						<h1 className="font-bold text-2xl tracking-wide">
-							S&apos;inscrire
-						</h1>
-						<p className="text-base text-muted-foreground">
-							Creer un compte sur ExtravertyAI.
-						</p>
-					</div>
+					<div className="mx-auto w-full max-w-sm space-y-6 motion-safe:animate-in motion-safe:fade-in motion-safe:duration-300">
+						<header className="space-y-2">
+							<h1 className="text-3xl md:text-4xl">Créer votre compte</h1>
+							<p className="text-sm text-muted-foreground">
+								Votre nom et votre e-mail suffisent. Nous vous envoyons un
+								code pour confirmer l’adresse.
+							</p>
+						</header>
 
-					<form id="form-inscription" onSubmit={form.handleSubmit(onSubmit)}>
-						<FieldGroup className="gap-4">
-							<Controller
-								name="nom"
-								control={form.control}
-								render={({ field, fieldState }) => (
-									<Field data-invalid={fieldState.invalid}>
-										<FieldLabel htmlFor={field.name}>
-											Entrez votre nom
-										</FieldLabel>
-										<InputGroup>
-											<InputGroupInput
-												placeholder="Jean Exemple"
-												type="text"
-												{...field}
-												id={field.name}
-												aria-invalid={fieldState.invalid}
-											/>
-											<InputGroupAddon align="inline-start">
-												<UserIcon
+						<form
+							id="form-inscription"
+							noValidate
+							aria-busy={loading}
+							onSubmit={form.handleSubmit(onSubmit)}
+						>
+							<FieldGroup className="gap-5">
+								<Controller
+									name="name"
+									control={form.control}
+									render={({ field, fieldState }) => (
+										<Field data-invalid={fieldState.invalid}>
+											<FieldLabel htmlFor="sign-up-name">Nom</FieldLabel>
+											<InputGroup>
+												<InputGroupInput
+													{...field}
+													id="sign-up-name"
+													type="text"
+													autoComplete="name"
+													autoFocus
+													placeholder="Jean Dupont"
+													disabled={loading}
+													aria-invalid={fieldState.invalid}
 												/>
-											</InputGroupAddon>
-										</InputGroup>
-
-										{fieldState.invalid && (
-											<FieldError errors={[fieldState.error]} />
-										)}
-									</Field>
-								)}
-							/>
-							<Controller
-								name="email"
-								control={form.control}
-								render={({ field, fieldState }) => (
-									<Field data-invalid={fieldState.invalid}>
-										<FieldLabel htmlFor={field.name}>
-											Entrez votre adresse e-mail
-										</FieldLabel>
-										<InputGroup>
-											<InputGroupInput
-												placeholder="votre.email@example.com"
-												type="email"
-												{...field}
-												id={field.name}
-												aria-invalid={fieldState.invalid}
-											/>
-											<InputGroupAddon align="inline-start">
-												<AtSignIcon
+												<InputGroupAddon align="inline-start">
+													<UserIcon />
+												</InputGroupAddon>
+											</InputGroup>
+											{fieldState.invalid && (
+												<FieldError errors={[fieldState.error]} />
+											)}
+										</Field>
+									)}
+								/>
+								<Controller
+									name="email"
+									control={form.control}
+									render={({ field, fieldState }) => (
+										<Field data-invalid={fieldState.invalid}>
+											<FieldLabel htmlFor="sign-up-email">E-mail</FieldLabel>
+											<InputGroup>
+												<InputGroupInput
+													{...field}
+													id="sign-up-email"
+													type="email"
+													inputMode="email"
+													autoComplete="email"
+													placeholder="vous@entreprise.com"
+													disabled={loading}
+													aria-invalid={fieldState.invalid}
 												/>
-											</InputGroupAddon>
-										</InputGroup>
+												<InputGroupAddon align="inline-start">
+													<AtSignIcon />
+												</InputGroupAddon>
+											</InputGroup>
+											{fieldState.invalid && (
+												<FieldError errors={[fieldState.error]} />
+											)}
+										</Field>
+									)}
+								/>
 
-										{fieldState.invalid && (
-											<FieldError errors={[fieldState.error]} />
-										)}
-									</Field>
-								)}
-							/>
-							<Controller
-								name="password"
-								control={form.control}
-								render={({ field, fieldState }) => (
-									<Field data-invalid={fieldState.invalid}>
-										<FieldLabel htmlFor={field.name}>Mot de passe</FieldLabel>
-										<InputGroup>
-											<InputGroupInput
-												{...field}
-												id={field.name}
-												aria-invalid={fieldState.invalid}
-												placeholder="Entrez un mot de passe"
-												autoComplete="off"
-												type={showPassword ? "text" : "password"}
-											/>
-											<InputGroupAddon align="inline-start">
-												<KeySquareIcon />
-											</InputGroupAddon>
-											<InputGroupAddon align="inline-end">
-												<InputGroupButton
-													variant="ghost"
-													size="icon-sm"
-													onClick={() => setShowPassword(!showPassword)}
-													type="button"
-												>
-													{showPassword ? (
-														<Eye className="h-4 w-4" />
-													) : (
-														<EyeOff className="h-4 w-4" />
-													)}
-												</InputGroupButton>
-											</InputGroupAddon>
-										</InputGroup>
-										{fieldState.invalid && (
-											<FieldError errors={[fieldState.error]} />
-										)}
-									</Field>
-								)}
-							/>
-
-							<Field>
-								<Button disabled={loading} type="submit">
-									{loading ? <Loader className="animate-spin" /> : null}
-									Continuer avec l&apos;e-mail
-								</Button>
-
-								<FieldDescription className="text-muted-foreground text-sm">
-									En cliquant sur continuer, vous acceptez nos{" "}
-										<Link className="underline underline-offset-4 hover:text-primary" href="/conditions">
-											Conditions d&apos;utilisation
+								<Field>
+									<Button disabled={loading} type="submit" size="lg" className="w-full">
+										{loading && <Loader className="animate-spin" aria-hidden="true" />}
+										{loading ? "Envoi du code…" : "Continuer"}
+									</Button>
+									<FieldDescription className="text-xs">
+										En continuant, vous acceptez nos{" "}
+										<Link className="underline underline-offset-4 hover:text-foreground" href="/conditions">
+											conditions d’utilisation
 										</Link>{" "}
 										et notre{" "}
-									<Link
-										className="underline underline-offset-4 hover:text-primary"
-										href="/donneesEtConfidentialite"
-									>
-										Politique de confidentialité
-									</Link>
-								</FieldDescription>
-							</Field>
-						</FieldGroup>
-					</form>
-					<AuthDivider>Ou</AuthDivider>
-					<div className="space-y-2">
-						<SignInSocialButton form="flex" variant="outline" text="Continuer avec" callbackUrl={signInHref} />
-					</div>
+										<Link
+											className="underline underline-offset-4 hover:text-foreground"
+											href="/donneesEtConfidentialite"
+										>
+											politique de confidentialité
+										</Link>
+										.
+									</FieldDescription>
+								</Field>
+							</FieldGroup>
+						</form>
 
-					<p className="mt-8 mx-auto text-center text-muted-foreground text-sm">
-						Vous avez déjà un compte?{" "}
-						<Link
-							className="underline underline-offset-4 hover:text-primary"
-							title="s'identifier"
-							href={signInHref}
-						>
-							Identifiez-vous
-						</Link>
-					</p>
-				</div>
+						<AuthDivider>ou</AuthDivider>
+						<SignInSocialButton
+							form="flex"
+							variant="outline"
+							text="Continuer avec"
+							callbackUrl={destination}
+						/>
+
+						<p className="text-center text-sm text-muted-foreground">
+							Déjà un compte ?{" "}
+							<Link
+								className="font-medium text-foreground underline underline-offset-4 hover:no-underline"
+								href={signInHref}
+							>
+								Se connecter
+							</Link>
+						</p>
+					</div>
 				)}
 			</div>
 		</main>

@@ -19,9 +19,19 @@ const COPY = {
     reason: "pour vous connecter à ExtravertyAI",
     note: "Vous n’avez pas demandé à vous connecter&nbsp;? Ignorez cet e-mail&nbsp;: personne ne peut entrer dans votre compte sans ce code.",
   },
+  "sign-up": {
+    title: "Votre code d’inscription",
+    pill: "Inscription",
+    intro:
+      "Saisissez ce code sur la page d’inscription d’ExtravertyAI pour créer votre compte.",
+    preheader: "pour créer votre compte",
+    reason: "pour créer un compte ExtravertyAI",
+    note: "Vous n’avez pas demandé à créer de compte&nbsp;? Ignorez cet e-mail&nbsp;: aucun compte ne sera créé sans ce code.",
+  },
 } as const;
 
-// One-time code: confirms an address, or signs in without a password.
+// One-time code: confirms an address, signs in without a password, or
+// creates the account from the sign-up form.
 export function VerificationCodeTemplate({
   code,
   email,

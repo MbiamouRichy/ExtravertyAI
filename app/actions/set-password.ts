@@ -8,6 +8,7 @@ import { auth } from "@/lib/auth";
 import { getSession } from "@/lib/auth-server";
 import prisma from "@/lib/prisma";
 import { isRecentSession } from "@/lib/recent-session";
+import { accountPasswordSchema } from "@/lib/sign-up";
 
 const inputSchema = z.object({
   newPassword: z.string().min(8).max(128),
@@ -59,6 +60,54 @@ export async function setAccountPasswordAction(
     return {
       success: false,
       error: "Impossible d’enregistrer le mot de passe. Réessayez.",
+    };
+  }
+}
+
+const signUpPasswordSchema = z.object({ newPassword: accountPasswordSchema });
+
+export type SignUpPasswordResult =
+  | { success: true }
+  | { success: false; alreadySet?: true; error: string };
+
+/**
+ * Optional password chosen at sign-up, right after the code opened the
+ * session. Only ever added: an existing password is never replaced here, even
+ * when the address turned out to have an account already.
+ */
+export async function addSignUpPasswordAction(
+  input: unknown,
+): Promise<SignUpPasswordResult> {
+  const parsed = signUpPasswordSchema.safeParse(input);
+  if (!parsed.success)
+    return { success: false, error: "Mot de passe invalide (8 à 128 caractères)." };
+
+  const session = await getSession();
+  if (!session?.user?.id || !isRecentSession(session.session.createdAt))
+    return {
+      success: false,
+      error: "Votre session a expiré. Définissez votre mot de passe depuis votre profil.",
+    };
+
+  try {
+    const context = await auth.$context;
+    const account = await context.internalAdapter.findCredentialAccount(session.user.id);
+    if (account?.password)
+      return {
+        success: false,
+        alreadySet: true,
+        error: "Ce compte avait déjà un mot de passe : il n’a pas été modifié.",
+      };
+    await auth.api.setPassword({
+      body: { newPassword: parsed.data.newPassword },
+      headers: await headers(),
+    });
+    return { success: true };
+  } catch (error) {
+    if (!(error instanceof APIError)) console.error("[sign-up-password] Échec.");
+    return {
+      success: false,
+      error: "Le mot de passe n’a pas pu être enregistré. Définissez-le depuis votre profil.",
     };
   }
 }

@@ -48,6 +48,16 @@ test("sign-in code email says it is a sign-in code, not an activation", () => {
   assert.ok(!html.includes('class="email-button'));
 });
 
+test("sign-up code email says it creates an account, and how to refuse it", () => {
+  const html = VerificationCodeTemplate({ code: "731905", email: evil, minutes: 10, purpose: "sign-up" });
+  assert.ok(html.includes("731905"));
+  assert.ok(html.includes("Votre code d’inscription"));
+  assert.ok(html.includes("aucun compte ne sera créé sans ce code"));
+  assert.ok(!html.includes("Votre code de connexion"));
+  assert.ok(!html.includes("<img src=x"));
+  assert.ok(!html.includes('class="email-button'));
+});
+
 test("account deleted email escapes project names and contains no action link", () => {
   const html = AccountDeletedEmailTemplate({
     email: evil,

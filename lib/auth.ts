@@ -8,6 +8,11 @@ import {
   getAuthoritativeSessionFromCtx,
 } from "better-auth/api";
 import { isRecentSession, requiresRecentSession } from "./recent-session";
+import {
+  accountNameSchema,
+  SIGN_UP_INTENT,
+  SIGN_UP_INTENT_HEADER,
+} from "./sign-up";
 import { countryFromHeader } from "./site-analytics";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import prisma from "./prisma";
@@ -76,9 +81,22 @@ const EXISTING_ACCOUNT_EMAIL_WINDOW_MS = 15 * 60 * 1000;
 const CODES_PER_ADDRESS_PER_HOUR = 5;
 const CODE_WINDOW_MS = 60 * 60 * 1000;
 
-// Code types served here: address verification and passwordless sign-in.
+// Code types served here: address verification and passwordless sign-in,
+// which also creates the account when it comes from the sign-up form.
 const ALLOWED_OTP_TYPES = new Set(["email-verification", "sign-in"]);
-type CodePurpose = "email-verification" | "sign-in";
+type CodePurpose = "email-verification" | "sign-in" | "sign-up";
+
+const CODE_SUBJECTS: Record<CodePurpose, (otp: string) => string> = {
+  "email-verification": (otp) => `${otp} est votre code de vérification ExtravertyAI`,
+  "sign-in": (otp) => `${otp} est votre code de connexion ExtravertyAI`,
+  "sign-up": (otp) => `${otp} est votre code pour créer votre compte ExtravertyAI`,
+};
+
+function hasSignUpIntent(ctx: unknown) {
+  const context = ctx as { headers?: Headers; request?: Request } | undefined;
+  const headers = context?.headers ?? context?.request?.headers;
+  return headers?.get(SIGN_UP_INTENT_HEADER) === SIGN_UP_INTENT;
+}
 
 // OTP password resets and OTP email changes stay closed: both go by link.
 const UNUSED_OTP_PATHS = [
@@ -104,10 +122,7 @@ async function sendCode(email: string, otp: string, purpose: CodePurpose) {
   try {
     await sendAuthEmail({
       to: email,
-      subject:
-        purpose === "sign-in"
-          ? `${otp} est votre code de connexion ExtravertyAI`
-          : `${otp} est votre code de vérification ExtravertyAI`,
+      subject: CODE_SUBJECTS[purpose](otp),
       html: VerificationCodeTemplate({
         code: otp,
         email,
@@ -259,6 +274,21 @@ export const auth = betterAuth({
       },
     },
     user: {
+      create: {
+        // An account created by code comes from the sign-up form, which always
+        // sends a name. Checked only once the code is accepted: answering
+        // earlier would tell anyone whether the address has an account.
+        before: async (user, ctx) => {
+          if (ctx?.path !== "/sign-in/email-otp") return;
+          const name = accountNameSchema.safeParse(user.name);
+          if (!name.success)
+            throw new APIError("BAD_REQUEST", {
+              code: "SIGN_UP_NAME_REQUIRED",
+              message: "Créez votre compte depuis la page d’inscription.",
+            });
+          return { data: { ...user, name: name.data } };
+        },
+      },
       delete: {
         before: async (user) => {
           // Re-checked here: this hook also runs for deletions that bypass the
@@ -368,12 +398,23 @@ export const auth = betterAuth({
       expiresIn: VERIFICATION_CODE_MINUTES * 60,
       allowedAttempts: 5,
       storeOTP: "hashed",
-      // Codes never create accounts: sign-up goes through the sign-up form.
-      // An unknown address gets the same answer and no email.
-      disableSignUp: true,
-      sendVerificationOTP: async ({ email, otp, type }) => {
-        if (type === "email-verification" || type === "sign-in")
-          await sendCode(email, otp, type);
+      // A sign-in code for an unknown address creates the account, with the
+      // name given on the sign-up form (checked by the user create hook).
+      disableSignUp: false,
+      // Runs after the response (backgroundTasks): known and unknown
+      // addresses get the same answer in the same time.
+      sendVerificationOTP: async ({ email, otp, type }, ctx) => {
+        if (type === "email-verification")
+          return sendCode(email, otp, "email-verification");
+        if (type !== "sign-in") return;
+        const known = await prisma.user.findUnique({
+          where: { email },
+          select: { id: true },
+        });
+        if (known) return sendCode(email, otp, "sign-in");
+        // Unknown address: a code only when asked from the sign-up form. From
+        // the sign-in form it gets no email, as before.
+        if (hasSignUpIntent(ctx)) return sendCode(email, otp, "sign-up");
       },
     }),
   ],
