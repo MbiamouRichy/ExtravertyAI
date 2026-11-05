@@ -286,20 +286,27 @@ export function InviteForm({
       </form>
 
       <div className="space-y-4">
+        {/* Wraps rather than overflows if the text is enlarged; the short
+            label keeps one line on screens under 320 px. */}
         <Button
           type="submit"
           form="invite-form"
           size="lg"
-          className="w-full"
+          className="h-auto min-h-10 w-full whitespace-normal py-2 text-balance"
           disabled={isLoading}
         >
           {isLoading ? (
             <>
               <Loader2 className="animate-spin" aria-hidden="true" />
-              Création du compte...
+              Création du compte…
             </>
           ) : (
-            "Créer mon compte et rejoindre"
+            <>
+              <span className="min-[320px]:hidden">Créer mon compte</span>
+              <span className="max-[319px]:hidden">
+                Créer mon compte et rejoindre
+              </span>
+            </>
           )}
         </Button>
         <p className="text-center text-sm text-muted-foreground">
