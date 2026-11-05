@@ -172,23 +172,28 @@ function ErrorState({
           lien, puis ouvrez-le depuis son message.
         </p>
         <div className="flex flex-col gap-3">
-          {switchAccountUrl ? (
-            <ReauthButton
-              callbackUrl={switchAccountUrl}
-              label="Changer de compte"
-              variant="default"
-            />
-          ) : (
-            <Button asChild>
-              <Link href="/sign-in">Accéder à mon compte</Link>
-            </Button>
-          )}
           <Button asChild variant="ghost">
             <Link href="/">
               <ArrowLeft aria-hidden />
               Retour à l’accueil
             </Link>
           </Button>
+          {switchAccountUrl ? (
+            <ReauthButton
+              callbackUrl={switchAccountUrl}
+              label="Changer de compte"
+              variant="outline"
+            />
+          ) : (
+            <>
+              <Button asChild variant="outline">
+                <Link href="/sign-in">Accéder à mon compte</Link>
+              </Button>
+              <Button asChild>
+                <Link href="/sign-up">Créer mon compte</Link>
+              </Button>
+            </>
+          )}
         </div>
       </div>
     </InviteShell>
