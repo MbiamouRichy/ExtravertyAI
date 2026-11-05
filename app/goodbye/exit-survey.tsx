@@ -27,9 +27,10 @@ import { submitDeletionFeedback } from "./actions";
 
 const COMMENT_MAX = 500;
 
-// The radio stays the focusable control; the pill around it is its label.
+// The radio stays the focusable control, visually hidden (`absolute` beats the
+// radio's own `relative`, or it keeps its 16 px); the pill is its label.
 const chip = cn(
-  "cursor-pointer rounded-full border bg-background px-3.5 py-2 text-sm font-normal leading-none transition-colors",
+  "relative cursor-pointer rounded-full border bg-background px-3.5 py-2 text-sm font-normal leading-none transition-colors",
   "hover:bg-muted has-focus-visible:ring-3 has-focus-visible:ring-ring/50",
   "has-disabled:cursor-not-allowed has-disabled:opacity-50",
   "has-data-[state=checked]:border-primary has-data-[state=checked]:bg-primary has-data-[state=checked]:text-primary-foreground",
@@ -126,7 +127,7 @@ export function ExitSurvey({ className }: { className?: string }) {
                     value={item.value}
                     id={`exit-reason-${item.value}`}
                     aria-invalid={fieldState.invalid}
-                    className="sr-only"
+                    className="sr-only absolute"
                   />
                   {item.label}
                 </FieldLabel>
@@ -145,12 +146,7 @@ export function ExitSurvey({ className }: { className?: string }) {
             control={form.control}
             render={({ field, fieldState }) => (
               <Field data-invalid={fieldState.invalid}>
-                <FieldLabel htmlFor="exit-comment">
-                  {followUp}{" "}
-                  <span className="font-normal text-muted-foreground">
-                    (facultatif)
-                  </span>
-                </FieldLabel>
+                <FieldLabel htmlFor="exit-comment">{followUp}</FieldLabel>
                 <Textarea
                   {...field}
                   id="exit-comment"
@@ -178,7 +174,13 @@ export function ExitSurvey({ className }: { className?: string }) {
               </Field>
             )}
           />
-          <Button type="submit" disabled={busy} className="w-full sm:w-auto">
+          {/* Secondary: "Retour à l’accueil" stays the page's one primary. */}
+          <Button
+            type="submit"
+            variant="secondary"
+            disabled={busy}
+            className="w-full sm:w-auto"
+          >
             {busy && <Loader2 aria-hidden className="animate-spin" />}
             {busy ? "Envoi…" : "Envoyer ma réponse"}
           </Button>
