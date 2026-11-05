@@ -65,6 +65,7 @@ export function EmailOtpStep({
   const [cooldown, setCooldown] = useState(RESEND_DELAY_SECONDS);
   // A pasted or autofilled code submits on its own: block a second request.
   const submitting = useRef(false);
+  const inputRef = useRef<HTMLInputElement | null>(null);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -87,7 +88,10 @@ export function EmailOtpStep({
         playHaptic("error");
         if (error.code === "OTP_EXPIRED" || error.code === "TOO_MANY_ATTEMPTS")
           form.setValue("otp", "");
-        form.setError("otp", { message: errorMessage(error) }, { shouldFocus: true });
+        form.setError("otp", { message: errorMessage(error) });
+        // Keep the keyboard open and select the wrong code: the next digits replace it.
+        inputRef.current?.focus();
+        inputRef.current?.select();
         return;
       }
       playHaptic("success");
@@ -161,6 +165,10 @@ export function EmailOtpStep({
                 <FieldLabel htmlFor="email-otp">Code de vérification</FieldLabel>
                 <Input
                   {...field}
+                  ref={(element) => {
+                    field.ref(element);
+                    inputRef.current = element;
+                  }}
                   id="email-otp"
                   autoFocus
                   inputMode="numeric"
@@ -168,7 +176,9 @@ export function EmailOtpStep({
                   pattern="[0-9]*"
                   maxLength={CODE_LENGTH}
                   placeholder="000000"
-                  disabled={verifying}
+                  // Read-only, not disabled: a disabled field loses focus and closes
+                  // the mobile keyboard while the code is checked.
+                  readOnly={verifying}
                   aria-invalid={fieldState.invalid}
                   aria-describedby={
                     fieldState.invalid ? undefined : "email-otp-description"
