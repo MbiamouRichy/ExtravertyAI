@@ -69,25 +69,23 @@ export function TrialTestNumberSettings({
       aria-labelledby={`${id}-title`}
       className="rounded-2xl border border-primary/30 bg-card p-4 sm:p-6"
     >
-      <div className="flex items-start gap-3">
+      <div className="flex items-center gap-3">
         <span className="flex size-9 shrink-0 items-center justify-center rounded-lg border bg-background">
           <FlaskConical aria-hidden="true" className="size-4" />
         </span>
-        <div className="min-w-0">
-          <h2
-            id={`${id}-title`}
-            className="font-heading text-lg font-semibold tracking-tight"
-          >
-            Numéro de test de l’essai
-          </h2>
-          <p className="mt-1 text-sm text-muted-foreground">
+        <h2
+          id={`${id}-title`}
+          className="min-w-0 font-heading text-lg font-semibold tracking-tight"
+        >
+          Numéro de test de l’essai
+        </h2>
+      </div>
+      <p className="mt-3 text-sm leading-6 text-pretty text-muted-foreground">
             Pendant l’essai, l’assistant, votre équipe et les diffusions
             n’échangent qu’avec ce numéro : les messages des autres numéros
             sont ignorés et les exports sont fermés. Tout s’ouvre dès le premier
             paiement.
           </p>
-        </div>
-      </div>
       <form
         noValidate
         className="mt-5"

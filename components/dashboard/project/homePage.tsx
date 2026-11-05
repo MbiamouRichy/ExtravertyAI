@@ -224,9 +224,9 @@ export default function HomeProjectsPage({ projects }: CustomProjectProps) {
                           intent="renew"
                           size="sm"
                           variant="outline"
-                          label="Renouveler"
+                          label={project.needsCheckout ? "Payer" : "Renouveler"}
                           needsCheckout={project.needsCheckout}
-                          className="mr-1 min-h-8 flex-1 text-xs @md/card:flex-none"
+                          className="mr-1 min-h-8 flex-1 whitespace-nowrap text-xs @md/card:flex-none"
                         />
                       )}
                       <Button asChild variant="ghost" size="icon-sm">

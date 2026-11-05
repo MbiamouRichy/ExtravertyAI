@@ -91,10 +91,12 @@ export function BillingPlanButton({
           aria-hidden="true"
           className={busy ? "size-4 animate-spin" : "size-4"}
         />
-        {needsCheckout
-          ? "Reprendre le paiement"
-          : (label ??
-            (intent === "renew" ? "Renouveler le plan" : "Changer d’offre"))}
+        {label ??
+          (needsCheckout
+            ? "Reprendre le paiement"
+            : intent === "renew"
+              ? "Renouveler le plan"
+              : "Changer d’offre")}
       </Button>
       {needsCheckout && (
         <AlertDialog

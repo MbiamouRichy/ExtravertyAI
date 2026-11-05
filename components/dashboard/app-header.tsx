@@ -14,7 +14,7 @@ export async function AppHeader() {
         "bg-background/95 backdrop-blur-sm supports-backdrop-filter:bg-background/50",
       )}
     >
-      <div className="flex items-center gap-3">
+      <div className="flex min-w-0 flex-1 items-center gap-3">
         <ConditionalSidebarTrigger />
         <Separator
           className="mr-2 h-4 data-[orientation=vertical]:self-center transition-all duration-200"
@@ -22,7 +22,7 @@ export async function AppHeader() {
         />
         <AppBreadcrumbs />
       </div>
-      <div className="flex items-center gap-3">
+      <div className="flex shrink-0 items-center gap-3">
         {/* « Nouveau projet » reste sur la page Projets ; ici, le retour produit. */}
         <FeedbackDialog />
         <Notifications />

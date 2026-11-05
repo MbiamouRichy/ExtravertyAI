@@ -100,7 +100,7 @@ export const getNavGroups = (projectId: string): SidebarNavGroup[] => [
         show: false,
       },
       {
-        title: "New project",
+        title: "Nouveau projet",
         path: "/projects/new",
         icon: <FolderEditIcon />,
         show: false,
