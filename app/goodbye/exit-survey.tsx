@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { Controller, useForm } from "react-hook-form";
+import { Controller, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { CircleCheck, Loader2, ShieldCheck } from "lucide-react";
+import { Check, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -11,7 +11,6 @@ import {
   Field,
   FieldDescription,
   FieldError,
-  FieldGroup,
   FieldLabel,
   FieldLegend,
   FieldSet,
@@ -23,20 +22,36 @@ import {
   DeletionFeedbackSchema,
   type DeletionFeedbackValues,
 } from "@/lib/deletion-feedback";
+import { cn } from "@/lib/utils";
 import { submitDeletionFeedback } from "./actions";
 
-export function ExitSurvey() {
+const COMMENT_MAX = 500;
+
+// The radio stays the focusable control; the pill around it is its label.
+const chip = cn(
+  "cursor-pointer rounded-full border bg-background px-3.5 py-2 text-sm font-normal leading-none transition-colors",
+  "hover:bg-muted has-focus-visible:ring-3 has-focus-visible:ring-ring/50",
+  "has-disabled:cursor-not-allowed has-disabled:opacity-50",
+  "has-data-[state=checked]:border-primary has-data-[state=checked]:bg-primary has-data-[state=checked]:text-primary-foreground",
+  "dark:has-data-[state=checked]:border-primary dark:has-data-[state=checked]:bg-primary",
+);
+
+export function ExitSurvey({ className }: { className?: string }) {
   const [sent, setSent] = useState(false);
   const form = useForm<DeletionFeedbackValues>({
     resolver: zodResolver(DeletionFeedbackSchema),
     defaultValues: { reason: undefined, comment: "" },
   });
   const busy = form.formState.isSubmitting;
+  const reason = useWatch({ control: form.control, name: "reason" });
+  const followUp = DELETION_FEEDBACK_REASONS.find(
+    (item) => item.value === reason,
+  )?.followUp;
 
   async function onSubmit(values: DeletionFeedbackValues) {
     const result = await submitDeletionFeedback(values);
     if (!result.success) {
-      toast.error(result.error);
+      toast.error(result.error, { position: "top-center" });
       return;
     }
     setSent(true);
@@ -44,18 +59,23 @@ export function ExitSurvey() {
 
   if (sent)
     return (
-      <div
+      <section
         role="status"
-        className="flex items-start gap-3 rounded-xl border bg-card p-5 text-sm"
+        className={cn(
+          "flex items-start gap-3 border-t pt-8 text-sm motion-safe:animate-in motion-safe:fade-in",
+          className,
+        )}
       >
-        <CircleCheck aria-hidden className="mt-0.5 size-4 shrink-0" />
+        <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
+          <Check aria-hidden className="size-3" />
+        </span>
         <p>
-          <span className="font-medium">Merci pour votre retour.</span>{" "}
+          <span className="font-medium">Merci, c’est noté.</span>{" "}
           <span className="text-muted-foreground">
-            Il nous aide à améliorer ExtravertyAI.
+            Votre retour nous aide à améliorer ExtravertyAI.
           </span>
         </p>
-      </div>
+      </section>
     );
 
   return (
@@ -63,103 +83,107 @@ export function ExitSurvey() {
       onSubmit={form.handleSubmit(onSubmit)}
       noValidate
       aria-labelledby="exit-survey-title"
-      className="rounded-xl border bg-card p-5 sm:p-6"
+      aria-describedby="exit-survey-help"
+      aria-busy={busy}
+      className={cn("border-t pt-8", className)}
     >
-      <h2
-        id="exit-survey-title"
-        className="text-base! font-semibold! leading-snug! tracking-tight!"
-      >
-        Pourquoi partez-vous&nbsp;?
-      </h2>
-      <p className="mt-1 text-sm text-muted-foreground">
-        Facultatif · 10 secondes · une seule réponse possible.
+      <div className="flex items-baseline justify-between gap-3">
+        <h2
+          id="exit-survey-title"
+          className="text-base! font-semibold! leading-snug! tracking-tight!"
+        >
+          Pourquoi partez-vous&nbsp;?
+        </h2>
+        <span className="text-xs text-muted-foreground">Facultatif</span>
+      </div>
+      <p id="exit-survey-help" className="mt-1 text-sm text-muted-foreground">
+        Réponse anonyme, sans lien avec votre ancien compte.
       </p>
 
-      <FieldGroup className="mt-5 gap-5">
-        <Controller
-          name="reason"
-          control={form.control}
-          render={({ field, fieldState }) => (
-            <FieldSet data-invalid={fieldState.invalid}>
-              <FieldLegend variant="label" className="sr-only">
-                Raison principale
-              </FieldLegend>
-              <RadioGroup
-                name={field.name}
-                value={field.value ?? ""}
-                onValueChange={field.onChange}
-                disabled={busy}
-                aria-invalid={fieldState.invalid}
-                className="grid gap-2 sm:grid-cols-2"
-              >
-                {DELETION_FEEDBACK_REASONS.map((reason) => (
-                  <Field
-                    key={reason.value}
-                    orientation="horizontal"
-                    className="rounded-lg border px-3 py-2.5 transition-colors has-data-[state=checked]:border-foreground has-data-[state=checked]:bg-muted/50"
-                  >
-                    <RadioGroupItem
-                      value={reason.value}
-                      id={`exit-reason-${reason.value}`}
-                      aria-invalid={fieldState.invalid}
-                    />
-                    <FieldLabel
-                      htmlFor={`exit-reason-${reason.value}`}
-                      className="font-normal"
-                    >
-                      {reason.label}
-                    </FieldLabel>
-                  </Field>
-                ))}
-              </RadioGroup>
-              {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
-            </FieldSet>
-          )}
-        />
+      <Controller
+        name="reason"
+        control={form.control}
+        render={({ field, fieldState }) => (
+          <FieldSet data-invalid={fieldState.invalid} className="mt-4">
+            <FieldLegend variant="label" className="sr-only">
+              Raison principale
+            </FieldLegend>
+            <RadioGroup
+              name={field.name}
+              value={field.value ?? ""}
+              onValueChange={field.onChange}
+              disabled={busy}
+              aria-invalid={fieldState.invalid}
+              className="flex flex-wrap gap-2"
+            >
+              {DELETION_FEEDBACK_REASONS.map((item) => (
+                <FieldLabel
+                  key={item.value}
+                  htmlFor={`exit-reason-${item.value}`}
+                  className={chip}
+                >
+                  <RadioGroupItem
+                    value={item.value}
+                    id={`exit-reason-${item.value}`}
+                    aria-invalid={fieldState.invalid}
+                    className="sr-only"
+                  />
+                  {item.label}
+                </FieldLabel>
+              ))}
+            </RadioGroup>
+            {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+          </FieldSet>
+        )}
+      />
 
-        <Controller
-          name="comment"
-          control={form.control}
-          render={({ field, fieldState }) => (
-            <Field data-invalid={fieldState.invalid}>
-              <FieldLabel htmlFor="exit-comment">
-                Un mot de plus&nbsp;?{" "}
-                <span className="font-normal text-muted-foreground">
-                  (facultatif)
-                </span>
-              </FieldLabel>
-              <Textarea
-                {...field}
-                id="exit-comment"
-                rows={3}
-                maxLength={500}
-                autoComplete="off"
-                disabled={busy}
-                aria-invalid={fieldState.invalid}
-                aria-describedby="exit-comment-help"
-                placeholder="Ce qui vous aurait fait rester…"
-                className="resize-none"
-              />
-              <FieldDescription id="exit-comment-help">
-                N’indiquez aucune information personnelle.{" "}
-                {field.value.length}/500
-              </FieldDescription>
-              {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
-            </Field>
-          )}
-        />
-      </FieldGroup>
-
-      <div className="mt-5 flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-          <ShieldCheck aria-hidden className="size-3.5 shrink-0" />
-          Réponse anonyme, sans lien avec votre ancien compte.
-        </p>
-        <Button type="submit" disabled={busy} className="sm:w-auto">
-          {busy && <Loader2 aria-hidden className="animate-spin" />}
-          {busy ? "Envoi…" : "Envoyer"}
-        </Button>
-      </div>
+      {/* The comment only shows once a reason is picked: one tap is enough. */}
+      {followUp && (
+        <div className="mt-6 space-y-4 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-top-1 motion-safe:duration-300">
+          <Controller
+            name="comment"
+            control={form.control}
+            render={({ field, fieldState }) => (
+              <Field data-invalid={fieldState.invalid}>
+                <FieldLabel htmlFor="exit-comment">
+                  {followUp}{" "}
+                  <span className="font-normal text-muted-foreground">
+                    (facultatif)
+                  </span>
+                </FieldLabel>
+                <Textarea
+                  {...field}
+                  id="exit-comment"
+                  rows={3}
+                  maxLength={COMMENT_MAX}
+                  autoComplete="off"
+                  disabled={busy}
+                  aria-invalid={fieldState.invalid}
+                  aria-describedby="exit-comment-help"
+                  placeholder="Votre réponse…"
+                  className="resize-none"
+                />
+                <FieldDescription
+                  id="exit-comment-help"
+                  className="flex justify-between gap-3 text-xs"
+                >
+                  <span>N’indiquez aucune information personnelle.</span>
+                  <span className="shrink-0 tabular-nums" aria-hidden>
+                    {field.value.length}/{COMMENT_MAX}
+                  </span>
+                </FieldDescription>
+                {fieldState.invalid && (
+                  <FieldError errors={[fieldState.error]} />
+                )}
+              </Field>
+            )}
+          />
+          <Button type="submit" disabled={busy} className="w-full sm:w-auto">
+            {busy && <Loader2 aria-hidden className="animate-spin" />}
+            {busy ? "Envoi…" : "Envoyer ma réponse"}
+          </Button>
+        </div>
+      )}
     </form>
   );
 }
