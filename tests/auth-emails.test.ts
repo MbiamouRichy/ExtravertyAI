@@ -18,7 +18,15 @@ function loadAuth(
   const sent: string[] = [];
   const logged: unknown[][] = [];
   const otpRequests: unknown[] = [];
-  const throttle = new Set<string>();
+  // Rows of the verification table used as throttles.
+  const rows: { identifier: string; expiresAt: Date }[] = [];
+  const matches = (
+    row: { identifier: string; expiresAt: Date },
+    where: { identifier: string; expiresAt?: { gt?: Date; lte?: Date } },
+  ) =>
+    row.identifier === where.identifier &&
+    (!where.expiresAt?.gt || row.expiresAt > where.expiresAt.gt) &&
+    (!where.expiresAt?.lte || row.expiresAt <= where.expiresAt.lte);
   let config: {
     disabledPaths: string[];
     hooks: { before: (ctx: Record<string, unknown>) => Promise<void> };
@@ -44,11 +52,18 @@ function loadAuth(
       findUnique: async () => ({ email: db.storedEmail ?? "a@example.test" }),
     },
     verification: {
-      findFirst: async ({ where }: { where: { identifier: string } }) =>
-        throttle.has(where.identifier) ? { id: "v1" } : null,
-      deleteMany: async () => ({ count: 0 }),
-      create: async ({ data }: { data: { identifier: string } }) => {
-        throttle.add(data.identifier);
+      findFirst: async ({ where }: { where: Parameters<typeof matches>[1] }) =>
+        rows.some((row) => matches(row, where)) ? { id: "v1" } : null,
+      count: async ({ where }: { where: Parameters<typeof matches>[1] }) =>
+        rows.filter((row) => matches(row, where)).length,
+      deleteMany: async ({ where }: { where: Parameters<typeof matches>[1] }) => {
+        const kept = rows.filter((row) => !matches(row, where));
+        const count = rows.length - kept.length;
+        rows.splice(0, rows.length, ...kept);
+        return { count };
+      },
+      create: async ({ data }: { data: { identifier: string; expiresAt: Date } }) => {
+        rows.push({ identifier: data.identifier, expiresAt: data.expiresAt });
         return data;
       },
     },
@@ -135,6 +150,15 @@ function loadAuth(
     otpRequests,
     config: () => config,
     otp: () => config.plugins[0].options,
+    requestCode: (email: string, type: string | null = "sign-in") =>
+      config.hooks.before({
+        path: "/email-otp/send-verification-otp",
+        body: { email, type },
+      }),
+    // Moves every throttle window to its end.
+    expireThrottles: () => {
+      for (const row of rows) row.expiresAt = new Date(0);
+    },
     sendVerification: (email = "a@example.test") =>
       config.emailVerification.sendVerificationEmail({
         user: { id: "u1", email },
@@ -179,23 +203,35 @@ test("a change of address is still confirmed by link on the new address", async 
   assert.equal(accepted.logged.length, 0);
 });
 
-test("verification codes are hashed, verification is required and other OTP flows are closed", async () => {
+test("codes are hashed, verification is required and only verification and sign-in codes exist", async () => {
   const auth = loadAuth({ data: { id: "email_1" }, error: null });
   const config = auth.config();
   assert.equal(config.emailAndPassword.requireEmailVerification, true);
   assert.equal(auth.otp().storeOTP, "hashed");
   assert.equal(auth.otp().disableSignUp, true);
-  for (const path of ["/sign-in/email-otp", "/email-otp/reset-password", "/email-otp/change-email"])
+  assert.ok(!config.disabledPaths.includes("/sign-in/email-otp"));
+  for (const path of [
+    "/forget-password/email-otp",
+    "/email-otp/reset-password",
+    "/email-otp/change-email",
+  ])
     assert.ok(config.disabledPaths.includes(path));
-  for (const type of ["sign-in", "forget-password", undefined])
-    await assert.rejects(
-      config.hooks.before({ path: "/email-otp/send-verification-otp", body: { type } }),
-      /OTP_TYPE_NOT_ALLOWED/,
-    );
-  await config.hooks.before({
-    path: "/email-otp/send-verification-otp",
-    body: { type: "email-verification" },
-  });
+  for (const type of ["forget-password", "change-email", null])
+    await assert.rejects(auth.requestCode("a@example.test", type), /OTP_TYPE_NOT_ALLOWED/);
+  await auth.requestCode("a@example.test", "email-verification");
+  await auth.requestCode("a@example.test", "sign-in");
+});
+
+test("sign-in codes are capped per address, for every address alike", async () => {
+  const auth = loadAuth({ data: { id: "email_1" }, error: null });
+  for (let i = 0; i < 5; i++) await auth.requestCode("Victim@Example.test ");
+  await assert.rejects(auth.requestCode("victim@example.test"), /TOO_MANY_CODES/);
+  // Other addresses and verification codes keep their own budget.
+  await auth.requestCode("other@example.test");
+  await auth.requestCode("victim@example.test", "email-verification");
+  // The budget comes back once the window ends.
+  auth.expireThrottles();
+  await auth.requestCode("victim@example.test");
 });
 
 test("a refused code email is logged but never thrown to the public route", async () => {
@@ -216,10 +252,18 @@ test("a refused code email is logged but never thrown to the public route", asyn
   });
   await accepted.otp().sendVerificationOTP({
     email: "a@example.test",
-    otp: "123456",
+    otp: "654321",
     type: "sign-in",
   });
-  assert.deepEqual(accepted.sent, ["123456 est votre code de vérification ExtravertyAI"]);
+  await accepted.otp().sendVerificationOTP({
+    email: "a@example.test",
+    otp: "111111",
+    type: "forget-password",
+  });
+  assert.deepEqual(accepted.sent, [
+    "123456 est votre code de vérification ExtravertyAI",
+    "654321 est votre code de connexion ExtravertyAI",
+  ]);
 });
 
 test("a sign-up on an existing address warns its owner once per window, silently", async () => {

@@ -16,12 +16,43 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { emailOtp } from "@/lib/auth-client";
+import { emailOtp, signIn } from "@/lib/auth-client";
 import { useHaptics } from "@/lib/webHaptics";
 
 const CODE_LENGTH = 6;
 // The server sends a code right before this step and rate limits resends.
 const RESEND_DELAY_SECONDS = 60;
+
+export type CodePurpose = "email-verification" | "sign-in";
+
+const COPY: Record<
+  CodePurpose,
+  {
+    title: string;
+    label: string;
+    hint: string;
+    submit: string;
+    pending: string;
+    success: string;
+  }
+> = {
+  "email-verification": {
+    title: "Vérifiez votre e-mail",
+    label: "Code de vérification",
+    hint: "Rien reçu ? Regardez dans vos courriers indésirables.",
+    submit: "Confirmer mon adresse",
+    pending: "Vérification…",
+    success: "Adresse e-mail confirmée.",
+  },
+  "sign-in": {
+    title: "Consultez votre boîte mail",
+    label: "Code de connexion",
+    hint: "Rien reçu ? Vérifiez l’adresse et vos courriers indésirables.",
+    submit: "Se connecter",
+    pending: "Connexion…",
+    success: "Connexion réussie.",
+  },
+};
 
 const formSchema = z.object({
   otp: z
@@ -32,6 +63,8 @@ const formSchema = z.object({
 type FormValues = z.infer<typeof formSchema>;
 
 function errorMessage(error: { code?: string; status?: number }) {
+  if (error.code === "TOO_MANY_CODES")
+    return "Trop de codes demandés pour cette adresse. Réessayez dans une heure.";
   if (error.status === 429)
     return "Trop de tentatives. Patientez une minute avant de réessayer.";
   switch (error.code) {
@@ -46,19 +79,25 @@ function errorMessage(error: { code?: string; status?: number }) {
   }
 }
 
-/** Confirms an address with the one-time code Better Auth just emailed to it. */
+/**
+ * Checks the one-time code Better Auth just emailed: it confirms the address,
+ * or signs in without a password. Either way the session opens on success.
+ */
 export function EmailOtpStep({
   email,
   onVerified,
   onChangeEmail,
   changeEmailLabel = "Modifier l’adresse",
+  purpose = "email-verification",
 }: {
   email: string;
   /** Runs once the code is accepted and the session is open. */
   onVerified: () => void | Promise<void>;
   onChangeEmail?: () => void;
   changeEmailLabel?: string;
+  purpose?: CodePurpose;
 }) {
+  const copy = COPY[purpose];
   const { playHaptic } = useHaptics();
   const [verifying, setVerifying] = useState(false);
   const [resending, setResending] = useState(false);
@@ -85,7 +124,10 @@ export function EmailOtpStep({
     submitting.current = true;
     setVerifying(true);
     try {
-      const { error } = await emailOtp.verifyEmail({ email, otp });
+      const { error } =
+        purpose === "sign-in"
+          ? await signIn.emailOtp({ email, otp })
+          : await emailOtp.verifyEmail({ email, otp });
       if (error) {
         playHaptic("error");
         if (error.code === "OTP_EXPIRED" || error.code === "TOO_MANY_ATTEMPTS")
@@ -97,7 +139,7 @@ export function EmailOtpStep({
         return;
       }
       playHaptic("success");
-      toast.success("Adresse e-mail confirmée.", { position: "top-center" });
+      toast.success(copy.success, { position: "top-center" });
       await onVerified();
     } catch {
       playHaptic("error");
@@ -117,7 +159,7 @@ export function EmailOtpStep({
     try {
       const { error } = await emailOtp.sendVerificationOtp({
         email,
-        type: "email-verification",
+        type: purpose,
       });
       if (error) {
         toast.error("Le code n’a pas pu être renvoyé.", {
@@ -145,12 +187,22 @@ export function EmailOtpStep({
 
   return (
     <div className="motion-safe:animate-in motion-safe:fade-in motion-safe:duration-300">
-      <h1 className="text-3xl md:text-4xl">Vérifiez votre e-mail</h1>
-      <p className="mt-2 text-sm text-muted-foreground">
-        Saisissez le code à {CODE_LENGTH} chiffres envoyé à{" "}
-        <span className="font-medium wrap-anywhere text-foreground">{email}</span>.
-        Il expire dans 10 minutes.
-      </p>
+      <h1 className="text-3xl md:text-4xl">{copy.title}</h1>
+      {purpose === "sign-in" ? (
+        // Same words for known and unknown addresses: nothing to learn here.
+        <p className="mt-2 text-sm text-muted-foreground">
+          Si{" "}
+          <span className="font-medium wrap-anywhere text-foreground">{email}</span>{" "}
+          correspond à un compte ExtravertyAI, un code à {CODE_LENGTH} chiffres
+          vient d’y être envoyé. Il expire dans 10 minutes.
+        </p>
+      ) : (
+        <p className="mt-2 text-sm text-muted-foreground">
+          Saisissez le code à {CODE_LENGTH} chiffres envoyé à{" "}
+          <span className="font-medium wrap-anywhere text-foreground">{email}</span>.
+          Il expire dans 10 minutes.
+        </p>
+      )}
 
       <form
         noValidate
@@ -164,7 +216,7 @@ export function EmailOtpStep({
             control={form.control}
             render={({ field, fieldState }) => (
               <Field data-invalid={fieldState.invalid}>
-                <FieldLabel htmlFor="email-otp">Code de vérification</FieldLabel>
+                <FieldLabel htmlFor="email-otp">{copy.label}</FieldLabel>
                 <Input
                   {...field}
                   ref={(element) => {
@@ -200,7 +252,7 @@ export function EmailOtpStep({
                   <FieldError errors={[fieldState.error]} />
                 ) : (
                   <FieldDescription id="email-otp-description">
-                    Rien reçu ? Regardez dans vos courriers indésirables.
+                    {copy.hint}
                   </FieldDescription>
                 )}
               </Field>
@@ -209,7 +261,7 @@ export function EmailOtpStep({
 
           <Button disabled={verifying} type="submit" size="lg" className="w-full">
             {verifying && <Loader className="animate-spin" aria-hidden="true" />}
-            {verifying ? "Vérification…" : "Confirmer mon adresse"}
+            {verifying ? copy.pending : copy.submit}
           </Button>
         </FieldGroup>
       </form>

@@ -65,16 +65,23 @@ async function sendAuthEmail(message: Parameters<typeof resend.emails.send>[0]) 
 const AUTH_EMAIL_FROM = "ExtravertyAI <notification@extravertyai.com>";
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || EMAIL_SITE_URL;
 
-// Address verification codes: short-lived, hashed at rest, a few tries each.
+// One-time codes: short-lived, hashed at rest, a few tries each.
 const VERIFICATION_CODE_MINUTES = 10;
 // One "you already have an account" email per address and window, whatever
 // the number of sign-up attempts (the route itself is only rate limited per IP).
 const EXISTING_ACCOUNT_EMAIL_WINDOW_MS = 15 * 60 * 1000;
+// Codes per address and hour, shared by every server instance: the plugin's
+// own limit is per IP and in memory. 5 codes × 5 tries caps guessing at
+// 25 attempts an hour on one account, from any number of IPs.
+const CODES_PER_ADDRESS_PER_HOUR = 5;
+const CODE_WINDOW_MS = 60 * 60 * 1000;
 
-// The email OTP plugin only serves address verification here: passwordless
-// sign-in, OTP password resets and OTP email changes stay closed.
+// Code types served here: address verification and passwordless sign-in.
+const ALLOWED_OTP_TYPES = new Set(["email-verification", "sign-in"]);
+type CodePurpose = "email-verification" | "sign-in";
+
+// OTP password resets and OTP email changes stay closed: both go by link.
 const UNUSED_OTP_PATHS = [
-  "/sign-in/email-otp",
   "/email-otp/check-verification-otp",
   "/email-otp/request-password-reset",
   "/forget-password/email-otp",
@@ -93,15 +100,19 @@ function runAfterResponse(task: Promise<unknown>) {
   }
 }
 
-async function sendVerificationCode(email: string, otp: string) {
+async function sendCode(email: string, otp: string, purpose: CodePurpose) {
   try {
     await sendAuthEmail({
       to: email,
-      subject: `${otp} est votre code de vérification ExtravertyAI`,
+      subject:
+        purpose === "sign-in"
+          ? `${otp} est votre code de connexion ExtravertyAI`
+          : `${otp} est votre code de vérification ExtravertyAI`,
       html: VerificationCodeTemplate({
         code: otp,
         email,
         minutes: VERIFICATION_CODE_MINUTES,
+        purpose,
       }),
       from: AUTH_EMAIL_FROM,
     });
@@ -110,6 +121,27 @@ async function sendVerificationCode(email: string, otp: string) {
     // known and unknown addresses.
     console.error("VERIFICATION_CODE_FAILED", error);
   }
+}
+
+// Counted before the plugin looks the address up: known and unknown
+// addresses hit the same limit, so it reveals nothing about accounts.
+async function claimCodeSend(email: string, purpose: string) {
+  const identifier = `code-sent:${purpose}:${email.trim().toLowerCase()}`;
+  const now = new Date();
+  await prisma.verification.deleteMany({
+    where: { identifier, expiresAt: { lte: now } },
+  });
+  const sent = await prisma.verification.count({ where: { identifier } });
+  if (sent >= CODES_PER_ADDRESS_PER_HOUR) return false;
+  await prisma.verification.create({
+    data: {
+      id: crypto.randomUUID(),
+      identifier,
+      value: "sent",
+      expiresAt: new Date(now.getTime() + CODE_WINDOW_MS),
+    },
+  });
+  return true;
 }
 
 async function claimExistingAccountEmail(userId: string) {
@@ -154,14 +186,21 @@ export const auth = betterAuth({
   }),
   hooks: {
     before: createAuthMiddleware(async (ctx) => {
-      if (
-        ctx.path === "/email-otp/send-verification-otp" &&
-        ctx.body?.type !== "email-verification"
-      )
-        throw new APIError("BAD_REQUEST", {
-          code: "OTP_TYPE_NOT_ALLOWED",
-          message: "Ce type de code n’est pas disponible.",
-        });
+      if (ctx.path === "/email-otp/send-verification-otp") {
+        const { type, email } = ctx.body ?? {};
+        if (!ALLOWED_OTP_TYPES.has(type))
+          throw new APIError("BAD_REQUEST", {
+            code: "OTP_TYPE_NOT_ALLOWED",
+            message: "Ce type de code n’est pas disponible.",
+          });
+        if (typeof email === "string" && !(await claimCodeSend(email, type)))
+          throw new APIError("TOO_MANY_REQUESTS", {
+            code: "TOO_MANY_CODES",
+            message:
+              "Trop de codes demandés pour cette adresse. Réessayez dans une heure.",
+          });
+        return;
+      }
       if (!requiresRecentSession(ctx.path)) return;
       const deleting = ctx.path.startsWith("/delete-user");
       const session = await getAuthoritativeSessionFromCtx(ctx);
@@ -329,10 +368,12 @@ export const auth = betterAuth({
       expiresIn: VERIFICATION_CODE_MINUTES * 60,
       allowedAttempts: 5,
       storeOTP: "hashed",
-      // Codes never create accounts: sign-up goes through the password form.
+      // Codes never create accounts: sign-up goes through the sign-up form.
+      // An unknown address gets the same answer and no email.
       disableSignUp: true,
       sendVerificationOTP: async ({ email, otp, type }) => {
-        if (type === "email-verification") await sendVerificationCode(email, otp);
+        if (type === "email-verification" || type === "sign-in")
+          await sendCode(email, otp, type);
       },
     }),
   ],

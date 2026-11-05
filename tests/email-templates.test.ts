@@ -39,6 +39,15 @@ test("verification code email shows the code, escapes the address and refuses an
   assert.throws(() => VerificationCodeTemplate({ code: "<b>1</b>", email: "a@example.test", minutes: 10 }));
 });
 
+test("sign-in code email says it is a sign-in code, not an activation", () => {
+  const html = VerificationCodeTemplate({ code: "204816", email: evil, minutes: 10, purpose: "sign-in" });
+  assert.ok(html.includes("204816"));
+  assert.ok(html.includes("Votre code de connexion"));
+  assert.ok(!html.includes("aucun compte ne sera activé"));
+  assert.ok(!html.includes("<img src=x"));
+  assert.ok(!html.includes('class="email-button'));
+});
+
 test("account deleted email escapes project names and contains no action link", () => {
   const html = AccountDeletedEmailTemplate({
     email: evil,
