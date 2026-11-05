@@ -25,7 +25,6 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Field,
-  FieldDescription,
   FieldError,
   FieldGroup,
   FieldLabel,
@@ -78,17 +77,13 @@ function EmailInput({
   disabled,
   autoFocus,
   autoComplete,
-  description,
 }: {
   field: EmailFieldProps;
   fieldState: ControllerFieldState;
   disabled: boolean;
   autoFocus?: boolean;
   autoComplete: "email" | "username";
-  description?: string;
 }) {
-  const describedBy =
-    description && !fieldState.invalid ? "sign-in-email-description" : undefined;
   return (
     <Field data-invalid={fieldState.invalid}>
       <FieldLabel htmlFor="sign-in-email">Email</FieldLabel>
@@ -101,7 +96,6 @@ function EmailInput({
           id="sign-in-email"
           autoFocus={autoFocus}
           aria-invalid={fieldState.invalid}
-          aria-describedby={describedBy}
           disabled={disabled}
           placeholder="vous@entreprise.com"
         />
@@ -109,15 +103,7 @@ function EmailInput({
           <AtSignIcon />
         </InputGroupAddon>
       </InputGroup>
-      {fieldState.invalid ? (
-        <FieldError errors={[fieldState.error]} />
-      ) : (
-        description && (
-          <FieldDescription id="sign-in-email-description">
-            {description}
-          </FieldDescription>
-        )
-      )}
+      {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
     </Field>
   );
 }
@@ -187,7 +173,6 @@ export function CodeSignInForm({
               disabled={loading}
               autoFocus={autoFocus}
               autoComplete="email"
-              description="Recevez un code à 6 chiffres : aucun mot de passe à retenir."
             />
           )}
         />
