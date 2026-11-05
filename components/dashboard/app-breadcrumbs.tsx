@@ -33,7 +33,8 @@ export function AppBreadcrumbs() {
 				<BreadcrumbItem className="min-w-0">
 					<BreadcrumbPage className="flex min-w-0 items-center gap-2 [&>svg]:size-3.5 [&>svg]:shrink-0">
 						{page.icon}
-						<span className="truncate">{page.title}</span>
+						{/* Très petit écran : l’icône seule, le titre reste lu par les lecteurs d’écran. */}
+						<span className="truncate max-[359px]:sr-only">{page.title}</span>
 					</BreadcrumbPage>
 				</BreadcrumbItem>
 			</BreadcrumbList>
