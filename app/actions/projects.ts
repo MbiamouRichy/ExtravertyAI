@@ -6,7 +6,10 @@ import { getSession } from "@/lib/auth-server";
 import { revalidatePath } from "next/cache";
 import z from "zod";
 import { setProjectPaused } from "./project-settings";
-import { deleteProjectResources } from "@/lib/project-deletion";
+import {
+  ProjectDeletionError,
+  deleteProjectResources,
+} from "@/lib/project-deletion";
 import { billingAccess } from "@/lib/billing-access";
 import { projectLogoUrl } from "@/lib/project-logo";
 import {
@@ -14,6 +17,7 @@ import {
   verifyExportReceipt,
 } from "@/lib/contact-export";
 import { isRecentSession } from "@/lib/recent-session";
+import { needsInitialCheckout } from "@/lib/billing-display";
 
 // 1. RÉCUPERER TOUS LES PROJETS
 export async function getProjects() {
@@ -38,6 +42,8 @@ export async function getProjects() {
             automationPaused: true,
             statusBeforePause: true,
             stripeStatus: true,
+            stripeCustomerId: true,
+            stripeSubscriptionId: true,
             deletionPending: true,
             quotaPeriods: {
               where: { isCurrent: true },
@@ -68,6 +74,8 @@ export async function getProjects() {
         statusBeforePause,
         deletionPending,
         logoKey,
+        stripeCustomerId,
+        stripeSubscriptionId,
         ...visible
       } = project;
       const period = quotaPeriods[0];
@@ -76,6 +84,13 @@ export async function getProjects() {
         // Seule l’adresse protégée quitte le serveur, jamais la clé de stockage.
         logoUrl: projectLogoUrl(project.id, logoKey),
         canManageBilling: can(role, "billing.manage"),
+        deletionPending,
+        // Seul l’indicateur quitte le serveur, jamais les identifiants Stripe.
+        needsCheckout: needsInitialCheckout({
+          status: project.status,
+          stripeCustomerId,
+          stripeSubscriptionId,
+        }),
         billingAccess: billingAccess(
           {
             ...project,
@@ -295,6 +310,17 @@ export async function deleteProjectAction(
 
     return { success: true };
   } catch (error: unknown) {
+    // Suppression commencée : le dialogue montre l'étape restante et propose
+    // de la terminer avec les mêmes sauvegardes.
+    if (error instanceof ProjectDeletionError) {
+      revalidatePath("/", "layout");
+      return {
+        success: false,
+        code: "DELETION_PENDING",
+        step: error.step,
+        error: error.message,
+      };
+    }
     const errorMessage =
       error instanceof Error ? error.message : "Erreur lors de la suppression";
     console.error("Erreur deleteProjectAction:", errorMessage);

@@ -86,15 +86,15 @@ export function AiQuietSettings({
           name="enabled"
           control={form.control}
           render={({ field }) => (
-            <Field orientation="horizontal" className="items-start gap-4">
-              <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-lg border bg-background">
+            <Field orientation="horizontal" className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-x-4 gap-y-2 sm:gap-y-1">
+              <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-lg border bg-background sm:row-span-2">
                 <Moon aria-hidden="true" className="size-4" />
               </span>
-              <FieldContent>
-                <FieldLabel htmlFor={`${id}-switch`}>
+              <FieldContent className="contents">
+                <FieldLabel htmlFor={`${id}-switch`} className="col-start-2 row-start-1 self-center sm:self-start">
                   Mettre l’IA en veille à la fin d’une conversation
                 </FieldLabel>
-                <FieldDescription id={`${id}-description`}>
+                <FieldDescription id={`${id}-description`} className="col-span-full sm:col-span-1 sm:col-start-2">
                   Quand le client conclut (« merci », « je vous reviens »…),
                   l’assistant répond une dernière fois puis ignore les simples
                   accusés de réception. Il reprend dès que le client pose une
@@ -102,7 +102,7 @@ export function AiQuietSettings({
                   conversation.
                 </FieldDescription>
               </FieldContent>
-              <div className="flex shrink-0 items-center gap-2 pt-0.5">
+              <div className="col-start-3 row-start-1 flex shrink-0 items-center gap-2 pt-0.5">
                 {saving && (
                   <Loader2
                     aria-hidden="true"

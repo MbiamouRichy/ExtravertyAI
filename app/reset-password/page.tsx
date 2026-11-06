@@ -27,8 +27,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Eye, EyeOff, KeySquareIcon, Loader } from "lucide-react";
 import { useState } from "react";
 import { useHaptics } from "@/lib/webHaptics";
-import { DecorIcon } from "@/components/ui/decor-icon";
-import { cn } from "@/lib/utils";
+import { AuthSimpleShell } from "@/components/auth/auth-simple-shell";
 
 const formSchema = z.object({
   password: z
@@ -41,7 +40,7 @@ export default function ResetPassword() {
   return (
     <React.Suspense
       fallback={
-        <p role="status" className="p-8 text-center">
+        <p role="status" className="p-8 text-center text-sm text-muted-foreground">
           Chargement…
         </p>
       }
@@ -131,91 +130,75 @@ function ResetPasswordForm() {
     }
   }
   return (
-    <div className="relative flex h-screen w-full items-center justify-center overflow-hidden px-6 md:px-8">
-      <div
-        className={cn(
-          "relative flex w-full max-w-md flex-col justify-between p-6 md:p-8",
-          "dark:bg-[radial-gradient(50%_80%_at_20%_0%,--theme(--color-foreground/.1),transparent)]",
-        )}
-      >
-        <div className="absolute -inset-y-6 -left-px w-px bg-border" />
-        <div className="absolute -inset-y-6 -right-px w-px bg-border" />
-        <div className="absolute -inset-x-6 -top-px h-px bg-border" />
-        <div className="absolute -inset-x-6 -bottom-px h-px bg-border" />
-        <DecorIcon position="top-left" />
-        <DecorIcon position="bottom-right" />
-        <div className="w-full max-w-md animate-in space-y-8">
-          <div className="flex flex-col space-y-1">
-            <h1 className="font-bold text-2xl tracking-wide">
-              Reinitialisation
-            </h1>
-            <p className="text-base text-muted-foreground">
-              Saisissez votre nouveau mot de passe pour sécuriser l&apos;accès à
-              votre compte.
-            </p>
-          </div>
-          <div className="space-y-4">
-            <form id="form-rhf-demo" onSubmit={form.handleSubmit(onSubmit)}>
-              <FieldGroup>
-                <Controller
-                  name="password"
-                  control={form.control}
-                  render={({ field, fieldState }) => (
-                    <Field data-invalid={fieldState.invalid}>
-                      <FieldLabel htmlFor={field.name}>
-                        Nouveau mot de passe
-                      </FieldLabel>
-                      <InputGroup>
-                        <InputGroupInput
-                          {...field}
-                          id={field.name}
-                          aria-invalid={fieldState.invalid}
-                          placeholder="Entrez le nouveau mot de passe."
-                          autoComplete="off"
-                          type={showPassword ? "text" : "password"}
-                        />
-                        <InputGroupAddon align="inline-start">
-                          <KeySquareIcon />
-                        </InputGroupAddon>
-                        <InputGroupAddon align="inline-end">
-                          <InputGroupButton
-                            variant="ghost"
-                            size="icon-sm"
-                            onClick={() => setShowPassword(!showPassword)}
-                            type="button"
-                          >
-                            {showPassword ? <Eye /> : <EyeOff />}
-                          </InputGroupButton>
-                        </InputGroupAddon>
-                      </InputGroup>
+    <AuthSimpleShell
+      title="Nouveau mot de passe"
+      description="Choisissez un nouveau mot de passe pour sécuriser votre compte."
+      footer={
+          <>
+            Pas encore de compte ?{" "}
+            <Link
+              className="font-medium text-foreground underline underline-offset-4"
+              href="/sign-up"
+            >
+              S’inscrire
+            </Link>
+          </>
+        }
+    >
+      <form noValidate aria-busy={loading} onSubmit={form.handleSubmit(onSubmit)}>
+        <FieldGroup className="gap-5">
+          <Controller
+            name="password"
+            control={form.control}
+            render={({ field, fieldState }) => (
+              <Field data-invalid={fieldState.invalid}>
+                <FieldLabel htmlFor={field.name}>
+                  Nouveau mot de passe
+                </FieldLabel>
+                <InputGroup>
+                  <InputGroupInput
+                    {...field}
+                    id={field.name}
+                    aria-invalid={fieldState.invalid}
+                    aria-describedby={`${field.name}-description`}
+                    disabled={loading}
+                    placeholder="••••••••"
+                    autoComplete="new-password"
+                    type={showPassword ? "text" : "password"}
+                  />
+                  <InputGroupAddon align="inline-start">
+                    <KeySquareIcon />
+                  </InputGroupAddon>
+                  <InputGroupAddon align="inline-end">
+                    <InputGroupButton
+                      variant="ghost"
+                      size="icon-xs"
+                      aria-label={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
+                      aria-pressed={showPassword}
+                      onClick={() => setShowPassword(!showPassword)}
+                      type="button"
+                    >
+                      {showPassword ? <EyeOff /> : <Eye />}
+                    </InputGroupButton>
+                  </InputGroupAddon>
+                </InputGroup>
+                {fieldState.invalid ? (
+                  <FieldError errors={[fieldState.error]} />
+                ) : (
+                  <FieldDescription id={`${field.name}-description`}>
+                    8 caractères minimum.
+                  </FieldDescription>
+                )}
+              </Field>
+            )}
+          />
 
-                      {fieldState.invalid && (
-                        <FieldError errors={[fieldState.error]} />
-                      )}
-                    </Field>
-                  )}
-                />
-
-                <FieldGroup>
-                  <Field>
-                    <Button disabled={loading} type="submit" id="form-rhf-demo">
-                      {loading ? <Loader className="animate-spin" /> : null}
-                      Changer de mot de passe
-                    </Button>
-
-                    <FieldDescription className="px-6 text-center">
-                      Je n{`'`}ai pas de compte?{" "}
-                      <Link title="s'inscrire" href="/sign-up">
-                        S{`'`}incrire
-                      </Link>
-                    </FieldDescription>
-                  </Field>
-                </FieldGroup>
-              </FieldGroup>
-            </form>
-          </div>
-        </div>
-      </div>
-    </div>
+          <Button disabled={loading} type="submit" size="lg" className="w-full">
+            {loading && <Loader className="animate-spin" aria-hidden="true" />}
+            {loading ? "Enregistrement…" : "Changer le mot de passe"}
+          </Button>
+        </FieldGroup>
+      </form>
+    </AuthSimpleShell>
   );
 }

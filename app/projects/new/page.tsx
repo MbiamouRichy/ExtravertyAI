@@ -4,6 +4,7 @@ import { Suspense } from "react";
 
 import CreateProjectForm from "@/components/dashboard/project/createProjectForm";
 import PaymentCanceledDialog from "@/components/dashboard/project/paymentCanceledDialog";
+import { VerifyEmailGate } from "@/components/dashboard/project/verify-email-gate";
 import { getSession } from "@/lib/auth-server";
 import { projectPlanHref, resolvePlanId } from "@/lib/pricing";
 
@@ -29,6 +30,14 @@ export default async function NewProjectPage({
       `/sign-in?callbackUrl=${encodeURIComponent(projectPlanHref(initialPlan))}`,
     );
   }
+
+  if (session.user.emailVerified !== true)
+    return (
+      <VerifyEmailGate
+        email={session.user.email}
+        callbackUrl={projectPlanHref(initialPlan)}
+      />
+    );
 
   return (
     <>

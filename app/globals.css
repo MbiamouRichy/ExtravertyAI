@@ -4,6 +4,17 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* Messagerie : l’écran moins la barre du haut et le bandeau d’abonnement. */
+.chat-viewport {
+  height: calc(100dvh - var(--spacing) * 14 - var(--billing-notice-height, 0px));
+}
+
+@media (width >= 48rem) {
+  .chat-viewport {
+    height: calc(100dvh - var(--spacing) * 18 - var(--billing-notice-height, 0px));
+  }
+}
+
 /* Soft edges overlap only the message viewport, never its interactive controls. */
 .chat-floating-header::after,
 .chat-floating-composer::before {
@@ -67,6 +78,25 @@
   background-size: 200% 100%;
   background-repeat: no-repeat;
   animation: skeleton-shimmer 1.6s ease-in-out infinite;
+}
+
+/* Image ou vidéo en cours de chargement dans une bulle de conversation. */
+.media-shimmer {
+  background-image: linear-gradient(
+    100deg,
+    transparent 30%,
+    color-mix(in oklch, var(--background) 65%, transparent) 50%,
+    transparent 70%
+  );
+  background-size: 200% 100%;
+  background-repeat: no-repeat;
+  animation: skeleton-shimmer 1.6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .media-shimmer {
+    animation: none;
+  }
 }
 
 .loading-bar {

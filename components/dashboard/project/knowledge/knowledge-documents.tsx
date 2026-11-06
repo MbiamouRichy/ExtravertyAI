@@ -5,17 +5,7 @@ import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
-import {
-  CircleAlert,
-  CircleCheck,
-  FileSpreadsheet,
-  FileText,
-  FileUp,
-  Globe,
-  Loader2,
-  RotateCw,
-  Trash2,
-} from "lucide-react";
+import { CircleAlert, FileUp, Globe, Loader2, RotateCw, Trash2 } from "lucide-react";
 
 import {
   AlertDialog,
@@ -29,7 +19,15 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { Field, FieldDescription, FieldError, FieldLabel } from "@/components/ui/field";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import {
   InputGroup,
   InputGroupAddon,
@@ -39,10 +37,10 @@ import {
 import {
   addKnowledgeUrlAction,
   deleteKnowledgeSourceAction,
+  getKnowledgeSourceContentAction,
   retryKnowledgeSourceAction,
 } from "@/app/actions/knowledge";
-import { KNOWLEDGE_LIMITS, sourceErrorLabel } from "@/lib/knowledge-shared";
-import { cn } from "@/lib/utils";
+import { KNOWLEDGE_LIMITS, extractBlocks, sourceErrorLabel } from "@/lib/knowledge-shared";
 import type { KnowledgeSourceView, KnowledgeUsage } from "./types";
 
 const UrlFormSchema = z.object({
@@ -88,7 +86,9 @@ function UrlForm({ projectId, disabled, onAdded }: { projectId: string; disabled
         control={form.control}
         render={({ field, fieldState }) => (
           <Field data-invalid={fieldState.invalid}>
-            <FieldLabel htmlFor={id}>Page de votre site</FieldLabel>
+            <FieldLabel htmlFor={id} className="sr-only">
+              Page de votre site
+            </FieldLabel>
             <InputGroup>
               <InputGroupAddon>
                 <Globe aria-hidden="true" />
@@ -102,7 +102,6 @@ function UrlForm({ projectId, disabled, onAdded }: { projectId: string; disabled
                 placeholder="https://maboutique.com/livraison"
                 disabled={disabled || saving}
                 aria-invalid={fieldState.invalid}
-                aria-describedby={`${id}-help`}
               />
               <InputGroupAddon align="inline-end">
                 <InputGroupButton type="submit" variant="secondary" disabled={disabled || saving}>
@@ -111,9 +110,6 @@ function UrlForm({ projectId, disabled, onAdded }: { projectId: string; disabled
                 </InputGroupButton>
               </InputGroupAddon>
             </InputGroup>
-            <FieldDescription id={`${id}-help`}>
-              Livraison, retours, FAQ… Seul le texte principal de la page est conservé.
-            </FieldDescription>
             {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
           </Field>
         )}
@@ -124,17 +120,9 @@ function UrlForm({ projectId, disabled, onAdded }: { projectId: string; disabled
 
 function SourceStatus({ source }: { source: KnowledgeSourceView }) {
   if (source.status === "READY") {
-    return (
-      <span className={cn("inline-flex items-center gap-1.5 text-xs", source.truncated && "text-foreground")}>
-        {source.truncated ? (
-          <CircleAlert aria-hidden="true" className="size-3.5" />
-        ) : (
-          <CircleCheck aria-hidden="true" className="size-3.5" />
-        )}
-        {source.entryCount.toLocaleString("fr-FR")} {source.type === "CSV" ? "produit(s)" : "extrait(s)"}
-        {source.truncated && " · import partiel"}
-      </span>
-    );
+    return source.truncated ? (
+      <span className="text-xs">Import partiel</span>
+    ) : null;
   }
   if (source.status === "FAILED") {
     return (
@@ -152,6 +140,88 @@ function SourceStatus({ source }: { source: KnowledgeSourceView }) {
   );
 }
 
+/** Le texte tel que l’assistant le lit : c’est ce qui a été extrait de la source. */
+function SourceContentDialog({
+  projectId,
+  source,
+}: {
+  projectId: string;
+  source: KnowledgeSourceView;
+}) {
+  const [state, setState] = useState<
+    | { status: "idle" | "loading" }
+    | { status: "ready"; passages: { id: string; content: string }[] }
+    | { status: "error"; message: string }
+  >({ status: "idle" });
+
+  async function load() {
+    setState({ status: "loading" });
+    try {
+      const result = await getKnowledgeSourceContentAction({ projectId, sourceId: source.id });
+      setState(
+        result.success
+          ? { status: "ready", passages: result.passages }
+          : { status: "error", message: result.error },
+      );
+    } catch {
+      setState({ status: "error", message: "Connexion interrompue. Réessayez." });
+    }
+  }
+
+  return (
+    <Dialog onOpenChange={(open) => open && void load()}>
+      <DialogTrigger asChild>
+        <Button
+          type="button"
+          variant="link"
+          className="h-auto p-0 text-xs font-normal text-muted-foreground"
+        >
+          Voir le contenu extrait
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="flex max-h-[85dvh] flex-col gap-4 sm:max-w-2xl">
+        <DialogHeader className="min-w-0 pr-6">
+          <DialogTitle className="truncate">{source.name}</DialogTitle>
+          <DialogDescription>Le texte que votre assistant utilise.</DialogDescription>
+        </DialogHeader>
+        <div className="min-h-32 flex-1 overflow-y-auto overscroll-contain" tabIndex={0}>
+          {state.status === "ready" ? (
+            <div className="pr-2 text-sm leading-relaxed wrap-anywhere">
+              {state.passages.length ? (
+                extractBlocks(state.passages.map((passage) => passage.content)).map((block, index) =>
+                  block.type === "heading" ? (
+                    <h3
+                      key={index}
+                      className="mt-5 font-heading text-sm font-semibold tracking-normal first:mt-0 [h3+&]:mt-0.5"
+                    >
+                      {block.text}
+                    </h3>
+                  ) : (
+                    <p key={index} className="mt-1 text-muted-foreground">
+                      {block.text}
+                    </p>
+                  ),
+                )
+              ) : (
+                <p className="text-muted-foreground">Aucun texte conservé.</p>
+              )}
+            </div>
+          ) : state.status === "error" ? (
+            <p role="alert" className="text-sm text-destructive">
+              {state.message}
+            </p>
+          ) : (
+            <p role="status" className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 aria-hidden="true" className="size-4 animate-spin motion-reduce:animate-none" />
+              Chargement…
+            </p>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export function KnowledgeDocuments({
   projectId,
   usage,
@@ -164,7 +234,6 @@ export function KnowledgeDocuments({
   onChanged: () => void;
 }) {
   const fileInput = useRef<HTMLInputElement>(null);
-  const pdfButtonId = useId();
   const [uploading, setUploading] = useState(false);
   const [pending, startTransition] = useTransition();
   const full = usage.documents >= usage.documentLimit;
@@ -197,16 +266,13 @@ export function KnowledgeDocuments({
 
   return (
     <div className="space-y-6">
-      {/* Deux champs étiquetés de même hauteur : le bouton s’aligne sur le champ d’adresse. */}
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
+      <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
         <UrlForm projectId={projectId} disabled={full} onAdded={onChanged} />
-        <Field>
-          <FieldLabel htmlFor={pdfButtonId}>Document PDF</FieldLabel>
+        <div>
           <Button
-            id={pdfButtonId}
             type="button"
             variant="outline"
-            className="w-full lg:w-auto"
+            className="w-full sm:w-auto"
             disabled={full || uploading}
             onClick={() => fileInput.current?.click()}
             title={`PDF de ${usage.pdfMaxMb} Mo et ${KNOWLEDGE_LIMITS.pdfMaxPages} pages maximum`}
@@ -231,7 +297,7 @@ export function KnowledgeDocuments({
               if (file) void upload(file);
             }}
           />
-        </Field>
+        </div>
       </div>
       {full && (
         <p role="status" className="rounded-xl border bg-muted/40 p-3 text-sm">
@@ -240,29 +306,22 @@ export function KnowledgeDocuments({
         </p>
       )}
 
-      <section aria-labelledby="knowledge-sources">
-        <h2
-          id="knowledge-sources"
-          className="mb-3 font-mono text-[11px] font-normal uppercase tracking-wider text-muted-foreground"
-        >
-          Sources importées · {sources.length}
-        </h2>
+      <section aria-label="Sources importées">
         {sources.length ? (
-          <ul className="divide-y rounded-2xl border bg-card">
+          <ul className="divide-y rounded-xl border">
             {sources.map((source) => {
-              const Icon = source.type === "PDF" ? FileText : source.type === "URL" ? Globe : FileSpreadsheet;
               return (
-                <li key={source.id} className="flex items-center gap-3 p-4">
-                  <span className="flex size-9 shrink-0 items-center justify-center rounded-lg border bg-muted/50">
-                    <Icon aria-hidden="true" className="size-4" />
-                  </span>
+                <li key={source.id} className="flex items-start gap-2 px-4 py-3 sm:items-center sm:gap-3">
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium">{source.name}</p>
                     {source.url && (
-                      <p className="truncate font-mono text-[11px] text-muted-foreground">{source.url}</p>
+                      <p className="truncate text-xs text-muted-foreground">{source.url}</p>
                     )}
-                    <div className="mt-1">
+                    <div className="mt-1 flex flex-wrap items-center gap-x-3">
                       <SourceStatus source={source} />
+                      {source.type !== "CSV" && source.status === "READY" && (
+                        <SourceContentDialog projectId={projectId} source={source} />
+                      )}
                     </div>
                   </div>
                   <div className="flex shrink-0 gap-1">
@@ -324,9 +383,8 @@ export function KnowledgeDocuments({
             })}
           </ul>
         ) : (
-          <p className="rounded-2xl border border-dashed p-8 text-center text-sm text-muted-foreground">
-            Aucune source pour l’instant. Importez une page de votre site ou un PDF
-            (catalogue, conditions de vente, menu…).
+          <p className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">
+            Ajoutez une page de votre site ou un PDF.
           </p>
         )}
       </section>

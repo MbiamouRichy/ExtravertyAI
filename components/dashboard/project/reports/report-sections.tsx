@@ -43,7 +43,10 @@ const percent = new Intl.NumberFormat("fr-FR", {
 });
 const integer = new Intl.NumberFormat("fr-FR");
 
-/** Titre de section discret : la hiérarchie vient de l'espace, pas des cadres. */
+/**
+ * Titre de section discret : la hiérarchie vient de l'espace, pas des cadres.
+ * Sur mobile la précision passe sous le titre, sur toute la largeur.
+ */
 export function SectionHeader({
   id,
   title,
@@ -54,12 +57,12 @@ export function SectionHeader({
   meta?: string;
 }) {
   return (
-    <div className="mb-4 flex items-baseline justify-between gap-4">
-      <h2 id={id} className="font-sans text-sm font-medium tracking-normal">
+    <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4">
+      <h2 id={id} className="shrink-0 font-sans text-sm font-medium tracking-normal">
         {title}
       </h2>
       {meta && (
-        <p className="text-right text-xs text-muted-foreground">{meta}</p>
+        <p className="min-w-0 text-xs text-muted-foreground sm:text-right">{meta}</p>
       )}
     </div>
   );
@@ -548,9 +551,12 @@ const outcomeMeaning: Record<string, string> = {
 export function WeekDetail({
   week,
   base,
+  closeLabel,
 }: {
   week: WeekAggregate;
   base: string;
+  /** Clôture de la semaine, dans le fuseau de l’utilisateur. */
+  closeLabel: string;
 }) {
   const n = week.conversations;
   const rows = [
@@ -715,7 +721,7 @@ export function WeekDetail({
           <SectionHeader
             id="waiting-title"
             title="En attente à la clôture"
-            meta="Dimanche minuit, UTC"
+            meta={closeLabel}
           />
           <dl className="grid grid-cols-3 divide-x rounded-xl border">
             {(

@@ -3,11 +3,11 @@ import {
   CirclePause,
   CirclePlay,
   CircleCheckBig,
-  Flag,
   PencilLine,
   Send,
 } from "lucide-react";
 
+import { LocalDate } from "@/components/local-date";
 import { BROADCAST_EVENT_LABEL, BROADCAST_REASON_LABEL } from "@/lib/broadcast-shared";
 import type { BroadcastStats, TimelineEvent } from "@/lib/broadcasts";
 import { cn } from "@/lib/utils";
@@ -28,41 +28,43 @@ export function BroadcastFunnel({ stats, targeted }: { stats: BroadcastStats | n
     { label: "Ont répondu", value: stats?.replied ?? 0, hint: "Dans les 7 jours suivant le message." },
   ];
   return (
-    <section aria-labelledby="broadcast-funnel" className="rounded-2xl border bg-card p-4 sm:p-6">
-      <h2 id="broadcast-funnel" className="font-heading text-lg font-semibold tracking-tight">
+    <section aria-labelledby="broadcast-funnel" className="rounded-xl border bg-card p-4">
+      <h2 id="broadcast-funnel" className="text-sm font-medium">
         Parcours des messages
       </h2>
-      <ol className="mt-5 space-y-4">
+      <ol className="mt-3 space-y-3">
         {steps.map((step, index) => {
           const share = percent(step.value, targeted);
           const previous = index ? steps[index - 1].value : null;
           return (
-            <li key={step.label} className="grid gap-2 sm:grid-cols-[9rem_minmax(0,1fr)_6rem] sm:items-center">
-              <div>
-                <p className="text-sm font-medium">{step.label}</p>
-                <p className="text-[11px] text-muted-foreground">{step.hint}</p>
+            <li key={step.label} className="space-y-1.5">
+              <div className="flex items-baseline justify-between gap-3">
+                <p className="min-w-0 text-sm">
+                  {step.label}
+                  <span className="block text-xs text-muted-foreground">{step.hint}</span>
+                </p>
+                <p className="flex shrink-0 items-baseline gap-2">
+                  <span className="text-sm font-semibold tabular-nums">{number(step.value)}</span>
+                  <span className="w-10 text-right text-xs tabular-nums text-muted-foreground">
+                    {index ? `${share} %` : "100 %"}
+                  </span>
+                  <span className="sr-only">
+                    {previous !== null ? `, soit ${percent(step.value, previous)} % de l’étape précédente` : ""}
+                  </span>
+                </p>
               </div>
-              <div aria-hidden="true" className="h-3 overflow-hidden rounded-full bg-muted">
+              <div aria-hidden="true" className="h-1.5 overflow-hidden rounded-full bg-muted">
                 <div
                   className={cn("h-full rounded-full transition-[width]", index ? "bg-foreground/80" : "bg-foreground")}
                   style={{ width: `${share}%` }}
                 />
               </div>
-              <p className="flex items-baseline gap-2 sm:justify-end">
-                <span className="font-heading text-xl font-semibold tabular-nums">{number(step.value)}</span>
-                <span className="font-mono text-[11px] tabular-nums text-muted-foreground">
-                  {index ? `${share} %` : "100 %"}
-                </span>
-                <span className="sr-only">
-                  {previous !== null ? `, soit ${percent(step.value, previous)} % de l’étape précédente` : ""}
-                </span>
-              </p>
             </li>
           );
         })}
       </ol>
       {(stats?.failed || stats?.skipped) ? (
-        <p className="mt-5 border-t pt-4 text-xs text-muted-foreground">
+        <p className="mt-3 border-t pt-3 text-xs text-muted-foreground">
           {number(stats?.failed ?? 0)} échec{(stats?.failed ?? 0) > 1 ? "s" : ""} d’envoi ·{" "}
           {number(stats?.skipped ?? 0)} ignoré{(stats?.skipped ?? 0) > 1 ? "s" : ""} (désinscrits ou diffusion annulée)
         </p>
@@ -80,18 +82,17 @@ const EVENT_ICON = {
   COMPLETED: CircleCheckBig,
 } as const;
 
-const dateTime = new Intl.DateTimeFormat("fr-FR", { dateStyle: "medium", timeStyle: "short" });
+const dateTime = { dateStyle: "medium", timeStyle: "short" } as const;
 
 /** Audit trail: who did what, and every automatic stop with its reason. */
 export function BroadcastTimeline({ events }: { events: TimelineEvent[] }) {
   return (
-    <section aria-labelledby="broadcast-timeline" className="rounded-2xl border bg-card p-4">
-      <h2 id="broadcast-timeline" className="flex items-center gap-2 text-sm font-semibold">
-        <Flag aria-hidden="true" className="size-4" />
+    <section aria-labelledby="broadcast-timeline" className="rounded-xl border bg-card p-4">
+      <h2 id="broadcast-timeline" className="text-sm font-medium">
         Journal
       </h2>
       {events.length ? (
-        <ol className="relative mt-4 space-y-4 before:absolute before:top-1 before:bottom-1 before:left-3 before:w-px before:bg-border">
+        <ol className="relative mt-3 space-y-3 before:absolute before:top-1 before:bottom-1 before:left-3 before:w-px before:bg-border">
           {events.map((event) => {
             const Icon = EVENT_ICON[event.type];
             const who = event.actor ?? (event.type === "PAUSED" || event.type === "COMPLETED" || event.type === "STARTED" ? "Automatique" : "Membre retiré");
@@ -114,8 +115,8 @@ export function BroadcastTimeline({ events }: { events: TimelineEvent[] }) {
                     <span className="text-muted-foreground"> · {who}</span>
                   </p>
                   {reason && <p className="text-xs text-muted-foreground">{reason}</p>}
-                  <p className="font-mono text-[11px] tabular-nums text-muted-foreground">
-                    <time dateTime={event.createdAt}>{dateTime.format(new Date(event.createdAt))}</time>
+                  <p className="text-xs tabular-nums text-muted-foreground">
+                    <LocalDate value={event.createdAt} options={dateTime} />
                   </p>
                 </div>
               </li>

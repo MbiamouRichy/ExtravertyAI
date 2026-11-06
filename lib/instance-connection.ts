@@ -33,3 +33,26 @@ export async function confirmInstanceConnection(
   });
   return current.instanceStatus;
 }
+
+/** Numéro du compte WhatsApp relié (« 241…:12@s.whatsapp.net »), sinon null. */
+export function ownerNumberOf(jid: unknown) {
+  if (typeof jid !== "string") return null;
+  const match = /^([1-9]\d{7,14})(?::\d+)?@s\.whatsapp\.net$/.exec(jid.trim());
+  return match ? match[1] : null;
+}
+
+/**
+ * Un seul essai par numéro WhatsApp : pendant l'essai, le compte relié doit
+ * être le numéro déclaré à la création. Sans numéro connu, rien n'est bloqué.
+ */
+export function isForeignTrialNumber(
+  project: { numero: string; status: string },
+  ownerJid: unknown,
+) {
+  if (project.status !== "trialing") return false;
+  const owner = ownerNumberOf(ownerJid);
+  return !!owner && owner !== project.numero.replace(/\D/g, "");
+}
+
+export const FOREIGN_TRIAL_NUMBER_ERROR =
+  "Ce compte WhatsApp n’est pas celui du projet. Pendant l’essai, connectez le numéro déclaré à la création du projet.";

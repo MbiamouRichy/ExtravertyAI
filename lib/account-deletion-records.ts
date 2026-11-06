@@ -35,6 +35,20 @@ export async function recordAccountDeletion(input: {
   });
 }
 
+/**
+ * Gate of the goodbye page: only the browser that just deleted an account
+ * holds a live token. Anything else (no cookie, forged or expired) gets null.
+ */
+export async function findDeletionFeedbackSlot(token: string | undefined) {
+  if (!token || token.length > 128) return null;
+  const slot = await prisma.accountDeletionFeedback.findUnique({
+    where: { tokenHash: hashFeedbackToken(token) },
+    select: { expiresAt: true, submittedAt: true },
+  });
+  if (!slot || slot.expiresAt <= new Date()) return null;
+  return { answered: slot.submittedAt !== null };
+}
+
 /** One-time token allowing a single anonymous answer to the exit survey. */
 export async function createDeletionFeedbackToken() {
   const now = Date.now();

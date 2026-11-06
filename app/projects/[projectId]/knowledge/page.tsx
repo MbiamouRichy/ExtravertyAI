@@ -29,15 +29,9 @@ export default async function KnowledgePage({
 
   const header = (
     <header>
-      <p className="font-mono text-xs uppercase tracking-wider text-muted-foreground">
-        Votre agent
-      </p>
-      <h1 className="mt-1 text-3xl md:text-4xl">Assistant IA</h1>
-      <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-        Sa personnalité et ses consignes d’un côté, ce qu’il doit savoir de
-        votre activité de l’autre : questions fréquentes, catalogue et
-        documents. Testez-le ensuite avant de le laisser répondre.
-      </p>
+      <h1 className="text-2xl! font-semibold! tracking-tight! sm:text-3xl!">
+        Assistant IA
+      </h1>
     </header>
   );
 
@@ -49,7 +43,7 @@ export default async function KnowledgePage({
     });
     if (!member) notFound();
     return (
-      <main className="mx-auto w-full max-w-5xl space-y-8 p-4 sm:p-6 xl:p-8">
+      <main className="mx-auto w-full max-w-4xl space-y-6 p-4 sm:p-6 xl:p-8">
         {header}
         <section className="rounded-2xl border bg-card p-6">
           <ShieldCheck aria-hidden="true" className="size-5" />
@@ -84,7 +78,7 @@ export default async function KnowledgePage({
   });
 
   return (
-    <main className="mx-auto w-full max-w-6xl space-y-6 p-4 sm:p-6 xl:p-8">
+    <main className="mx-auto w-full max-w-4xl space-y-6 p-4 sm:p-6 xl:p-8">
       {header}
       <KnowledgeWorkspace
         projectId={projectId}

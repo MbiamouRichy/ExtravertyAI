@@ -6,13 +6,14 @@ import {
   contactSourceLabel,
   maskContactPhone,
 } from "@/lib/contact-details";
-import { currentProspectClassification } from "@/lib/instinct-classification";
+import { lastProspectClassification } from "@/lib/instinct-classification";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import prisma from "@/lib/prisma";
 import {
   conversationUnreadCounts,
+  unreadContactIds,
   unreadConversationCount,
 } from "@/lib/conversation-reads";
 import { getSession } from "@/lib/auth-server";
@@ -43,12 +44,13 @@ const QuerySchema = z.object({
   cursor: z.string().max(1000).optional(),
   q: z.string().trim().max(100).default(""),
   filter: z
-    .enum(["all", "ai", "manual", "resolved", "mine", "unassigned"])
+    .enum(["all", "unread", "ai", "manual", "resolved", "mine", "unassigned"])
     .default("all"),
   tag: z.string().cuid().optional(),
 });
 
 const NOTES_PER_PAGE = 100;
+const PINNED_NOTES = 20;
 
 function encodeCursor(date: Date, id: string): string {
   return Buffer.from(
@@ -131,6 +133,10 @@ export async function GET(
 
     if (parsed.data.view === "contacts") {
       const { q, filter, tag } = parsed.data;
+      const unreadIds =
+        filter === "unread" || !cursor
+          ? await unreadContactIds(prisma, projectId, session.user.id)
+          : [];
 
       const rows = await prisma.contact.findMany({
         where: {
@@ -138,7 +144,9 @@ export async function GET(
           // Seul « Résolues » montre les conversations fermées.
           ...(filter === "resolved"
             ? { resolvedAt: { not: null } }
-            : filter === "ai" || filter === "manual"
+            : filter === "unread"
+              ? { id: { in: unreadIds } }
+              : filter === "ai" || filter === "manual"
               ? { aiActive: filter === "ai", resolvedAt: null }
               : filter === "mine"
                 ? { assigneeId: session.user.id, resolvedAt: null }
@@ -198,11 +206,8 @@ export async function GET(
             select: { tag: { select: { id: true, name: true } } },
           },
           instinctClassification: true,
-          instinctSourceId: true,
-          instinctConfigVersion: true,
           project: {
             select: {
-              agentConfigVersion: true,
               agentQualifyLeads: true,
               showWaitingTime: true,
             },
@@ -251,8 +256,10 @@ export async function GET(
               where: { ...scope, assigneeId: session.user.id, resolvedAt: null },
             }),
             prisma.contact.count({ where: { ...scope, assigneeId: null, resolvedAt: null } }),
-          ]).then(([all, ai, manual, resolved, mine, unassigned]) => ({
+            prisma.contact.count({ where: { ...scope, id: { in: unreadIds } } }),
+          ]).then(([all, ai, manual, resolved, mine, unassigned, unread]) => ({
             all,
+            unread,
             ai,
             manual,
             resolved,
@@ -260,7 +267,7 @@ export async function GET(
             unassigned,
           }));
 
-      const [unreadCounts, authors, unreadConversations, tags] =
+      const [unreadCounts, authors, unreadConversations, tags, noteCounts] =
         await Promise.all([
           conversationUnreadCounts(
             prisma,
@@ -292,6 +299,11 @@ export async function GET(
             tag,
           ),
           cursor ? undefined : projectTags(prisma, projectId),
+          prisma.internalNote.groupBy({
+            by: ["contactId"],
+            where: { projectId, contactId: { in: contactIds } },
+            _count: { _all: true },
+          }),
         ]);
 
       const result: ChatPage<ChatClient> = {
@@ -300,10 +312,7 @@ export async function GET(
         projectTags: tags,
         items: page.map((contact) => {
           const latest = contact.messages[0];
-          const prospectClassification = currentProspectClassification(
-            contact,
-            latest?.id,
-          );
+          const prospectClassification = lastProspectClassification(contact);
 
           return {
             id: contact.id,
@@ -328,6 +337,9 @@ export async function GET(
             prospectClassification,
             interestingProspect: prospectClassification === "interesting",
             unreadCount: unreadCounts.get(contact.id) ?? 0,
+            noteCount:
+              noteCounts.find((note) => note.contactId === contact.id)?._count
+                ._all ?? 0,
             agents: authors
               .filter((author) => author.contactId === contact.id)
               .flatMap((author) => (author.agent ? [author.agent] : [])),
@@ -500,6 +512,25 @@ export async function GET(
       },
     });
 
+    // Notes épinglées : toute la conversation, pas seulement cette page.
+    const noteWhere = { projectId, contactId };
+    const [noteTotal, recentNotes] = cursor
+      ? [0, []]
+      : await Promise.all([
+          prisma.internalNote.count({ where: noteWhere }),
+          prisma.internalNote.findMany({
+            where: noteWhere,
+            orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+            take: PINNED_NOTES,
+            select: {
+              id: true,
+              content: true,
+              createdAt: true,
+              author: { select: { id: true, name: true, image: true } },
+            },
+          }),
+        ]);
+
     // Journal IA (activation / pause), intercalé dans la même fenêtre.
     const events = await prisma.contactEvent.findMany({
       where: {
@@ -591,6 +622,19 @@ export async function GET(
         })),
       ],
       nextCursor: hasMore ? encodeCursor(last.createdAt, last.id) : null,
+      ...(cursor
+        ? {}
+        : {
+            notes: {
+              total: noteTotal,
+              recent: recentNotes.map((note) => ({
+                id: note.id,
+                content: note.content,
+                timestamp: note.createdAt.toISOString(),
+                author: note.author,
+              })),
+            },
+          }),
     };
 
     return json(result);

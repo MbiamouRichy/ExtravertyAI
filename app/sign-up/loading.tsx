@@ -7,7 +7,9 @@ import {
   AuthTopBarSkeleton,
 } from "@/components/auth/auth-loading";
 
-// Miroir de l’écran d’inscription : panneau produit à gauche, formulaire à droite.
+// Miroir de l’inscription en une étape : nom, e-mail, « Continuer », puis
+// Google et TikTok. Mêmes boîtes de ligne que la page, panneau produit à
+// gauche sur grand écran.
 export default function SignUpLoading() {
   return (
     <main
@@ -23,27 +25,43 @@ export default function SignUpLoading() {
           <AuthTopBarSkeleton />
         </div>
 
-        <div className="mx-auto w-full space-y-4 sm:w-sm">
+        <div className="mx-auto w-full max-w-sm space-y-6">
           <div className="space-y-2">
-            <Skeleton className="h-7 w-28" />
-            <Skeleton className="h-4 w-60 max-w-full" />
-          </div>
-
-          <div className="space-y-4">
-            <AuthFieldSkeleton labelWidth="w-32" />
-            <AuthFieldSkeleton labelWidth="w-48" />
-            <AuthFieldSkeleton labelWidth="w-24" />
-            <Skeleton className="h-9 w-full rounded-md" />
-            <div className="space-y-1.5">
-              <Skeleton className="h-3 w-full" />
-              <Skeleton className="h-3 w-2/3" />
+            <div className="flex h-8 items-center md:h-9.5">
+              <Skeleton className="h-7 w-64 max-w-full md:h-8" />
+            </div>
+            <div>
+              <div className="flex h-5.5 items-center">
+                <Skeleton className="h-3.5 w-full" />
+              </div>
+              <div className="flex h-5.5 items-center">
+                <Skeleton className="h-3.5 w-2/3" />
+              </div>
             </div>
           </div>
 
-          <AuthDividerSkeleton />
+          <div className="flex flex-col gap-5">
+            <AuthFieldSkeleton labelWidth="w-10" />
+            <AuthFieldSkeleton labelWidth="w-14" />
+            <div className="flex flex-col gap-3">
+              <Skeleton className="h-10 w-full rounded-md" />
+              <div>
+                <div className="flex h-4.5 items-center">
+                  <Skeleton className="h-3 w-full" />
+                </div>
+                <div className="flex h-4.5 items-center">
+                  <Skeleton className="h-3 w-1/2" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <AuthDividerSkeleton labelWidth="w-6" />
           <AuthSocialSkeleton />
 
-          <Skeleton className="mx-auto mt-8 h-4 w-60 max-w-full" />
+          <div className="flex h-5.5 items-center justify-center">
+            <Skeleton className="h-3.5 w-56 max-w-full" />
+          </div>
         </div>
       </div>
     </main>

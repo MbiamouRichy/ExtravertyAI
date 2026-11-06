@@ -16,7 +16,7 @@ import {
   deliverNextBillingEmail,
   reconcileNextBillingProject,
 } from "../lib/billing-lifecycle";
-import { syncSubscription } from "../lib/billing-quota";
+import { applySubscriptionState, syncSubscription } from "../lib/billing-quota";
 import { reserveMessageQuota } from "../lib/message-quota";
 import { runInstinctCycle } from "../lib/ai-instinct";
 import { claimAiJob, runAiJob } from "../lib/ai-jobs";
@@ -371,6 +371,53 @@ test(
               })
             ).state,
             "CANCELLED",
+          );
+        },
+      );
+
+      await t.test(
+        "a new Polar subscription replaces only an ended one",
+        async () => {
+          const { project } = await fixture();
+          const now = Math.floor(Date.now() / 1000);
+          const state = (id: string) => ({
+            provider: "polar" as const,
+            id,
+            customerId: "polar-customer",
+            providerStatus: "active",
+            status: "active" as const,
+            plan: "starter" as const,
+            priceId: "polar-product",
+            metadataProjectId: project.id,
+            startsAt: now,
+            endsAt: now + 2592000,
+            cycle: { start: now, end: now + 2592000 },
+            paidCycle: true,
+            renewalPending: false,
+          });
+          await client.project.update({
+            where: { id: project.id },
+            data: {
+              billingProvider: "polar",
+              stripeSubscriptionId: `old_${project.id}`,
+              stripeStatus: "active",
+            },
+          });
+          await applySubscriptionState(client, state(`new_${project.id}`), 50);
+          assert.equal(
+            (await client.project.findUniqueOrThrow({ where: { id: project.id } }))
+              .stripeSubscriptionId,
+            `old_${project.id}`,
+          );
+          await client.project.update({
+            where: { id: project.id },
+            data: { stripeStatus: "canceled" },
+          });
+          await applySubscriptionState(client, state(`new_${project.id}`), 51);
+          assert.equal(
+            (await client.project.findUniqueOrThrow({ where: { id: project.id } }))
+              .stripeSubscriptionId,
+            `new_${project.id}`,
           );
         },
       );

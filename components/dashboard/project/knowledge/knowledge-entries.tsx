@@ -1,16 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { FileText, MessageCircleQuestion, Plus, Search } from "lucide-react";
+import { Plus, Search } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from "@/components/ui/empty";
 import {
   InputGroup,
   InputGroupAddon,
@@ -34,7 +27,7 @@ export function KnowledgeEntries({
   onChanged: () => void;
 }) {
   const [query, setQuery] = useState("");
-  const [editing, setEditing] = useState<{ kind: "FAQ" | "TEXT"; entry: KnowledgeEntryView | null } | null>(null);
+  const [editing, setEditing] = useState<{ entry: KnowledgeEntryView | null } | null>(null);
 
   const visible = useMemo(() => {
     const needle = normalizeSearchText(query);
@@ -42,11 +35,6 @@ export function KnowledgeEntries({
       ? entries.filter((entry) => normalizeSearchText(`${entry.title} ${entry.content}`).includes(needle))
       : entries;
   }, [entries, query]);
-
-  const groups = [
-    { kind: "FAQ" as const, title: "Questions fréquentes", icon: MessageCircleQuestion, empty: "Ajoutez les questions que vos clients posent le plus souvent." },
-    { kind: "TEXT" as const, title: "Informations", icon: FileText, empty: "Horaires, livraison, retours, moyens de paiement…" },
-  ];
 
   return (
     <div className="space-y-6">
@@ -59,81 +47,54 @@ export function KnowledgeEntries({
             type="search"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Rechercher une entrée"
-            aria-label="Rechercher dans les questions et informations"
+            placeholder="Rechercher"
+            aria-label="Rechercher dans les informations"
           />
         </InputGroup>
-        <div className="flex gap-2">
-          <Button type="button" variant="outline" onClick={() => setEditing({ kind: "TEXT", entry: null })}>
-            <Plus data-icon="inline-start" />
-            Information
-          </Button>
-          <Button type="button" onClick={() => setEditing({ kind: "FAQ", entry: null })}>
-            <Plus data-icon="inline-start" />
-            Question
-          </Button>
-        </div>
+        <Button type="button" className="w-full sm:w-auto" onClick={() => setEditing({ entry: null })}>
+          <Plus data-icon="inline-start" />
+          Information
+        </Button>
       </div>
 
-      {groups.map((group) => {
-        const items = visible.filter((entry) => entry.kind === group.kind);
-        const Icon = group.icon;
-        return (
-          <section key={group.kind} aria-labelledby={`knowledge-${group.kind}`}>
-            <h2
-              id={`knowledge-${group.kind}`}
-              className="mb-3 flex items-center gap-2 font-mono text-[11px] font-normal uppercase tracking-wider text-muted-foreground"
-            >
-              <Icon aria-hidden="true" className="size-3.5" />
-              {group.title}
-              <span className="tabular-nums">· {items.length}</span>
-            </h2>
-            {items.length ? (
-              <ul className="divide-y rounded-2xl border bg-card">
-                {items.map((entry) => (
-                  <li key={entry.id} className="flex items-start gap-4 p-4">
-                    <div className={cn("min-w-0 flex-1", !entry.enabled && "opacity-60")}>
-                      <p className="text-sm font-medium">{entry.title}</p>
-                      <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{entry.content}</p>
-                      {!entry.enabled && (
-                        <p className="mt-2 font-mono text-[11px] uppercase tracking-wider text-muted-foreground">
-                          Désactivée · ignorée par l’assistant
-                        </p>
-                      )}
-                    </div>
-                    <EntryActions
-                      projectId={projectId}
-                      entryId={entry.id}
-                      title={entry.title}
-                      enabled={entry.enabled}
-                      onEdit={() => setEditing({ kind: group.kind, entry })}
-                      onChanged={onChanged}
-                    />
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <Empty className="rounded-2xl border border-dashed p-8">
-                <EmptyHeader>
-                  <EmptyMedia variant="icon">
-                    <Icon aria-hidden="true" />
-                  </EmptyMedia>
-                  <EmptyTitle className="text-sm">{query ? "Aucun résultat" : "Rien pour l’instant"}</EmptyTitle>
-                  <EmptyDescription>{query ? "Essayez d’autres mots." : group.empty}</EmptyDescription>
-                </EmptyHeader>
-              </Empty>
-            )}
-          </section>
-        );
-      })}
+      {visible.length ? (
+        <ul aria-label="Informations" className="divide-y rounded-xl border">
+          {visible.map((entry) => (
+            <li key={entry.id} className="flex flex-col gap-1 px-4 py-3 sm:flex-row sm:items-start sm:gap-4">
+              <div className={cn("min-w-0 flex-1", !entry.enabled && "opacity-60")}>
+                <p className="text-sm font-medium">{entry.title}</p>
+                <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{entry.content}</p>
+                {!entry.enabled && (
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Désactivée : l’assistant l’ignore.
+                  </p>
+                )}
+              </div>
+              <EntryActions
+                projectId={projectId}
+                entryId={entry.id}
+                title={entry.title}
+                enabled={entry.enabled}
+                onEdit={() => setEditing({ entry })}
+                onChanged={onChanged}
+              />
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="rounded-xl border border-dashed p-5 text-center text-sm text-muted-foreground">
+          {query ? "Aucun résultat." : "Horaires, livraison, paiement, questions fréquentes…"}
+        </p>
+      )}
 
       {editing && (
         <EntryFormDialog
-          key={editing.entry?.id ?? `new-${editing.kind}`}
+          key={editing.entry?.id ?? "new"}
           open
           onOpenChange={(open) => !open && setEditing(null)}
           projectId={projectId}
-          kind={editing.kind}
+          // Les anciennes questions gardent leur type : seul l’affichage est réuni.
+          kind={editing.entry?.kind === "FAQ" ? "FAQ" : "TEXT"}
           currency={currency}
           entry={editing.entry}
           onSaved={onChanged}

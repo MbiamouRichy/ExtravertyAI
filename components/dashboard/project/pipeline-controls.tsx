@@ -231,7 +231,7 @@ export function ContactPipelineSection({
   onChanged: () => void;
 }) {
   return (
-    <section aria-labelledby={`pipeline-${contactId}`} className="space-y-3 rounded-xl border p-4">
+    <section aria-labelledby={`pipeline-${contactId}`} className="space-y-3 py-5">
       <h2
         id={`pipeline-${contactId}`}
         className="font-mono text-[11px] font-normal uppercase tracking-wider text-muted-foreground"

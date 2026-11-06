@@ -11,6 +11,7 @@ import { can } from "./project-permissions";
 import {
   KNOWLEDGE_LIMITS,
   buildSearchQuery,
+  chunkPosition,
   chunkText,
   entrySearchText,
   formatKnowledgeBlock,
@@ -420,6 +421,28 @@ export async function knowledgeOverview(db: PrismaClient, projectId: string, use
   };
 }
 
+/** Texte réellement lu sur une page ou un PDF, dans l’ordre du document. */
+export async function sourceContent(
+  db: PrismaClient,
+  input: Admin & { sourceId: string },
+) {
+  const membership = await db.projectMembership.findUnique({
+    where: { userId_projectId: { userId: input.userId, projectId: input.projectId } },
+    select: { role: true, project: { select: { deletionPending: true } } },
+  });
+  if (!membership || membership.project.deletionPending || !can(membership.role, "project.manage")) {
+    throw new KnowledgeError("Accès refusé.");
+  }
+  const entries = await db.knowledgeEntry.findMany({
+    where: { projectId: input.projectId, sourceId: input.sourceId, kind: "CHUNK" },
+    select: { id: true, title: true, content: true },
+    take: 1000,
+  });
+  return entries
+    .sort((a, b) => chunkPosition(a.title) - chunkPosition(b.title))
+    .map(({ id, content }) => ({ id, content }));
+}
+
 /* -------------------------------------------------------------------------- */
 /* Retrieval                                                                   */
 /* -------------------------------------------------------------------------- */
@@ -439,7 +462,13 @@ export async function retrieveKnowledge(
     LIMIT ${KNOWLEDGE_LIMITS.retrievalTop}`;
 }
 
-/** Reference block for the latest customer messages, plus the entries it used. */
+const KIND_ORDER: Record<RetrievedEntry["kind"], number> = { FAQ: 0, TEXT: 1, PRODUCT: 2, CHUNK: 3 };
+
+/**
+ * Tout ce que l’équipe a renseigné, limité à ce projet : les entrées proches des
+ * derniers messages d’abord, puis le reste, pour qu’une question formulée
+ * autrement trouve quand même sa réponse. `entries` ne liste que les premières.
+ */
 export async function knowledgeContext(
   db: PrismaClient,
   projectId: string,
@@ -447,7 +476,18 @@ export async function knowledgeContext(
   customerTexts: string[],
 ) {
   const entries = await retrieveKnowledge(db, projectId, customerTexts.slice(-3).join("\n"));
-  return { block: formatKnowledgeBlock(entries, currency), entries };
+  const rest = await db.knowledgeEntry.findMany({
+    where: { projectId, enabled: true, id: { notIn: entries.map((entry) => entry.id) } },
+    orderBy: [{ updatedAt: "desc" }, { id: "asc" }],
+    take: KNOWLEDGE_LIMITS.contextEntries,
+    select: { id: true, kind: true, title: true, content: true, price: true, stock: true },
+  });
+  rest.sort(
+    (a, b) =>
+      KIND_ORDER[a.kind] - KIND_ORDER[b.kind] ||
+      (a.kind === "CHUNK" ? chunkPosition(a.title) - chunkPosition(b.title) : 0),
+  );
+  return { block: formatKnowledgeBlock([...entries, ...rest], currency), entries };
 }
 
 /* -------------------------------------------------------------------------- */

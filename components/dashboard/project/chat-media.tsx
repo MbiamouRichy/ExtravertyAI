@@ -1,6 +1,6 @@
 "use client";
 import { useState, type ReactNode } from "react";
-import { Download, FileText, ImageOff, RefreshCw } from "lucide-react";
+import { Download, FileText, ImageOff, Loader2, RefreshCw } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,22 @@ const UNAVAILABLE_LABEL: Record<string, string> = {
   VIDEO: "Vidéo indisponible",
   DOCUMENT: "Document indisponible",
 };
+
+/** Balayage lumineux et petit indicateur tant que le média n’est pas prêt. */
+function MediaLoading({ label, className }: { label: string; className?: string }) {
+  return (
+    <span
+      role="status"
+      className={cn(
+        "media-shimmer flex w-full items-center justify-center bg-muted text-muted-foreground",
+        className,
+      )}
+    >
+      <Loader2 aria-hidden="true" className="size-5 animate-spin motion-reduce:animate-none" />
+      <span className="sr-only">{label}</span>
+    </span>
+  );
+}
 
 /**
  * Bulle de média façon messagerie : le média, sa légende, l’analyse IA et
@@ -37,7 +53,8 @@ export function ChatMedia({
   footer?: ReactNode;
   outgoing?: boolean;
 }) {
-  const [loading, setLoading] = useState(type === "IMAGE");
+  const loads = type === "IMAGE" || type === "VIDEO";
+  const [loading, setLoading] = useState(loads);
   const [failed, setFailed] = useState(false);
   const [version, setVersion] = useState(0);
   const src = version ? `${url}?retry=${version}` : url;
@@ -106,7 +123,7 @@ export function ChatMedia({
             title="Réessayer"
             onClick={() => {
               setFailed(false);
-              setLoading(type === "IMAGE");
+              setLoading(loads);
               setVersion((value) => value + 1);
             }}
           >
@@ -121,15 +138,15 @@ export function ChatMedia({
           aria-label="Ouvrir l’image en taille réelle"
           className="relative block overflow-hidden rounded-xl bg-muted outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
         >
-          {loading && (
-            <span role="status" className="flex aspect-4/3 w-full animate-pulse items-center justify-center motion-reduce:animate-none">
-              <span className="sr-only">Chargement de l’image…</span>
-            </span>
-          )}
+          {loading && <MediaLoading label="Chargement de l’image…" className="aspect-4/3" />}
           {/* Authenticated media must not pass through the public image optimizer. */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             key={src}
+            ref={(image) => {
+              // Une image déjà en cache peut finir avant que React écoute onLoad.
+              if (image?.complete && image.naturalWidth) setLoading(false);
+            }}
             src={src}
             alt={caption || "Image partagée dans la conversation"}
             loading="lazy"
@@ -142,15 +159,25 @@ export function ChatMedia({
           />
         </a>
       ) : type === "VIDEO" ? (
-        <video
-          src={src}
-          controls
-          preload="metadata"
-          playsInline
-          aria-label="Vidéo de la conversation"
-          onError={() => setFailed(true)}
-          className="max-h-80 w-full rounded-xl bg-muted"
-        />
+        <div className="relative overflow-hidden rounded-xl bg-muted">
+          <video
+            ref={(video) => {
+              if (video && video.readyState >= 1) setLoading(false);
+            }}
+            src={src}
+            controls
+            preload="metadata"
+            playsInline
+            aria-label="Vidéo de la conversation"
+            onLoadedMetadata={() => setLoading(false)}
+            onPlay={() => setLoading(false)}
+            onError={() => setFailed(true)}
+            className={cn("block max-h-80 w-full", loading && "aspect-video")}
+          />
+          {loading && (
+            <MediaLoading label="Chargement de la vidéo…" className="pointer-events-none absolute inset-0" />
+          )}
+        </div>
       ) : (
         <a
           href={url}

@@ -27,6 +27,24 @@ export async function conversationUnreadCounts(
   return new Map(rows.map((row) => [row.contactId, row.count]));
 }
 
+/** Conversations du projet avec au moins un message client non lu par ce membre. */
+export async function unreadContactIds(
+  prisma: PrismaClient,
+  projectId: string,
+  userId: string,
+) {
+  const rows = await prisma.$queryRaw<Array<{ contactId: string }>>`
+    SELECT DISTINCT m."contactId"
+    FROM message m
+    JOIN project_membership pm ON pm."projectId" = m."projectId" AND pm."userId" = ${userId}
+      AND pm.role::text = ANY(${HANDLERS}::text[])
+    LEFT JOIN conversation_read_state r ON r."membershipId" = pm.id AND r."contactId" = m."contactId"
+    WHERE m."projectId" = ${projectId} AND m."senderType" = 'CLIENT' AND m."fromMe" = false
+      AND (r."lastReadAt" IS NULL OR (m."createdAt", m.id) > (r."lastReadAt", r."lastReadId"))
+  `;
+  return rows.map((row) => row.contactId);
+}
+
 // The server resolves the membership and cursor. Repeated/out-of-order requests
 // never decrease the read position and cannot touch another project's messages.
 export async function markConversationRead(
@@ -68,7 +86,7 @@ export async function unreadConversationCount(
     LEFT JOIN conversation_read_state r ON r."membershipId" = pm.id AND r."contactId" = m."contactId"
     WHERE m."projectId" = ${projectId} AND m."senderType" = 'CLIENT' AND m."fromMe" = false
       AND (r."lastReadAt" IS NULL OR (m."createdAt", m.id) > (r."lastReadAt", r."lastReadId"))
-      AND (${filter} = 'all'
+      AND (${filter} IN ('all', 'unread')
         OR (${filter} = 'resolved' AND c."resolvedAt" IS NOT NULL)
         OR (${filter} IN ('ai', 'manual') AND c."resolvedAt" IS NULL AND c."aiActive" = ${filter === "ai"})
         OR (${filter} = 'mine' AND c."resolvedAt" IS NULL AND c."assigneeId" = ${userId})

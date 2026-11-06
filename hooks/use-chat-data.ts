@@ -27,6 +27,8 @@ async function fetchJson<T>(url: string): Promise<T> {
   const response = await fetch(url, {
     credentials: "same-origin",
     cache: "no-store",
+    // Une réponse perdue se réessaie au lieu de laisser la liste en chargement.
+    signal: AbortSignal.timeout(20_000),
   });
 
   if (!response.ok) {
@@ -91,6 +93,8 @@ export function useChatContacts(
       ...commonOptions,
       persistSize: false,
       refreshInterval: 15_000,
+      // La liste déjà chargée reste filtrée à l’écran pendant la requête.
+      keepPreviousData: true,
     },
   );
 
@@ -107,9 +111,18 @@ export function useChatContacts(
     return [...byId.values()];
   }, [swr.data]);
 
+  // Changer de filtre ne dépend pas du réseau : les contacts déjà reçus, tous
+  // filtres confondus, s’affichent en attendant la réponse.
+  const [known, setKnown] = useState({ projectId, from: items, clients: items });
+  if (known.from !== items) {
+    const previous = known.projectId === projectId ? known.clients : [];
+    const merged = new Map([...previous, ...items].map((item) => [item.id, item]));
+    setKnown({ projectId, from: items, clients: [...merged.values()] });
+  }
+
   return {
     ...swr,
-    items,
+    items: swr.isLoading && known.projectId === projectId ? known.clients : items,
     unreadConversations: swr.data?.[0]?.unreadConversations ?? 0,
     filterCounts: swr.data?.[0]?.filterCounts,
     projectTags: swr.data?.[0]?.projectTags ?? [],
@@ -165,6 +178,7 @@ export function useChatMessages(projectId: string, contactId: string | null) {
     items,
     generation: swr.error ? null : (swr.data?.[0]?.generation ?? null),
     agents: swr.data?.[0]?.agents,
+    notes: swr.data?.[0]?.notes,
     contact: swr.data?.[0]?.contact,
     hasClientMessage: !swr.error && !!swr.data?.[0]?.hasClientMessage,
     hasMore: !!swr.data?.at(-1)?.nextCursor,

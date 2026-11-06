@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useSyncExternalStore } from "react";
+import { useState, useSyncExternalStore, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, LogIn } from "lucide-react";
 import { toast } from "sonner";
@@ -33,6 +33,31 @@ export function useRecentSession(sessionCreatedAt: string) {
   );
 }
 
+/** Affiche l’action sensible après une connexion récente, sinon la reconnexion. */
+export function RecentSessionGate({
+  sessionCreatedAt,
+  callbackUrl,
+  className,
+  children,
+}: {
+  sessionCreatedAt: string;
+  callbackUrl: string;
+  /** Classes du bouton de reconnexion (largeur, retour à la ligne). */
+  className?: string;
+  children: ReactNode;
+}) {
+  const recentLogin = useRecentSession(sessionCreatedAt);
+  if (recentLogin) return children;
+  return (
+    <ReauthButton
+      callbackUrl={callbackUrl}
+      label="Se reconnecter pour modifier"
+      size="sm"
+      className={className}
+    />
+  );
+}
+
 /** Déconnecte puis renvoie vers la connexion, avec retour sur la page voulue. */
 export function ReauthButton({
   callbackUrl,
@@ -44,7 +69,7 @@ export function ReauthButton({
   callbackUrl: string;
   label?: string;
   variant?: "outline" | "destructive" | "default";
-  size?: "default" | "lg";
+  size?: "default" | "sm" | "lg";
   className?: string;
 }) {
   const router = useRouter();

@@ -16,7 +16,7 @@ type RecentSession = {
   browser: string;
   os: string;
   device: string;
-  ip: string;
+  country: string;
   date: string;
   isCurrent: boolean;
 };
@@ -92,15 +92,24 @@ export function RecentSessions({ sessions }: { sessions: RecentSession[] }) {
 
   if (sessions.length === 0) {
     return (
-      <p className="text-sm text-muted-foreground">Aucune connexion récente.</p>
+      <p className="rounded-2xl border bg-card p-4 text-sm text-muted-foreground sm:p-5">
+        Aucune connexion récente.
+      </p>
     );
   }
 
+  // Une seule carte : la déconnexion globale en tête, puis une ligne par
+  // session (plus de cartes imbriquées qui réduisaient le texte sur mobile).
   return (
-    <div className="space-y-4" aria-busy={isPending}>
-      <div className="flex flex-col items-start gap-2">
+    <div className="overflow-hidden rounded-2xl border bg-card" aria-busy={isPending}>
+      <div className="flex flex-col gap-3 border-b p-4 sm:flex-row sm:items-center sm:justify-between sm:gap-6 sm:p-5">
+        <p className="text-xs text-muted-foreground">
+          {sessions.length} session{sessions.length > 1 ? "s" : ""} active
+          {sessions.length > 1 ? "s" : ""}. La déconnexion globale inclut cet
+          appareil.
+        </p>
         <Button
-          className="h-auto w-full whitespace-normal sm:w-auto"
+          className="h-auto min-h-10 w-full shrink-0 whitespace-normal sm:min-h-9 sm:w-auto"
           variant="outline"
           disabled={isPending}
           onClick={() => disconnect()}
@@ -110,13 +119,9 @@ export function RecentSessions({ sessions }: { sessions: RecentSession[] }) {
           ) : (
             <LogOut aria-hidden="true" />
           )}
-          Déconnecter toutes les sessions
+          <span className="sm:hidden">Tout déconnecter</span>
+          <span className="max-sm:hidden">Déconnecter toutes les sessions</span>
         </Button>
-        <p className="text-xs text-muted-foreground">
-          {sessions.length} session{sessions.length > 1 ? "s" : ""} active
-          {sessions.length > 1 ? "s" : ""}. La déconnexion globale inclut cet
-          appareil.
-        </p>
       </div>
       <div className={styles.container}>
         <div
@@ -124,16 +129,18 @@ export function RecentSessions({ sessions }: { sessions: RecentSession[] }) {
           role="region"
           aria-label="Connexions récentes"
           tabIndex={sessions.length > 2 ? 0 : -1}
-          className="max-h-64 overflow-y-auto overscroll-y-contain rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+          className="max-h-64 overflow-y-auto overscroll-y-contain focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
         >
-          <ul ref={listRef} className="flex flex-col gap-4">
+          <ul ref={listRef} className="divide-y">
             {sessions.map((session) => (
+              // Mobile : icône et appareil en tête, puis lieu, date et bouton
+              // sur toute la largeur. Dès sm : bouton à droite.
               <li
                 key={session.id}
-                className="flex items-start gap-3 rounded-lg border bg-card p-4 sm:items-center"
+                className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-3 px-4 py-4 sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:gap-x-4 sm:px-5"
               >
                 <div
-                  className="shrink-0 rounded-full bg-primary/10 p-2 text-primary"
+                  className="shrink-0 rounded-full bg-primary/10 p-2 text-primary sm:row-span-2"
                   aria-hidden="true"
                 >
                   {session.device === "Mobile" ? (
@@ -142,35 +149,33 @@ export function RecentSessions({ sessions }: { sessions: RecentSession[] }) {
                     <Monitor className="size-5" />
                   )}
                 </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <p className="break-words text-sm font-medium">
-                      {session.device} • {session.os} - {session.browser}
-                    </p>
-                    {session.isCurrent && (
-                      <Badge variant="default">Actuelle</Badge>
-                    )}
-                  </div>
-                  <p className="mt-0.5 break-words text-xs text-muted-foreground">
-                    {session.ip} • Connecté le{" "}
-                    <LocalDate value={session.date} />
-                  </p>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="mt-3"
-                    disabled={isPending}
-                    onClick={() => disconnect(session.id)}
-                    aria-label={`Déconnecter ${session.device}, ${session.os}, ${session.browser}, ${session.ip}${session.isCurrent ? ", session actuelle" : ""}`}
-                  >
-                    {isPending && pendingTarget === session.id ? (
-                      <Loader2 className="animate-spin" aria-hidden="true" />
-                    ) : (
-                      <LogOut aria-hidden="true" />
-                    )}
-                    {session.isCurrent ? "Se déconnecter" : "Déconnecter"}
-                  </Button>
-                </div>
+                <p className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-sm font-medium sm:self-end">
+                  <span className="min-w-0 break-words">
+                    {session.device} · {session.os} · {session.browser}
+                  </span>
+                  {session.isCurrent && (
+                    <Badge variant="default">Actuelle</Badge>
+                  )}
+                </p>
+                <p className="col-span-2 mt-2 break-words text-xs text-muted-foreground sm:col-span-1 sm:col-start-2 sm:mt-0.5 sm:self-start">
+                  {session.country} · Connecté le{" "}
+                  <LocalDate value={session.date} />
+                </p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="col-span-2 mt-3 min-h-10 sm:col-span-1 sm:col-start-3 sm:row-span-2 sm:row-start-1 sm:mt-0 sm:min-h-8"
+                  disabled={isPending}
+                  onClick={() => disconnect(session.id)}
+                  aria-label={`Déconnecter ${session.device}, ${session.os}, ${session.browser}, ${session.country}${session.isCurrent ? ", session actuelle" : ""}`}
+                >
+                  {isPending && pendingTarget === session.id ? (
+                    <Loader2 className="animate-spin" aria-hidden="true" />
+                  ) : (
+                    <LogOut aria-hidden="true" />
+                  )}
+                  {session.isCurrent ? "Se déconnecter" : "Déconnecter"}
+                </Button>
               </li>
             ))}
           </ul>

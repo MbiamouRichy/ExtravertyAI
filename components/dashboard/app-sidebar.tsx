@@ -40,7 +40,11 @@ export function AppSidebar() {
 				{/* Le projet ouvert (icône et nom) plutôt que la marque de l’application. */}
 				<SidebarHeader className="h-14 justify-center px-2">
 					<SidebarMenuButton asChild size="lg" tooltip={identity?.name}>
-						<Link href={`/projects/${encodeURIComponent(projectId)}`}>
+						<Link
+							href={`/projects/${encodeURIComponent(projectId)}`}
+							// Nom lisible même replié en icône ou pendant le chargement.
+							aria-label={identity ? `Tableau de bord de ${identity.name}` : "Tableau de bord du projet"}
+						>
 							{identity ? (
 								<ProjectIcon
 									name={identity.name}

@@ -123,3 +123,20 @@ export function weekNote(week: WeekAggregate | undefined) {
   ].filter(Boolean);
   return notes.length ? notes.join(" · ") : undefined;
 }
+
+/**
+ * Clôture de la semaine (lundi 00:00 UTC) lue dans le fuseau de l’utilisateur,
+ * ex. « lundi 2 nov., 01:00 » à Libreville. Le fuseau est précisé s’il est
+ * inconnu (UTC par défaut).
+ */
+export function formatWeekClose(end: Date, timeZone: string) {
+  const label = new Intl.DateTimeFormat("fr-FR", {
+    timeZone,
+    weekday: "long",
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(end);
+  return timeZone === "UTC" ? `${label} (UTC)` : label;
+}

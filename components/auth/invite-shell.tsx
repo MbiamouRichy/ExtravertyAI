@@ -68,8 +68,10 @@ export function InviteShell({
   invitation?: Invitation;
 }) {
   return (
-    <main className="grid min-h-svh bg-background text-foreground lg:grid-cols-2">
-      <div className="flex flex-col px-4 py-6 sm:px-10">
+    // grid-cols-1 caps the column at the screen width: without it, the column
+    // grows to its widest child and the whole page scrolls sideways.
+    <main className="grid min-h-svh grid-cols-1 bg-background text-foreground lg:grid-cols-2">
+      <div className="flex min-w-0 flex-col px-4 py-6 sm:px-10">
         <Link
           href="/"
           className="self-start rounded-md outline-none focus-visible:ring-3 focus-visible:ring-ring/50"

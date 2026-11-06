@@ -1,16 +1,27 @@
 import { EmailTemplate } from "@/components/emailTemplate/emailTemplate";
 import { betterAuth } from "better-auth";
+import { emailOTP } from "better-auth/plugins/email-otp";
+import { after } from "next/server";
 import {
   APIError,
   createAuthMiddleware,
   getAuthoritativeSessionFromCtx,
 } from "better-auth/api";
-import { isRecentSession } from "./recent-session";
+import { isRecentSession, requiresRecentSession } from "./recent-session";
+import {
+  accountNameSchema,
+  SIGN_UP_INTENT,
+  SIGN_UP_INTENT_HEADER,
+} from "./sign-up";
+import { countryFromHeader } from "./site-analytics";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import prisma from "./prisma";
 import { resend } from "./resend";
 import { ResetPasswordTemplate } from "@/components/emailTemplate/resetPasswordTemplate";
 import { ChangeEmailTemplate } from "@/components/emailTemplate/changeEmailTemplate";
+import { VerificationCodeTemplate } from "@/components/emailTemplate/verificationCodeTemplate";
+import { ExistingAccountTemplate } from "@/components/emailTemplate/existingAccountTemplate";
+import { EMAIL_SITE_URL } from "@/components/emailTemplate/emailLayout";
 
 import { AccountDeletedEmailTemplate } from "@/components/emailTemplate/accountDeletedEmailTemplate";
 import { deleteProjectResources } from "./project-deletion";
@@ -46,6 +57,127 @@ function setPendingDeletion(userId: string, projects: string[], left: number) {
 // Exit-survey token handed from afterDelete to the after hook of the same
 // request, which owns the response and can set the cookie.
 const feedbackTokens = new WeakMap<Request, string>();
+// Better Auth swallows send errors and answers 200 anyway: the after hook of
+// the same request turns them into a real failure.
+const failedChangeEmails = new WeakSet<Request>();
+
+// Resend reports a refused send through `error` instead of rejecting.
+async function sendAuthEmail(message: Parameters<typeof resend.emails.send>[0]) {
+  const { error } = await resend.emails.send(message);
+  if (error) throw new Error(`Resend: ${error.message}`);
+}
+
+const AUTH_EMAIL_FROM = "ExtravertyAI <notification@extravertyai.com>";
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || EMAIL_SITE_URL;
+
+// One-time codes: short-lived, hashed at rest, a few tries each.
+const VERIFICATION_CODE_MINUTES = 10;
+// One "you already have an account" email per address and window, whatever
+// the number of sign-up attempts (the route itself is only rate limited per IP).
+const EXISTING_ACCOUNT_EMAIL_WINDOW_MS = 15 * 60 * 1000;
+// Codes per address and hour, shared by every server instance: the plugin's
+// own limit is per IP and in memory. 5 codes × 5 tries caps guessing at
+// 25 attempts an hour on one account, from any number of IPs.
+const CODES_PER_ADDRESS_PER_HOUR = 5;
+const CODE_WINDOW_MS = 60 * 60 * 1000;
+
+// Code types served here: address verification and passwordless sign-in,
+// which also creates the account when it comes from the sign-up form.
+const ALLOWED_OTP_TYPES = new Set(["email-verification", "sign-in"]);
+type CodePurpose = "email-verification" | "sign-in" | "sign-up";
+
+const CODE_SUBJECTS: Record<CodePurpose, (otp: string) => string> = {
+  "email-verification": (otp) => `${otp} est votre code de vérification ExtravertyAI`,
+  "sign-in": (otp) => `${otp} est votre code de connexion ExtravertyAI`,
+  "sign-up": (otp) => `${otp} est votre code pour créer votre compte ExtravertyAI`,
+};
+
+function hasSignUpIntent(ctx: unknown) {
+  const context = ctx as { headers?: Headers; request?: Request } | undefined;
+  const headers = context?.headers ?? context?.request?.headers;
+  return headers?.get(SIGN_UP_INTENT_HEADER) === SIGN_UP_INTENT;
+}
+
+// OTP password resets and OTP email changes stay closed: both go by link.
+const UNUSED_OTP_PATHS = [
+  "/email-otp/check-verification-otp",
+  "/email-otp/request-password-reset",
+  "/forget-password/email-otp",
+  "/email-otp/reset-password",
+  "/email-otp/request-email-change",
+  "/email-otp/change-email",
+];
+
+// Emails sent from public routes leave after the response, so the response
+// time does not reveal whether the address has an account.
+function runAfterResponse(task: Promise<unknown>) {
+  try {
+    after(task);
+  } catch {
+    // Outside a request (scripts, tests): the task is already running.
+  }
+}
+
+async function sendCode(email: string, otp: string, purpose: CodePurpose) {
+  try {
+    await sendAuthEmail({
+      to: email,
+      subject: CODE_SUBJECTS[purpose](otp),
+      html: VerificationCodeTemplate({
+        code: otp,
+        email,
+        minutes: VERIFICATION_CODE_MINUTES,
+        purpose,
+      }),
+      from: AUTH_EMAIL_FROM,
+    });
+  } catch (error) {
+    // Never rethrown: the public send route must answer the same way for
+    // known and unknown addresses.
+    console.error("VERIFICATION_CODE_FAILED", error);
+  }
+}
+
+// Counted before the plugin looks the address up: known and unknown
+// addresses hit the same limit, so it reveals nothing about accounts.
+async function claimCodeSend(email: string, purpose: string) {
+  const identifier = `code-sent:${purpose}:${email.trim().toLowerCase()}`;
+  const now = new Date();
+  await prisma.verification.deleteMany({
+    where: { identifier, expiresAt: { lte: now } },
+  });
+  const sent = await prisma.verification.count({ where: { identifier } });
+  if (sent >= CODES_PER_ADDRESS_PER_HOUR) return false;
+  await prisma.verification.create({
+    data: {
+      id: crypto.randomUUID(),
+      identifier,
+      value: "sent",
+      expiresAt: new Date(now.getTime() + CODE_WINDOW_MS),
+    },
+  });
+  return true;
+}
+
+async function claimExistingAccountEmail(userId: string) {
+  const identifier = `existing-account-sign-up:${userId}`;
+  const now = new Date();
+  const recent = await prisma.verification.findFirst({
+    where: { identifier, expiresAt: { gt: now } },
+    select: { id: true },
+  });
+  if (recent) return false;
+  await prisma.verification.deleteMany({ where: { identifier } });
+  await prisma.verification.create({
+    data: {
+      id: crypto.randomUUID(),
+      identifier,
+      value: "sent",
+      expiresAt: new Date(now.getTime() + EXISTING_ACCOUNT_EMAIL_WINDOW_MS),
+    },
+  });
+  return true;
+}
 
 async function assertNoOwnershipBlockers(userId: string) {
   const plan = await getAccountDeletionPlan(userId);
@@ -60,24 +192,53 @@ async function assertNoOwnershipBlockers(userId: string) {
 
 export const auth = betterAuth({
   baseURL: process.env.NEXT_PUBLIC_APP_URL as string,
+  advanced: {
+    backgroundTasks: { handler: runAfterResponse },
+  },
+  disabledPaths: UNUSED_OTP_PATHS,
   database: prismaAdapter(prisma, {
     provider: "postgresql",
   }),
   hooks: {
     before: createAuthMiddleware(async (ctx) => {
-      if (ctx.path === "/delete-user" || ctx.path === "/delete-user/callback") {
-        const session = await getAuthoritativeSessionFromCtx(ctx);
-        if (!session || !isRecentSession(session.session.createdAt)) {
-          throw new APIError("FORBIDDEN", {
-            code: "REAUTH_REQUIRED",
-            message:
-              "Reconnectez-vous avant de supprimer votre compte (connexion de moins de 10 minutes requise).",
+      if (ctx.path === "/email-otp/send-verification-otp") {
+        const { type, email } = ctx.body ?? {};
+        if (!ALLOWED_OTP_TYPES.has(type))
+          throw new APIError("BAD_REQUEST", {
+            code: "OTP_TYPE_NOT_ALLOWED",
+            message: "Ce type de code n’est pas disponible.",
           });
-        }
-        await assertNoOwnershipBlockers(session.session.userId);
+        if (typeof email === "string" && !(await claimCodeSend(email, type)))
+          throw new APIError("TOO_MANY_REQUESTS", {
+            code: "TOO_MANY_CODES",
+            message:
+              "Trop de codes demandés pour cette adresse. Réessayez dans une heure.",
+          });
+        return;
       }
+      if (!requiresRecentSession(ctx.path)) return;
+      const deleting = ctx.path.startsWith("/delete-user");
+      const session = await getAuthoritativeSessionFromCtx(ctx);
+      if (!session || !isRecentSession(session.session.createdAt)) {
+        throw new APIError("FORBIDDEN", {
+          code: "REAUTH_REQUIRED",
+          message: deleting
+            ? "Reconnectez-vous avant de supprimer votre compte (connexion de moins de 10 minutes requise)."
+            : "Reconnectez-vous avant de modifier ces informations (connexion de moins de 10 minutes requise).",
+        });
+      }
+      if (deleting) await assertNoOwnershipBlockers(session.session.userId);
     }),
     after: createAuthMiddleware(async (ctx) => {
+      if (ctx.path === "/change-email" && ctx.request) {
+        if (failedChangeEmails.delete(ctx.request))
+          throw new APIError("BAD_GATEWAY", {
+            code: "CHANGE_EMAIL_NOT_SENT",
+            message:
+              "L’e-mail de confirmation n’a pas pu être envoyé. Réessayez dans un instant.",
+          });
+        return;
+      }
       if (ctx.path !== "/delete-user" || !ctx.request) return;
       const token = feedbackTokens.get(ctx.request);
       if (!token) return;
@@ -93,8 +254,41 @@ export const auth = betterAuth({
     }),
   },
 
+  session: {
+    additionalFields: {
+      country: { type: "string", required: false, input: false },
+    },
+  },
+
   databaseHooks: {
+    session: {
+      create: {
+        // Pays fourni par Vercel à la connexion (en-tête non falsifiable par le client).
+        before: async (session, ctx) => {
+          const headers = ctx?.headers ?? ctx?.request?.headers;
+          const country = countryFromHeader(
+            headers?.get("x-vercel-ip-country") ?? null,
+          );
+          return { data: { ...session, country } };
+        },
+      },
+    },
     user: {
+      create: {
+        // An account created by code comes from the sign-up form, which always
+        // sends a name. Checked only once the code is accepted: answering
+        // earlier would tell anyone whether the address has an account.
+        before: async (user, ctx) => {
+          if (ctx?.path !== "/sign-in/email-otp") return;
+          const name = accountNameSchema.safeParse(user.name);
+          if (!name.success)
+            throw new APIError("BAD_REQUEST", {
+              code: "SIGN_UP_NAME_REQUIRED",
+              message: "Créez votre compte depuis la page d’inscription.",
+            });
+          return { data: { ...user, name: name.data } };
+        },
+      },
       delete: {
         before: async (user) => {
           // Re-checked here: this hook also runs for deletions that bypass the
@@ -124,12 +318,33 @@ export const auth = betterAuth({
   },
   emailAndPassword: {
     enabled: true,
+    // No session before the address is confirmed. Sign-up then answers the
+    // same way for new and existing addresses.
+    requireEmailVerification: true,
+    onExistingUserSignUp: async ({ user }) => {
+      try {
+        if (!(await claimExistingAccountEmail(user.id))) return;
+        await sendAuthEmail({
+          to: user.email,
+          subject: "Vous avez déjà un compte ExtravertyAI",
+          html: ExistingAccountTemplate({
+            email: user.email,
+            signInUrl: `${APP_URL}/sign-in`,
+            resetUrl: `${APP_URL}/forget-password`,
+          }),
+          from: AUTH_EMAIL_FROM,
+        });
+      } catch (error) {
+        // Never rethrown: a failure would tell the visitor the address exists.
+        console.error("EXISTING_ACCOUNT_EMAIL_FAILED", error);
+      }
+    },
     sendResetPassword: async ({ user, url }) => {
-      await resend.emails.send({
+      await sendAuthEmail({
         to: user.email,
         subject: "Changement de mot de passe",
         html: ResetPasswordTemplate({ url, email: user.email }),
-        from: "ExtravertyAI <notification@extravertyai.com>",
+        from: AUTH_EMAIL_FROM,
       });
     },
   },
@@ -146,15 +361,63 @@ export const auth = betterAuth({
   },
   emailVerification: {
     sendOnSignUp: true,
+    // A password sign-in on an unconfirmed address sends a fresh code.
+    sendOnSignIn: true,
+    // The code proves control of the inbox: it opens the session directly.
+    autoSignInAfterVerification: true,
     sendVerificationEmail: async ({ user, url }) => {
-      await resend.emails.send({
-        to: user.email,
-        subject: "Verifier votre adresse e-mail",
-        html: EmailTemplate({ url, email: user.email }),
-        from: "ExtravertyAI <notification@extravertyai.com>",
-      });
+      // Never rethrown: /send-verification-email is public and would answer
+      // differently for an unverified account than for an unknown address.
+      try {
+        const stored = await prisma.user.findUnique({
+          where: { id: user.id },
+          select: { email: true },
+        });
+        // A change of address carries the new email on the existing account:
+        // it is confirmed by link, the code flow only knows current addresses.
+        if (stored && stored.email !== user.email) {
+          await sendAuthEmail({
+            to: user.email,
+            subject: "Verifier votre adresse e-mail",
+            html: EmailTemplate({ url, email: user.email }),
+            from: AUTH_EMAIL_FROM,
+          });
+          return;
+        }
+        await auth.api.sendVerificationOTP({
+          body: { email: user.email, type: "email-verification" },
+        });
+      } catch (error) {
+        console.error("VERIFICATION_EMAIL_FAILED", error);
+      }
     },
   },
+  plugins: [
+    emailOTP({
+      otpLength: 6,
+      expiresIn: VERIFICATION_CODE_MINUTES * 60,
+      allowedAttempts: 5,
+      storeOTP: "hashed",
+      // A sign-in code for an unknown address creates the account, with the
+      // name given on the sign-up form (checked by the user create hook).
+      disableSignUp: false,
+      // Runs after the response (backgroundTasks): known and unknown
+      // addresses get the same answer in the same time.
+      sendVerificationOTP: async ({ email, otp, type }, ctx) => {
+        if (type === "email-verification")
+          return sendCode(email, otp, "email-verification");
+        if (type !== "sign-in") return;
+        const known = await prisma.user.findUnique({
+          where: { email },
+          select: { id: true },
+        });
+        if (known) return sendCode(email, otp, "sign-in");
+        // Unknown address: a code only when asked from the sign-up form. From
+        // the sign-in form it gets no email, as before.
+        if (hasSignUpIntent(ctx)) return sendCode(email, otp, "sign-up");
+      },
+    }),
+  ],
   user: {
     deleteUser: {
       enabled: true,
@@ -179,7 +442,7 @@ export const auth = betterAuth({
           }
         }
         try {
-          await resend.emails.send({
+          await sendAuthEmail({
             to: user.email,
             subject: "Votre compte ExtravertyAI a été supprimé",
             html: AccountDeletedEmailTemplate({
@@ -188,7 +451,7 @@ export const auth = betterAuth({
               projects: summary?.projects ?? [],
               leftProjects: summary?.left ?? 0,
             }),
-            from: "ExtravertyAI <notification@extravertyai.com>",
+            from: AUTH_EMAIL_FROM,
           });
         } catch (error) {
           console.error("ACCOUNT_DELETED_EMAIL_FAILED", error);
@@ -197,13 +460,19 @@ export const auth = betterAuth({
     },
     changeEmail: {
       enabled: true,
-      sendChangeEmailConfirmation: async ({ user, newEmail, url }) => {
-        await resend.emails.send({
-          to: user.email, // Sent to the CURRENT email
-          subject: "Approuver un changement d'email",
-          html: ChangeEmailTemplate({ newEmail, url }),
-          from: "ExtravertyAI <notification@extravertyai.com>",
-        });
+      sendChangeEmailConfirmation: async ({ user, newEmail, url }, request) => {
+        try {
+          await sendAuthEmail({
+            to: user.email, // Sent to the CURRENT email
+            subject: "Approuver un changement d'email",
+            html: ChangeEmailTemplate({ newEmail, url }),
+            from: AUTH_EMAIL_FROM,
+          });
+        } catch (error) {
+          if (request) failedChangeEmails.add(request);
+          console.error("CHANGE_EMAIL_FAILED", error);
+          throw error;
+        }
       },
     },
     additionalFields: {

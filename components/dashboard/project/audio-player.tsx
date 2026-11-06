@@ -10,6 +10,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+import { ScrollFadeArea } from "./scroll-fade-area";
 const time = (seconds: number) =>
   Math.floor(seconds / 60) +
   ":" +
@@ -287,6 +288,7 @@ export function AudioPlayer({
         <AiInsight
           insight={transcript}
           label="Transcription IA"
+          surface={outgoing ? "primary" : "muted"}
           className={
             outgoing
               ? "bg-primary-foreground/10 text-primary-foreground [&_.text-muted-foreground]:text-primary-foreground/70"
@@ -303,10 +305,13 @@ export function AudioPlayer({
 export function AiInsight({
   insight,
   label,
+  surface = "muted",
   className,
 }: {
   insight: AudioTranscript;
   label: string;
+  /** Fond de la bulle, repris par les bords flous du texte. */
+  surface?: "muted" | "primary";
   className?: string;
 }) {
   const [open, setOpen] = useState(true);
@@ -336,12 +341,16 @@ export function AiInsight({
             />
           </button>
           {open && (
-            <p
-              dir="auto"
-              className="mt-1 whitespace-pre-wrap leading-relaxed wrap-anywhere"
+            <ScrollFadeArea
+              label={label}
+              surface={surface}
+              className="mt-1"
+              viewportClassName="max-h-44"
             >
-              {insight.text}
-            </p>
+              <p dir="auto" className="whitespace-pre-wrap leading-relaxed wrap-anywhere">
+                {insight.text}
+              </p>
+            </ScrollFadeArea>
           )}
         </>
       ) : (

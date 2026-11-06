@@ -5,6 +5,7 @@ import {
   KNOWLEDGE_LIMITS,
   buildSearchQuery,
   chunkText,
+  extractBlocks,
   formatKnowledgeBlock,
   normalizeSearchText,
   parseCsv,
@@ -17,6 +18,7 @@ import {
   claimKnowledgeSource,
   importProductsCsv,
   knowledgeContext,
+  sourceContent,
   retrieveKnowledge,
   runKnowledgeSource,
   saveEntry,
@@ -90,6 +92,25 @@ test("HTML pages are reduced to their readable text", async () => {
   assert.doesNotMatch(text, /alert/);
 });
 
+test("neighbouring HTML blocks stay separate words", async () => {
+  const { text } = await htmlToText(
+    '<html><body><article><div><h2>Contact</h2><div>Réponse humaine sur WhatsApp, du lundi au samedi, pour toutes vos demandes.</div></div><div><a href="/x">Téléphone</a><a href="/y">E-mail</a></div></article></body></html>',
+  );
+  assert.doesNotMatch(text, /ContactRéponse|TéléphoneE-mail/);
+});
+
+test("modern page markup keeps its lines, and reads as titles and paragraphs", async () => {
+  const { text } = await htmlToText(
+    `<html><body><article><h2>Ce que votre agent ne fera jamais.</h2><p>Ces règles font partie des consignes de chaque agent et ne peuvent pas être retirées par la suite.</p><ol><li><div><p><span>02.<!-- -->1</span></p><div><p>Jamais</p><h3>Inventer un prix</h3><p>Il s’appuie sur vos informations vérifiées et dit clairement ce qu’il ne sait pas.</p></div></div></li></ol><p><span>Contact</span><span>Réponse humaine sur WhatsApp du lundi au samedi, pour toutes vos demandes et celles de vos clients.</span></p></article></body></html>`,
+  );
+  assert.match(text, /Jamais\n+Inventer un prix\n+Il s’appuie/);
+  assert.match(text, /Contact Réponse humaine/);
+  assert.deepEqual(extractBlocks(["01\nInventer un prix\nInventer un prix\nIl dit ce qu’il ne sait pas."]), [
+    { type: "heading", text: "Inventer un prix" },
+    { type: "paragraph", text: "Il dit ce qu’il ne sait pas." },
+  ]);
+});
+
 test("PDF text is extracted", async () => {
   const pdf = new jsPDF();
   pdf.text("Retours acceptes sous 14 jours avec le ticket de caisse.", 10, 10);
@@ -144,6 +165,34 @@ test("knowledge base", { timeout: 180000 }, async (t) => {
       assert.equal(hidden.some((entry) => entry.id === shoes.id), false);
       const context = await knowledgeContext(prisma, project.id, "XAF", ["Port-Gentil ?"]);
       assert.match(context.block, /Port-Gentil/);
+    });
+
+    await t.test("the assistant sees every enabled entry, even without a matching word", async () => {
+      const greeting = await knowledgeContext(prisma, project.id, "XAF", ["Bonjour"]);
+      assert.match(greeting.block, /Port-Gentil/);
+      assert.equal(greeting.entries.length, 0);
+      // Une entrée désactivée reste écartée, celles d’un autre projet aussi.
+      assert.doesNotMatch(greeting.block, /Sneakers Urban/);
+      assert.doesNotMatch(greeting.block, /Autre boutique/);
+    });
+
+    await t.test("imported text is readable in order, by project admins only", async () => {
+      const source = await prisma.knowledgeSource.create({
+        data: { projectId: project.id, type: "URL", name: "Page", url: "https://example.com/lu", status: "READY" },
+      });
+      for (const index of [10, 2, 1]) {
+        await prisma.knowledgeEntry.create({
+          data: { projectId: project.id, sourceId: source.id, kind: "CHUNK", title: `Page · ${index}/10`, content: `Passage ${index}`, searchText: `passage ${index}` },
+        });
+      }
+      const passages = await sourceContent(prisma, { ...admin, sourceId: source.id });
+      assert.deepEqual(passages.map((passage) => passage.content), ["Passage 1", "Passage 2", "Passage 10"]);
+      const outsider = await createUser(prisma);
+      await assert.rejects(
+        sourceContent(prisma, { projectId: project.id, userId: outsider.id, sourceId: source.id }),
+        /Accès refusé/,
+      );
+      await prisma.knowledgeSource.delete({ where: { id: source.id } });
     });
 
     await t.test("CSV imports stop at the plan limit and are flagged", async () => {

@@ -217,7 +217,7 @@ export function AnalyticsTimeChart({
     >
       <ul
         aria-label="Totaux des séries"
-        className="mb-6 flex flex-wrap gap-x-8 gap-y-4"
+        className="mb-4 flex flex-wrap gap-x-6 gap-y-2"
       >
         {totals.map((metric) => (
           <li key={metric.key}>
@@ -245,12 +245,12 @@ export function AnalyticsTimeChart({
           icon={ChartNoAxesCombined}
           title={emptyTitle}
           description={emptyDescription}
-          className="h-64 sm:h-80"
+          className="h-56 sm:h-64"
         />
       ) : (
         <ChartContainer
           config={config}
-          className="aspect-auto h-64 w-full p-0 sm:h-80"
+          className="aspect-auto h-56 w-full p-0 sm:h-64"
         >
           {kind === "bar" ? (
             <BarChart

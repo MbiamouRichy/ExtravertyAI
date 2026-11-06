@@ -252,6 +252,58 @@ export async function notificationFeed(
       read: false,
     })),
   );
+  // Corrections de l’IA par un autre membre : publiées, ou à valider.
+  const corrections = await db.$queryRaw<
+    {
+      id: string;
+      entryId: string | null;
+      updatedAt: Date;
+      projectId: string;
+      projectName: string;
+      role: string;
+      authorName: string | null;
+      contactId: string;
+      name: string | null;
+      pushName: string | null;
+    }[]
+  >`
+    SELECT f.id, f."entryId", f."updatedAt", p.id AS "projectId", p.name AS "projectName", pm.role::text,
+      u.name AS "authorName", c.id AS "contactId", c.name, c."pushName"
+    FROM ai_feedback f
+    JOIN project p ON p.id = f."projectId" AND NOT p."deletionPending"
+    JOIN project_membership pm ON pm."projectId" = p.id AND pm."userId" = ${userId}
+      AND pm.role::text = ANY(${HANDLERS}::text[])
+    JOIN "user" u ON u.id = f."authorId"
+    JOIN message m ON m.id = f."messageId"
+    JOIN contact c ON c.id = m."contactId"
+    WHERE f.correction IS NOT NULL AND f."authorId" <> ${userId}
+      AND (f."reviewedAt" IS NULL OR f."entryId" IS NOT NULL)
+      AND f."updatedAt" >= pm."createdAt" AND f."updatedAt" > NOW() - INTERVAL '30 days'
+    ORDER BY f."updatedAt" DESC LIMIT 20
+  `;
+  items.push(
+    ...corrections.map((item) => {
+      const author = item.authorName?.trim().split(/\s+/)[0] || "Un membre";
+      const review = !item.entryId && can(item.role, "project.manage");
+      return {
+        key: "correction:" + item.id,
+        version: item.entryId ?? "pending:" + item.updatedAt.toISOString(),
+        projectName: item.projectName,
+        title: item.entryId ? "Assistant IA corrigé" : "Correction de l’IA à valider",
+        description:
+          author +
+          (item.entryId ? " a ajouté une réponse pour " : " propose une réponse pour ") +
+          chatContactName(item) +
+          ".",
+        href: review
+          ? "/projects/" + item.projectId + "/knowledge"
+          : "/projects/" + item.projectId + "/chat?contactId=" + encodeURIComponent(item.contactId),
+        kind: "message" as const,
+        date: item.updatedAt.toISOString(),
+        read: false,
+      };
+    }),
+  );
   const receipts = await db.$queryRaw<
     { key: string; version: string; dismissedVersion: string | null }[]
   >`SELECT key, version, "dismissedVersion" FROM notification_receipt WHERE "userId" = ${userId}`;
@@ -329,5 +381,6 @@ export function forgetProjectNotifications(
   return db.$executeRaw`DELETE FROM notification_receipt
     WHERE split_part(key, ':', 2) = ${projectId}
       OR split_part(key, ':', 2) IN (SELECT id FROM contact WHERE "projectId" = ${projectId})
-      OR split_part(key, ':', 2) IN (SELECT id FROM broadcast WHERE "projectId" = ${projectId})`;
+      OR split_part(key, ':', 2) IN (SELECT id FROM broadcast WHERE "projectId" = ${projectId})
+      OR split_part(key, ':', 2) IN (SELECT id FROM ai_feedback WHERE "projectId" = ${projectId})`;
 }

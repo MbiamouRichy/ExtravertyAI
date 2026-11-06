@@ -1,5 +1,6 @@
 "use client";
 
+import { LocalDate } from "@/components/local-date";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useState, useTransition, type ReactNode } from "react";
@@ -195,15 +196,17 @@ function EndpointRow({
               : "Reprendre les envois vers cette intégration"
           }
         >
-          <Switch
-            id={switchId}
-            checked={endpoint.enabled}
-            disabled={pending}
-            onCheckedChange={(enabled) =>
-              act(() => updateEndpointAction({ projectId, endpointId: endpoint.id, enabled }))
-            }
-            className="mr-2"
-          />
+          {/* Le déclencheur écrit son propre data-state : il ne doit pas toucher celui du switch. */}
+          <span className="mr-2 inline-flex">
+            <Switch
+              id={switchId}
+              checked={endpoint.enabled}
+              disabled={pending}
+              onCheckedChange={(enabled) =>
+                act(() => updateEndpointAction({ projectId, endpointId: endpoint.id, enabled }))
+              }
+            />
+          </span>
         </ActionTip>
         <ActionTip
           label={
@@ -330,35 +333,33 @@ export function IntegrationsWorkspace({
 
   const sheets = endpoints.find((endpoint) => endpoint.kind === "GOOGLE_SHEETS");
   const names = new Map(endpoints.map((endpoint) => [endpoint.id, endpoint.name]));
-  const date = new Intl.DateTimeFormat("fr-FR", { dateStyle: "short", timeStyle: "short" });
+  const date = { dateStyle: "short", timeStyle: "short" } as const;
 
   return (
     <div className="space-y-8">
       <section aria-labelledby="google-sheets" className="rounded-2xl border bg-card p-4 sm:p-6">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-start gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
+          <div className="flex items-center gap-3">
             <span className="flex size-10 shrink-0 items-center justify-center rounded-xl border bg-muted/50">
               <Sheet aria-hidden="true" className="size-5" />
             </span>
-            <div>
-              <h2 id="google-sheets" className="font-heading text-lg font-semibold tracking-tight">
-                Google Sheets
-              </h2>
-              <p className="mt-1 max-w-xl text-sm text-muted-foreground">
-                Une ligne par événement dans une feuille créée pour vous. ExtravertyAI
-                n’accède qu’à cette feuille, jamais au reste de votre Drive.
-              </p>
-            </div>
+            <h2 id="google-sheets" className="font-heading text-lg font-semibold tracking-tight">
+              Google Sheets
+            </h2>
           </div>
+          <p className="w-full text-sm text-muted-foreground sm:order-last">
+            Une ligne par événement dans une feuille créée pour vous. ExtravertyAI
+            n’accède qu’à cette feuille, jamais au reste de votre Drive.
+          </p>
           {!sheets &&
             (googleAvailable ? (
-              <Button asChild className="shrink-0">
+              <Button asChild className="w-full shrink-0 sm:w-auto">
                 <a href={`/api/integrations/google/start?projectId=${encodeURIComponent(projectId)}`}>
                   Connecter Google Sheets
                 </a>
               </Button>
             ) : (
-              <Button type="button" disabled className="shrink-0">
+              <Button type="button" disabled className="w-full shrink-0 sm:w-auto">
                 Indisponible sur ce serveur
               </Button>
             ))}
@@ -394,7 +395,7 @@ export function IntegrationsWorkspace({
               Webhook
             </Button>
           ) : (
-            <Button asChild variant="outline">
+            <Button asChild>
               <Link href={`/projects/${projectId}/billing`}>Passer à l’offre Pro</Link>
             </Button>
           )}
@@ -468,11 +469,14 @@ export function IntegrationsWorkspace({
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Destination</TableHead>
-                  <TableHead>Événement</TableHead>
+                  <TableHead>
+                    <span className="md:hidden">Envoi</span>
+                    <span className="hidden md:inline">Date</span>
+                  </TableHead>
+                  <TableHead className="hidden md:table-cell">Destination</TableHead>
+                  <TableHead className="hidden md:table-cell">Événement</TableHead>
                   <TableHead>État</TableHead>
-                  <TableHead className="w-24">
+                  <TableHead className="w-10 md:w-24">
                     <span className="sr-only">Actions</span>
                   </TableHead>
                 </TableRow>
@@ -480,37 +484,50 @@ export function IntegrationsWorkspace({
               <TableBody>
                 {deliveries.map((delivery) => (
                   <TableRow key={delivery.id}>
-                    <TableCell className="whitespace-nowrap font-mono text-xs tabular-nums">
-                      {date.format(new Date(delivery.createdAt))}
+                    <TableCell className="align-top text-xs md:align-middle">
+                      <span className="block whitespace-nowrap font-mono tabular-nums">
+                        <LocalDate value={delivery.createdAt} options={date} />
+                      </span>
+                      {/* Sur mobile, destination et événement passent sous la date. */}
+                      <span className="mt-1 block max-w-40 truncate text-muted-foreground md:hidden">
+                        {names.get(delivery.endpointId) ?? "—"} ·{" "}
+                        {EVENT_LABEL[delivery.event] ?? delivery.event}
+                      </span>
                     </TableCell>
-                    <TableCell className="max-w-48 truncate text-xs">{names.get(delivery.endpointId) ?? "—"}</TableCell>
-                    <TableCell className="text-xs">{EVENT_LABEL[delivery.event] ?? delivery.event}</TableCell>
-                    <TableCell className="text-xs">
+                    <TableCell className="hidden max-w-48 truncate text-xs md:table-cell">{names.get(delivery.endpointId) ?? "—"}</TableCell>
+                    <TableCell className="hidden text-xs md:table-cell">{EVENT_LABEL[delivery.event] ?? delivery.event}</TableCell>
+                    <TableCell className="whitespace-normal align-top text-xs md:align-middle">
                       {delivery.state === "DELIVERED" ? (
                         <span className="inline-flex items-center gap-1">
-                          <CircleCheck aria-hidden="true" className="size-3.5" />
+                          <CircleCheck aria-hidden="true" className="size-3.5 shrink-0" />
                           Livré{delivery.lastStatus ? ` · ${delivery.lastStatus}` : ""}
                         </span>
                       ) : delivery.state === "FAILED" ? (
-                        <span className="inline-flex items-center gap-1 text-destructive" title={delivery.lastError ?? undefined}>
-                          <CircleAlert aria-hidden="true" className="size-3.5" />
-                          Échec · {delivery.lastError ?? "erreur"}
+                        <span className="inline-flex items-start gap-1 text-destructive" title={delivery.lastError ?? undefined}>
+                          <CircleAlert aria-hidden="true" className="mt-px size-3.5 shrink-0" />
+                          <span className="line-clamp-2 break-words">
+                            Échec · {delivery.lastError ?? "erreur"}
+                          </span>
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1 text-muted-foreground">
-                          <Clock3 aria-hidden="true" className="size-3.5" />
-                          {delivery.attempts ? `Nouvelle tentative (${delivery.attempts})` : "En attente"}
-                          {delivery.lastError ? ` · ${delivery.lastError}` : ""}
+                        <span className="inline-flex items-start gap-1 text-muted-foreground">
+                          <Clock3 aria-hidden="true" className="mt-px size-3.5 shrink-0" />
+                          <span className="line-clamp-2 break-words">
+                            {delivery.attempts ? `Nouvelle tentative (${delivery.attempts})` : "En attente"}
+                            {delivery.lastError ? ` · ${delivery.lastError}` : ""}
+                          </span>
                         </span>
                       )}
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="align-top md:align-middle">
                       {delivery.state === "FAILED" && (
                         <Button
                           type="button"
                           variant="ghost"
                           size="sm"
                           disabled={pending}
+                          aria-label="Relancer l’envoi"
+                          className="max-md:size-8 max-md:px-0"
                           onClick={() =>
                             startAction(async () => {
                               const result = await redeliverAction({ projectId, deliveryId: delivery.id });
@@ -520,7 +537,7 @@ export function IntegrationsWorkspace({
                           }
                         >
                           <RotateCw data-icon="inline-start" />
-                          Relancer
+                          <span className="hidden md:inline">Relancer</span>
                         </Button>
                       )}
                     </TableCell>

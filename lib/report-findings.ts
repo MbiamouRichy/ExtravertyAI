@@ -103,6 +103,12 @@ function absoluteChange(reading: IndicatorReading) {
 const is = (reading: IndicatorReading, status: SignalStatus) =>
   reading.signal.status === status;
 
+/**
+ * Moment de la clôture tel qu’il est écrit dans les constats et l’e-mail ; la
+ * page le remplace par l’heure locale de l’utilisateur.
+ */
+export const WAITING_CLOSE_UTC = "dimanche à minuit (UTC)";
+
 export function buildFindings(
   readings: IndicatorReading[],
   week: WeekAggregate,
@@ -138,7 +144,7 @@ export function buildFindings(
       id: "waiting",
       title: `${formatCount(week.waiting.total, "client attendait", "clients attendaient")} une réponse à la clôture${week.waiting.over24h ? `, dont ${week.waiting.over24h} depuis plus de 24 h` : ""}`,
       evidence: [
-        "Dernier message client sans réponse depuis plus d’une heure, dimanche à minuit (UTC)",
+        `Dernier message client sans réponse depuis plus d’une heure, ${WAITING_CLOSE_UTC}`,
         `${formatCount(week.waiting.manual, "conversation", "conversations")} en mode manuel, ${week.waiting.total - week.waiting.manual} avec l’IA active`,
       ],
       impact: week.waiting.total + week.waiting.over24h,

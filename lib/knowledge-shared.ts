@@ -11,8 +11,10 @@ export const KNOWLEDGE_LIMITS = {
   pdfMaxPages: 200,
   webMaxBytes: 3 * 1024 * 1024,
   chunkSize: 800,
-  retrievalTop: 6,
-  retrievalBudget: 6000,
+  retrievalTop: 12,
+  // Environ 10 000 tokens : une base courante tient entière dans chaque réponse.
+  retrievalBudget: 40000,
+  contextEntries: 2000,
 } as const;
 
 export type KnowledgeKindId = "FAQ" | "TEXT" | "PRODUCT" | "CHUNK";
@@ -196,6 +198,30 @@ export function parseProductsCsv(
   return { rows, errors };
 }
 
+/** Numéro de passage en fin de titre (« Page · 3/9 »), pour relire dans l’ordre. */
+export function chunkPosition(title: string): number {
+  return Number(title.match(/(\d+)\/\d+$/)?.[1] ?? 0);
+}
+
+/**
+ * Texte extrait → titres et paragraphes, pour le relire comme une page.
+ * Une ligne courte sans ponctuation finale est un titre ; les numéros
+ * décoratifs (« 01 », « 02.1 ») et les doublons voisins disparaissent.
+ */
+export function extractBlocks(passages: string[]) {
+  const blocks: { type: "heading" | "paragraph"; text: string }[] = [];
+  for (const line of passages.flatMap((passage) => passage.split("\n"))) {
+    const text = line.trim();
+    if (!text || /^\d{1,2}(\.\d{0,2})?$/.test(text) || blocks.at(-1)?.text === text) continue;
+    const heading = text.length <= 70 && !/[.!?:;,…]$/.test(text);
+    blocks.push({ type: heading ? "heading" : "paragraph", text });
+  }
+  // Une liste de lignes courtes reste une liste : un titre annonce un paragraphe.
+  return blocks.map((block, index) =>
+    blocks[index + 1]?.type === "paragraph" ? block : { ...block, type: "paragraph" as const },
+  );
+}
+
 export type RetrievedEntry = {
   id: string;
   kind: KnowledgeKindId;
@@ -226,7 +252,8 @@ export function formatKnowledgeBlock(entries: RetrievedEntry[], currency: string
       entry.stock !== null ? `Stock : ${entry.stock}` : "",
     ].filter(Boolean);
     const block = `[${KIND_LABEL[entry.kind]}] ${entry.title}\n${entry.content}${details.length ? `\n${details.join(" · ")}` : ""}`;
-    if (block.length > budget) break;
+    // Une entrée trop longue n’écarte pas les suivantes.
+    if (block.length > budget) continue;
     budget -= block.length;
     blocks.push(block);
   }

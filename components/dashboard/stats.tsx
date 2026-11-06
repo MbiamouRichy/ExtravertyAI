@@ -1,12 +1,5 @@
-import {
-	Card,
-	CardContent,
-	CardHeader,
-	CardTitle,
-} from "@/components/ui/card";
 import { Delta, DeltaIcon, DeltaValue } from "@/components/delta";
 import prisma from "@/lib/prisma"; // Assure-toi que ce chemin correspond à ton instance Prisma
-import { cn } from "@/lib/utils";
 
 type Stat = {
 	label: string;
@@ -58,22 +51,22 @@ export async function DashboardStats({ projectId }: { projectId: string }) {
 	// Construction du tableau de statistiques
 	const stats: Stat[] = [
 		{
-			label: "Nouveaux Contacts",
+			label: "Nouveaux contacts",
 			value: formatNumber(currentContacts),
 			delta: calculateDelta(currentContacts, prevContacts),
 		},
 		{
-			label: "Messages Reçus",
+			label: "Messages reçus",
 			value: formatNumber(currentInbound),
 			delta: calculateDelta(currentInbound, prevInbound),
 		},
 		{
-			label: "Réponses du Bot",
+			label: "Réponses du bot",
 			value: formatNumber(currentBotReplies),
 			delta: calculateDelta(currentBotReplies, prevBotReplies),
 		},
 		{
-			label: "Interventions Humaines",
+			label: "Interventions humaines",
 			value: formatNumber(currentHumanHandoff),
 			delta: calculateDelta(currentHumanHandoff, prevHumanHandoff),
 			invertDelta: true, // Moins d'interventions humaines = meilleure autonomie de l'IA
@@ -81,28 +74,22 @@ export async function DashboardStats({ projectId }: { projectId: string }) {
 	];
 
 	return (
-		<>
+		<dl className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border bg-border @3xl:grid-cols-4">
 			{stats.map((s) => (
-				<Card className={cn("shadow-none dark:ring-0")} key={s.label}>
-					<CardHeader>
-						<CardTitle className="font-normal text-xs text-muted-foreground tracking-tight">
-							{s.label}
-						</CardTitle>
-					</CardHeader>
-					<CardContent className="flex flex-col gap-1">
-						<p className="font-semibold text-2xl tabular-nums tracking-tight">
-							{s.value}
-						</p>
-						<div className="text-xs flex flex-row items-center gap-1">
-							<Delta value={s.delta}>
-								<DeltaIcon />
-								<DeltaValue />
-							</Delta>
-							<span className="text-muted-foreground">vs sem. dernière</span>
-						</div>
-					</CardContent>
-				</Card>
+				<div className="flex min-w-0 flex-col gap-1 bg-card p-3 sm:p-4" key={s.label}>
+					<dt className="text-xs text-muted-foreground">{s.label}</dt>
+					<dd className="mt-auto text-2xl font-semibold tabular-nums tracking-tight">
+						{s.value}
+					</dd>
+					<dd className="flex flex-wrap items-center gap-x-1 text-xs">
+						<Delta value={s.delta}>
+							<DeltaIcon />
+							<DeltaValue />
+						</Delta>
+						<span className="text-muted-foreground">vs sem. dernière</span>
+					</dd>
+				</div>
 			))}
-		</>
+		</dl>
 	);
 }

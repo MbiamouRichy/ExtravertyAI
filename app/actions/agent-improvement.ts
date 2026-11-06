@@ -15,6 +15,7 @@ import {
   dismissGap,
   promoteCorrection,
   rateAiMessage,
+  submitCorrection,
 } from "@/lib/ai-feedback";
 
 type Failure = { success: false; error: string };
@@ -25,7 +26,13 @@ const RateSchema = Project.extend({
   rating: z.enum(["UP", "DOWN"]),
   correction: CorrectionSchema.nullable().optional(),
 });
-const GapAnswerSchema = Project.extend({ gapId: z.string().cuid(), draft: FaqDraftSchema });
+const CorrectionInput = Project.extend({
+  messageId: z.string().cuid(),
+  correction: CorrectionSchema,
+  question: z.string().nullable().optional(),
+  kind: z.enum(["FAQ", "TEXT"]),
+});
+const GapAnswerSchema =Project.extend({ gapId: z.string().cuid(), draft: FaqDraftSchema });
 const GapTarget = Project.extend({ gapId: z.string().cuid() });
 const PromoteSchema = Project.extend({ feedbackId: z.string().cuid(), draft: FaqDraftSchema });
 const FeedbackTarget = Project.extend({ feedbackId: z.string().cuid() });
@@ -75,6 +82,12 @@ export async function rateAiMessageAction(input: z.input<typeof RateSchema>) {
   return run(RateSchema, input, "enregistrer votre avis", async (data, userId) => ({
     feedback: await rateAiMessage(prisma, { ...data, userId }),
   }));
+}
+
+export async function submitCorrectionAction(input: z.input<typeof CorrectionInput>) {
+  return run(CorrectionInput, input, "enregistrer la correction", async (data, userId) =>
+    submitCorrection(prisma, { ...data, userId }),
+  );
 }
 
 export async function answerGapAction(input: z.input<typeof GapAnswerSchema>) {

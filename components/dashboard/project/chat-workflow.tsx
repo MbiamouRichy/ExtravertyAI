@@ -37,13 +37,6 @@ import {
   InputGroupTextarea,
 } from "@/components/ui/input-group";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
   addContactTagAction,
   removeContactTagAction,
 } from "@/app/actions/conversation-workflow";
@@ -327,17 +320,13 @@ export function ContactTagsEditor({
   }
 
   return (
-    <section aria-labelledby={`tags-${contactId}`}>
+    <section aria-labelledby={`tags-${contactId}`} className="py-5">
       <h2
         id={`tags-${contactId}`}
-        className="font-mono text-[11px] font-normal uppercase tracking-wider text-muted-foreground"
+        className="mb-2 font-mono text-[11px] font-normal uppercase tracking-wider text-muted-foreground"
       >
         Étiquettes
       </h2>
-      <p className="mb-2 mt-1 text-xs text-muted-foreground">
-        Classez vos contacts pour les retrouver et les filtrer. Visible
-        uniquement par votre équipe.
-      </p>
       <ul
         aria-label={`Étiquettes de ${contactName}`}
         className="flex flex-wrap gap-1.5"
@@ -396,46 +385,6 @@ export function ContactTagsEditor({
         </div>
       )}
     </section>
-  );
-}
-
-const ALL_TAGS = "__all";
-
-export function TagFilter({
-  tags,
-  value,
-  onChange,
-}: {
-  tags: Array<ChatTag & { count: number }>;
-  value: string | null;
-  onChange: (value: string | null) => void;
-}) {
-  if (!tags.length && !value) return null;
-  return (
-    <Select
-      value={value ?? ALL_TAGS}
-      onValueChange={(next) => onChange(next === ALL_TAGS ? null : next)}
-    >
-      <SelectTrigger
-        size="sm"
-        aria-label="Filtrer par étiquette"
-        className="h-7 w-full text-xs"
-      >
-        <Tag aria-hidden="true" className="size-3.5 text-muted-foreground" />
-        <SelectValue placeholder="Toutes les étiquettes" />
-      </SelectTrigger>
-      <SelectContent>
-        <SelectItem value={ALL_TAGS}>Toutes les étiquettes</SelectItem>
-        {tags.map((tag) => (
-          <SelectItem key={tag.id} value={tag.id}>
-            {tag.name}
-            <span className="ml-1 text-muted-foreground tabular-nums">
-              {tag.count}
-            </span>
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
   );
 }
 
@@ -498,6 +447,19 @@ export function ComposerModeToggle({
         Note interne
       </Button>
       {extra}
+      {mode === "note" && (
+        <Button
+          type="button"
+          size="icon-xs"
+          variant="ghost"
+          aria-label="Fermer la note interne"
+          title="Fermer la note interne"
+          onClick={() => (onNoteClose ? onNoteClose() : onChange("reply"))}
+          className="ml-auto shrink-0 text-muted-foreground"
+        >
+          <X aria-hidden="true" />
+        </Button>
+      )}
       {hint && (
         <span className="ml-auto hidden min-w-0 truncate pr-1.5 text-[11px] text-muted-foreground sm:inline">
           {hint}

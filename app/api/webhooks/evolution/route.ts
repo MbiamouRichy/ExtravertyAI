@@ -10,6 +10,11 @@ import {
   reconcileReceipt,
   saveReceipt,
 } from "@/lib/evolution-ingestion";
+import { isForeignTrialNumber } from "@/lib/instance-connection";
+import {
+  getEvolutionOwnerJid,
+  logoutEvolutionInstance,
+} from "@/app/actions/evolutionAPI";
 
 export const runtime = "nodejs";
 const Body = z.object({
@@ -41,15 +46,28 @@ export async function POST(req: Request) {
     const { event, instance, data } = Body.parse(await req.json());
     const project = await prisma.project.findUnique({
       where: { instanceName: instance },
-      select: { id: true },
+      select: { id: true, numero: true, status: true },
     });
     if (!project)
       return NextResponse.json({ error: "Instance inconnue" }, { status: 404 });
     const eventName = event.toLowerCase().replaceAll("_", ".");
     // Présence d’un contact : relayée en direct, rien n’est enregistré.
     if (eventName === "presence.update") {
-      await relayPresenceUpdate(prisma, project.id, data);
+      await relayPresenceUpdate(prisma, project.id, instance, data);
       return NextResponse.json({ success: true });
+    }
+    // Pendant l'essai, seul le numéro déclaré peut être relié au projet.
+    let foreignNumber = false;
+    if (eventName === "connection.update" && project.status === "trialing") {
+      const update = z
+        .object({ state: z.string(), wuid: z.string().optional() })
+        .safeParse(data);
+      if (update.success && update.data.state === "open")
+        foreignNumber = isForeignTrialNumber(
+          project,
+          update.data.wuid ??
+            (await getEvolutionOwnerJid(instance).catch(() => null)),
+        );
     }
     await prisma.$transaction(
       async (tx) => {
@@ -86,8 +104,9 @@ export async function POST(req: Request) {
           await tx.project.update({
             where: { id: project.id },
             data: {
-              instanceStatus:
-                state === "open"
+              instanceStatus: foreignNumber
+                ? "disconnected"
+                : state === "open"
                   ? "connected"
                   : state === "connecting"
                     ? "connecting"
@@ -98,6 +117,12 @@ export async function POST(req: Request) {
       },
       { timeout: 15000 },
     );
+    if (foreignNumber) {
+      console.warn("TRIAL_FOREIGN_NUMBER_DISCONNECTED", {
+        projectId: project.id,
+      });
+      await logoutEvolutionInstance(instance).catch(() => undefined);
+    }
     await notifyChatChanged(project.id);
     return NextResponse.json({ success: true });
   } catch (error) {

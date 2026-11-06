@@ -28,7 +28,10 @@ Fonctionnalité réservée à l’offre **Business** (vérifiée côté serveur 
 
 ## Événements
 
-`contact.qualified`, `pipeline.stage_changed`, `conversation.resolved`, `conversation.assigned`, `csat.received`, plus `test.ping` (bouton « Tester »).
+`contact.created`, `message.received`, `contact.qualified`, `pipeline.stage_changed`, `conversation.resolved`, `conversation.assigned`, `csat.received`, plus `test.ping` (bouton « Tester »).
+
+- `contact.created` : première apparition d’une personne, par son message ou par un message envoyé depuis le téléphone. Les contacts importés ne le déclenchent pas.
+- `message.received` : chaque message d’un client, y compris une réponse au questionnaire ou STOP. `data.message` contient `id`, `type`, `text` (légende pour un média, `null` sans texte, 4 000 caractères au maximum) et `receivedAt`. Aucun lien vers les fichiers n’est transmis. Le texte est retiré de `integration_delivery` dès la livraison réussie ; une livraison en échec le conserve pour pouvoir être relancée. Cet événement n’est jamais activé par défaut.
 
 Corps envoyé (POST JSON) :
 

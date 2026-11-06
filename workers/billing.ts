@@ -1,6 +1,7 @@
 import "dotenv/config";
 import { stripe } from "../lib/stripe";
 import { paidMessageLimit } from "../lib/billing-quota";
+import { checkoutProvider } from "../lib/billing-provider";
 import { workerDatabase, notifyProject } from "./shared";
 import {
   billingEmailConfig,
@@ -21,8 +22,12 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 async function main() {
   if (!process.env.RESEND_API_KEY || !process.env.STRIPE_SECRET_KEY)
     throw new Error("BILLING_CONFIG_MISSING");
+  const polar = checkoutProvider() === "polar";
+  if (polar && !process.env.POLAR_ACCESS_TOKEN)
+    throw new Error("BILLING_CONFIG_MISSING");
   for (const plan of ["starter", "pro", "business"]) {
-    if (!process.env[`STRIPE_${plan.toUpperCase()}_PLAN_ID`])
+    const name = plan.toUpperCase();
+    if (!process.env[polar ? `POLAR_${name}_PRODUCT_ID` : `STRIPE_${name}_PLAN_ID`])
       throw new Error("BILLING_PLAN_CONFIG_MISSING");
     paidMessageLimit(plan);
   }

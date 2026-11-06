@@ -5,7 +5,10 @@ import {
   INSTINCT_MODELS,
   selectInstinctModel,
 } from "../lib/instinct-decision";
-import { currentProspectClassification } from "../lib/instinct-classification";
+import {
+  currentProspectClassification,
+  lastProspectClassification,
+} from "../lib/instinct-classification";
 
 const goals = "Vendre des sites web professionnels";
 const history = [
@@ -193,7 +196,22 @@ test("instinct routes complete context and validates Decisions responses", async
   }
 });
 
-test("only current enabled assessments are exposed to the chat", () => {
+test("the inbox keeps the last assessment until the next one", () => {
+  const contact = {
+    instinctClassification: "interesting" as const,
+    project: { agentQualifyLeads: true },
+  };
+  assert.equal(lastProspectClassification(contact), "interesting");
+  assert.equal(
+    lastProspectClassification({
+      ...contact,
+      project: { agentQualifyLeads: false },
+    }),
+    null,
+  );
+});
+
+test("only current enabled assessments are exposed to reports", () => {
   const contact = {
     instinctClassification: "follow_up" as const,
     instinctSourceId: "m1",

@@ -65,10 +65,10 @@ function EventChoices({
                 onChange(next ? [...value, event.id] : value.filter((item) => item !== event.id))
               }
             />
-            <div className="grid gap-0.5">
-              <FieldLabel htmlFor={`${id}-${event.id}`} className="font-normal">
+            <div className="grid min-w-0 flex-1 gap-0.5">
+              <FieldLabel htmlFor={`${id}-${event.id}`} className="w-full flex-wrap gap-x-1.5 gap-y-0.5 font-normal">
                 {event.label}
-                <code className="ml-1.5 rounded bg-muted px-1 font-mono text-[10px] text-muted-foreground">
+                <code className="max-w-full rounded bg-muted px-1 font-mono text-[10px] break-all text-muted-foreground">
                   {event.id}
                 </code>
               </FieldLabel>

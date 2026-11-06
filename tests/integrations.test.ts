@@ -5,7 +5,8 @@ import { randomBytes } from "node:crypto";
 process.env.INTEGRATIONS_ENCRYPTION_KEY = randomBytes(32).toString("base64");
 process.env.BETTER_AUTH_SECRET = "test-secret-for-state-signing";
 
-import { emitIntegrationEvent } from "../lib/integration-events";
+import { MESSAGE_TEXT_MAX, defaultIntegrationEvents, emitIntegrationEvent } from "../lib/integration-events";
+import { ingestMessage } from "../lib/evolution-ingestion";
 import {
   DISABLE_AFTER_FAILURES,
   MAX_DELIVERY_ATTEMPTS,
@@ -186,6 +187,34 @@ test("integrations", { timeout: 180000 }, async (t) => {
       assert.equal(delivery.lastStatus, 204);
     });
 
+    await t.test("a worker with another encryption key says so and keeps retrying", async () => {
+      await sendTestEvent(prisma, { ...admin, endpointId: created.id });
+      const job = await claimDelivery(prisma);
+      assert.ok(job);
+      const appKey = process.env.INTEGRATIONS_ENCRYPTION_KEY;
+      // Constaté en préproduction : « Erreur inattendue » sans code HTTP.
+      process.env.INTEGRATIONS_ENCRYPTION_KEY = randomBytes(32).toString("base64");
+      let sent = false;
+      try {
+        await runDelivery(prisma, job, {
+          webhook: async () => {
+            sent = true;
+            return { status: 204 };
+          },
+          sheets: async () => ({ status: 200 }),
+        });
+      } finally {
+        process.env.INTEGRATIONS_ENCRYPTION_KEY = appKey;
+      }
+      assert.equal(sent, false);
+      const delivery = await prisma.integrationDelivery.findUniqueOrThrow({ where: { id: job.id } });
+      assert.equal(delivery.state, "QUEUED");
+      assert.match(delivery.lastError ?? "", /clé de chiffrement du serveur d’envoi diffère/);
+      // Remise à zéro pour le test suivant.
+      await prisma.integrationDelivery.delete({ where: { id: job.id } });
+      await prisma.integrationEndpoint.update({ where: { id: created.id }, data: { consecutiveFailures: 0 } });
+    });
+
     await t.test("failures retry with backoff, then fail and disable the endpoint", async () => {
       await sendTestEvent(prisma, { ...admin, endpointId: created.id });
       const failing: DeliveryTransport = {
@@ -305,6 +334,62 @@ test("integrations", { timeout: 180000 }, async (t) => {
         createWebhook(prisma, { ...admin, name: "Trop", url: "https://hook.example.com/x", events: ["contact.qualified"] }),
         /au maximum/,
       );
+    });
+
+    await t.test("a first message emits contact.created, then every client message emits message.received", async () => {
+      const inbox = await createProject(prisma, { plan: "business" });
+      await addMember(prisma, inbox.id, owner.id, "OWNER");
+      const endpoint = await createWebhook(prisma, {
+        projectId: inbox.id,
+        userId: owner.id,
+        name: "Boîte",
+        url: "https://hook.example.com/inbox",
+        events: ["contact.created", "message.received"],
+      });
+      const raw = {
+        key: { id: "first", fromMe: false, remoteJid: "24107000000@s.whatsapp.net" },
+        pushName: "Awa",
+        message: { imageMessage: { caption: "x".repeat(MESSAGE_TEXT_MAX + 50), url: "https://mmg.whatsapp.net/secret" } },
+      };
+      const ingest = (message: unknown) =>
+        prisma.$transaction(async (tx) => {
+          await tx.$queryRaw`SELECT id FROM project WHERE id = ${inbox.id} FOR UPDATE`;
+          await ingestMessage(tx, inbox.id, message);
+        });
+      await ingest(raw);
+      await ingest(raw); // Webhook rejoué : aucun doublon.
+      await ingest({ ...raw, key: { ...raw.key, id: "second" }, message: { audioMessage: {} } });
+      const deliveries = await prisma.integrationDelivery.findMany({
+        where: { endpointId: endpoint.id },
+        orderBy: { createdAt: "asc" },
+      });
+      assert.deepEqual(
+        deliveries.map((delivery) => delivery.event).sort(),
+        ["contact.created", "message.received", "message.received"],
+      );
+      const received = deliveries.filter((delivery) => delivery.event === "message.received");
+      const data = received.map((delivery) => (delivery.payload as { data: { message: { text: string | null; type: string }; contact: { phone: string } } }).data);
+      const image = data.find((item) => item.message.type === "IMAGE");
+      assert.equal(image?.message.text?.length, MESSAGE_TEXT_MAX);
+      assert.equal(image?.contact.phone, "24107000000");
+      assert.equal(data.find((item) => item.message.type === "AUDIO")?.message.text, null);
+      assert.doesNotMatch(JSON.stringify(deliveries.map((delivery) => delivery.payload)), /mmg\.whatsapp\.net/);
+
+      // Le texte ne reste pas dans la file après livraison.
+      let job;
+      while ((job = await claimDelivery(prisma))) {
+        await runDelivery(prisma, job, { webhook: async () => ({ status: 200 }) } as unknown as DeliveryTransport);
+      }
+      const delivered = await prisma.integrationDelivery.findUniqueOrThrow({ where: { id: received[0].id } });
+      assert.equal(delivered.state, "DELIVERED");
+      assert.deepEqual(delivered.payload, {});
+      assert.ok(Object.keys((await prisma.integrationDelivery.findFirstOrThrow({ where: { endpointId: endpoint.id, event: "contact.created" } })).payload as object).length);
+    });
+
+    await t.test("message.received stays opt-in for connections subscribed by default", () => {
+      const ids = defaultIntegrationEvents("business").map((event) => event.id as string);
+      assert.ok(ids.includes("contact.created"));
+      assert.ok(!ids.includes("message.received"));
     });
   });
 });

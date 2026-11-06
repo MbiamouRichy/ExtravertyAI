@@ -180,31 +180,42 @@ export function Improvements({
 
   return (
     <div className="space-y-8">
-      <dl className="grid grid-cols-3 gap-px overflow-hidden rounded-2xl border bg-border">
-        {[
-          { label: "Réponses approuvées", value: data.ratings.up, icon: ThumbsUp },
-          { label: "Réponses à revoir", value: data.ratings.down, icon: ThumbsDown },
-          {
-            label: "Satisfaction de l’équipe",
-            value: total ? `${Math.round((data.ratings.up / total) * 100)} %` : "—",
-            icon: null,
-          },
-        ].map((stat) => (
-          <div key={stat.label} className="flex flex-col-reverse gap-1 bg-card p-4">
-            <dt className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              {stat.icon && <stat.icon aria-hidden="true" className="size-3.5" />}
-              {stat.label} · 30 j
-            </dt>
-            <dd className="font-heading text-2xl font-bold tracking-tight tabular-nums">{stat.value}</dd>
-          </div>
-        ))}
-      </dl>
+      {/* Carte étroite : une ligne par chiffre (libellé à gauche, valeur à
+          droite) ; dès 24rem, trois colonnes. */}
+      <div className="@container">
+        <dl className="grid grid-cols-1 gap-px overflow-hidden rounded-2xl border bg-border @sm:grid-cols-3">
+          {[
+            { label: "Approuvées", value: data.ratings.up, icon: ThumbsUp },
+            { label: "À revoir", value: data.ratings.down, icon: ThumbsDown },
+            {
+              label: "Satisfaction",
+              value: total ? `${Math.round((data.ratings.up / total) * 100)} %` : "—",
+              icon: null,
+            },
+          ].map((stat) => (
+            <div
+              key={stat.label}
+              className="flex min-w-0 items-center justify-between gap-3 bg-card px-4 py-3 @sm:flex-col-reverse @sm:items-start @sm:justify-end @sm:gap-1 @sm:p-4"
+            >
+              <dt className="min-w-0 text-xs text-muted-foreground">
+                {stat.icon && <stat.icon aria-hidden="true" className="mr-1.5 inline size-3.5 align-text-bottom" />}
+                {stat.label}
+                <span className="@sm:hidden @2xl:inline"> · 30 j</span>
+              </dt>
+              <dd className="shrink-0 font-heading text-xl font-bold tracking-tight tabular-nums @sm:text-2xl">{stat.value}</dd>
+            </div>
+          ))}
+        </dl>
+      </div>
 
       <section aria-labelledby="improve-gaps">
-        <h2 id="improve-gaps" className="mb-3 flex items-center gap-2 text-sm font-semibold tracking-normal">
-          <CircleHelp aria-hidden="true" className="size-4" />
-          Questions sans réponse
-          <span className="font-mono text-xs font-normal text-muted-foreground">· {gaps.length}</span>
+        <h2 id="improve-gaps" className="mb-3 flex items-start gap-2 text-sm font-semibold tracking-normal">
+          <CircleHelp aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+          <span className="min-w-0 flex-1">Questions sans réponse</span>
+          <span className="shrink-0 rounded-full border px-2 font-mono text-xs font-normal tabular-nums text-muted-foreground">
+            <span className="sr-only">Nombre : </span>
+            {gaps.length}
+          </span>
         </h2>
         <p className="mb-3 text-sm text-muted-foreground">
           L’assistant a signalé qu’il lui manquait une information pour répondre.
@@ -213,7 +224,7 @@ export function Improvements({
         {gaps.length ? (
           <ul className="divide-y rounded-2xl border bg-card">
             {gaps.map((gap) => (
-              <li key={gap.id} className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center">
+              <li key={gap.id} className="flex flex-col gap-3 p-4 wrap-anywhere sm:flex-row sm:items-center">
                 <div className="min-w-0 flex-1">
                   <p className="text-sm">« {gap.question} »</p>
                   <p className="mt-1 text-xs text-muted-foreground">
@@ -253,15 +264,18 @@ export function Improvements({
       </section>
 
       <section aria-labelledby="improve-corrections">
-        <h2 id="improve-corrections" className="mb-3 flex items-center gap-2 text-sm font-semibold tracking-normal">
-          <MessageSquareWarning aria-hidden="true" className="size-4" />
-          Corrections proposées par l’équipe
-          <span className="font-mono text-xs font-normal text-muted-foreground">· {corrections.length}</span>
+        <h2 id="improve-corrections" className="mb-3 flex items-start gap-2 text-sm font-semibold tracking-normal">
+          <MessageSquareWarning aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+          <span className="min-w-0 flex-1">Corrections proposées par l’équipe</span>
+          <span className="shrink-0 rounded-full border px-2 font-mono text-xs font-normal tabular-nums text-muted-foreground">
+            <span className="sr-only">Nombre : </span>
+            {corrections.length}
+          </span>
         </h2>
         {corrections.length ? (
           <ul className="space-y-3">
             {corrections.map((item) => (
-              <li key={item.id} className="rounded-2xl border bg-card p-4">
+              <li key={item.id} className="rounded-2xl border bg-card p-4 wrap-anywhere">
                 <p className="text-xs text-muted-foreground">
                   {item.author} · conversation avec {item.contactName} · {date.format(new Date(item.updatedAt))}
                 </p>
@@ -297,8 +311,8 @@ export function Improvements({
           </ul>
         ) : (
           <p className="rounded-2xl border border-dashed p-6 text-center text-sm text-muted-foreground">
-            Aucune correction en attente. Dans la messagerie, cliquez sur 👎 sous
-            une réponse de l’IA pour proposer une meilleure formulation.
+            Aucune correction en attente. Les corrections des membres sans accès à
+            l’Assistant IA arrivent ici pour validation.
           </p>
         )}
       </section>

@@ -14,7 +14,6 @@ import {
   Send,
   ShieldCheck,
   Trash2,
-  Users,
 } from "lucide-react";
 
 import {
@@ -293,14 +292,14 @@ export function BroadcastComposer({
     <form
       noValidate
       onSubmit={form.handleSubmit(review)}
-      className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start"
+      className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start"
     >
-      <div className="space-y-6">
-        <section aria-labelledby={`${id}-message`} className="rounded-2xl border bg-card p-4 sm:p-6">
-          <h2 id={`${id}-message`} className="font-heading text-lg font-semibold tracking-tight">
-            1. Le message
+      <div className="min-w-0 divide-y rounded-xl border bg-card">
+        <section aria-labelledby={`${id}-message`} className="p-4 sm:p-5">
+          <h2 id={`${id}-message`} className="text-sm font-medium">
+            Contenu
           </h2>
-          <FieldGroup className="mt-5 gap-5">
+          <FieldGroup className="mt-4 gap-4">
             <Controller
               name="name"
               control={form.control}
@@ -328,7 +327,7 @@ export function BroadcastComposer({
                 <Field data-invalid={fieldState.invalid}>
                   <div className="flex flex-wrap items-end justify-between gap-2">
                     <FieldLabel htmlFor={`${id}-content`}>Message</FieldLabel>
-                    <Button type="button" size="sm" variant="outline" onClick={insertVariable}>
+                    <Button type="button" size="xs" variant="ghost" onClick={insertVariable}>
                       <Braces data-icon="inline-start" />
                       Insérer le prénom
                     </Button>
@@ -340,7 +339,7 @@ export function BroadcastComposer({
                       contentRef.current = element;
                     }}
                     id={`${id}-content`}
-                    rows={7}
+                    rows={5}
                     maxLength={BROADCAST_LIMITS.contentMax}
                     placeholder={`Bonjour ${NAME_VARIABLE}, profitez de -20 % sur toute la boutique ce week-end !`}
                     aria-invalid={fieldState.invalid}
@@ -385,7 +384,7 @@ export function BroadcastComposer({
                 id={`${id}-image`}
                 type="file"
                 accept={IMAGE_TYPES.join(",")}
-                className="sr-only"
+                className="sr-only max-w-px"
                 onChange={(event) => {
                   const file = event.target.files?.[0];
                   event.target.value = "";
@@ -422,14 +421,14 @@ export function BroadcastComposer({
           </FieldGroup>
         </section>
 
-        <section aria-labelledby={`${id}-audience`} className="rounded-2xl border bg-card p-4 sm:p-6">
-          <h2 id={`${id}-audience`} className="font-heading text-lg font-semibold tracking-tight">
-            2. Les destinataires
+        <section aria-labelledby={`${id}-audience`} className="p-4 sm:p-5">
+          <h2 id={`${id}-audience`} className="text-sm font-medium">
+            Ciblage
           </h2>
-          <p className="mt-1 text-sm text-muted-foreground">
+          <p className="mt-1 text-xs text-muted-foreground">
             Uniquement des contacts qui vous ont déjà écrit sur WhatsApp. Ceux qui ont répondu STOP sont toujours exclus.
           </p>
-          <FieldGroup className="mt-5 gap-6">
+          <FieldGroup className="mt-4 gap-4">
             <Controller
               name="tagIds"
               control={form.control}
@@ -447,7 +446,7 @@ export function BroadcastComposer({
                           <FieldLabel
                             key={tag.id}
                             htmlFor={`${id}-tag-${tag.id}`}
-                            className="w-auto! cursor-pointer gap-2 rounded-lg border px-3 py-2 font-normal has-data-[state=checked]:border-primary has-data-[state=checked]:bg-muted/50"
+                            className="w-auto! cursor-pointer gap-2 rounded-md border px-2.5 py-1.5 font-normal has-data-[state=checked]:border-primary has-data-[state=checked]:bg-muted/50"
                           >
                             <Checkbox
                               id={`${id}-tag-${tag.id}`}
@@ -482,7 +481,7 @@ export function BroadcastComposer({
                       <FieldLabel
                         key={stage.id}
                         htmlFor={`${id}-stage-${stage.id}`}
-                        className="w-auto! cursor-pointer gap-2 rounded-lg border px-3 py-2 font-normal has-data-[state=checked]:border-primary has-data-[state=checked]:bg-muted/50"
+                        className="w-auto! cursor-pointer gap-2 rounded-md border px-2.5 py-1.5 font-normal has-data-[state=checked]:border-primary has-data-[state=checked]:bg-muted/50"
                       >
                         <Checkbox
                           id={`${id}-stage-${stage.id}`}
@@ -524,11 +523,11 @@ export function BroadcastComposer({
           </FieldGroup>
         </section>
 
-        <section aria-labelledby={`${id}-schedule`} className="rounded-2xl border bg-card p-4 sm:p-6">
-          <h2 id={`${id}-schedule`} className="font-heading text-lg font-semibold tracking-tight">
-            3. L’envoi
+        <section aria-labelledby={`${id}-schedule`} className="p-4 sm:p-5">
+          <h2 id={`${id}-schedule`} className="text-sm font-medium">
+            Envoi
           </h2>
-          <FieldGroup className="mt-5 gap-5">
+          <FieldGroup className="mt-4 gap-4">
             <Controller
               name="when"
               control={form.control}
@@ -548,7 +547,7 @@ export function BroadcastComposer({
                       <FieldLabel
                         key={option.value}
                         htmlFor={`${id}-when-${option.value}`}
-                        className="w-full! cursor-pointer items-start gap-3 rounded-xl border p-3 font-normal has-data-[state=checked]:border-primary has-data-[state=checked]:bg-muted/50"
+                        className="w-full! cursor-pointer items-start gap-3 rounded-lg border p-3 font-normal has-data-[state=checked]:border-primary has-data-[state=checked]:bg-muted/50"
                       >
                         <RadioGroupItem id={`${id}-when-${option.value}`} value={option.value} className="mt-0.5" />
                         <span className="min-w-0">
@@ -593,12 +592,10 @@ export function BroadcastComposer({
         </section>
       </div>
 
-      <aside className="space-y-4 lg:sticky lg:top-20">
-        <section aria-label="Aperçu" className="rounded-2xl border bg-muted/40 p-4">
-          <p className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
-            Aperçu · pour « Aminata »
-          </p>
-          <div className="mt-3 ml-auto max-w-[92%] overflow-hidden rounded-2xl rounded-tr-sm bg-card shadow-sm">
+      <aside className="flex min-w-0 flex-col gap-4 lg:sticky lg:top-20">
+        <section aria-label="Aperçu" className="rounded-xl border bg-card p-4">
+          <p className="text-xs text-muted-foreground">Aperçu · pour « Aminata »</p>
+          <div className="mt-3 ml-auto max-w-[92%] overflow-hidden rounded-xl rounded-tr-sm bg-muted">
             {image.state !== "none" && (
               // eslint-disable-next-line @next/next/no-img-element -- local object URL preview
               <img src={image.preview} alt="" className="max-h-56 w-full object-cover" />
@@ -611,12 +608,11 @@ export function BroadcastComposer({
           </div>
         </section>
 
-        <section aria-labelledby={`${id}-summary`} className="rounded-2xl border bg-card p-4">
-          <h2 id={`${id}-summary`} className="flex items-center gap-2 text-sm font-semibold">
-            <Users aria-hidden="true" className="size-4" />
+        <section aria-labelledby={`${id}-summary`} className="rounded-xl border bg-card p-4 lg:order-first">
+          <h2 id={`${id}-summary`} className="text-xs font-normal text-muted-foreground">
             Destinataires
           </h2>
-          <p aria-live="polite" className="mt-2 font-heading text-3xl font-bold tabular-nums">
+          <p aria-live="polite" className="mt-1 text-2xl font-semibold tracking-tight tabular-nums">
             {estimate.state === "loading" ? (
               <Loader2 aria-label="Calcul en cours" className="size-6 animate-spin motion-reduce:animate-none" />
             ) : count !== null ? (
@@ -631,7 +627,7 @@ export function BroadcastComposer({
               {number(estimate.optedOut)} désinscrit{estimate.optedOut > 1 ? "s" : ""} exclu{estimate.optedOut > 1 ? "s" : ""}.
             </p>
           )}
-          <ul className="mt-3 space-y-1.5 text-xs text-muted-foreground">
+          <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
             <li>Au plus {number(usage.recipientsLimit)} contacts par diffusion.</li>
             <li>{number(monthlyLeft)} messages de diffusion restants ce mois-ci.</li>
             {quotaLeft !== null && <li>{number(quotaLeft)} messages restants sur votre quota.</li>}

@@ -28,12 +28,13 @@ export function AppBreadcrumbs() {
 	}
 
 	return (
-		<Breadcrumb>
-			<BreadcrumbList>
-				<BreadcrumbItem>
-					<BreadcrumbPage className="flex items-center truncate gap-2 [&>svg]:size-3.5">
+		<Breadcrumb className="min-w-0">
+			<BreadcrumbList className="flex-nowrap">
+				<BreadcrumbItem className="min-w-0">
+					<BreadcrumbPage className="flex min-w-0 items-center gap-2 [&>svg]:size-3.5 [&>svg]:shrink-0">
 						{page.icon}
-						{page.title}
+						{/* Très petit écran : l’icône seule, le titre reste lu par les lecteurs d’écran. */}
+						<span className="truncate max-[359px]:sr-only">{page.title}</span>
 					</BreadcrumbPage>
 				</BreadcrumbItem>
 			</BreadcrumbList>

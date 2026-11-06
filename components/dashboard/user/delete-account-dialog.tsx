@@ -138,14 +138,14 @@ export function DeleteAccountDialog({
       <ReauthButton
         callbackUrl="/projects/user"
         label="Se reconnecter pour supprimer"
-        className="shrink-0 whitespace-nowrap"
+        className="h-auto min-h-10 w-full shrink-0 whitespace-normal text-balance sm:min-h-9 sm:w-auto sm:whitespace-nowrap"
       />
     );
 
   return (
     <AlertDialog open={open} onOpenChange={handleOpenChange}>
       <AlertDialogTrigger asChild>
-        <Button variant="destructive" className="whitespace-nowrap shrink-0">
+        <Button variant="destructive" className="min-h-10 w-full shrink-0 whitespace-nowrap sm:min-h-9 sm:w-auto">
           <Trash2 aria-hidden />
           Supprimer mon compte
         </Button>

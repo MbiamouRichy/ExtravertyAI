@@ -51,11 +51,31 @@ export function billingStatusLabel(status: string) {
         incomplete_expired: "Inscription expirée",
         paused: "Suspendu",
         paid: "Payée",
+        pending: "En attente",
+        refunded: "Remboursée",
+        partially_refunded: "Remboursée en partie",
         open: "À payer",
         draft: "Brouillon",
         void: "Annulée",
         uncollectible: "Irrécouvrable",
       } as Record<string, string>
     )[status] || "À vérifier"
+  );
+}
+
+/**
+ * Projet créé dont le Checkout n'a jamais abouti : aucun client ni abonnement
+ * Stripe, statut resté « inactive ». Un projet actif sans Stripe (ajouté à la
+ * main) n'est jamais concerné, pour ne pas facturer deux fois.
+ */
+export function needsInitialCheckout(project: {
+  status: string;
+  stripeCustomerId: string | null;
+  stripeSubscriptionId: string | null;
+}) {
+  return (
+    project.status === "inactive" &&
+    !project.stripeCustomerId &&
+    !project.stripeSubscriptionId
   );
 }

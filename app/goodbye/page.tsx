@@ -1,20 +1,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import {
-  ArrowRight,
-  Check,
-  CircleCheck,
-  CreditCard,
-  FolderX,
-  LogOut,
-  MessageCircleOff,
-  Users,
-} from "lucide-react";
 import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
+import { ArrowRight, Check } from "lucide-react";
 import { LogoIcon } from "@/components/logo";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
-import { DELETION_FEEDBACK_COOKIE } from "@/lib/account-deletion-records";
+import {
+  DELETION_FEEDBACK_COOKIE,
+  findDeletionFeedbackSlot,
+} from "@/lib/account-deletion-records";
 import { ExitSurvey } from "./exit-survey";
 
 export const metadata: Metadata = {
@@ -26,141 +20,103 @@ export const metadata: Metadata = {
 // Mirrors what the deletion flow actually does (lib/auth.ts before-hook →
 // lib/project-deletion.ts, then Prisma cascades on the user row).
 const completed = [
-  {
-    icon: FolderX,
-    title: "Projets supprimés",
-    description:
-      "Les projets dont vous étiez propriétaire, leurs conversations, contacts, médias et réglages d’agent ont été effacés.",
-  },
-  {
-    icon: CreditCard,
-    title: "Abonnements arrêtés",
-    description:
-      "Les abonnements liés à ces projets ont été annulés et vos données de facturation effacées chez Stripe. Aucun nouveau prélèvement ne sera effectué.",
-  },
-  {
-    icon: MessageCircleOff,
-    title: "WhatsApp déconnecté",
-    description:
-      "Les numéros WhatsApp reliés à vos projets ne sont plus connectés à ExtravertyAI.",
-  },
-  {
-    icon: Users,
-    title: "Accès retirés",
-    description:
-      "Vos accès aux projets d’autres équipes et toutes vos sessions ont été supprimés.",
-  },
+  "Projets, conversations, contacts et médias effacés",
+  "Abonnements annulés, plus aucun prélèvement",
+  "Numéros WhatsApp déconnectés",
+  "Accès aux équipes et sessions retirés",
 ] as const;
 
-export default async function GoodbyePage() {
-  const canAnswerSurvey = (await cookies()).has(DELETION_FEEDBACK_COOKIE);
-  return (
-    <div className="relative flex min-h-dvh flex-col bg-background">
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-x-0 top-0 h-80 bg-linear-to-b from-muted/60 to-transparent"
-      />
+async function deletionSlot() {
+  const token = (await cookies()).get(DELETION_FEEDBACK_COOKIE)?.value;
+  try {
+    return await findDeletionFeedbackSlot(token);
+  } catch (error) {
+    // Fail closed: without proof of a deletion, the page stays out of reach.
+    console.error("GOODBYE_SLOT_LOOKUP_FAILED", error);
+    return null;
+  }
+}
 
-      <header className="relative mx-auto flex w-full max-w-5xl items-center px-4 py-5 sm:px-6">
+export default async function GoodbyePage() {
+  // Only the browser that has just deleted an account holds a live one-time
+  // token (httpOnly cookie, 24 h). Visiting /goodbye otherwise leads home, so
+  // nobody can stage a fake "account deleted" screen.
+  const slot = await deletionSlot();
+  if (!slot) redirect("/");
+
+  return (
+    <div className="flex min-h-dvh flex-col bg-background text-foreground">
+      <header className="mx-auto flex w-full max-w-5xl items-center px-4 py-5 sm:px-6">
         <Link
           href="/"
           aria-label="ExtravertyAI — accueil"
-          className="rounded-sm focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
+          className="rounded-sm outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
         >
           <LogoIcon LogoClassName="w-6" className="gap-1" />
         </Link>
       </header>
 
-      <main className="relative mx-auto flex w-full max-w-xl flex-1 flex-col justify-center px-4 pb-16 pt-6 sm:px-6 animate-in fade-in slide-in-from-bottom-4 duration-500 fill-mode-both">
-        <div className="flex flex-col items-center text-center">
-          <div className="mb-6 flex size-14 items-center justify-center rounded-2xl border bg-card shadow-sm">
-            <CircleCheck className="size-7 text-foreground" aria-hidden />
-          </div>
-          <p className="mb-3 inline-flex items-center gap-2 rounded-full border bg-card px-3 py-1 text-xs font-medium text-muted-foreground">
-            <LogOut className="size-3.5" aria-hidden />
-            Vous êtes déconnecté
-          </p>
-          <h1 className="text-3xl! leading-tight! tracking-tight! text-balance sm:text-4xl!">
-            Votre compte a bien été supprimé
+      <main className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center px-4 pb-16 pt-2 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-500">
+        <div className="flex items-center gap-3">
+          <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
+            <Check aria-hidden className="size-4" strokeWidth={2.5} />
+          </span>
+          <h1 className="text-2xl! leading-tight! tracking-tight! sm:text-3xl!">
+            Compte supprimé
           </h1>
-          <p className="mt-4 max-w-md text-pretty text-muted-foreground">
-            Merci d’avoir confié vos conversations WhatsApp à ExtravertyAI.
-            Voici ce qui a été fait.
-          </p>
         </div>
+        <p className="mt-3 text-pretty text-sm text-muted-foreground">
+          Vos données ont été effacées définitivement. Merci d’avoir fait
+          confiance à ExtravertyAI.
+        </p>
 
-        <section
-          aria-labelledby="goodbye-summary"
-          className="mt-10 rounded-xl border bg-card text-card-foreground shadow-sm"
-        >
-          <h2 id="goodbye-summary" className="sr-only">
-            Récapitulatif de la suppression
+        {/* First thing after the confirmation: the one question we ask. */}
+        <ExitSurvey answered={slot.answered} className="mt-8" />
+
+        <section aria-labelledby="goodbye-summary" className="mt-10">
+          <h2
+            id="goodbye-summary"
+            className="font-sans! text-xs! font-medium! uppercase tracking-widest! text-muted-foreground"
+          >
+            Ce qui a été fait
           </h2>
-          <ul className="divide-y">
-            {completed.map(({ icon: Icon, title, description }) => (
-              <li key={title} className="flex gap-4 p-4 sm:p-5">
-                <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-foreground">
-                  <Icon className="size-4.5" aria-hidden />
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="flex items-center gap-2 font-medium leading-snug">
-                    {title}
-                    <Check
-                      className="size-4 text-muted-foreground"
-                      aria-label="terminé"
-                    />
-                  </p>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    {description}
-                  </p>
-                </div>
+          <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
+            {completed.map((item) => (
+              <li key={item} className="flex gap-2.5">
+                <Check aria-hidden className="mt-0.5 size-4 shrink-0" />
+                {item}
               </li>
             ))}
           </ul>
+          <p className="mt-3 text-xs text-muted-foreground">
+            Vos données de facturation ont aussi été effacées chez notre
+            prestataire de paiement, qui ne garde que les justificatifs déjà
+            émis, comme l’exige la loi.
+          </p>
         </section>
 
-        <div className="mt-6 space-y-2 px-1 text-sm text-muted-foreground">
-          <p>
-            Cette suppression est définitive&nbsp;: vos anciennes données ne
-            peuvent pas être restaurées. Votre adresse e-mail est libérée et
-            peut servir à créer un nouveau compte.
-          </p>
-          <p>
-            Les justificatifs de paiement déjà émis restent conservés par notre
-            prestataire de paiement, conformément aux obligations légales.
-          </p>
-        </div>
-
-        {/* Shown only right after a real deletion (one-time cookie). */}
-        {canAnswerSurvey && (
-          <div className="mt-8">
-            <ExitSurvey />
-          </div>
-        )}
-
-        <Separator className="my-8" />
-
-        <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-center">
-          <Button asChild variant="outline" size="lg" className="px-5">
-            <Link href="/sign-up">Créer un nouveau compte</Link>
-          </Button>
-          <Button asChild size="lg" className="group px-5">
+        <div className="mt-10 flex flex-col gap-2 border-t pt-6 sm:flex-row">
+          <Button asChild variant="outline" size="lg" className="group sm:flex-1">
             <Link href="/">
               Retour à l’accueil
               <ArrowRight
                 data-icon="inline-end"
-                className="transition-transform group-hover:translate-x-0.5"
                 aria-hidden
+                className="motion-safe:transition-transform motion-safe:group-hover:translate-x-0.5"
               />
             </Link>
           </Button>
+          <Button asChild variant="ghost" size="lg" className="sm:flex-1">
+            <Link href="/sign-up">Créer un nouveau compte</Link>
+          </Button>
         </div>
 
-        <p className="mt-8 text-center text-sm text-muted-foreground">
-          Une question sur vos données&nbsp;?{" "}
+        <p className="mt-6 text-xs text-muted-foreground">
+          Votre adresse e-mail est de nouveau libre. Une question sur vos
+          données&nbsp;?{" "}
           <Link
             href="/contact"
-            className="font-medium text-foreground underline-offset-4 hover:underline focus-visible:underline"
+            className="font-medium text-foreground underline underline-offset-4 hover:no-underline"
           >
             Écrivez-nous
           </Link>

@@ -2,89 +2,55 @@
 
 import prisma from "@/lib/prisma";
 import { getSession } from "@/lib/auth-server"; // Ton helper Better Auth
+import {
+  acceptInvitation,
+  declineInvitation,
+  type InvitationFailure,
+} from "@/lib/project-invitations";
 
-// 1. Accepter l'invitation (Une fois le compte créé ou si l'utilisateur est déjà logué)
+const failures: Record<InvitationFailure, string> = {
+  NOT_FOUND: "Invitation introuvable ou déjà utilisée.",
+  EXPIRED: "Cette invitation a expiré.",
+  WRONG_ACCOUNT: "L'email de votre compte ne correspond pas à l'invitation.",
+  REVOKED: "Cette invitation n'est plus valable. Demandez-en une nouvelle.",
+};
+
+// Appelée par un clic explicite de l'invité, jamais à l'ouverture du lien.
 export async function consumeInvitation(token: string) {
   try {
-    // Jeton émis par crypto.randomBytes(32) en hexadécimal.
-    if (typeof token !== "string" || !/^[a-f0-9]{64}$/.test(token)) {
-      return {
-        success: false,
-        error: "Invitation introuvable ou déjà utilisée.",
-      };
-    }
     const session = await getSession();
     if (!session?.user?.id) {
-      return { success: false, error: "Vous devez être authentifié." };
+      return { success: false as const, error: "Vous devez être authentifié." };
     }
-
-    // Récupérer l'invitation
-    const invitation = await prisma.invitation.findUnique({
-      where: { token },
-      include: { project: true },
-    });
-
-    if (!invitation) {
-      return {
-        success: false,
-        error: "Invitation introuvable ou déjà utilisée.",
-      };
-    }
-
-    if (invitation.expiresAt < new Date()) {
-      return { success: false, error: "Cette invitation a expiré." };
-    }
-
-    // SÉCURITÉ : Vérifier que l'email de session correspond à l'email invité
-    if (
-      session.user.email.trim().toLowerCase() !==
-      invitation.email.trim().toLowerCase()
-    ) {
-      return {
-        success: false,
-        error: "L'email de votre compte ne correspond pas à l'invitation.",
-      };
-    }
-
-    // TRANSACTION : Ajouter au projet ET supprimer l'invitation
-    await prisma.$transaction(async (tx) => {
-      // 1. Ajouter le membre. Une invitation ne crée jamais de propriétaire
-      // (transfert dédié) et ne rétrograde pas un propriétaire déjà membre.
-      const role = invitation.role === "OWNER" ? "ADMIN" : invitation.role;
-      const key = {
-        userId_projectId: {
-          userId: session.user.id,
-          projectId: invitation.projectId,
-        },
-      };
-      const existing = await tx.projectMembership.findUnique({
-        where: key,
-        select: { role: true },
-      });
-      if (!existing) {
-        await tx.projectMembership.create({
-          data: { userId: session.user.id, projectId: invitation.projectId, role },
-        });
-      } else if (existing.role !== "OWNER") {
-        await tx.projectMembership.update({ where: key, data: { role } });
-      }
-
-      // 2. Supprimer l'invitation
-      await tx.invitation.delete({
-        where: { id: invitation.id },
-      });
-    });
-
+    const result = await acceptInvitation(prisma, session.user, token);
+    if (!result.ok)
+      return { success: false as const, error: failures[result.reason] };
     return {
-      success: true,
-      projectId: invitation.projectId,
-      message: `Bienvenue dans le projet ${invitation.project.name} !`,
+      success: true as const,
+      projectId: result.projectId,
+      message: `Bienvenue dans le projet ${result.projectName} !`,
     };
   } catch (error) {
     console.error("Erreur consumeInvitation:", error);
     return {
-      success: false,
+      success: false as const,
       error: "Erreur lors de l'acceptation de l'invitation.",
     };
+  }
+}
+
+export async function refuseInvitation(token: string) {
+  try {
+    const session = await getSession();
+    if (!session?.user?.id) {
+      return { success: false, error: "Vous devez être authentifié." };
+    }
+    const declined = await declineInvitation(prisma, session.user, token);
+    return declined
+      ? { success: true }
+      : { success: false, error: failures.NOT_FOUND };
+  } catch (error) {
+    console.error("Erreur refuseInvitation:", error);
+    return { success: false, error: "Impossible de refuser l'invitation." };
   }
 }

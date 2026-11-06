@@ -94,6 +94,15 @@ export async function getBillingAccess(
   return billingAccess(snapshot ?? null, snapshot?.now ?? new Date());
 }
 
+/** Messages consommés sur la période en cours, réservés à qui voit la facturation. */
+export async function getBillingUsage(db: Prisma.TransactionClient, projectId: string) {
+  return db.quotaPeriod.findFirst({
+    where: { projectId, isCurrent: true },
+    orderBy: { startsAt: "desc" },
+    select: { used: true, limit: true },
+  });
+}
+
 export function formatBillingDate(value: Date | string) {
   return new Intl.DateTimeFormat("fr-FR", {
     day: "numeric",

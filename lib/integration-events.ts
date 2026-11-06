@@ -3,6 +3,17 @@ import { planAllows, type GatedFeature } from "./plan-features";
 
 export const INTEGRATION_EVENTS = [
   {
+    id: "contact.created",
+    label: "Nouveau contact",
+    hint: "Une personne apparaît pour la première fois dans vos conversations.",
+  },
+  {
+    id: "message.received",
+    highVolume: true,
+    label: "Nouveau message reçu",
+    hint: "Un client écrit : le texte du message est transmis à cette adresse.",
+  },
+  {
     id: "contact.qualified",
     label: "Prospect qualifié",
     hint: "Instinct IA repère un prospect intéressant.",
@@ -53,6 +64,11 @@ export function integrationEventsForPlan(plan: unknown): IntegrationEvent[] {
     const feature = eventFeature(event);
     return feature === null || planAllows(plan, feature);
   });
+}
+
+/** Abonnements par défaut d’une connexion : un événement par message reste un choix explicite. */
+export function defaultIntegrationEvents(plan: unknown): IntegrationEvent[] {
+  return integrationEventsForPlan(plan).filter((event) => !("highVolume" in event));
 }
 
 export function isIntegrationEventAllowed(plan: unknown, eventId: string): boolean {
@@ -116,6 +132,25 @@ export async function integrationContact(
   };
 }
 
+export const MESSAGE_TEXT_MAX = 4000;
+
+/**
+ * Message fields sent to integrations. Media files stay private: only the type
+ * and the caption leave the application, never a download link.
+ */
+export function integrationMessage(message: {
+  id: string;
+  type: string;
+  createdAt: Date;
+}, text: string) {
+  return {
+    id: message.id,
+    type: message.type,
+    text: text ? text.slice(0, MESSAGE_TEXT_MAX) : null,
+    receivedAt: message.createdAt.toISOString(),
+  };
+}
+
 /**
  * Outbox write, inside the transaction that produced the event: the delivery
  * exists if and only if the change was committed. Delivery happens later in
@@ -125,7 +160,8 @@ export async function emitIntegrationEvent(
   tx: Prisma.TransactionClient,
   projectId: string,
   event: IntegrationEventId,
-  data: Record<string, unknown>,
+  /** Une fonction n’est appelée que si un endpoint écoute : utile sur les chemins fréquents. */
+  data: Record<string, unknown> | (() => Promise<Record<string, unknown>>),
   onlyEndpointId?: string,
 ) {
   const project = await tx.project.findUnique({
@@ -153,12 +189,13 @@ export async function emitIntegrationEvent(
   });
   if (!endpoints.length) return 0;
   const occurredAt = new Date().toISOString();
+  const resolved = typeof data === "function" ? await data() : data;
   await tx.integrationDelivery.createMany({
     data: endpoints.map((endpoint) => ({
       projectId,
       endpointId: endpoint.id,
       event,
-      payload: { event, occurredAt, projectId, data } as Prisma.InputJsonValue,
+      payload: { event, occurredAt, projectId, data: resolved } as Prisma.InputJsonValue,
     })),
   });
   return endpoints.length;

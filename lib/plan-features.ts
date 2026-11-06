@@ -11,6 +11,8 @@ export type PlanFeatures = {
   /** Mémoire de contexte : derniers messages de la conversation lus par l’IA. */
   contextMessages: number;
   sandboxPerDay: number;
+  /** Profondeur d’historique consultable dans Analytics, en jours. */
+  analyticsDays: number;
   pipeline: boolean;
   csat: boolean;
   /** Page Intégrations et Google Sheets. */
@@ -35,6 +37,7 @@ export const PLAN_FEATURES: Record<PlanId, PlanFeatures> = {
     storageMb: 500,
     contextMessages: 20,
     sandboxPerDay: 30,
+    analyticsDays: 30,
     pipeline: false,
     csat: false,
     integrations: true,
@@ -51,6 +54,7 @@ export const PLAN_FEATURES: Record<PlanId, PlanFeatures> = {
     storageMb: 1200,
     contextMessages: 30,
     sandboxPerDay: 100,
+    analyticsDays: 90,
     pipeline: true,
     csat: true,
     integrations: true,
@@ -67,6 +71,7 @@ export const PLAN_FEATURES: Record<PlanId, PlanFeatures> = {
     storageMb: 3000,
     contextMessages: 50,
     sandboxPerDay: 300,
+    analyticsDays: 365,
     pipeline: true,
     csat: true,
     integrations: true,

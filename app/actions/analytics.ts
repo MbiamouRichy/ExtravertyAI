@@ -6,6 +6,7 @@ import { currentProspectClassification } from "@/lib/instinct-classification";
 import { getAnalyticsAccess } from "@/lib/analytics-access";
 import {
   HEATMAP_SLOTS,
+  analyticsPeriodAllowed,
   isAnalyticsPeriod,
   weekdaySlotFor,
 } from "@/lib/analytics";
@@ -50,6 +51,10 @@ export async function getAnalyticsOverview(
   // Les annotations TypeScript ne valident pas les arguments à l'exécution.
   if (!isAnalyticsPeriod(period)) {
     throw new Error("Période invalide.");
+  }
+
+  if (!analyticsPeriodAllowed(period, access.analyticsDays)) {
+    throw new Error("Période non incluse dans votre offre.");
   }
 
   const timeZone = await getUserTimeZone();

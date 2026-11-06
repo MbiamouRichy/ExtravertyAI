@@ -118,7 +118,8 @@ export async function deleteEvolutionInstance(
   // 3. RÉSILIENCE : MISE EN PLACE D'UN TIMEOUT (Startup Standard)
   // Si l'API d'Evolution bug, on ne veut pas bloquer notre serveur indéfiniment.
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 secondes max
+  // Une instance connectée est déconnectée avant d'être supprimée : 15 s max.
+  const timeoutId = setTimeout(() => controller.abort(), 15000);
 
   try {
     const response = await fetch(
@@ -239,6 +240,32 @@ export async function getEvolutionConnectionState(instanceName: string) {
   return typeof data?.instance?.state === "string"
     ? data.instance.state.toLowerCase()
     : null;
+}
+
+/** Identifiant WhatsApp du compte relié à l'instance (ownerJid), s'il est connu. */
+export async function getEvolutionOwnerJid(instanceName: string) {
+  const { EVOLUTION_API_URL, EVOLUTION_API_TOKEN } = getEnvVars();
+  const response = await fetch(
+    `${EVOLUTION_API_URL}/instance/fetchInstances?instanceName=${encodeURIComponent(instanceName.trim())}`,
+    {
+      headers: { apikey: EVOLUTION_API_TOKEN },
+      cache: "no-store",
+      signal: AbortSignal.timeout(8000),
+    },
+  );
+  if (!response.ok) throw new Error(`Erreur réseau (${response.status})`);
+  const data: unknown = await response.json();
+  const first = Array.isArray(data) ? data[0] : data;
+  const record =
+    first && typeof first === "object"
+      ? ((first as Record<string, unknown>).instance ?? first)
+      : null;
+  const jid =
+    record && typeof record === "object"
+      ? ((record as Record<string, unknown>).ownerJid ??
+        (record as Record<string, unknown>).owner)
+      : null;
+  return typeof jid === "string" ? jid : null;
 }
 
 /** Ferme une session en attente (QR affiché) avant une liaison par code. */

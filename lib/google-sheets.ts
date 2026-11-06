@@ -1,6 +1,6 @@
 import { createHmac, randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
 import type { PrismaClient } from "../src/generated/prisma/client";
-import { INTEGRATION_EVENTS, integrationEventsForPlan } from "./integration-events";
+import { INTEGRATION_EVENTS, defaultIntegrationEvents } from "./integration-events";
 import { IntegrationError, MAX_ENDPOINTS, type DeliveryJob } from "./integrations";
 import { requirePlanFeature } from "./plan-features";
 import { requireProjectAdmin } from "./project-settings";
@@ -245,9 +245,12 @@ export function sheetRow(job: Pick<DeliveryJob, "event" | "payload">, timeZone =
           ? `Assignée à ${(data.assignee as { name?: string } | null)?.name ?? "personne"}`
           : job.event === "conversation.resolved"
             ? `Résolue par ${data.resolvedBy ?? "un membre"}`
-            : job.event === "test.ping"
-              ? String(data.message ?? "")
-              : "";
+            : job.event === "message.received"
+              ? ((data.message as { text?: string | null; type?: string } | undefined)?.text ??
+                `[${(data.message as { type?: string } | undefined)?.type ?? "Message"}]`)
+              : job.event === "test.ping"
+                ? String(data.message ?? "")
+                : "";
   return [
     localDateTime(payload.occurredAt ?? new Date().toISOString(), timeZone),
     EVENT_LABELS[job.event] ?? job.event,
@@ -356,7 +359,7 @@ export async function connectGoogleSheets(
         kind: "GOOGLE_SHEETS",
         name: "Google Sheets",
         refreshTokenCiphertext: sealSecret(tokens.refreshToken, id),
-        events: integrationEventsForPlan(locked.plan).map((event) => event.id),
+        events: defaultIntegrationEvents(locked.plan).map((event) => event.id),
         spreadsheetId: sheet.spreadsheetId,
         spreadsheetUrl: sheet.spreadsheetUrl,
         sheetName: sheet.sheetName,

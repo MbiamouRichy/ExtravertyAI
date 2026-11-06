@@ -5,9 +5,11 @@ import { runInNewContext } from "node:vm";
 import ts from "typescript";
 import { z } from "zod";
 import * as permissions from "../lib/project-permissions";
+import * as billingDisplay from "../lib/billing-display";
 import {
   isRecentSession,
   PROJECT_DELETION_SESSION_MAX_AGE_MS,
+  requiresRecentSession,
 } from "../lib/recent-session";
 
 const now = Date.parse("2026-10-11T06:00:00Z");
@@ -35,6 +37,7 @@ function setup({
   member = true,
   invalid = false,
   exported = true,
+  failAt = null as "billing" | "whatsapp" | "media" | null,
 } = {}) {
   const calls: string[] = [];
   const exports: Record<
@@ -72,12 +75,15 @@ function setup({
     },
     "./project-settings": {},
     "@/lib/project-deletion": {
+      ProjectDeletionError,
       deleteProjectResources: async () => {
         calls.push("delete");
+        if (failAt) throw new ProjectDeletionError("Étape interrompue.", failAt);
       },
     },
     "@/lib/billing-access": {},
     "@/lib/project-permissions": permissions,
+    "@/lib/billing-display": billingDisplay,
     "@/lib/project-logo": { projectLogoUrl: () => null },
     "@/lib/contact-export": { contactExportSnapshot: async () => ({ hash: "snapshot" }), verifyExportReceipt: () => exported },
     "@/lib/recent-session": {
@@ -112,6 +118,28 @@ function setup({
       }),
   };
 }
+
+class ProjectDeletionError extends Error {
+  constructor(
+    message: string,
+    readonly step: string,
+  ) {
+    super(message);
+  }
+}
+
+test("an interrupted deletion reports the step left so it can be finished", async () => {
+  for (const failAt of ["billing", "whatsapp", "media"] as const) {
+    const app = setup({ age: 1000, failAt });
+    const result = (await app.remove()) as { success: boolean; code?: string; step?: string; error?: string };
+    assert.equal(result.success, false);
+    assert.equal(result.code, "DELETION_PENDING");
+    assert.equal(result.step, failAt);
+    assert.equal(result.error, "Étape interrompue.");
+    // L'état « en cours de suppression » est rafraîchi pour toute l'application.
+    assert.deepEqual(app.calls, ["delete", "revalidate"]);
+  }
+});
 
 test("a fresh owner can delete with the correct confirmation", async () => {
   const app = setup({ age: 599999 });
@@ -153,3 +181,10 @@ test("missing membership and wrong confirmation have no side effects", async () 
 });
 
 test("project deletion refuses absent, expired or obsolete export proof", async () => { const app = setup({ exported: false }); assert.equal((await app.remove()).code, "EXPORT_REQUIRED"); assert.deepEqual(app.calls, []); });
+
+test("email and password changes demand a recent login, a forgotten password does not", () => {
+  for (const path of ["/change-email", "/change-password", "/set-password", "/delete-user"])
+    assert.equal(requiresRecentSession(path), true);
+  for (const path of ["/reset-password", "/request-password-reset", "/get-session"])
+    assert.equal(requiresRecentSession(path), false);
+});

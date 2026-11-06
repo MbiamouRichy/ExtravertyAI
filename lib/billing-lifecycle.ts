@@ -5,7 +5,9 @@ import type {
   PrismaClient,
 } from "../src/generated/prisma/client";
 import { getBillingAccess, formatBillingDate } from "./billing-access";
+import { syncPolarSubscription } from "./billing-polar";
 import { syncSubscription } from "./billing-quota";
+import { getPolarSubscription, type PolarSubscription } from "./polar";
 import { BillingEmailTemplate } from "../components/emailTemplate/billingEmailTemplate";
 
 export type BillingEmailConfig = { from: string; origin: string };
@@ -144,6 +146,7 @@ export async function reconcileNextBillingProject(
   prisma: PrismaClient,
   retrieve: RetrieveSubscription,
   config: BillingEmailConfig,
+  retrievePolar: (id: string) => Promise<PolarSubscription> = getPolarSubscription,
 ) {
   const [candidate] = await prisma.$queryRaw<Array<{ id: string }>>`
     WITH candidate AS (
@@ -162,16 +165,22 @@ export async function reconcileNextBillingProject(
   if (!project || project.deletionPending) return candidate.id;
   if (project.stripeSubscriptionId) {
     try {
-      const sub = await retrieve(project.stripeSubscriptionId);
-      // Never invent a newer Stripe event timestamp: preserve the webhook watermark.
+      // Never invent a newer provider event timestamp: preserve the webhook watermark.
+      const args = [
+        project.billingEventCreated,
+        project.id,
+        project.billingRevision,
+      ] as const;
+      const apply =
+        project.billingProvider === "polar"
+          ? await retrievePolar(project.stripeSubscriptionId).then(
+              (sub) => () => syncPolarSubscription(prisma, sub, ...args),
+            )
+          : await retrieve(project.stripeSubscriptionId).then(
+              (sub) => () => syncSubscription(prisma, sub, ...args),
+            );
       try {
-        await syncSubscription(
-          prisma,
-          sub,
-          project.billingEventCreated,
-          project.id,
-          project.billingRevision,
-        );
+        await apply();
       } catch {
         // Stripe answered: do not email from stale state if applying it failed.
         console.error(

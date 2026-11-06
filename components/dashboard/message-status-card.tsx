@@ -41,10 +41,10 @@ export function MessageStatusCard({
           description="Les statuts apparaîtront dès qu’un message sera envoyé par l’IA ou un agent."
         />
       ) : (
-        <div className="space-y-5">
+        <div className="@container space-y-4">
           <div
             aria-hidden="true"
-            className="flex h-3 gap-0.5 overflow-hidden rounded-full bg-muted"
+            className="flex h-2 gap-0.5 overflow-hidden rounded-full bg-muted"
           >
             {statuses
               .filter((item) => item.count > 0)
@@ -59,14 +59,14 @@ export function MessageStatusCard({
               ))}
           </div>
 
-          <ul className="divide-y divide-border/60">
+          <ul className="divide-y divide-border/60 @2xl:grid @2xl:auto-cols-fr @2xl:grid-flow-col @2xl:gap-4 @2xl:divide-y-0">
             {statuses.map(({ status, count }) => {
               const meta = MESSAGE_STATUS_META[status];
 
               return (
                 <li
                   key={status}
-                  className="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0"
+                  className="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0 @2xl:flex-col @2xl:items-start @2xl:justify-start @2xl:gap-1 @2xl:py-0"
                 >
                   <span className="flex items-center gap-2.5 text-sm">
                     <span
@@ -76,12 +76,12 @@ export function MessageStatusCard({
                     {meta.label}
                   </span>
 
-                  <div className="text-right">
-                    <p className="text-sm font-medium tabular-nums">
+                  <div className="text-right @2xl:flex @2xl:items-baseline @2xl:gap-2 @2xl:text-left">
+                    <p className="text-sm font-medium tabular-nums @2xl:text-xl @2xl:font-semibold @2xl:tracking-tight">
                       {count.toLocaleString("fr-FR")}
                     </p>
 
-                    <p className="mt-0.5 text-xs tabular-nums text-muted-foreground">
+                    <p className="mt-0.5 text-xs tabular-nums text-muted-foreground @2xl:mt-0">
                       {formatPctFr((count / total) * 100)}
                     </p>
                   </div>

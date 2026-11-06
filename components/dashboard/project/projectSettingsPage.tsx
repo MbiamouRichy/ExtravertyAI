@@ -56,7 +56,7 @@ const tabs = [
   {
     id: "csat",
     label: "Satisfaction",
-    short: "Satisfaction",
+    short: "Avis",
     hint: "Note du client après résolution",
     icon: Star,
   },
@@ -185,14 +185,14 @@ export default function ProjectSettingsPage({
           </ul>
         </div>
         {/* La personnalité de l’agent vit désormais dans « Assistant IA ». */}
-        <div className="grid grid-cols-2 gap-2 sm:flex">
+        <div className="grid grid-cols-1 gap-2 min-[400px]:grid-cols-2 sm:flex">
           <Button asChild variant="outline">
             <Link href={`/projects/${p.id}/knowledge`}>
               <Bot data-icon="inline-start" />
               Assistant IA
             </Link>
           </Button>
-          <Button asChild variant="outline">
+          <Button asChild>
             <Link href={`/projects/${p.id}/chat`}>
               <MessageSquare data-icon="inline-start" />
               Messagerie
@@ -402,22 +402,26 @@ export default function ProjectSettingsPage({
                   }}
                 />
               </div>
-              <div className="mt-7 grid grid-cols-3 gap-4 border-t pt-6">
-                {[
-                  ["7 jours", p.stats.week],
-                  ["30 jours", p.stats.month],
-                  ["365 jours", p.stats.year],
-                ].map(([label, count]) => (
-                  <div key={label}>
-                    <p className="text-xs text-muted-foreground">{label}</p>
-                    <p className="mt-1 font-heading text-2xl font-bold tabular-nums">
-                      {Number(count).toLocaleString("fr-FR")}
-                    </p>
-                    <p className="mt-1 text-[11px] text-muted-foreground">
-                      messages envoyés
-                    </p>
-                  </div>
-                ))}
+              {/* Chiffres en tête de colonne : ils restent sur la même ligne
+                  même quand une période passe sur deux lignes. */}
+              <div className="mt-7 border-t pt-6">
+                <h3 className="font-sans text-xs font-normal tracking-normal text-muted-foreground">
+                  Messages envoyés
+                </h3>
+                <dl className="mt-3 grid grid-cols-3 gap-4">
+                  {[
+                    ["7 jours", p.stats.week],
+                    ["30 jours", p.stats.month],
+                    ["365 jours", p.stats.year],
+                  ].map(([label, count]) => (
+                    <div key={label} className="flex min-w-0 flex-col-reverse justify-end gap-1">
+                      <dt className="text-xs text-muted-foreground">{label}</dt>
+                      <dd className="font-heading text-2xl font-bold tabular-nums">
+                        {Number(count).toLocaleString("fr-FR")}
+                      </dd>
+                    </div>
+                  ))}
+                </dl>
               </div>
             </section>
           </div>
@@ -464,7 +468,8 @@ export default function ProjectSettingsPage({
                   réservés aux propriétaires et administrateurs, dans la limite
                   de 10 000 contacts par export.
                 </p>
-                <div className="mt-6 grid gap-2 sm:flex sm:flex-wrap sm:gap-3">
+                {/* Libellés sur deux lignes si besoin plutôt que coupés. */}
+                <div className="mt-6 grid grid-cols-1 gap-2 sm:flex sm:flex-wrap sm:gap-3 [&>*]:h-auto [&>*]:min-h-10 [&>*]:whitespace-normal">
                   <Button
                     disabled={!!pending}
                     onClick={() => void download("csv")}
@@ -522,6 +527,8 @@ export default function ProjectSettingsPage({
                           <span>
                             {item.action === "agent.updated"
                               ? "Configuration de l’agent"
+                              : item.action === "agent.activated"
+                                ? "Assistant activé"
                               : item.action === "waiting.enabled"
                                 ? "Temps d’attente des clients affiché"
                                 : item.action === "waiting.disabled"
@@ -534,6 +541,8 @@ export default function ProjectSettingsPage({
                                 ? "Mise en veille de l’IA activée"
                                 : item.action === "ai_quiet.disabled"
                                   ? "Mise en veille de l’IA désactivée"
+                              : item.action === "trial.test_number.updated"
+                                ? "Numéro de test modifié"
                               : item.action === "whatsapp.updated"
                                 ? "Réglages WhatsApp"
                                 : item.action === "project.paused"
@@ -669,7 +678,7 @@ export default function ProjectSettingsPage({
                       callbackUrl={`/projects/${p.id}/settings`}
                       label="Se reconnecter pour supprimer"
                       size="lg"
-                      className="w-full shrink-0 sm:w-auto"
+                      className="h-auto min-h-10 w-full shrink-0 whitespace-normal text-balance sm:w-auto"
                     />
                   )}
                 </section>
@@ -680,7 +689,7 @@ export default function ProjectSettingsPage({
       </div>
       {deleting && (
         <DeleteProjectDialog
-          project={p}
+          project={{ id: p.id, name: p.name, deletionPending: p.deletionPending }}
           recentLogin={recentLogin}
           onClose={() => {
             setDeleting(false);

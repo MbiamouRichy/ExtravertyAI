@@ -1,10 +1,15 @@
+import type { ReactNode } from "react";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
 import { getAnalyticsAccess } from "@/lib/analytics-access";
 import { homePath } from "@/lib/project-permissions";
 import { getAnalyticsOverview } from "@/app/actions/analytics";
-import { PERIOD_DAYS, parseAnalyticsPeriod } from "@/lib/analytics";
+import {
+  PERIOD_DAYS,
+  clampAnalyticsPeriod,
+  parseAnalyticsPeriod,
+} from "@/lib/analytics";
 import prisma from "@/lib/prisma";
 import { planAllows } from "@/lib/plan-features";
 import { openPipelineValue, wonValue } from "@/lib/pipeline";
@@ -31,6 +36,25 @@ import { csatStats } from "@/lib/csat";
 
 function periodStart(period: keyof typeof PERIOD_DAYS) {
   return new Date(Date.now() - PERIOD_DAYS[period] * 86_400_000);
+}
+
+function AnalyticsSection({
+  id,
+  title,
+  children,
+}: {
+  id: string;
+  title: string;
+  children: ReactNode;
+}) {
+  return (
+    <section aria-labelledby={id} className="space-y-3">
+      <h2 id={id} className="text-sm font-medium text-muted-foreground">
+        {title}
+      </h2>
+      {children}
+    </section>
+  );
 }
 
 type PageProps = {
@@ -88,7 +112,11 @@ export default async function AnalyticsPage({
     redirect(homePath(projectId, access.role));
   }
 
-  const period = parseAnalyticsPeriod(sp.period);
+  // Une période hors offre (lien partagé, URL modifiée) revient au maximum autorisé.
+  const period = clampAnalyticsPeriod(
+    parseAnalyticsPeriod(sp.period),
+    access.analyticsDays,
+  );
   const since = periodStart(period);
   const [overview, sales, avoided, responseTime] = await Promise.all([
     getAnalyticsOverview(projectId, period),
@@ -136,11 +164,14 @@ export default async function AnalyticsPage({
   );
 
   return (
-    <div className="min-w-0 bg-muted/20">
-      <div className="mx-auto flex w-full max-w-400 flex-col gap-6 p-4 sm:p-6 xl:gap-8 xl:p-8">
+    <div className="@container min-w-0">
+      <div className="mx-auto flex w-full max-w-7xl flex-col gap-8 p-4 sm:p-6 lg:p-8">
         <AnalyticsHeader
           projectName={access.projectName}
           period={period}
+          plan={access.plan}
+          analyticsDays={access.analyticsDays}
+          billingHref={`${projectPath}/billing`}
           rangeLabel={overview.rangeLabel}
           timeZone={overview.timeZone}
           volumeSeries={overview.volumeSeries}
@@ -155,70 +186,41 @@ export default async function AnalyticsPage({
           <AnalyticsKpiGrid kpis={overview.kpis} />
         </section>
 
-        <section
-          aria-labelledby="analytics-activity-title"
-          className="space-y-4"
-        >
-          <div className="flex flex-wrap items-end justify-between gap-2">
-            <div>
-              <h2
-                id="analytics-activity-title"
-                className="text-base font-semibold tracking-tight"
-              >
-                Activité & acquisition
-              </h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Comprendre le volume et l’origine des échanges.
-              </p>
-            </div>
-
-            <span className="text-xs text-muted-foreground">
-              Heure locale · {overview.timeZone}
-            </span>
-          </div>
-
-          <div className="grid min-w-0 gap-4 xl:grid-cols-3">
-            <div className="min-w-0 xl:col-span-2">
+        <AnalyticsSection id="analytics-activity-title" title="Activité & acquisition">
+          <div className="grid min-w-0 gap-4 @3xl:grid-cols-2 @5xl:grid-cols-6">
+            <div className="min-w-0 @3xl:col-span-2 @5xl:col-span-4">
               <VolumeChart
                 data={overview.volumeSeries}
                 rangeLabel={overview.rangeLabel}
               />
             </div>
 
-            <SourcesChart
-              data={overview.sources}
-              total={sourcesTotal}
-              rangeLabel={overview.rangeLabel}
-            />
+            <div className="min-w-0 @3xl:col-span-2">
+              <SourcesChart
+                data={overview.sources}
+                total={sourcesTotal}
+                rangeLabel={overview.rangeLabel}
+              />
+            </div>
+
+            <div className="min-w-0 @5xl:col-span-3">
+              <AnalyticsMessageRecuChart
+                data={overview.volumeSeries}
+                rangeLabel={overview.rangeLabel}
+              />
+            </div>
+
+            <div className="min-w-0 @5xl:col-span-3">
+              <AnalyticsDiscussionsChart
+                data={overview.discussionsSeries}
+                rangeLabel={overview.rangeLabel}
+              />
+            </div>
           </div>
+        </AnalyticsSection>
 
-          <div className="grid min-w-0 gap-4 lg:grid-cols-2">
-            <AnalyticsMessageRecuChart
-              data={overview.volumeSeries}
-              rangeLabel={overview.rangeLabel}
-            />
-
-            <AnalyticsDiscussionsChart
-              data={overview.discussionsSeries}
-              rangeLabel={overview.rangeLabel}
-            />
-          </div>
-        </section>
-
-        <section aria-labelledby="analytics-ai-title" className="space-y-4">
-          <div>
-            <h2
-              id="analytics-ai-title"
-              className="text-base font-semibold tracking-tight"
-            >
-              IA & prospects
-            </h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Qui répond, qui est intéressé, et à quel moment vos clients écrivent.
-            </p>
-          </div>
-
-          <div className="grid min-w-0 gap-4 lg:grid-cols-2">
+        <AnalyticsSection id="analytics-ai-title" title="IA & prospects">
+          <div className="grid min-w-0 gap-4 @3xl:grid-cols-2">
             <RespondersCard
               responders={overview.responders}
               rangeLabel={overview.rangeLabel}
@@ -228,9 +230,6 @@ export default async function AnalyticsPage({
               rangeLabel={overview.rangeLabel}
               settingsHref={`${projectPath}/knowledge`}
             />
-          </div>
-
-          <div className="grid min-w-0 gap-4 lg:grid-cols-2">
             <FirstAiReplyTimeChart data={responseTime} />
             <AvoidedRepliesCard
               stats={avoided.stats}
@@ -238,29 +237,19 @@ export default async function AnalyticsPage({
               rangeLabel={overview.rangeLabel}
               settingsHref={`${projectPath}/knowledge`}
             />
+            <div className="min-w-0 @3xl:col-span-2">
+              <ActivityHeatmapCard
+                heatmap={overview.heatmap}
+                rangeLabel={overview.rangeLabel}
+                timeZone={overview.timeZone}
+              />
+            </div>
           </div>
-
-          <ActivityHeatmapCard
-            heatmap={overview.heatmap}
-            rangeLabel={overview.rangeLabel}
-            timeZone={overview.timeZone}
-          />
-        </section>
+        </AnalyticsSection>
 
         {sales && (
-          <section aria-labelledby="analytics-sales-title" className="space-y-4">
-            <div>
-              <h2
-                id="analytics-sales-title"
-                className="text-base font-semibold tracking-tight"
-              >
-                Ventes et satisfaction
-              </h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Ce que vos conversations rapportent, et ce qu’en pensent vos clients.
-              </p>
-            </div>
-            <div className="grid min-w-0 gap-4 xl:grid-cols-2">
+          <AnalyticsSection id="analytics-sales-title" title="Ventes et satisfaction">
+            <div className="grid min-w-0 gap-4 @5xl:grid-cols-2">
               <PipelineValueCard
                 currency={sales.currency}
                 won={sales.won}
@@ -275,41 +264,24 @@ export default async function AnalyticsPage({
                 settingsHref={`${projectPath}/settings`}
               />
             </div>
-          </section>
+          </AnalyticsSection>
         )}
 
-        <section
-          aria-labelledby="analytics-quality-title"
-          className="space-y-4"
-        >
-          <div>
-            <h2
-              id="analytics-quality-title"
-              className="text-base font-semibold tracking-tight"
-            >
-              Livraison & contacts
-            </h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Suivre les statuts et identifier les contacts actifs.
-            </p>
-          </div>
-
-          <div className="grid min-w-0 gap-4 xl:grid-cols-3">
+        <AnalyticsSection id="analytics-quality-title" title="Livraison & contacts">
+          {/* Pleine largeur : le tableau triable des contacts a besoin de place. */}
+          <div className="grid min-w-0 gap-4">
             <MessageStatusCard
               statuses={overview.statuses}
               total={statusesTotal}
               rangeLabel={overview.rangeLabel}
             />
-
-            <div className="min-w-0 xl:col-span-2">
-              <TopContactsCard
-                projectId={projectId}
-                contacts={overview.topContacts}
-                rangeLabel={overview.rangeLabel}
-              />
-            </div>
+            <TopContactsCard
+              projectId={projectId}
+              contacts={overview.topContacts}
+              rangeLabel={overview.rangeLabel}
+            />
           </div>
-        </section>
+        </AnalyticsSection>
       </div>
     </div>
   );

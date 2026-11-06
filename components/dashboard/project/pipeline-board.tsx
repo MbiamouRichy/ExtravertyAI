@@ -209,7 +209,9 @@ export function PipelineBoard({
           { label: "Taux de conversion", value: winRate === null ? "—" : `${winRate} %`, hint: "Gagné sur gagné + perdu" },
           { label: "Prospects", value: board.reduce((sum, column) => sum + column.count, 0).toLocaleString("fr-FR"), hint: "Toutes étapes confondues" },
         ].map((stat) => (
-          <div key={stat.label} className="flex flex-col-reverse gap-1 bg-card p-4">
+          // Chiffre en tête de chaque case : les montants restent sur la même
+          // ligne quelle que soit la longueur de la légende.
+          <div key={stat.label} className="flex flex-col-reverse justify-end gap-1 bg-card p-4">
             <dt className="text-xs text-muted-foreground">
               {stat.label}
               <span className="block text-[11px]">{stat.hint}</span>
@@ -265,7 +267,9 @@ export function PipelineBoard({
           },
         }}
       >
-        <div className="-mx-4 overflow-x-auto px-4 pb-4 sm:-mx-6 sm:px-6 xl:-mx-8 xl:px-8">
+        {/* Mobile : une colonne à l’écran, la suivante dépasse pour inviter à
+            faire défiler, et chaque colonne se cale au bord. */}
+        <div className="-mx-4 snap-x snap-proximity scroll-px-4 overflow-x-auto px-4 pb-4 sm:-mx-6 sm:scroll-px-6 sm:px-6 md:snap-none xl:-mx-8 xl:px-8">
           <ol aria-label="Étapes du pipeline" className="flex min-w-max gap-3 2xl:grid 2xl:min-w-0 2xl:grid-cols-5">
             {board.map((column) => (
               <StageColumn key={column.id} column={column} currency={currency}>
@@ -330,7 +334,7 @@ function StageColumn({
     <li
       aria-labelledby={`stage-${column.id}`}
       className={cn(
-        "flex w-72 shrink-0 flex-col rounded-2xl border bg-muted/30 transition-colors 2xl:w-auto",
+        "flex w-[min(18rem,calc(100vw-4rem))] shrink-0 snap-start flex-col rounded-2xl border bg-muted/30 transition-colors md:w-72 2xl:w-auto",
         isOver && "border-foreground/40 bg-muted",
       )}
     >

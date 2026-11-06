@@ -11,3 +11,17 @@ export function isRecentSession(createdAt: unknown, now = Date.now()): boolean {
     age < PROJECT_DELETION_SESSION_MAX_AGE_MS
   );
 }
+
+// Routes Better Auth refusées sans connexion récente : un compte Google ou
+// TikTok n’a pas de mot de passe à confirmer, la reconnexion vaut pour tous.
+const RECENT_SESSION_PATHS = new Set([
+  "/delete-user",
+  "/delete-user/callback",
+  "/change-email",
+  "/change-password",
+  "/set-password",
+]);
+
+export function requiresRecentSession(path: string) {
+  return RECENT_SESSION_PATHS.has(path);
+}

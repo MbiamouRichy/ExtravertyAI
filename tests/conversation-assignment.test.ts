@@ -6,7 +6,7 @@ import {
   assignNextConversation,
   assignableMembers,
 } from "../lib/conversation-workflow";
-import { unreadConversationCount } from "../lib/conversation-reads";
+import { unreadContactIds, unreadConversationCount } from "../lib/conversation-reads";
 import { contactEventLabel } from "../lib/contact-details";
 import { notificationFeed } from "../lib/notifications";
 import {
@@ -145,6 +145,18 @@ test("manual conversation assignment", { timeout: 120000 }, async (t) => {
           "unassigned",
         ),
         0,
+      );
+      assert.equal(
+        await unreadConversationCount(prisma, project.id, member.id, "", "unread"),
+        1,
+      );
+      assert.equal(
+        (await unreadContactIds(prisma, project.id, member.id)).length,
+        1,
+      );
+      assert.deepEqual(
+        await unreadContactIds(prisma, project.id, "absent-du-projet"),
+        [],
       );
     });
 

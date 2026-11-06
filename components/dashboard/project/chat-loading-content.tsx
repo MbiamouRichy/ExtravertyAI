@@ -13,7 +13,7 @@ export function ConversationListLoading() {
         {[0, 1, 2, 3, 4, 5, 6].map((index) => (
           <li
             key={index}
-            className="flex items-start gap-3 rounded-lg px-2.5 py-2.5"
+            className="flex h-21 items-center gap-3 rounded-lg px-2.5 py-2"
           >
             <Skeleton className="size-9 shrink-0 rounded-full" />
             <div className="min-w-0 flex-1">
@@ -28,15 +28,6 @@ export function ConversationListLoading() {
                   className={cn("h-3", index % 3 ? "w-4/5" : "w-full")}
                 />
               </div>
-              {/* Étiquette ou statut « Résolue » sur une ligne sur deux. */}
-              {index % 2 === 0 && (
-                <div className="mt-1.5 flex gap-1.5">
-                  <Skeleton className="h-4 w-14 rounded-md" />
-                  {index % 4 === 0 && (
-                    <Skeleton className="h-4 w-10 rounded-md" />
-                  )}
-                </div>
-              )}
             </div>
           </li>
         ))}

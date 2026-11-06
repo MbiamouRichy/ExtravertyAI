@@ -36,6 +36,9 @@ export interface CustomProjectProps {
   projects: {
     id: string;
     canManageBilling?: boolean;
+    needsCheckout?: boolean;
+    /** Suppression commencée puis interrompue : à terminer dans les paramètres. */
+    deletionPending?: boolean;
     name: string;
     logoUrl?: string | null;
     numero: string;
@@ -153,7 +156,11 @@ export default function HomeProjectsPage({ projects }: CustomProjectProps) {
             {projects.map((project) => {
               const status = project.billingAccess
                 ? {
-                    label: billingAccessLabel(project.billingAccess),
+                    label: project.deletionPending
+                      ? "Suppression à terminer"
+                      : project.needsCheckout
+                        ? "Paiement à finaliser"
+                        : billingAccessLabel(project.billingAccess),
                     ok: project.billingAccess.allowed,
                   }
                 : { label: statusLabel[project.status] ?? "Inconnu", ok: project.status !== "inactive" };
@@ -217,8 +224,9 @@ export default function HomeProjectsPage({ projects }: CustomProjectProps) {
                           intent="renew"
                           size="sm"
                           variant="outline"
-                          label="Renouveler"
-                          className="mr-1 min-h-8 flex-1 text-xs @md/card:flex-none"
+                          label={project.needsCheckout ? "Payer" : "Renouveler"}
+                          needsCheckout={project.needsCheckout}
+                          className="mr-1 min-h-8 flex-1 whitespace-nowrap text-xs @md/card:flex-none"
                         />
                       )}
                       <Button asChild variant="ghost" size="icon-sm">
@@ -245,7 +253,7 @@ export default function HomeProjectsPage({ projects }: CustomProjectProps) {
                               Paramètres
                             </Link>
                           </DropdownMenuItem>
-                          {project.canManageBilling && (
+                          {project.canManageBilling && !project.needsCheckout && (
                             <>
                               <DropdownMenuSeparator />
                               <BillingPlanMenuItem projectId={project.id} intent="upgrade" />

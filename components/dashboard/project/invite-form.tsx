@@ -20,7 +20,8 @@ import {
 
 // --- Logique & Auth ---
 // IMPORT TON CLIENT BETTER AUTH ICI (Exemple générique)
-import { authClient } from "@/lib/auth-client";
+import { signUp } from "@/lib/auth-client";
+import { EmailOtpStep } from "@/components/auth/email-otp-step";
 import {
   AtSignIcon,
   Eye,
@@ -69,6 +70,8 @@ export function InviteForm({
   const router = useRouter();
   const [isLoading, setIsLoading] = React.useState(false);
   const [showPassword, setShowPassword] = React.useState(false);
+  // The account exists but has no session until the invited address is confirmed.
+  const [awaitingCode, setAwaitingCode] = React.useState(false);
   const { playHaptic } = useHaptics();
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -82,8 +85,8 @@ export function InviteForm({
     setIsLoading(true);
 
     try {
-      // 1. Création du compte via Better Auth
-      const { error: signUpError } = await authClient.signUp.email({
+      // 1. Création du compte via Better Auth (sans session avant le code)
+      const { error: signUpError } = await signUp.email({
         email: email,
         password: data.password,
         name: data.name,
@@ -91,24 +94,16 @@ export function InviteForm({
 
       if (signUpError) {
         throw new Error(
-          signUpError.message || "Erreur lors de la création du compte.",
+          signUpError.status === 429
+            ? "Trop de tentatives. Patientez une minute avant de réessayer."
+            : "Erreur lors de la création du compte.",
         );
       }
 
-      // 2. Valider l'invitation et lier l'utilisateur au projet
-      const result = await consumeInvitation(token);
-
-      if (!result.success) {
-        throw new Error(result.error);
-      }
+      // 2. Le code reçu par e-mail ouvre la session
       playHaptic("success");
-      toast.success("Compte créé avec succès !", {
-        description: result.message,
-        position: "top-center",
-      });
-
-      // 3. Redirection vers le projet
-      router.push(`/projects/${result.projectId}`);
+      setAwaitingCode(true);
+      setIsLoading(false);
     } catch (error: unknown) {
       const message =
         error instanceof Error ? error.message : "Une erreur est survenue.";
@@ -120,6 +115,36 @@ export function InviteForm({
       setIsLoading(false);
     }
   }
+
+  async function joinProject() {
+    try {
+      // 3. Valider l'invitation et lier l'utilisateur au projet
+      const result = await consumeInvitation(token);
+
+      if (!result.success) {
+        throw new Error(result.error);
+      }
+      playHaptic("success");
+      toast.success("Compte créé avec succès !", {
+        description: result.message,
+        position: "top-center",
+      });
+
+      // 4. Redirection vers le projet
+      router.push(`/projects/${result.projectId}`);
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error ? error.message : "Une erreur est survenue.";
+      playHaptic("error");
+      toast.error("Une erreur est survenue", {
+        description: message,
+        position: "top-center",
+      });
+    }
+  }
+
+  // The invited address is fixed: no way back to another one from here.
+  if (awaitingCode) return <EmailOtpStep email={email} onVerified={joinProject} />;
 
   return (
     <div className="space-y-6">
@@ -261,20 +286,27 @@ export function InviteForm({
       </form>
 
       <div className="space-y-4">
+        {/* Wraps rather than overflows if the text is enlarged; the short
+            label keeps one line on screens under 320 px. */}
         <Button
           type="submit"
           form="invite-form"
           size="lg"
-          className="w-full"
+          className="h-auto min-h-10 w-full whitespace-normal py-2 text-balance"
           disabled={isLoading}
         >
           {isLoading ? (
             <>
               <Loader2 className="animate-spin" aria-hidden="true" />
-              Création du compte...
+              Création du compte…
             </>
           ) : (
-            "Créer mon compte et rejoindre"
+            <>
+              <span className="min-[320px]:hidden">Créer mon compte</span>
+              <span className="max-[319px]:hidden">
+                Créer mon compte et rejoindre
+              </span>
+            </>
           )}
         </Button>
         <p className="text-center text-sm text-muted-foreground">

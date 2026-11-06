@@ -1,15 +1,49 @@
 import { z } from "zod";
 
-// Shared by the goodbye survey (client) and its server action.
+// Shared by the goodbye survey (client) and its server action. Only `value`
+// is stored; `label` and `followUp` are display copy and can change freely.
+// Ordered so the chips pack two per row on a phone where they can.
 export const DELETION_FEEDBACK_REASONS = [
-  { value: "too_expensive", label: "Trop cher" },
-  { value: "missing_features", label: "Il manque des fonctionnalités" },
-  { value: "too_complex", label: "Trop compliqué à utiliser" },
-  { value: "answers_quality", label: "Réponses de l’assistant insatisfaisantes" },
-  { value: "not_needed", label: "Je n’en ai plus besoin" },
-  { value: "switched", label: "Je passe à un autre outil" },
-  { value: "privacy", label: "Confidentialité de mes données" },
-  { value: "other", label: "Autre raison" },
+  {
+    value: "too_expensive",
+    label: "Trop cher",
+    followUp: "Quel prix vous aurait convenu\u00a0?",
+  },
+  {
+    value: "too_complex",
+    label: "Trop compliqué",
+    followUp: "À quel moment avez-vous bloqué\u00a0?",
+  },
+  {
+    value: "missing_features",
+    label: "Fonctionnalités manquantes",
+    followUp: "Quelle fonctionnalité vous a manqué\u00a0?",
+  },
+  {
+    value: "answers_quality",
+    label: "Réponses de l’IA décevantes",
+    followUp: "Qu’est-ce qui n’allait pas dans les réponses\u00a0?",
+  },
+  {
+    value: "not_needed",
+    label: "Plus besoin",
+    followUp: "Qu’est-ce qui a changé pour vous\u00a0?",
+  },
+  {
+    value: "switched",
+    label: "Autre outil",
+    followUp: "Vers quel outil partez-vous, et pourquoi\u00a0?",
+  },
+  {
+    value: "privacy",
+    label: "Confidentialité",
+    followUp: "Qu’est-ce qui vous a inquiété\u00a0?",
+  },
+  {
+    value: "other",
+    label: "Autre raison",
+    followUp: "Dites-nous en un peu plus",
+  },
 ] as const;
 
 export const DeletionFeedbackSchema = z.object({

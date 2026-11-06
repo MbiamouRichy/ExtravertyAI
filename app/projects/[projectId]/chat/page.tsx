@@ -73,16 +73,12 @@ export default async function ChatPage({ params, searchParams }: PageProps) {
 
   if (requiresConnection) {
     return (
-      <div className="mx-auto w-full max-w-4xl space-y-6 p-4 sm:p-6 xl:p-8">
+      <div className="mx-auto w-full max-w-3xl space-y-6 p-4 sm:p-6 xl:p-8">
         <header>
           <p className="font-mono text-xs uppercase tracking-wider text-muted-foreground">
             Messagerie · {project.name}
           </p>
           <h1 className="mt-1 text-3xl md:text-4xl">Connecter WhatsApp</h1>
-          <p className="mt-2 max-w-xl text-sm text-muted-foreground">
-            Associez votre numéro pour que l’assistant et votre équipe puissent
-            répondre à vos clients.
-          </p>
         </header>
 
         {canManageAi ? (
@@ -182,6 +178,7 @@ export default async function ChatPage({ params, searchParams }: PageProps) {
         }}
         isSuccess={query.success === "true"}
         canManageAi={true}
+        canPublishCorrection={canManageAi}
         canCopyPhone={can(project.userRole, "contacts.view")}
         pipeline={{
           enabled: planAllows(project.plan, "pipeline"),

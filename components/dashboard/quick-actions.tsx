@@ -3,7 +3,6 @@ import { canOpenPage, type ProjectPage } from "@/lib/project-permissions";
 import {
   BarChart3,
   Bot,
-  ChevronRight,
   Download,
   MessagesSquare,
   Settings,
@@ -30,24 +29,18 @@ export function QuickActions({ projectId, role }: { projectId: string; role: str
 
   return (
     <nav aria-labelledby="actions-title">
-      <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+      <ul className="grid grid-cols-1 gap-0.5 rounded-xl border bg-card p-1.5 @xl:grid-cols-2 @4xl:grid-cols-3">
         {actions.map(({ title, description, href, icon: Icon }) => (
-          <li key={title}>
+          <li key={title} className="min-w-0">
             <Link
               href={href}
-              className="group flex h-full items-center gap-3 rounded-xl border bg-card p-3 outline-none transition-colors hover:bg-muted/60 focus-visible:ring-3 focus-visible:ring-ring/50"
+              className="flex h-full items-center gap-3 rounded-lg p-2.5 outline-none transition-colors hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50"
             >
-              <span className="flex size-9 shrink-0 items-center justify-center rounded-lg border bg-background">
-                <Icon aria-hidden="true" className="size-4" />
-              </span>
+              <Icon aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-sm font-medium">{title}</span>
                 <span className="block truncate text-xs text-muted-foreground">{description}</span>
               </span>
-              <ChevronRight
-                aria-hidden="true"
-                className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5"
-              />
             </Link>
           </li>
         ))}

@@ -8,8 +8,8 @@ import { formatValue } from "./format";
 function sourceNote(source: "stripe" | "estimate", others: string[]) {
   const base =
     source === "stripe"
-      ? "Factures payées dans Stripe"
-      : "Estimé : mois payés × prix catalogue (Stripe injoignable)";
+      ? "Paiements encaissés"
+      : "Estimé : mois payés × prix catalogue (prestataire injoignable)";
   return others.length ? `${base} · hors ${others.join(", ")}` : base;
 }
 
@@ -22,7 +22,7 @@ export async function RevenueTile({ range }: { range: DashboardRange }) {
       value={revenue.current}
       format="currency"
       currency={revenue.currency}
-      hint={revenue.source === "stripe" ? "Factures Stripe payées" : "Estimation"}
+      hint={revenue.source === "stripe" ? "Paiements encaissés" : "Estimation"}
     >
       <DeltaBadge value={delta(revenue.current, revenue.previous)} label={DASHBOARD_RANGES[range].previous} />
     </StatTile>

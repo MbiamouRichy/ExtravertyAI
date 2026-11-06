@@ -42,13 +42,27 @@ import {
 } from "lucide-react";
 import { ContactsTableColumns, type ContactTableType } from "./contacts-column";
 
+// Trois largeurs : cartes (mobile), tableau resserré (tablette, petit écran
+// avec barre latérale) et tableau complet. Chacune garde ses propres choix de colonnes.
+type ViewportTier = "mobile" | "compact" | "wide";
+const MOBILE_QUERY = "(max-width: 767px)";
+const COMPACT_QUERY = "(max-width: 1279px)";
+
 function subscribeToViewport(callback: () => void) {
-  const media = window.matchMedia("(max-width: 767px)");
-  media.addEventListener("change", callback);
-  return () => media.removeEventListener("change", callback);
+  const queries = [MOBILE_QUERY, COMPACT_QUERY].map((query) =>
+    window.matchMedia(query),
+  );
+  queries.forEach((media) => media.addEventListener("change", callback));
+  return () =>
+    queries.forEach((media) => media.removeEventListener("change", callback));
 }
-const mobileSnapshot = () => window.matchMedia("(max-width: 767px)").matches;
-const serverSnapshot = () => false;
+const tierSnapshot = (): ViewportTier =>
+  window.matchMedia(MOBILE_QUERY).matches
+    ? "mobile"
+    : window.matchMedia(COMPACT_QUERY).matches
+      ? "compact"
+      : "wide";
+const serverSnapshot = (): ViewportTier => "wide";
 
 type Props = {
   data: ContactTableType[];
@@ -68,20 +82,22 @@ type Props = {
 };
 
 export function ContactsTable(p: Props) {
-  const isMobile = useSyncExternalStore(
+  const tier = useSyncExternalStore(
     subscribeToViewport,
-    mobileSnapshot,
+    tierSnapshot,
     serverSnapshot,
   );
-  const [desktopVisibility, setDesktopVisibility] = useState<VisibilityState>(
-    {},
-  );
-  const [mobileVisibility, setMobileVisibility] = useState<VisibilityState>({
-    phone: false,
-    aiActive: false,
-    createdAt: false,
+  const [visibility, setVisibility] = useState<
+    Record<ViewportTier, VisibilityState>
+  >({
+    mobile: { phone: false, aiActive: false, createdAt: false },
+    // Identité (avec le numéro dessous), prise en charge et actions tiennent sans défilement.
+    compact: { phone: false, instinct: false, createdAt: false },
+    wide: {},
   });
+  const columnVisibility = visibility[tier];
   const columns = ContactsTableColumns({
+    phoneUnderName: columnVisibility.phone === false,
     renderStatus: p.renderStatus,
     renderActions: (contact) => (
       <div className="flex items-center justify-end gap-1">
@@ -134,11 +150,14 @@ export function ContactsTable(p: Props) {
     manualFiltering: true,
     manualSorting: true,
     pageCount: p.pageCount,
-    onColumnVisibilityChange: isMobile
-      ? setMobileVisibility
-      : setDesktopVisibility,
+    onColumnVisibilityChange: (updater) =>
+      setVisibility((previous) => ({
+        ...previous,
+        [tier]:
+          typeof updater === "function" ? updater(previous[tier]) : updater,
+      })),
     state: {
-      columnVisibility: isMobile ? mobileVisibility : desktopVisibility,
+      columnVisibility,
       pagination: { pageIndex: p.page - 1, pageSize: 20 },
     },
   });
@@ -202,7 +221,7 @@ export function ContactsTable(p: Props) {
       </div>
       <div
         className={
-          "overflow-hidden rounded-xl border bg-card md:hidden " +
+          "-mx-4 overflow-hidden border-y md:hidden sm:-mx-5 " +
           (p.pending ? "opacity-60" : "")
         }
         aria-busy={p.pending}
@@ -218,7 +237,7 @@ export function ContactsTable(p: Props) {
                 (cell) => !["name", "actions"].includes(cell.column.id),
               );
               return (
-                <li key={row.id} className="min-w-0 space-y-3 p-3">
+                <li key={row.id} className="@container min-w-0 space-y-3 px-4 py-3 sm:px-5">
                   <div className="flex items-start gap-3">
                     <div className="min-w-0 flex-1">
                       {identity &&
@@ -233,7 +252,7 @@ export function ContactsTable(p: Props) {
                           type="button"
                           variant="ghost"
                           size="icon"
-                          className="size-11 shrink-0 rounded-full"
+                          className="-mr-2 -mt-1 size-10 shrink-0 rounded-full"
                           disabled={p.busy || p.pending}
                           aria-label={"Actions pour " + contact.displayName}
                         >
@@ -308,7 +327,9 @@ export function ContactsTable(p: Props) {
                       ))}
                     </dl>
                   )}
-                  <div className="flex items-center justify-between gap-3 border-t border-border/60 pt-3">
+                  {/* Sur une carte étroite, « Discuter » passe sous le mode
+                      de prise en charge et prend toute la largeur. */}
+                  <div className="flex flex-col items-stretch gap-2 border-t border-border/60 pt-3 @[16rem]:flex-row @[16rem]:items-center @[16rem]:justify-between @[16rem]:gap-3">
                     <span className="inline-flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
                       {contact.aiActive ? (
                         <Bot aria-hidden className="size-3.5 shrink-0" />
@@ -322,7 +343,7 @@ export function ContactsTable(p: Props) {
                       type="button"
                       variant="outline"
                       size="sm"
-                      className="h-10 shrink-0"
+                      className="h-10 shrink-0 @[16rem]:h-9"
                     >
                       <Link href={chatHref}>
                         <MessageSquare aria-hidden className="size-4" />

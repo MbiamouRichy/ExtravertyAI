@@ -5,12 +5,7 @@ import { PageLoading } from "@/components/page-loading";
 // Miroir de la page Statistiques, section par section.
 
 function SectionTitle({ width = "w-44" }: { width?: string }) {
-  return (
-    <div className="space-y-1.5">
-      <Skeleton className={`h-5 ${width}`} />
-      <Skeleton className="h-3.5 w-72 max-w-full" />
-    </div>
-  );
+  return <Skeleton className={`h-4 ${width}`} />;
 }
 
 function ChartCard({
@@ -21,12 +16,12 @@ function ChartCard({
   className?: string;
 }) {
   return (
-    <div className={`min-w-0 rounded-2xl border bg-card ${className}`}>
-      <div className="space-y-2 p-4 sm:p-6">
+    <div className={`min-w-0 rounded-xl border bg-card ${className}`}>
+      <div className="space-y-1.5 px-4 pt-4 pb-3 sm:px-5">
         <Skeleton className="h-4 w-44 max-w-full" />
         <Skeleton className="h-3 w-64 max-w-full" />
       </div>
-      <div className="px-4 pb-5 sm:px-6">{children}</div>
+      <div className="px-4 pb-4 sm:px-5">{children}</div>
     </div>
   );
 }
@@ -83,52 +78,43 @@ function Rows({ count = 4 }: { count?: number }) {
 
 export default function AnalyticsLoading() {
   return (
-    <PageLoading label="Chargement des statistiques…" className="min-w-0 bg-muted/20">
-      <div className="mx-auto flex w-full max-w-400 flex-col gap-6 p-4 sm:p-6 xl:gap-8 xl:p-8">
+    <PageLoading label="Chargement des statistiques…" className="@container min-w-0">
+      <div className="mx-auto flex w-full max-w-7xl flex-col gap-8 p-4 sm:p-6 lg:p-8">
         {/* En-tête : titre, export, choix de la période */}
-        <header className="space-y-5 border-b pb-5">
-          <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
-            <div className="w-full max-w-lg space-y-3">
-              <Skeleton className="h-3.5 w-36" />
-              <Skeleton className="h-9 w-56 max-w-full" />
-              <Skeleton className="h-4 w-full max-w-md" />
+        <header className="space-y-4">
+          <div className="flex items-start justify-between gap-3">
+            <div className="space-y-1.5">
+              <Skeleton className="h-8 w-32" />
+              <Skeleton className="h-4 w-36" />
             </div>
-            <Skeleton className="h-9 w-full rounded-md sm:w-32" />
+            <Skeleton className="h-9 w-20 rounded-md sm:w-36" />
           </div>
-          <div className="flex flex-col justify-between gap-3 xl:flex-row xl:items-center">
-            <div className="flex flex-wrap gap-1.5">
-              {[16, 20, 20, 24].map((width, index) => (
-                <Skeleton
-                  key={index}
-                  className="h-8 rounded-full"
-                  style={{ width: `${width * 4}px` }}
-                />
-              ))}
-            </div>
-            <Skeleton className="h-3.5 w-56" />
+          <div className="flex flex-col gap-2 @3xl:flex-row @3xl:items-center @3xl:justify-between">
+            <Skeleton className="h-10 w-full rounded-lg @3xl:w-96" />
+            <Skeleton className="h-3.5 w-56 max-w-full" />
           </div>
         </header>
 
         {/* Indicateurs clés */}
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
+        <div className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border bg-border @3xl:grid-cols-3 @6xl:grid-cols-6">
           {Array.from({ length: 6 }, (_, index) => (
-            <div key={index} className="space-y-3 rounded-2xl border bg-card p-4">
-              <Skeleton className="h-3 w-24" />
-              <Skeleton className="h-7 w-20" />
-              <Skeleton className="h-4 w-28 rounded-full" />
+            <div key={index} className="space-y-2 bg-card p-3 sm:p-4">
+              <Skeleton className="h-3 w-24 max-w-full" />
+              <Skeleton className="h-7 w-16" />
+              <Skeleton className="h-3.5 w-20" />
             </div>
           ))}
         </div>
 
         {/* Activité & acquisition */}
-        <section className="space-y-4">
+        <section className="space-y-3">
           <SectionTitle />
-          <div className="grid min-w-0 gap-4 xl:grid-cols-3">
-            <ChartCard className="xl:col-span-2">
-              <Bars height="h-64" />
+          <div className="grid min-w-0 gap-4 @3xl:grid-cols-2 @5xl:grid-cols-6">
+            <ChartCard className="@3xl:col-span-2 @5xl:col-span-4">
+              <Bars height="h-56 sm:h-64" />
             </ChartCard>
-            <ChartCard>
-              <div className="flex flex-col items-center gap-5">
+            <ChartCard className="@3xl:col-span-2">
+              <div className="flex flex-col items-center gap-4">
                 <Skeleton className="relative size-44 rounded-full">
                   <span className="absolute inset-[18%] rounded-full bg-card" />
                 </Skeleton>
@@ -137,21 +123,19 @@ export default function AnalyticsLoading() {
                 </div>
               </div>
             </ChartCard>
-          </div>
-          <div className="grid min-w-0 gap-4 lg:grid-cols-2">
-            <ChartCard>
+            <ChartCard className="@5xl:col-span-3">
               <Bars />
             </ChartCard>
-            <ChartCard>
+            <ChartCard className="@5xl:col-span-3">
               <Bars />
             </ChartCard>
           </div>
         </section>
 
         {/* IA & prospects : qui répond, Instinct IA, temps de réponse, réponses évitées, heures */}
-        <section className="space-y-4">
+        <section className="space-y-3">
           <SectionTitle width="w-32" />
-          <div className="grid min-w-0 gap-4 lg:grid-cols-2">
+          <div className="grid min-w-0 gap-4 @3xl:grid-cols-2">
             <ChartCard>
               <Rows count={3} />
             </ChartCard>
@@ -166,8 +150,6 @@ export default function AnalyticsLoading() {
                 ))}
               </div>
             </ChartCard>
-          </div>
-          <div className="grid min-w-0 gap-4 lg:grid-cols-2">
             <ChartCard>
               <Dots />
             </ChartCard>
@@ -175,34 +157,46 @@ export default function AnalyticsLoading() {
               <Skeleton className="h-10 w-24" />
               <Skeleton className="mt-4 h-3 w-full max-w-sm" />
             </ChartCard>
+            <ChartCard className="@3xl:col-span-2">
+              <div className="grid grid-cols-12 gap-1">
+                {Array.from({ length: 84 }, (_, cell) => (
+                  <Skeleton key={cell} className="h-6 rounded-sm sm:h-7" />
+                ))}
+              </div>
+            </ChartCard>
           </div>
-          <ChartCard>
-            <div className="grid grid-cols-12 gap-1">
-              {Array.from({ length: 84 }, (_, cell) => (
-                <Skeleton key={cell} className="aspect-square rounded-sm" />
-              ))}
-            </div>
-          </ChartCard>
         </section>
 
         {/* Livraison & contacts */}
-        <section className="space-y-4">
+        <section className="space-y-3">
           <SectionTitle width="w-40" />
-          <div className="grid min-w-0 gap-4 xl:grid-cols-3">
+          <div className="grid min-w-0 gap-4">
             <ChartCard>
               <Rows />
             </ChartCard>
-            <ChartCard className="xl:col-span-2">
+            <ChartCard>
               <Skeleton className="mb-3 h-9 w-full rounded-md sm:max-w-xs" />
-              <div className="divide-y rounded-xl border">
-                {Array.from({ length: 5 }, (_, row) => (
-                  <div key={row} className="flex items-center gap-3 p-3">
-                    <Skeleton className="size-8 shrink-0 rounded-full" />
-                    <div className="min-w-0 flex-1 space-y-1.5">
-                      <Skeleton className="h-3.5 w-32 max-w-full" />
-                      <Skeleton className="h-3 w-20" />
+              {/* Fiches bord à bord, comme la liste réelle sur carte étroite. */}
+              <div className="-mx-4 divide-y border-t sm:-mx-5">
+                {Array.from({ length: 4 }, (_, row) => (
+                  <div key={row} className="space-y-3 px-4 py-3 sm:px-5">
+                    <div className="flex items-center gap-3">
+                      <Skeleton className="size-9 shrink-0 rounded-full" />
+                      <div className="min-w-0 flex-1 space-y-1.5">
+                        <Skeleton className="h-3.5 w-32 max-w-full" />
+                        <Skeleton className="h-3 w-20 max-w-full" />
+                      </div>
+                      <Skeleton className="size-9 shrink-0 rounded-md @xl:h-8 @xl:w-28" />
                     </div>
-                    <Skeleton className="h-8 w-24 shrink-0 rounded-md" />
+                    <div className="grid grid-cols-2 gap-2">
+                      <Skeleton className="h-9 rounded-lg" />
+                      <Skeleton className="h-9 rounded-lg" />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Skeleton className="h-5 w-24 rounded-md" />
+                      <Skeleton className="h-5 w-20 rounded-md" />
+                      <Skeleton className="ml-auto h-3 w-16" />
+                    </div>
                   </div>
                 ))}
               </div>

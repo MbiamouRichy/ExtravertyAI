@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { can, homePath } from "@/lib/project-permissions";
 import { notFound, redirect } from "next/navigation";
-import { ArrowRight, Megaphone } from "lucide-react";
+import { ArrowRight, Plus } from "lucide-react";
 import { z } from "zod";
 
 import prisma from "@/lib/prisma";
@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { BroadcastsWorkspace } from "@/components/dashboard/project/broadcasts/broadcasts-workspace";
 import { OptedOutPanel } from "@/components/dashboard/project/broadcasts/opted-out-panel";
 import { SectionTabs } from "@/components/dashboard/project/broadcasts/section-tabs";
-import type { BroadcastView } from "@/components/dashboard/project/broadcasts/types";
+import { ACTIVE_STATUSES, type BroadcastView } from "@/components/dashboard/project/broadcasts/types";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
@@ -48,25 +48,34 @@ export default async function BroadcastsPage({ params }: { params: Promise<{ pro
     prisma.contact.count({ where: { projectId, broadcastOptOutAt: { not: null } } }),
   ]);
 
+  const active = broadcasts.find((broadcast) => ACTIVE_STATUSES.includes(broadcast.status));
   const header = (
-    <header>
-      <p className="font-mono text-xs uppercase tracking-wider text-muted-foreground">
-        Diffusions · {membership.project.name}
-      </p>
-      <h1 className="mt-1 text-3xl md:text-4xl">Diffusion de messages</h1>
-      <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-        Un même message envoyé à vos clients WhatsApp, personnalisé avec leur prénom. Les réponses
-        arrivent dans la messagerie, où l’assistant et votre équipe les traitent comme d’habitude.
-      </p>
+    <header className="flex flex-wrap items-start justify-between gap-3">
+      <div className="min-w-0">
+        <h1 className="text-2xl font-semibold tracking-tight">Diffusions</h1>
+        <p className="truncate text-sm text-muted-foreground">{membership.project.name}</p>
+      </div>
+      {canManage &&
+        allowed &&
+        !!broadcasts.length &&
+        (active ? (
+          <p className="max-w-64 text-xs text-muted-foreground sm:text-right">
+            Une seule diffusion à la fois : « {active.name} » est en cours.
+          </p>
+        ) : (
+          <Button asChild>
+            <Link href={`/projects/${projectId}/broadcasts/new`}>
+              <Plus data-icon="inline-start" />
+              Nouvelle diffusion
+            </Link>
+          </Button>
+        ))}
     </header>
   );
 
   const upsell = (
-    <section className="rounded-2xl border bg-card p-6 sm:p-8">
-      <span className="flex size-11 items-center justify-center rounded-xl border bg-muted/50">
-        <Megaphone aria-hidden="true" className="size-5" />
-      </span>
-      <h2 className="mt-4 font-heading text-lg font-semibold tracking-tight">{planUpgradeMessage("broadcast")}</h2>
+    <section className="rounded-xl border bg-card p-4 sm:p-5">
+      <h2 className="text-sm font-medium">{planUpgradeMessage("broadcast")}</h2>
       <ul className="mt-3 max-w-xl list-disc space-y-1.5 pl-5 text-sm text-muted-foreground">
         <li>Pro : 500 contacts par diffusion et 2 000 messages de diffusion par mois.</li>
         <li>Business : 2 000 contacts par diffusion et 10 000 messages de diffusion par mois.</li>
@@ -74,14 +83,14 @@ export default async function BroadcastsPage({ params }: { params: Promise<{ pro
         <li>Suivi des messages distribués, lus et des réponses.</li>
       </ul>
       {canManage ? (
-        <Button asChild className="mt-5">
+        <Button asChild className="mt-4">
           <Link href={`/projects/${projectId}/billing`}>
             Voir les offres
             <ArrowRight data-icon="inline-end" />
           </Link>
         </Button>
       ) : (
-        <p className="mt-5 text-sm text-muted-foreground">
+        <p className="mt-4 text-sm text-muted-foreground">
           Demandez à un propriétaire ou à un administrateur de changer d’offre.
         </p>
       )}
@@ -91,7 +100,7 @@ export default async function BroadcastsPage({ params }: { params: Promise<{ pro
   // Without the feature and without history: only the offer is shown.
   if (!allowed && !broadcasts.length) {
     return (
-      <main className="mx-auto w-full max-w-5xl space-y-8 p-4 sm:p-6 xl:p-8">
+      <main className="mx-auto w-full max-w-5xl space-y-6 p-4 sm:p-6 lg:p-8">
         {header}
         {upsell}
       </main>
@@ -115,7 +124,7 @@ export default async function BroadcastsPage({ params }: { params: Promise<{ pro
   }));
 
   return (
-    <main className="mx-auto w-full max-w-6xl space-y-6 p-4 sm:p-6 xl:p-8">
+    <main className="mx-auto w-full max-w-5xl space-y-6 p-4 sm:p-6 lg:p-8">
       {header}
       {!allowed && upsell}
       <SectionTabs

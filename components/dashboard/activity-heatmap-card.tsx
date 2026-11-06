@@ -59,19 +59,21 @@ export function ActivityHeatmapCard({
         />
       ) : (
         <>
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[36rem] table-fixed border-separate border-spacing-1 text-xs">
+          {/* relative : les libellés sr-only restent dans cette zone, sinon toute la page défile. */}
+          <div className="relative overflow-x-auto">
+            <table className="w-full table-fixed border-separate border-spacing-0.5 text-xs sm:border-spacing-1">
               <caption className="sr-only">
                 Nombre de messages reçus par jour de la semaine et par créneau de deux heures
               </caption>
               <thead>
                 <tr>
-                  <th scope="col" className="w-10">
+                  <th scope="col" className="w-7 sm:w-10">
                     <span className="sr-only">Jour</span>
                   </th>
                   {slots.map((hour) => (
                     <th key={hour} scope="col" className="font-mono text-[10px] font-normal text-muted-foreground">
-                      {hour}h
+                      {hour}
+                      <span className="max-sm:hidden">h</span>
                     </th>
                   ))}
                 </tr>
@@ -88,7 +90,7 @@ export function ActivityHeatmapCard({
                           <TooltipTrigger asChild>
                             <div
                               tabIndex={0}
-                              className="h-7 rounded-[4px] outline-none ring-offset-1 ring-offset-card hover:ring-2 hover:ring-foreground focus-visible:ring-2 focus-visible:ring-ring"
+                              className="h-6 rounded-[3px] outline-none sm:h-7 sm:rounded-[4px] ring-offset-1 ring-offset-card hover:ring-2 hover:ring-foreground focus-visible:ring-2 focus-visible:ring-ring"
                               style={{ backgroundColor: shade(count, max) }}
                             >
                               <span className="sr-only">

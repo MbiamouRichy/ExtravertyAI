@@ -1,4 +1,5 @@
 import type { PrismaClient } from "../src/generated/prisma/client";
+import { emitIntegrationEvent, integrationContact } from "./integration-events";
 import { latestStatus, reconcileReceipt } from "./evolution-ingestion";
 
 // Reconcile delayed echoes by exact provider ID. Never guess an uncertain send.
@@ -98,6 +99,11 @@ export async function reconcileProviderReceipts(prisma: PrismaClient) {
           lastMessageAt: current.createdAt,
         },
       });
+      if (!before) {
+        await emitIntegrationEvent(tx, receipt.projectId, "contact.created", async () => ({
+          contact: await integrationContact(tx, contact.id),
+        }));
+      }
       if (before?.aiActive)
         await tx.contactEvent.create({
           data: {

@@ -29,7 +29,7 @@ export default function SettingsLoading() {
               <Skeleton className="h-6 w-44 rounded-full" />
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-2 sm:flex">
+          <div className="grid grid-cols-1 gap-2 min-[400px]:grid-cols-2 sm:flex">
             <Skeleton className="h-9 rounded-md sm:w-36" />
             <Skeleton className="h-9 rounded-md sm:w-32" />
           </div>
@@ -53,6 +53,15 @@ export default function SettingsLoading() {
           </div>
 
           <div className="min-w-0 space-y-6">
+            {/* Logo du projet */}
+            <div className="flex items-center gap-4 rounded-2xl border bg-card p-4 sm:p-6">
+              <Skeleton className="size-14 shrink-0 rounded-xl" />
+              <div className="min-w-0 flex-1 space-y-2">
+                <Skeleton className="h-5 w-36 max-w-full" />
+                <Skeleton className="h-3 w-full max-w-xs" />
+              </div>
+            </div>
+
             {/* Nom du projet */}
             <div className="space-y-6 rounded-2xl border bg-card p-4 sm:p-6">
               <CardHeading width="w-40" />
@@ -75,6 +84,15 @@ export default function SettingsLoading() {
               </div>
             </div>
 
+            {/* Attribution automatique à l’équipe */}
+            <div className="space-y-5 rounded-2xl border bg-card p-4 sm:p-6">
+              <CardHeading width="w-52" />
+              <div className="flex items-center justify-between gap-4">
+                <Skeleton className="h-4 w-44 max-w-[70%]" />
+                <Skeleton className="h-5 w-9 shrink-0 rounded-full" />
+              </div>
+            </div>
+
             {/* Utilisation et abonnement */}
             <div className="rounded-2xl border bg-card p-4 sm:p-6">
               <div className="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
@@ -86,14 +104,17 @@ export default function SettingsLoading() {
                 <Skeleton className="h-4 w-24" />
               </div>
               <Skeleton className="h-2.5 w-full rounded-full" />
-              <div className="mt-7 grid grid-cols-3 gap-4 border-t pt-6">
-                {[0, 1, 2].map((stat) => (
-                  <div key={stat} className="space-y-2">
-                    <Skeleton className="h-3 w-20 max-w-full" />
-                    <Skeleton className="h-7 w-14" />
-                    <Skeleton className="h-2.5 w-24 max-w-full" />
-                  </div>
-                ))}
+              {/* « Messages envoyés », puis les trois chiffres alignés. */}
+              <div className="mt-7 border-t pt-6">
+                <Skeleton className="h-3 w-32" />
+                <div className="mt-3 grid grid-cols-3 gap-4">
+                  {[0, 1, 2].map((stat) => (
+                    <div key={stat} className="space-y-2">
+                      <Skeleton className="h-7 w-12" />
+                      <Skeleton className="h-3 w-16 max-w-full" />
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           </div>

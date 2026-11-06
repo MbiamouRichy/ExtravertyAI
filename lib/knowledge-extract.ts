@@ -3,6 +3,13 @@ import { KnowledgeError, type KnowledgeExtractors } from "./knowledge";
 import { safeRequest } from "./safe-fetch";
 
 const HTML_TYPES = new Set(["text/html", "application/xhtml+xml"]);
+const BLOCK_TAGS = new Set(
+  "address,article,aside,blockquote,button,dd,div,dl,dt,figcaption,footer,h1,h2,h3,h4,h5,h6,header,li,main,nav,ol,p,pre,section,table,td,th,tr,ul".split(","),
+);
+// Éléments en ligne utilisés comme blocs par les sites modernes.
+const SPACED_TAGS = new Set(["a", "span"]);
+
+type HtmlNode = { nodeType: number; tagName: string; textContent: string | null; childNodes: unknown };
 
 /** Public page → readable article text. Network access goes through safeRequest only. */
 export async function fetchWebPage(url: string): Promise<{ title: string; text: string }> {
@@ -34,8 +41,35 @@ export async function htmlToText(raw: string): Promise<{ title: string; text: st
   }
   const title = (document.title || "").trim();
   const article = new Readability(document as unknown as Document).parse();
-  const text = (article?.textContent || document.body?.textContent || "").trim();
-  return { title: (article?.title || title).trim().slice(0, 150), text };
+  const root = article?.content
+    ? parseHTML(`<!doctype html><html><body>${article.content}</body></html>`).document.body
+    : document.body;
+  return { title: (article?.title || title).trim().slice(0, 150), text: root ? blockText(root) : "" };
+}
+
+/** textContent colle les blocs voisins (« ContactRéponse ») : on suit la structure HTML. */
+function blockText(root: { childNodes: unknown }) {
+  const parts: string[] = [];
+  const walk = (parent: { childNodes: unknown }) => {
+    for (const child of Array.from(parent.childNodes as ArrayLike<HtmlNode>)) {
+      if (child.nodeType === 3) parts.push((child.textContent ?? "").replace(/\s+/g, " "));
+      if (child.nodeType !== 1) continue;
+      const tag = child.tagName.toLowerCase();
+      if (tag === "br") parts.push("\n");
+      const block = BLOCK_TAGS.has(tag);
+      if (block) parts.push("\n\n");
+      walk(child);
+      parts.push(block ? "\n\n" : SPACED_TAGS.has(tag) ? " " : "");
+    }
+  };
+  walk(root);
+  return parts
+    .join("")
+    .replace(/ +([.,])/g, "$1")
+    .replace(/[ \t]*\n[ \t]*/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .replace(/ {2,}/g, " ")
+    .trim();
 }
 
 export async function readKnowledgePdf(

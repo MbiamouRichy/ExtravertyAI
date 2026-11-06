@@ -19,6 +19,7 @@ import {
 import Link from "next/link";
 import {
   PRESENCE_LABEL,
+  PRESENCE_MAX_CONTACTS,
   PRESENCE_SUBSCRIBE_EVERY_MS,
   PRESENCE_TTL_MS,
   type ContactPresence,
@@ -34,14 +35,13 @@ import {
   Check,
   CheckCheck,
   CircleAlert,
-  CircleCheck,
   Download,
   Ellipsis,
   Clock3,
   Loader2,
   Lock,
   MessageCircle,
-  Moon,
+  ListFilter,
   PanelRightClose,
   PanelRightOpen,
   Pause,
@@ -60,7 +60,6 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Kbd } from "@/components/ui/kbd";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import {
@@ -72,8 +71,12 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   DropdownMenu,
+  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -119,7 +122,6 @@ import {
   ComposerModeToggle,
   InternalNoteComposer,
   ResolveConversationButton,
-  TagFilter,
   type ComposerMode,
 } from "./chat-workflow";
 import {
@@ -134,6 +136,7 @@ import { cn } from "@/lib/utils";
 import { AiResponseText, AiThinking, useLiveAiResponses } from "./ai-response";
 import { ChatComposer } from "./chat-composer";
 import { ChatContactPanel } from "./chat-contact-panel";
+import { InternalNotesStrip } from "./chat-internal-notes";
 import { downloadConversation } from "./export-conversation";
 import { ConversationSummaryView } from "./conversation-summary";
 import { useConversationRead } from "@/hooks/use-conversation-read";
@@ -157,6 +160,8 @@ type WorkspaceProps = {
   };
   isSuccess: boolean;
   canManageAi: boolean;
+  /** Publie ses corrections dans l’Assistant IA (vérifié à nouveau côté serveur). */
+  canPublishCorrection?: boolean;
   /** Propriétaire ou administrateur (vérifié à nouveau côté serveur). */
   canCopyPhone?: boolean;
   /** Offre Pro ou Business : étape et montant dans la fiche contact. */
@@ -339,10 +344,24 @@ function WaitingBadge({ since, now }: { since: string; now: number }) {
   );
 }
 
+/** Point « en ligne » posé sur les initiales d’un prospect. */
+function PresenceDot() {
+  return (
+    <span
+      aria-label="En ligne sur WhatsApp"
+      role="img"
+      className="absolute -bottom-0.5 -right-0.5 size-3 rounded-full border-2 border-background bg-emerald-500"
+    />
+  );
+}
+
 function InstinctBadge({
   classification,
+  labelClassName,
 }: {
   classification: ChatClient["prospectClassification"];
+  /** Permet de réduire le badge à son icône quand la place manque. */
+  labelClassName?: string;
 }) {
   if (classification !== "interesting" && classification !== "follow_up") {
     return null;
@@ -353,21 +372,21 @@ function InstinctBadge({
     <Tooltip>
       <TooltipTrigger asChild>
         <span
-          tabIndex={0}
           className={cn(
-            "inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-sm text-[11px] outline-none focus-visible:ring-2 focus-visible:ring-ring",
+            "inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-sm text-[11px]",
             interesting
               ? "bg-primary px-1.5 py-px font-medium text-primary-foreground"
               : "border px-1.5 text-muted-foreground",
           )}
         >
           <Icon aria-hidden="true" className="size-3" />
-          {interesting ? "Prospect intéressant" : "À suivre"}
+          <span className={labelClassName}>
+            {interesting ? "Prospect intéressant" : "À suivre"}
+          </span>
         </span>
       </TooltipTrigger>
-      <TooltipContent className="max-w-60">
-        Instinct IA : analyse recalculée après chaque nouveau message, selon les
-        objectifs de votre agent.
+      <TooltipContent>
+        {interesting ? "Prospect intéressant" : "Prospect à suivre"}
       </TooltipContent>
     </Tooltip>
   );
@@ -467,6 +486,8 @@ function ChatBubble({
   onRestore,
   animate = false,
   grouped = false,
+  question = "",
+  canPublishCorrection = false,
 }: {
   message: DisplayMessage;
   projectId: string;
@@ -475,6 +496,9 @@ function ChatBubble({
   animate?: boolean;
   /** Message consécutif du même auteur : nom masqué, espacement réduit. */
   grouped?: boolean;
+  /** Dernier message du client avant cette réponse de l’IA. */
+  question?: string;
+  canPublishCorrection?: boolean;
 }) {
   const { timeFormatter, dateFormatter, timeZone } = useChatDates();
   const incoming = message.senderType === "client";
@@ -549,18 +573,24 @@ function ChatBubble({
         aria-label={`Message de ${author}`}
         className="flex w-full justify-end"
       >
-        <Message align="end" className="w-4/5 max-w-prose py-2">
+        <Message align="end" className="w-fit max-w-[85%] py-2 sm:max-w-[72%]">
           <MessageContent className="gap-1.5">
             <MessageHeader className="justify-end gap-1.5 px-1 text-[11px]">
               <Bot aria-hidden="true" className="size-3.5" />
               {author}
             </MessageHeader>
-            <AiResponseText content={message.content} animate={animate} />
+            {/* Justifié : les lignes pleines atteignent le bord droit de la bulle.
+                Pas sur téléphone, où la colonne étroite creuserait le texte. */}
+            <div className="rounded-2xl rounded-br-md bg-muted px-3.5 py-2 hyphens-auto shadow-xs sm:text-justify">
+              <AiResponseText content={message.content} animate={animate} />
+            </div>
             <MessageFooter className="flex-wrap justify-end gap-x-2 gap-y-1 px-1 text-[10px] font-normal">
               {!message.id.startsWith("local-") && (
                 <AiFeedbackControls
                   projectId={projectId}
                   messageId={message.id}
+                  question={question}
+                  canPublish={canPublishCorrection}
                   feedback={
                     "feedback" in message ? (message.feedback ?? null) : null
                   }
@@ -602,7 +632,7 @@ function ChatBubble({
       className={cn(
         "flex w-full items-end gap-2",
         outgoing ? "justify-end" : "justify-start",
-        grouped ? "-mt-3" : "mt-1",
+        !grouped && "mt-1",
       )}
     >
       <div
@@ -681,11 +711,40 @@ function ChatBubble({
   );
 }
 
+function sendPresence(
+  projectId: string,
+  body: { contactIds: string[] } | { leave: true },
+) {
+  void fetch(
+    `/api/projects/${encodeURIComponent(projectId)}/chat/contact-presence`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+      keepalive: true,
+    },
+  ).catch(() => undefined);
+}
+
+const MAIN_FILTERS = [
+  ["all", "Toutes"],
+  ["unread", "Non lues"],
+  ["mine", "À moi"],
+] as const;
+
+const MORE_FILTERS = [
+  ["ai", "Assistant IA"],
+  ["manual", "Équipe"],
+  ["unassigned", "Non assignées"],
+  ["resolved", "Résolues"],
+] as const;
+
 export default function WhatsappWorkspace({
   project,
   user,
   isSuccess,
   canManageAi,
+  canPublishCorrection = false,
   canCopyPhone = false,
   pipeline,
   initialClient,
@@ -729,6 +788,18 @@ export default function WhatsappWorkspace({
   });
 
   const clients = contactsQuery.items;
+  const moreFilterLabel = MORE_FILTERS.find(([value]) => value === filter)?.[1];
+  const tagFilterLabel = contactsQuery.projectTags.find(
+    (tag) => tag.id === tagFilter,
+  )?.name;
+  const activeMoreFilters = [
+    ...(moreFilterLabel
+      ? [{ label: moreFilterLabel, clear: () => setFilter("all") }]
+      : []),
+    ...(tagFilterLabel
+      ? [{ label: tagFilterLabel, clear: () => setTagFilter(null) }]
+      : []),
+  ];
 
   const messages = useMemo<Record<string, ChatMessage[]>>(
     () => (activeId ? { [activeId]: historyQuery.items } : {}),
@@ -757,25 +828,6 @@ export default function WhatsappWorkspace({
     [],
   );
   useChatRealtime(project.id, refresh, onPresence);
-  // WhatsApp n’envoie la présence qu’aux abonnés : abonnement à l’ouverture,
-  // renouvelé tant que la conversation reste ouverte et l’onglet visible.
-  useEffect(() => {
-    if (!activeId) return;
-    const subscribe = () => {
-      if (document.visibilityState !== "visible") return;
-      void fetch(
-        `/api/projects/${encodeURIComponent(project.id)}/chat/contact-presence`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ contactId: activeId }),
-        },
-      ).catch(() => undefined);
-    };
-    subscribe();
-    const timer = window.setInterval(subscribe, PRESENCE_SUBSCRIBE_EVERY_MS);
-    return () => window.clearInterval(timer);
-  }, [activeId, project.id]);
   // Un statut sans nouvelle de WhatsApp finit par s’effacer.
   useEffect(() => {
     if (!Object.keys(presences).length) return;
@@ -942,6 +994,7 @@ export default function WhatsappWorkspace({
       .filter((client) => {
         const matchesFilter =
           filter === "all" ||
+          (filter === "unread" && !!client.unreadCount) ||
           (filter === "resolved" && !!client.resolvedAt) ||
           (filter === "ai" && !client.resolvedAt && client.aiActive) ||
           (filter === "manual" && !client.resolvedAt && !client.aiActive) ||
@@ -977,6 +1030,45 @@ export default function WhatsappWorkspace({
     clients.find((client) => client.id === activeId) ??
     (selectedClient?.id === activeId ? selectedClient : undefined);
   const activePresence = activeClient ? presenceOf(activeClient.id) : null;
+
+  // WhatsApp n’envoie la présence qu’aux abonnés : la conversation ouverte et
+  // les plus récentes de la liste, renouvelées tant que l’onglet reste visible.
+  const presenceIds = [
+    ...new Set([
+      ...(activeId ? [activeId] : []),
+      ...visibleClients.flatMap((client) => (client.resolvedAt ? [] : [client.id])),
+    ]),
+  ]
+    .slice(0, PRESENCE_MAX_CONTACTS)
+    .join(",");
+  useEffect(() => {
+    if (!presenceIds) return;
+    const subscribe = () => {
+      if (document.visibilityState !== "visible") return;
+      sendPresence(project.id, { contactIds: presenceIds.split(",") });
+    };
+    subscribe();
+    const timer = window.setInterval(subscribe, PRESENCE_SUBSCRIBE_EVERY_MS);
+    document.addEventListener("visibilitychange", subscribe);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", subscribe);
+    };
+  }, [presenceIds, project.id]);
+  // Le compte ne reste pas affiché en ligne une fois la messagerie quittée.
+  useEffect(() => {
+    const leave = () => sendPresence(project.id, { leave: true });
+    const onVisibility = () => {
+      if (document.visibilityState === "hidden") leave();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("pagehide", leave);
+    return () => {
+      leave();
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("pagehide", leave);
+    };
+  }, [project.id]);
   const aiActive = activeClient
     ? (aiOverrides[activeClient.id] ?? activeClient.aiActive)
     : false;
@@ -1460,7 +1552,7 @@ export default function WhatsappWorkspace({
   }
 
   return (
-    <div className="flex h-[calc(100dvh-var(--spacing)*14)] min-h-0 w-full flex-col overflow-hidden bg-background md:h-[calc(100dvh-var(--spacing)*18)]">
+    <div className="flex chat-viewport min-h-0 w-full flex-col overflow-hidden bg-background">
       {project.automationPaused && (
         <div
           role="status"
@@ -1470,7 +1562,18 @@ export default function WhatsappWorkspace({
           <p>
             Projet en pause : l’IA ne répond à aucun contact, même si son
             réglage individuel est activé. La réactivation globale se fait dans
-            les paramètres du projet.
+            les{" "}
+            {canManageAi ? (
+              <Link
+                href={`/projects/${project.id}/settings`}
+                className="font-medium underline underline-offset-2 hover:no-underline"
+              >
+                paramètres du projet
+              </Link>
+            ) : (
+              "paramètres du projet"
+            )}
+            .
           </p>
         </div>
       )}
@@ -1479,24 +1582,17 @@ export default function WhatsappWorkspace({
         <aside
           aria-label="Conversations"
           className={cn(
-            "w-full min-h-0 shrink-0 flex-col overflow-hidden border-r bg-background md:w-80 lg:w-[22rem]",
+            "w-full min-h-0 shrink-0 flex-col overflow-hidden border-r bg-background md:w-64 lg:w-80 xl:w-[22rem]",
             mobileChat ? "hidden md:flex" : "flex",
           )}
         >
-          <header className="space-y-3 border-b px-3 pb-3 pt-4">
-            <div className="px-1">
-              <p className="truncate text-xs text-muted-foreground">
-                {project.name}
-              </p>
-              <h1 className="font-heading text-xl font-bold tracking-tight">
-                Messagerie
-              </h1>
-              <p aria-live="polite" className="text-xs text-muted-foreground">
-                {contactsQuery.unreadConversations
-                  ? `${contactsQuery.unreadConversations} discussion${contactsQuery.unreadConversations > 1 ? "s" : ""} non lue${contactsQuery.unreadConversations > 1 ? "s" : ""}`
-                  : "Tout est lu"}
-              </p>
-            </div>
+          <header className="space-y-2 border-b px-3 py-3">
+            <h1 className="sr-only">Messagerie</h1>
+            <p aria-live="polite" className="sr-only">
+              {contactsQuery.unreadConversations
+                ? `${contactsQuery.unreadConversations} discussion${contactsQuery.unreadConversations > 1 ? "s" : ""} non lue${contactsQuery.unreadConversations > 1 ? "s" : ""}`
+                : "Tout est lu"}
+            </p>
 
             <InputGroup>
               <InputGroupInput
@@ -1508,7 +1604,7 @@ export default function WhatsappWorkspace({
                 onKeyDown={(event) => {
                   if (event.key === "Escape") setSearch("");
                 }}
-                placeholder="Rechercher un contact…"
+                placeholder="Rechercher"
                 aria-label="Rechercher un contact par nom"
                 autoComplete="off"
                 maxLength={100}
@@ -1516,8 +1612,8 @@ export default function WhatsappWorkspace({
               <InputGroupAddon align="inline-start">
                 <Search />
               </InputGroupAddon>
-              <InputGroupAddon align="inline-end">
-                {search ? (
+              {search && (
+                <InputGroupAddon align="inline-end">
                   <InputGroupButton
                     size="icon-xs"
                     aria-label="Effacer la recherche"
@@ -1528,87 +1624,121 @@ export default function WhatsappWorkspace({
                   >
                     <X />
                   </InputGroupButton>
-                ) : (
-                  <Kbd aria-hidden="true">/</Kbd>
-                )}
-              </InputGroupAddon>
+                </InputGroupAddon>
+              )}
             </InputGroup>
 
             <div
               role="group"
               aria-label="Filtrer les conversations"
-              className="flex flex-wrap gap-1"
+              className="flex min-w-0 items-start gap-1"
             >
-              {(
-                [
-                  ["all", "Toutes", "Toutes les conversations"],
-                  [
-                    "ai",
-                    "Assistant IA",
-                    "L’assistant répond seul à ces contacts",
-                  ],
-                  [
-                    "manual",
-                    "Équipe",
-                    "Un membre de l’équipe a repris la main",
-                  ],
-                  [
-                    "resolved",
-                    "Résolues",
-                    "Traitées. Elles reviennent si le client réécrit",
-                  ],
-                  [
-                    "mine",
-                    "À moi",
-                    "Conversations ouvertes qui vous sont assignées",
-                  ],
-                  [
-                    "unassigned",
-                    "Non assignées",
-                    "Conversations ouvertes sans responsable",
-                  ],
-                ] as const
-              ).map(([value, label, hint]) => (
-                <Tooltip key={value}>
-                  <TooltipTrigger asChild>
-                    <Button
-                      type="button"
-                      size="xs"
-                      variant={filter === value ? "secondary" : "ghost"}
-                      aria-pressed={filter === value}
-                      onClick={() => setFilter(value)}
-                      className={cn(
-                        "rounded-full px-2.5",
-                        filter === value
-                          ? "text-foreground"
-                          : "text-muted-foreground",
-                      )}
-                    >
-                      {label}
-                      {contactsQuery.filterCounts && (
-                        <span
-                          className={cn(
-                            "ml-1 tabular-nums",
-                            filter === value
-                              ? "text-foreground/70"
-                              : "text-muted-foreground/70",
-                          )}
+              <div className="flex min-w-0 flex-1 flex-wrap items-center gap-0.5">
+                {MAIN_FILTERS.map(([value, label]) => (
+                  <Button
+                    key={value}
+                    type="button"
+                    size="xs"
+                    variant={filter === value ? "secondary" : "ghost"}
+                    aria-pressed={filter === value}
+                    onClick={() => setFilter(value)}
+                    className={cn(
+                      "rounded-full px-1.5",
+                      filter === value
+                        ? "text-foreground"
+                        : "text-muted-foreground",
+                    )}
+                  >
+                    {label}
+                    {contactsQuery.filterCounts && (
+                      <span className="font-normal text-muted-foreground tabular-nums">
+                        {contactsQuery.filterCounts[value]}
+                      </span>
+                    )}
+                  </Button>
+                ))}
+              </div>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    type="button"
+                    size="xs"
+                    variant={activeMoreFilters.length ? "secondary" : "ghost"}
+                    aria-label={
+                      activeMoreFilters.length
+                        ? `Autres filtres : ${activeMoreFilters.map(({ label }) => label).join(", ")}`
+                        : "Autres filtres"
+                    }
+                    className="shrink-0 rounded-full"
+                  >
+                    <ListFilter aria-hidden="true" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-52">
+                  <DropdownMenuRadioGroup
+                    value={filter}
+                    onValueChange={(value) => setFilter(value as Filter)}
+                  >
+                    {MORE_FILTERS.map(([value, label]) => (
+                      <DropdownMenuRadioItem key={value} value={value}>
+                        {label}
+                        {contactsQuery.filterCounts && (
+                          <span className="ml-auto text-xs text-muted-foreground tabular-nums">
+                            {contactsQuery.filterCounts[value]}
+                          </span>
+                        )}
+                      </DropdownMenuRadioItem>
+                    ))}
+                  </DropdownMenuRadioGroup>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">
+                    Étiquettes
+                  </DropdownMenuLabel>
+                  {contactsQuery.projectTags.length ? (
+                    <>
+                      {contactsQuery.projectTags.map((tag) => (
+                        <DropdownMenuCheckboxItem
+                          key={tag.id}
+                          checked={tagFilter === tag.id}
+                          onCheckedChange={(checked) =>
+                            setTagFilter(checked ? tag.id : null)
+                          }
                         >
-                          {contactsQuery.filterCounts[value]}
-                          <span className="sr-only"> conversations</span>
-                        </span>
-                      )}
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>{hint}</TooltipContent>
-                </Tooltip>
-              ))}
+                          <span className="truncate">{tag.name}</span>
+                          <span className="ml-auto text-xs text-muted-foreground tabular-nums">
+                            {tag.count}
+                          </span>
+                        </DropdownMenuCheckboxItem>
+                      ))}
+                    </>
+                  ) : (
+                    <p className="px-2 pb-1.5 text-xs leading-relaxed text-muted-foreground">
+                      Ajoutez-en depuis la fiche d’un contact.
+                    </p>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
-            <TagFilter
-              tags={contactsQuery.projectTags}
-              value={tagFilter}
-              onChange={setTagFilter}
-            />
+
+            {/* Sous la barre : un nom de filtre ne décale jamais les filtres principaux. */}
+            {activeMoreFilters.length > 0 && (
+              <div className="flex min-w-0 flex-wrap items-center gap-1">
+                {activeMoreFilters.map(({ label, clear }) => (
+                  <Button
+                    key={label}
+                    type="button"
+                    size="xs"
+                    variant="secondary"
+                    aria-label={`Retirer le filtre ${label}`}
+                    onClick={clear}
+                    className="max-w-full min-w-0 rounded-full"
+                  >
+                    <span className="truncate">{label}</span>
+                    <X aria-hidden="true" />
+                  </Button>
+                ))}
+              </div>
+            )}
           </header>
 
           <nav
@@ -1616,8 +1746,27 @@ export default function WhatsappWorkspace({
             aria-busy={contactsQuery.isLoading}
             className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-1.5 pb-4"
           >
-            {contactsQuery.isLoading && !visibleClients.length ? (
+            {contactsQuery.isLoading &&
+            !visibleClients.length &&
+            (search || contactsQuery.filterCounts?.[filter] !== 0) ? (
               <ConversationListLoading />
+            ) : contactsQuery.error && !visibleClients.length ? (
+              <div role="alert" className="px-6 py-12 text-center">
+                <p className="text-sm font-medium">
+                  Conversations indisponibles
+                </p>
+                <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+                  Vos données sont intactes. Le chargement a échoué.
+                </p>
+                <Button
+                  type="button"
+                  variant="link"
+                  className="mt-3"
+                  onClick={() => void contactsQuery.mutate()}
+                >
+                  Réessayer
+                </Button>
+              </div>
             ) : visibleClients.length === 0 ? (
               <div className="px-6 py-12 text-center">
                 <Search
@@ -1637,7 +1786,7 @@ export default function WhatsappWorkspace({
                 {(search || filter !== "all" || tagFilter) && (
                   <Button
                     variant="link"
-                    className="mt-3"
+                    className="mt-3 h-auto max-w-full whitespace-normal"
                     onClick={() => {
                       setSearch("");
                       setFilter("all");
@@ -1653,6 +1802,7 @@ export default function WhatsappWorkspace({
                 {visibleClients.map((client) => {
                   const selected = activeId === client.id;
                   const hasDraft = !!drafts[client.id]?.trim();
+                  const clientPresence = presenceOf(client.id);
 
                   return (
                     <li key={client.id}>
@@ -1669,7 +1819,7 @@ export default function WhatsappWorkspace({
                         aria-current={selected ? "true" : undefined}
                         onClick={() => selectClient(client.id)}
                         className={cn(
-                          "relative flex h-auto w-full items-start justify-start gap-3 whitespace-normal rounded-lg px-2.5 py-2.5 text-left font-normal",
+                          "relative flex h-21 w-full items-center justify-start gap-3 overflow-hidden whitespace-normal rounded-lg px-2.5 py-2 text-left font-normal",
                           "transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none",
                           selected
                             ? "bg-muted hover:bg-muted"
@@ -1679,18 +1829,21 @@ export default function WhatsappWorkspace({
                         {selected && (
                           <span
                             aria-hidden="true"
-                            className="absolute inset-y-2 left-0 w-0.5 rounded-full bg-foreground"
+                            className="absolute inset-y-1.5 left-0 w-1 rounded-full bg-primary motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-200"
                           />
                         )}
-                        <Avatar className="size-9 shrink-0">
-                          <AvatarFallback className="bg-muted font-heading text-xs font-semibold">
-                            {getInitials(client.name)}
-                          </AvatarFallback>
-                        </Avatar>
+                        <span className="relative shrink-0">
+                          <Avatar className="size-9">
+                            <AvatarFallback className="bg-muted font-heading text-xs font-semibold">
+                              {getInitials(client.name)}
+                            </AvatarFallback>
+                          </Avatar>
+                          {clientPresence && <PresenceDot />}
+                        </span>
 
                         <span className="min-w-0 flex-1">
                           <span className="flex items-center justify-between gap-2">
-                            <span className="flex min-w-0 items-center gap-1.5">
+                            <span className="flex min-w-0 items-center gap-0.5">
                               <span
                                 className={cn(
                                   "truncate text-sm",
@@ -1732,7 +1885,15 @@ export default function WhatsappWorkspace({
                                   : "text-muted-foreground",
                               )}
                             >
-                              {hasDraft ? (
+                              {clientPresence === "typing" ||
+                              clientPresence === "recording" ? (
+                                <span
+                                  role="status"
+                                  className="font-medium text-emerald-600 dark:text-emerald-400"
+                                >
+                                  {PRESENCE_LABEL[clientPresence]}
+                                </span>
+                              ) : hasDraft ? (
                                 <>
                                   <span className="font-medium text-foreground">
                                     Brouillon :{" "}
@@ -1744,6 +1905,12 @@ export default function WhatsappWorkspace({
                                 "Aucun message pour le moment"
                               )}
                             </span>
+                            {client.waitingSince && now && (
+                              <WaitingBadge
+                                since={client.waitingSince}
+                                now={now}
+                              />
+                            )}
                             {!!client.unreadCount && (
                               <Hint
                                 label={`${client.unreadCount} message${client.unreadCount > 1 ? "s" : ""} non lu${client.unreadCount > 1 ? "s" : ""} dans cette conversation.`}
@@ -1762,93 +1929,28 @@ export default function WhatsappWorkspace({
                             )}
                           </span>
 
-                          {/* Ligne de statut toujours réservée : toutes les lignes ont la même hauteur. */}
-                          <span className="mt-1.5 flex h-5 min-w-0 items-center gap-1.5 overflow-hidden text-[11px] text-muted-foreground">
-                            {client.waitingSince && now && (
-                              <WaitingBadge
-                                since={client.waitingSince}
-                                now={now}
-                              />
-                            )}
-                            {client.assignee && (
-                              <Hint
-                                label={
-                                  client.assignee.id === user.id
-                                    ? "Conversation qui vous est assignée : vous êtes responsable de son suivi."
-                                    : `Conversation assignée à ${client.assignee.name?.trim() || "un membre"}, responsable de son suivi.`
-                                }
-                              >
-                                <span className="inline-flex shrink-0 items-center gap-1">
-                                  <Avatar className="size-4">
-                                    <AvatarImage
-                                      src={client.assignee.image || undefined}
-                                      alt=""
-                                    />
-                                    <AvatarFallback className="text-[8px] font-semibold">
-                                      {getInitials(
-                                        client.assignee.name?.trim() ||
-                                          "Membre",
-                                      )}
-                                    </AvatarFallback>
-                                  </Avatar>
-                                  <span className="sr-only">
-                                    Assignée à{" "}
-                                    {client.assignee.name ?? "un membre"}
-                                  </span>
-                                  {client.assignee.id === user.id && (
-                                    <span aria-hidden="true">Vous</span>
-                                  )}
-                                </span>
-                              </Hint>
-                            )}
-                            {(client.prospectClassification === "interesting" ||
-                              client.prospectClassification ===
-                                "follow_up") && (
+                          {(client.prospectClassification === "interesting" ||
+                            client.prospectClassification === "follow_up" ||
+                            !!client.noteCount) && (
+                            <span className="mt-1 flex items-center gap-2">
                               <InstinctBadge
                                 classification={client.prospectClassification}
                               />
-                            )}
-                            {client.resolvedAt && (
-                              <Hint label="Conversation traitée. Elle revient dans les conversations ouvertes si le client réécrit.">
-                                <span className="inline-flex shrink-0 items-center gap-1">
-                                  <CircleCheck
-                                    aria-hidden="true"
-                                    className="size-3"
-                                  />
-                                  Résolue
-                                </span>
-                              </Hint>
-                            )}
-                            {client.aiQuietSince &&
-                              client.aiActive &&
-                              !client.resolvedAt && (
-                                <Hint label="Fin de conversation : l’IA ignore les simples « merci » jusqu’au prochain vrai message du client.">
-                                  <span className="inline-flex shrink-0 items-center gap-1">
-                                    <Moon
-                                      aria-hidden="true"
-                                      className="size-3"
-                                    />
-                                    En veille
+                              {!!client.noteCount && (
+                                <Hint
+                                  label={`${client.noteCount} note${client.noteCount > 1 ? "s" : ""} interne${client.noteCount > 1 ? "s" : ""} de l’équipe.`}
+                                >
+                                  <span className="inline-flex shrink-0 items-center gap-1 text-[11px] text-muted-foreground tabular-nums">
+                                    <Lock aria-hidden="true" className="size-3" />
+                                    {client.noteCount}
+                                    <span className="sr-only">
+                                      notes internes
+                                    </span>
                                   </span>
                                 </Hint>
                               )}
-                            {client.tags?.[0] && (
-                              <Hint
-                                label={`Étiquette${client.tags.length > 1 ? "s" : ""} : ${client.tags.map((tag) => tag.name).join(", ")}. Visible uniquement par votre équipe.`}
-                              >
-                                <span className="min-w-0 truncate rounded-md border px-1.5 py-px">
-                                  <span className="sr-only">Étiquette : </span>
-                                  {client.tags[0].name}
-                                  {client.tags.length > 1 && (
-                                    <span className="text-muted-foreground">
-                                      {" "}
-                                      +{client.tags.length - 1}
-                                    </span>
-                                  )}
-                                </span>
-                              </Hint>
-                            )}
-                          </span>
+                            </span>
+                          )}
                         </span>
                       </Button>
                     </li>
@@ -1892,7 +1994,7 @@ export default function WhatsappWorkspace({
         >
           {activeClient ? (
             <>
-              <header className="chat-floating-header relative z-10 flex shrink-0 items-center gap-2 border-b border-border bg-background px-2 py-3 sm:gap-3 sm:px-5">
+              <header className="chat-floating-header relative z-10 flex shrink-0 items-center gap-2 border-b border-border bg-background px-2 py-2 sm:gap-3 sm:px-5 sm:py-3">
                 <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
                   <Button
                     type="button"
@@ -1911,56 +2013,73 @@ export default function WhatsappWorkspace({
                     aria-label={`Voir la fiche de ${activeClient.name}`}
                     className="flex min-w-0 flex-1 items-center gap-2 rounded-lg p-1 text-left outline-none hover:bg-muted/60 focus-visible:ring-3 focus-visible:ring-ring/50 sm:gap-3"
                   >
-                    <span className="relative hidden shrink-0 sm:flex">
+                    <span className="relative hidden shrink-0 sm:flex md:hidden lg:flex">
                       <Avatar className="size-9">
                         <AvatarFallback className="font-heading text-xs font-semibold">
                           {getInitials(activeClient.name)}
                         </AvatarFallback>
                       </Avatar>
-                      {activePresence && (
-                        <span
-                          aria-hidden="true"
-                          className="absolute -bottom-0.5 -right-0.5 size-3 rounded-full border-2 border-background bg-emerald-500"
-                        />
-                      )}
+                      {activePresence && <PresenceDot />}
                     </span>
 
-                    <span className="block min-w-0 flex-1">
+                    {/* La largeur vient de ce bloc, pas de l’écran : la sidebar et les actions la réduisent. */}
+                    <span className="@container block min-w-0 flex-1">
                       <span className="flex min-w-0 items-center gap-2">
                         <h2 className="truncate text-sm font-semibold sm:text-base">
                           {activeClient.name}
                         </h2>
-                        <ConversationParticipants
-                          active={aiActive}
-                          agents={conversationAgents}
-                          loading={historyQuery.isLoading}
-                        />
-                      </span>
-                      {activePresence ? (
-                        <span
-                          role="status"
-                          className="mt-0.5 flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400"
-                        >
-                          <span
-                            aria-hidden="true"
-                            className="size-1.5 rounded-full bg-emerald-500 sm:hidden"
+                        <span className="contents @max-[13rem]:hidden">
+                          <ConversationParticipants
+                            active={aiActive}
+                            agents={conversationAgents}
+                            loading={historyQuery.isLoading}
                           />
-                          {PRESENCE_LABEL[activePresence]}
                         </span>
-                      ) : (
-                        <span className="mt-0.5 hidden sm:flex">
+                      </span>
+                      <span className="mt-0.5 flex min-w-0 items-center gap-1.5 empty:hidden">
+                        {activePresence && (
+                          <span
+                            role="status"
+                            className="flex min-w-0 items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400"
+                          >
+                            <span
+                              aria-hidden="true"
+                              className="size-1.5 shrink-0 rounded-full bg-emerald-500 sm:hidden md:block lg:hidden"
+                            />
+                            <span className="truncate @max-[9.5rem]:sr-only">
+                              {PRESENCE_LABEL[activePresence]}
+                            </span>
+                            <span aria-hidden="true" className="hidden truncate @max-[9.5rem]:inline">
+                              {activePresence === "recording"
+                                ? "Vocal…"
+                                : PRESENCE_LABEL[activePresence]}
+                            </span>
+                          </span>
+                        )}
+                        {/* Statut éphémère : il passe avant le badge, qui revient ensuite. */}
+                        <span
+                          className={cn(
+                            "contents",
+                            activePresence && "@max-[15rem]:hidden",
+                          )}
+                        >
                           <InstinctBadge
                             classification={activeClient.prospectClassification}
+                            labelClassName={
+                              activePresence
+                                ? "@max-[20rem]:sr-only"
+                                : "@max-[8.5rem]:sr-only"
+                            }
                           />
                         </span>
-                      )}
+                      </span>
                     </span>
                   </button>
                 </div>
 
                 <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-2">
                   {canManageAi ? (
-                    <div className="flex shrink-0 items-center gap-2 rounded-lg border px-2.5 py-1.5">
+                    <div className="flex h-8 shrink-0 items-center gap-1.5 rounded-lg border px-1.5 sm:gap-2 sm:px-2.5">
                       {aiBusyId === activeClient.id ? (
                         <Loader2
                           aria-hidden="true"
@@ -1974,7 +2093,7 @@ export default function WhatsappWorkspace({
                       )}
                       <Label
                         htmlFor="chat-ai-toggle"
-                        className="hidden cursor-pointer text-xs sm:block"
+                        className="hidden cursor-pointer text-xs sm:block md:hidden xl:block"
                       >
                         Assistant IA
                       </Label>
@@ -2009,6 +2128,7 @@ export default function WhatsappWorkspace({
                         type="button"
                         variant="ghost"
                         size="icon"
+                        className="size-8 sm:size-9"
                         aria-label="Plus d’actions"
                       >
                         <Ellipsis aria-hidden="true" />
@@ -2111,32 +2231,31 @@ export default function WhatsappWorkspace({
                 </div>
               </header>
 
+              {!summaryOpen && !!historyQuery.notes?.total && (
+                <InternalNotesStrip
+                  notes={historyQuery.notes}
+                  formatDate={(iso) => dateFormatter.format(new Date(iso))}
+                />
+              )}
+
               {!summaryOpen &&
                 !activeResolved &&
                 (!aiActive || project.automationPaused) && (
                   <div
                     role="status"
-                    className="flex shrink-0 items-center gap-2 bg-foreground px-4 py-2 text-xs text-background"
+                    className="flex shrink-0 items-center gap-1.5 bg-foreground px-3 py-1 text-[11px] text-background lg:gap-2 lg:px-4 lg:py-1.5 lg:text-xs"
                   >
-                    <Hand aria-hidden="true" className="size-3.5 shrink-0" />
-                    <span className="min-w-0 flex-1">
+                    <Hand aria-hidden="true" className="size-3 shrink-0 lg:size-3.5" />
+                    <span className="min-w-0 truncate lg:hidden">
+                      {project.automationPaused
+                        ? "Projet en pause : IA inactive"
+                        : "IA désactivée : votre équipe répond"}
+                    </span>
+                    <span className="min-w-0 truncate max-lg:hidden">
                       {project.automationPaused
                         ? "Projet en pause : l’assistant IA ne répond à aucun contact."
                         : "Assistant IA désactivé : votre équipe répond à ce contact."}
                     </span>
-                    {!project.automationPaused && canManageAi && (
-                      <Button
-                        type="button"
-                        size="xs"
-                        variant="secondary"
-                        className="shrink-0"
-                        disabled={aiBusyId !== null}
-                        onClick={() => void toggleAi()}
-                      >
-                        <Bot data-icon="inline-start" />
-                        Réactiver
-                      </Button>
-                    )}
                   </div>
                 )}
 
@@ -2225,6 +2344,18 @@ export default function WhatsappWorkspace({
                                 )
                               : undefined;
 
+                            const grouped =
+                              day === previousDay &&
+                              !!previousMessage &&
+                              message.senderType !== "bot" &&
+                              message.senderType !== "system" &&
+                              !message.mediaUrl &&
+                              !previousMessage.mediaUrl &&
+                              previousMessage.senderType ===
+                                message.senderType &&
+                              (previousMessage.agent?.id ?? null) ===
+                                (message.agent?.id ?? null);
+
                             return (
                               <MessageScrollerItem
                                 key={
@@ -2233,6 +2364,9 @@ export default function WhatsappWorkspace({
                                     : message.id
                                 }
                                 messageId={message.id}
+                                // Marge sur l’élément et non sur la bulle : son
+                                // content-visibility coupe tout ce qui en dépasse.
+                                className={cn(grouped && "-mt-3")}
                               >
                                 {day !== previousDay && (
                                   <div className="mb-5 mt-2 flex justify-center">
@@ -2246,21 +2380,15 @@ export default function WhatsappWorkspace({
 
                                 <ChatBubble
                                   message={message}
-                                  grouped={
-                                    day === previousDay &&
-                                    !!previousMessage &&
-                                    message.senderType !== "bot" &&
-                                    message.senderType !== "system" &&
-                                    // Les médias gardent leur espacement : la marge
-                                    // négative du regroupement les faisait passer
-                                    // sous la bulle précédente (haut coupé).
-                                    !message.mediaUrl &&
-                                    !previousMessage.mediaUrl &&
-                                    previousMessage.senderType ===
-                                      message.senderType &&
-                                    (previousMessage.agent?.id ?? null) ===
-                                      (message.agent?.id ?? null)
+                                  grouped={grouped}
+                                  question={
+                                    message.senderType === "bot"
+                                      ? (activeMessages
+                                          .slice(0, index)
+                                          .findLast((item) => item.senderType === "client")?.content ?? "")
+                                      : ""
                                   }
+                                  canPublishCorrection={canPublishCorrection}
                                   animate={animatedAiIds.has(message.id)}
                                   contactName={activeClient.name}
                                   projectId={project.id}
@@ -2375,17 +2503,14 @@ export default function WhatsappWorkspace({
             <ChatContactPanel
               projectId={project.id}
               client={activeClient}
+              presence={activePresence}
               aiActive={aiActive}
               resolved={activeResolved}
               automationPaused={project.automationPaused}
               agents={conversationAgents}
               hasClientMessage={historyQuery.hasClientMessage}
-              lastActivityLabel={dateFormatter.format(
-                new Date(activeClient.lastActivityAt),
-              )}
               details={historyQuery.contact}
               canCopyPhone={canCopyPhone}
-              formatDate={(iso) => dateFormatter.format(new Date(iso))}
               currentUserId={user.id}
               pipeline={pipeline}
               onContactChanged={() => void contactsQuery.mutate()}
@@ -2410,17 +2535,14 @@ export default function WhatsappWorkspace({
             <ChatContactPanel
               projectId={project.id}
               client={activeClient}
+              presence={activePresence}
               aiActive={aiActive}
               resolved={activeResolved}
               automationPaused={project.automationPaused}
               agents={conversationAgents}
               hasClientMessage={historyQuery.hasClientMessage}
-              lastActivityLabel={dateFormatter.format(
-                new Date(activeClient.lastActivityAt),
-              )}
               details={historyQuery.contact}
               canCopyPhone={canCopyPhone}
-              formatDate={(iso) => dateFormatter.format(new Date(iso))}
               currentUserId={user.id}
               pipeline={pipeline}
               onContactChanged={() => void contactsQuery.mutate()}

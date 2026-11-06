@@ -1,5 +1,6 @@
 "use client";
 
+import { LocalDate } from "@/components/local-date";
 import Link from "next/link";
 import { useEffect, useRef, useState, useTransition } from "react";
 import {
@@ -22,7 +23,7 @@ import { BROADCAST_SKIP_LABEL, RECIPIENT_FILTERS, type RecipientFilter } from "@
 import type { RecipientRow } from "@/lib/broadcasts";
 import { cn } from "@/lib/utils";
 
-const dateTime = new Intl.DateTimeFormat("fr-FR", { dateStyle: "short", timeStyle: "short" });
+const dateTime = { dateStyle: "short", timeStyle: "short" } as const;
 
 function stateOf(row: RecipientRow) {
   if (row.state === "PENDING") return { label: "En attente", icon: Clock3, tone: "text-muted-foreground" };
@@ -102,19 +103,19 @@ export function RecipientsPanel({
   return (
     <div className="space-y-4">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-        <div role="group" aria-label="Filtrer les destinataires" className="-mx-1 flex flex-wrap gap-1.5 px-1">
+        <div role="group" aria-label="Filtrer les destinataires" className="flex flex-wrap gap-1">
           {RECIPIENT_FILTERS.map((option) => (
             <Button
               key={option.id}
               type="button"
-              size="sm"
-              variant={filter === option.id ? "default" : "outline"}
+              size="xs"
+              variant={filter === option.id ? "secondary" : "ghost"}
               aria-pressed={filter === option.id}
               onClick={() => setFilter(option.id)}
-              className="h-8"
+              className={cn("rounded-full px-2.5", filter !== option.id && "text-muted-foreground")}
             >
               {option.label}
-              <span className="font-mono text-[11px] tabular-nums opacity-70">
+              <span className="font-normal tabular-nums text-muted-foreground">
                 {counts[option.id].toLocaleString("fr-FR")}
               </span>
             </Button>
@@ -144,11 +145,11 @@ export function RecipientsPanel({
       )}
 
       {page.rows.length ? (
-        <ul aria-busy={loading} className={cn("divide-y rounded-2xl border bg-card transition-opacity", loading && "opacity-60")}>
+        <ul aria-busy={loading} className={cn("divide-y rounded-xl border bg-card transition-opacity", loading && "opacity-60")}>
           {page.rows.map((row) => {
             const state = stateOf(row);
             return (
-              <li key={row.id} className="flex flex-col gap-2 p-3 sm:flex-row sm:items-center sm:gap-4 sm:px-4">
+              <li key={row.id} className="flex items-center gap-4 p-3 sm:px-4">
                 <div className="min-w-0 flex-1">
                   <Link
                     href={`/projects/${projectId}/chat?contactId=${encodeURIComponent(row.contact.id)}`}
@@ -157,22 +158,22 @@ export function RecipientsPanel({
                     {row.contact.name}
                   </Link>
                   {row.contact.maskedPhone && (
-                    <span className="block font-mono text-[11px] text-muted-foreground">{row.contact.maskedPhone}</span>
+                    <span className="block text-xs text-muted-foreground">{row.contact.maskedPhone}</span>
                   )}
                 </div>
-                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
+                <div className="flex shrink-0 flex-col items-end gap-x-4 gap-y-0.5 text-xs sm:flex-row sm:items-center">
                   <span className={cn("inline-flex items-center gap-1.5", state.tone)}>
                     <state.icon aria-hidden="true" className="size-3.5" />
                     {state.label}
                   </span>
                   {row.replied && (
-                    <span className="inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5">
-                      <Reply aria-hidden="true" className="size-3" />
+                    <span className="inline-flex items-center gap-1.5">
+                      <Reply aria-hidden="true" className="size-3.5" />
                       A répondu
                     </span>
                   )}
-                  <span className="w-24 font-mono text-[11px] tabular-nums text-muted-foreground sm:text-right">
-                    {row.queuedAt ? <time dateTime={row.queuedAt}>{dateTime.format(new Date(row.queuedAt))}</time> : "—"}
+                  <span className="tabular-nums text-muted-foreground sm:w-24 sm:text-right">
+                    {row.queuedAt ? <LocalDate value={row.queuedAt} options={dateTime} /> : "—"}
                   </span>
                 </div>
               </li>
@@ -180,7 +181,7 @@ export function RecipientsPanel({
           })}
         </ul>
       ) : (
-        <Empty className="rounded-2xl border border-dashed p-8">
+        <Empty className="rounded-xl border border-dashed p-8">
           <EmptyHeader>
             <EmptyMedia variant="icon">
               <UsersRound aria-hidden="true" />
