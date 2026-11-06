@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { QRCodeSVG } from "qrcode.react";
-import { ArrowUpRight, Check, Clock3, Copy, Mail, Phone } from "lucide-react";
+import { ArrowUpRight, Check, Clock3, Copy, Mail, type LucideIcon } from "lucide-react";
 import { toast } from "sonner";
 
 import { cn } from "@/lib/utils";
@@ -15,13 +15,7 @@ import {
   Serif,
 } from "@/components/website/vitrine/primitives";
 
-import {
-  EMAIL,
-  PHONE_DISPLAY,
-  PHONE_HREF,
-  TEAM_TIME_ZONE,
-  WHATSAPP_CHAT_URL,
-} from "./data";
+import { EMAIL, TEAM_TIME_ZONE, WHATSAPP_CHAT_URL } from "./data";
 
 export function ContactChannels() {
   return (
@@ -37,25 +31,19 @@ export function ContactChannels() {
         }
         description="Les mêmes personnes vous répondent, quel que soit le chemin."
       />
-      <div className="grid gap-px border-t bg-border lg:grid-cols-12">
+      {/* WhatsApp first and widest; e-mail and the team clock share the rest:
+          side by side on tablets, stacked beside WhatsApp on desktop. */}
+      <div className="grid gap-px border-t bg-border sm:grid-cols-2 lg:grid-cols-12">
         <WhatsAppTile />
         <ChannelTile
           className="lg:col-span-6"
-          icon={Phone}
-          label="Téléphone"
-          value={PHONE_DISPLAY}
-          copyValue={PHONE_DISPLAY.replace(/\s/g, "")}
-          action={{ label: "Appeler", href: PHONE_HREF }}
-        />
-        <ChannelTile
-          className="lg:col-span-3"
           icon={Mail}
           label="E-mail"
           value={EMAIL}
           copyValue={EMAIL}
           action={{ label: "Écrire", href: `mailto:${EMAIL}` }}
         />
-        <TeamClock className="lg:col-span-3" />
+        <TeamClock className="lg:col-span-6" />
       </div>
     </SectionShell>
   );
@@ -65,29 +53,35 @@ function WhatsAppTile() {
   return (
     <article
       aria-labelledby="canal-whatsapp"
-      className="relative isolate flex flex-col gap-8 overflow-hidden bg-background px-4 py-10 sm:flex-row sm:items-end sm:justify-between sm:px-8 lg:col-span-6 lg:row-span-2 lg:px-12"
+      className="relative isolate flex flex-col gap-8 overflow-hidden bg-background px-4 py-10 sm:col-span-2 sm:flex-row sm:items-end sm:justify-between sm:px-8 lg:col-span-6 lg:row-span-2 lg:px-12"
     >
       <div
         aria-hidden="true"
         className="absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_top_left,color-mix(in_oklch,var(--foreground)_6%,transparent),transparent_65%)]"
       />
       <div className="flex min-w-0 flex-col gap-6">
-        <div className="flex items-center gap-3">
-          <span className="flex size-10 items-center justify-center rounded-xl bg-primary text-primary-foreground">
+        {/* On narrow screens the badge wraps below instead of squeezing the icon. */}
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground">
             <WhatsAppIcon aria-hidden="true" className="size-5" />
           </span>
           <h3 id="canal-whatsapp" className="font-heading text-xl font-semibold tracking-tight">
             WhatsApp
           </h3>
-          <span className="rounded-full border px-2 py-0.5 font-mono text-[10px] tracking-wider text-muted-foreground uppercase">
+          <span className="whitespace-nowrap rounded-full border px-2 py-0.5 font-mono text-[10px] tracking-wider text-muted-foreground uppercase">
             Le plus rapide
           </span>
         </div>
-        <p className="font-mono text-2xl tracking-tight tabular-nums sm:text-3xl">{PHONE_DISPLAY}</p>
-        <p className="max-w-xs text-sm text-muted-foreground">
-          Là où vos clients vous écrivent déjà, et là où travaillera votre agent.
-        </p>
-        <Button asChild size="lg" className="group w-fit">
+        {/* No number on display: the button opens the chat directly. */}
+        <div className="flex flex-col gap-2">
+          <p className="max-w-sm text-lg font-medium text-balance sm:text-xl">
+            Écrivez-nous, une personne de l’équipe vous répond.
+          </p>
+          <p className="max-w-xs text-sm text-pretty text-muted-foreground">
+            Là où vos clients vous écrivent déjà, et là où travaillera votre agent.
+          </p>
+        </div>
+        <Button asChild size="lg" className="group w-full sm:w-fit">
           <a href={WHATSAPP_CHAT_URL} target="_blank" rel="noopener noreferrer">
             Ouvrir la conversation
             <ArrowUpRight
@@ -129,7 +123,7 @@ function ChannelTile({
   action,
   className,
 }: {
-  icon: typeof Phone;
+  icon: LucideIcon;
   label: string;
   value: string;
   copyValue: string;
@@ -142,9 +136,8 @@ function ChannelTile({
         <Icon aria-hidden="true" className="size-5" />
         <Eyebrow className="text-[11px]">{label}</Eyebrow>
       </div>
-      <p className="truncate font-mono text-base tabular-nums sm:text-lg" title={value}>
-        {value}
-      </p>
+      {/* The full address stays readable: it wraps instead of being cut. */}
+      <p className="font-mono text-sm wrap-anywhere min-[360px]:text-base lg:text-lg">{value}</p>
       <div className="mt-auto flex flex-wrap gap-2">
         <Button asChild variant="outline" size="sm">
           <a href={action.href}>{action.label}</a>
