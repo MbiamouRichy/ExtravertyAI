@@ -103,7 +103,8 @@ export function ProjectTimeZoneSettings({
         Fuseau horaire
       </h2>
       <p className="mt-1 text-sm text-muted-foreground">
-        Celui de votre activité et de vos clients, détecté à la création du projet.
+        Celui de votre activité et de vos clients. Les nouveaux projets
+        reprennent celui de l’appareil qui les crée.
       </p>
       <form
         noValidate
