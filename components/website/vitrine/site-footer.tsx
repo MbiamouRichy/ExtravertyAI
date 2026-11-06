@@ -73,7 +73,8 @@ export function SiteFooter() {
             </div>
           </div>
           {COLUMNS.map((column) => (
-            <nav key={column.title} aria-label={column.title} className="md:col-span-3 md:last:col-span-2">
+            // Phones: the last column (Légal) spans the full width instead of half of it.
+            <nav key={column.title} aria-label={column.title} className="last:col-span-2 md:col-span-3 md:last:col-span-2">
               <p className="mb-4 font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
                 {column.title}
               </p>
