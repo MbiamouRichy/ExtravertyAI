@@ -16,7 +16,8 @@ import {
 } from "@/lib/broadcast-shared";
 import { cn } from "@/lib/utils";
 import { BroadcastActions } from "./broadcast-actions";
-import { ACTIVE_STATUSES, type BroadcastUsageView, type BroadcastView } from "./types";
+import type { BroadcastStats } from "@/lib/broadcasts";
+import { ACTIVE_STATUSES, type BroadcastStatus, type BroadcastUsageView, type BroadcastView } from "./types";
 
 const number = (value: number) => value.toLocaleString("fr-FR");
 const dateTime = { dateStyle: "medium", timeStyle: "short" } as const;
@@ -46,40 +47,130 @@ function Meter({ label, used, limit, hint }: { label: string; used: number; limi
   );
 }
 
-export function StatusLine({ broadcast }: { broadcast: Pick<BroadcastView, "status" | "pauseReason" | "nextSendAt" | "scheduledAt"> }) {
-  const reason = broadcast.pauseReason ? BROADCAST_REASON_LABEL[broadcast.pauseReason] : null;
+function StatusLabel({ status }: { status: BroadcastStatus }) {
   const tone =
-    broadcast.status === "PAUSED"
+    status === "PAUSED"
       ? "text-destructive"
-      : broadcast.status === "SENDING"
+      : status === "SENDING"
         ? "font-medium text-foreground"
         : "text-muted-foreground";
   return (
+    <span className={cn("inline-flex w-fit items-center gap-1.5 text-xs", tone)}>
+      <span
+        aria-hidden="true"
+        className={cn("size-1.5 rounded-full bg-current", status === "SENDING" && "animate-pulse motion-reduce:animate-none")}
+      />
+      {BROADCAST_STATUS_LABEL[status]}
+    </span>
+  );
+}
+
+function StatusReason({ status, reason, className }: { status: BroadcastStatus; reason: string; className?: string }) {
+  return (
+    <span
+      className={cn(
+        "flex items-start gap-1 text-xs",
+        status === "PAUSED" ? "text-destructive" : "text-muted-foreground",
+        className,
+      )}
+    >
+      {status === "PAUSED" ? (
+        <CircleAlert aria-hidden="true" className="mt-0.5 size-3 shrink-0" />
+      ) : (
+        <Clock3 aria-hidden="true" className="mt-0.5 size-3 shrink-0" />
+      )}
+      {reason}
+    </span>
+  );
+}
+
+export function StatusLine({ broadcast }: { broadcast: Pick<BroadcastView, "status" | "pauseReason" | "nextSendAt" | "scheduledAt"> }) {
+  const reason = broadcast.pauseReason ? BROADCAST_REASON_LABEL[broadcast.pauseReason] : null;
+  return (
     <div className="flex flex-col gap-1">
-      <span className={cn("inline-flex w-fit items-center gap-1.5 text-xs", tone)}>
-        <span
-          aria-hidden="true"
-          className={cn(
-            "size-1.5 rounded-full bg-current",
-            broadcast.status === "SENDING" && "animate-pulse motion-reduce:animate-none",
-          )}
-        />
-        {BROADCAST_STATUS_LABEL[broadcast.status]}
-      </span>
+      <StatusLabel status={broadcast.status} />
       {broadcast.status === "SCHEDULED" && !reason && (
         <span className="text-xs text-muted-foreground">Départ prévu le <LocalDate value={broadcast.scheduledAt} options={dateTime} /></span>
       )}
-      {reason && (
-        <span className={cn("flex items-start gap-1 text-xs", broadcast.status === "PAUSED" ? "text-destructive" : "text-muted-foreground")}>
-          {broadcast.status === "PAUSED" ? (
-            <CircleAlert aria-hidden="true" className="mt-0.5 size-3 shrink-0" />
-          ) : (
-            <Clock3 aria-hidden="true" className="mt-0.5 size-3 shrink-0" />
-          )}
-          {reason}
-        </span>
-      )}
+      {reason && <StatusReason status={broadcast.status} reason={reason} />}
     </div>
+  );
+}
+
+/** The date that matters for the status; its meaning is spelled out for screen readers. */
+function ListDate({ broadcast }: { broadcast: BroadcastView }) {
+  const [label, value] =
+    broadcast.status === "SCHEDULED"
+      ? ["départ prévu le", broadcast.scheduledAt]
+      : broadcast.status === "COMPLETED"
+        ? ["terminée le", broadcast.finishedAt ?? broadcast.createdAt]
+        : broadcast.status === "CANCELLED"
+          ? ["annulée le", broadcast.finishedAt ?? broadcast.createdAt]
+          : ["lancée le", broadcast.startedAt ?? broadcast.scheduledAt];
+  // The year only when it is not the current one.
+  const options: Intl.DateTimeFormatOptions =
+    new Date(value).getFullYear() === new Date().getFullYear()
+      ? { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }
+      : { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" };
+  return (
+    <span className="whitespace-nowrap">
+      <span className="sr-only">{label} </span>
+      <LocalDate value={value} options={options} />
+    </span>
+  );
+}
+
+/**
+ * Key results of a broadcast in the list: inline on narrow cards, aligned
+ * columns on wide ones. Failures only show on phones when there are some.
+ */
+function BroadcastSummary({ stats }: { stats: BroadcastStats | null }) {
+  if (!stats) return null;
+  const failed = stats.failed + stats.skipped;
+  if (!stats.queued && !failed) return null;
+  const rate = (value: number) => (stats.queued ? `${Math.round((value / stats.queued) * 100)} %` : "—");
+  const items = [
+    { label: "distribués", value: rate(stats.delivered), alert: false, optional: false },
+    { label: "lus", value: rate(stats.read), alert: false, optional: false },
+    { label: stats.replied > 1 ? "réponses" : "réponse", value: number(stats.replied), alert: false, optional: false },
+    { label: failed > 1 ? "échecs" : "échec", value: number(failed), alert: failed > 0, optional: failed === 0 },
+  ];
+  return (
+    <dl className="flex flex-wrap items-baseline gap-x-4 gap-y-1 text-xs @3xl/broadcast:flex-nowrap">
+      {items.map((item) => (
+        <div
+          key={item.label}
+          className={cn(
+            "flex flex-row-reverse items-baseline gap-1 whitespace-nowrap",
+            "@3xl/broadcast:w-20 @3xl/broadcast:flex-col-reverse @3xl/broadcast:items-end @3xl/broadcast:gap-0.5",
+            item.optional && "@max-3xl/broadcast:hidden",
+            item.alert ? "text-destructive" : "text-muted-foreground",
+          )}
+        >
+          <dt className="@3xl/broadcast:capitalize">{item.label}</dt>
+          <dd
+            className={cn(
+              "font-medium tabular-nums @3xl/broadcast:text-sm @3xl/broadcast:font-semibold",
+              !item.alert && !item.optional && "text-foreground",
+            )}
+          >
+            {item.value}
+          </dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
+function Chevron({ className }: { className?: string }) {
+  return (
+    <ChevronRight
+      aria-hidden="true"
+      className={cn(
+        "size-4 shrink-0 text-muted-foreground transition-transform group-hover/broadcast:translate-x-0.5 group-hover/broadcast:text-foreground motion-reduce:transition-none",
+        className,
+      )}
+    />
   );
 }
 
@@ -199,51 +290,61 @@ export function BroadcastsWorkspace({
 
       {broadcasts.length ? (
         <ul aria-label="Vos diffusions" className="divide-y rounded-xl border bg-card">
-          {broadcasts.map((broadcast) => (
-            <li key={broadcast.id} className="space-y-3 p-4">
-              <div className="flex items-start gap-2">
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-1">
-                    <h3 className="flex min-w-0 max-w-full items-center gap-2 text-sm font-medium">
-                      <Link
-                        href={`${base}/${broadcast.id}`}
-                        className="truncate underline-offset-4 outline-none hover:underline focus-visible:underline"
-                      >
-                        {broadcast.name}
-                      </Link>
-                      {broadcast.hasImage && (
-                        <ImageIcon aria-label="Avec image" className="size-3.5 shrink-0 text-muted-foreground" />
-                      )}
-                    </h3>
-                    <StatusLine broadcast={broadcast} />
+          {broadcasts.map((broadcast) => {
+            const active = ACTIVE_STATUSES.includes(broadcast.status);
+            const reason = broadcast.pauseReason ? BROADCAST_REASON_LABEL[broadcast.pauseReason] : null;
+            return (
+              // The whole card opens the detail: the title link covers it, the actions sit above.
+              <li
+                key={broadcast.id}
+                className="group/broadcast @container/broadcast relative p-4 transition-colors first:rounded-t-xl last:rounded-b-xl hover:bg-muted/40 has-[a:focus-visible]:ring-2 has-[a:focus-visible]:ring-ring has-[a:focus-visible]:ring-inset motion-reduce:transition-none"
+              >
+                <div className="flex flex-col gap-3 @3xl/broadcast:flex-row @3xl/broadcast:items-center @3xl/broadcast:gap-6">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <h3 className="flex min-w-0 items-center gap-1.5 text-sm font-medium">
+                        <Link href={`${base}/${broadcast.id}`} className="truncate outline-none after:absolute after:inset-0">
+                          {broadcast.name}
+                        </Link>
+                        {broadcast.hasImage && (
+                          <ImageIcon role="img" aria-label="Avec image" className="size-3.5 shrink-0 text-muted-foreground" />
+                        )}
+                      </h3>
+                      <Chevron className="ml-auto @3xl/broadcast:hidden" />
+                    </div>
+                    <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
+                      <StatusLabel status={broadcast.status} />
+                      <span>
+                        {number(broadcast.recipientCount)} contact{broadcast.recipientCount > 1 ? "s" : ""}
+                        <span aria-hidden="true"> · </span>
+                        <ListDate broadcast={broadcast} />
+                      </span>
+                    </p>
+                    {reason && <StatusReason status={broadcast.status} reason={reason} className="mt-1.5" />}
                   </div>
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    {number(broadcast.recipientCount)} contact{broadcast.recipientCount > 1 ? "s" : ""} ·{" "}
-                    {broadcast.finishedAt ? "terminée le " : "créée le "}
-                    <LocalDate value={broadcast.finishedAt ?? broadcast.createdAt} options={dateTime} />
-                    {broadcast.author ? ` par ${broadcast.author}` : ""}
-                  </p>
+                  <BroadcastSummary stats={broadcast.stats} />
+                  <Chevron className="hidden @3xl/broadcast:block" />
                 </div>
-                <Button asChild size="icon-sm" variant="ghost" className="-mt-1 -mr-1 shrink-0">
-                  <Link href={`${base}/${broadcast.id}`} aria-label={`Détail de « ${broadcast.name} »`}>
-                    <ChevronRight aria-hidden="true" />
-                  </Link>
-                </Button>
-              </div>
-              {ACTIVE_STATUSES.includes(broadcast.status) && <BroadcastProgress broadcast={broadcast} />}
-              <BroadcastKpis broadcast={broadcast} />
-              {canManage && (
-                <BroadcastActions
-                  projectId={projectId}
-                  broadcastId={broadcast.id}
-                  name={broadcast.name}
-                  status={broadcast.status}
-                  pending={broadcast.stats?.pending ?? 0}
-                  onChanged={refresh}
-                />
-              )}
-            </li>
-          ))}
+                {active && (
+                  <div className="mt-3">
+                    <BroadcastProgress broadcast={broadcast} />
+                  </div>
+                )}
+                {canManage && active && (
+                  <div className="relative z-10 mt-3 w-fit">
+                    <BroadcastActions
+                      projectId={projectId}
+                      broadcastId={broadcast.id}
+                      name={broadcast.name}
+                      status={broadcast.status}
+                      pending={broadcast.stats?.pending ?? 0}
+                      onChanged={refresh}
+                    />
+                  </div>
+                )}
+              </li>
+            );
+          })}
         </ul>
       ) : (
         <Empty className="rounded-xl border border-dashed p-8">
