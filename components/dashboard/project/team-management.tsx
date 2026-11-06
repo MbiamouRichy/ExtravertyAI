@@ -429,22 +429,24 @@ export default function TeamManagement({
                 key={member.id}
                 className="flex items-start gap-3 px-4 py-3.5 transition-colors hover:bg-muted/30 sm:items-center sm:px-5"
               >
-                <Avatar className="size-10 shrink-0">
+                <Avatar className="size-9 shrink-0 sm:size-10">
                   <AvatarImage src={member.image || undefined} alt="" />
                   <AvatarFallback className="font-heading text-xs font-semibold">
                     {getInitials(member.name)}
                   </AvatarFallback>
                 </Avatar>
                 <div className="min-w-0 flex-1">
-                  <p className="flex min-w-0 items-center gap-2 text-sm font-medium">
-                    <span className="truncate">{member.name || "Utilisateur"}</span>
+                  {/* Mobile : nom et adresse passent à la ligne plutôt que
+                      d’être coupés ; une seule ligne dès sm. */}
+                  <p className="text-sm font-medium leading-snug break-words sm:flex sm:min-w-0 sm:items-center sm:gap-2">
+                    <span className="sm:truncate">{member.name || "Utilisateur"}</span>
                     {isMe && (
-                      <span className="shrink-0 rounded-full bg-muted px-1.5 text-[10px] font-normal text-muted-foreground">
+                      <span className="ml-2 inline-block shrink-0 rounded-full bg-muted px-1.5 align-middle text-[10px] font-normal text-muted-foreground sm:ml-0">
                         Vous
                       </span>
                     )}
                   </p>
-                  <p className="truncate text-xs text-muted-foreground">{member.email}</p>
+                  <p className="text-xs text-muted-foreground break-all sm:truncate sm:break-normal">{member.email}</p>
                   {/* Mobile : rôle et présence sous l’email, pour laisser la largeur au nom. */}
                   <div className="mt-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[11px] text-muted-foreground sm:mt-0.5">
                     <span className="sm:hidden">{getRoleBadge(member.role)}</span>

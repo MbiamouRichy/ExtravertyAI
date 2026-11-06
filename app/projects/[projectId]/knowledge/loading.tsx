@@ -22,11 +22,12 @@ export default function AssistantLoading() {
       <div className="space-y-6">
         <Skeleton className="h-8 w-40 sm:h-9 sm:w-48" />
 
-        {/* Mêmes rangées que les onglets : trois colonnes sur téléphone. */}
-        <div className="grid grid-cols-3 gap-y-1 border-b pb-2 sm:flex sm:h-10 sm:items-center sm:gap-5 sm:pb-0">
+        {/* Mêmes rangées que les onglets : deux colonnes sous 360 px, trois
+            sur téléphone, une ligne dès sm. */}
+        <div className="grid grid-cols-2 border-b min-[360px]:grid-cols-3 sm:flex sm:h-10 sm:items-center sm:gap-1">
           {TABS.map((width, tab) => (
-            <div key={tab} className="flex h-8 items-center justify-center sm:h-auto">
-              <Skeleton className={`h-4 w-14 ${width}`} />
+            <div key={tab} className="flex h-9 items-center justify-center px-1 sm:h-full sm:px-2">
+              <Skeleton className={`h-3.5 w-14 ${width}`} />
             </div>
           ))}
         </div>

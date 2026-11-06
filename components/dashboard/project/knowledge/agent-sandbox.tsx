@@ -9,7 +9,7 @@ import { Bot, CircleAlert, ChevronRight, FlaskConical, Loader2, Moon, RotateCcw,
 
 import { Button } from "@/components/ui/button";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
-import { Textarea } from "@/components/ui/textarea";
+import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupTextarea } from "@/components/ui/input-group";
 import { testAgentAction } from "@/app/actions/agent-improvement";
 import type { SandboxTrace } from "@/lib/agent-sandbox";
 import { cn } from "@/lib/utils";
@@ -243,7 +243,9 @@ export function AgentSandbox({ projectId, initialRemaining }: { projectId: strin
           {turns.length > 0 && <div ref={endRef} />}
         </div>
 
-        <form noValidate onSubmit={form.handleSubmit(send)} className="border-t p-2.5 sm:p-3">
+        {/* Compositeur d’une seule pièce, comme dans une messagerie : le champ
+            grandit avec le texte, le bouton d’envoi reste en bas à droite. */}
+        <form noValidate onSubmit={form.handleSubmit(send)} className="border-t p-2 sm:p-3">
           <Controller
             name="message"
             control={form.control}
@@ -252,13 +254,13 @@ export function AgentSandbox({ projectId, initialRemaining }: { projectId: strin
                 <FieldLabel htmlFor={`${id}-message`} className="sr-only">
                   Message du client test
                 </FieldLabel>
-                <div className="flex items-end gap-2">
-                  <Textarea
+                <InputGroup className="items-end rounded-2xl bg-background has-[>textarea]:h-auto dark:bg-input/30">
+                  <InputGroupTextarea
                     {...field}
                     id={`${id}-message`}
                     rows={1}
                     maxLength={1000}
-                    placeholder={remaining > 0 ? "Écrivez comme un client…" : "Limite quotidienne atteinte"}
+                    placeholder={remaining > 0 ? "Message de test…" : "Limite du jour atteinte"}
                     disabled={thinking || remaining <= 0}
                     aria-invalid={fieldState.invalid}
                     onKeyDown={(event) => {
@@ -267,16 +269,25 @@ export function AgentSandbox({ projectId, initialRemaining }: { projectId: strin
                         void form.handleSubmit(send)();
                       }
                     }}
-                    className="max-h-28 min-h-9 min-w-0 resize-none"
+                    className="max-h-28 min-h-10 min-w-0 py-2.5 pl-3.5"
                   />
-                  <Button type="submit" size="icon" className="shrink-0" disabled={thinking || remaining <= 0} aria-label="Envoyer le message de test">
-                    {thinking ? (
-                      <Loader2 aria-hidden="true" className="animate-spin motion-reduce:animate-none" />
-                    ) : (
-                      <SendHorizontal aria-hidden="true" />
-                    )}
-                  </Button>
-                </div>
+                  <InputGroupAddon align="inline-end" className="pb-1">
+                    <InputGroupButton
+                      type="submit"
+                      variant="default"
+                      size="icon-sm"
+                      className="rounded-full"
+                      disabled={thinking || remaining <= 0}
+                      aria-label="Envoyer le message de test"
+                    >
+                      {thinking ? (
+                        <Loader2 aria-hidden="true" className="animate-spin motion-reduce:animate-none" />
+                      ) : (
+                        <SendHorizontal aria-hidden="true" />
+                      )}
+                    </InputGroupButton>
+                  </InputGroupAddon>
+                </InputGroup>
                 {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
               </Field>
             )}

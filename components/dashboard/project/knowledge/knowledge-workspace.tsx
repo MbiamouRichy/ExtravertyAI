@@ -64,11 +64,12 @@ export function KnowledgeWorkspace({
 
   return (
     <Tabs value={tab} onValueChange={setTab} className="gap-6">
-      {/* Téléphone : les six onglets restent visibles, sans défilement caché. */}
+      {/* Téléphone : les six onglets restent visibles, sans défilement caché ;
+          deux colonnes sous 360 px pour que « Informations » ne déborde pas. */}
       <div className="border-b sm:overflow-x-auto sm:overflow-y-hidden sm:[scrollbar-width:none]">
         <TabsList
           variant="line"
-          className="grid! h-auto! w-full grid-cols-3 gap-0 sm:flex! sm:h-10! sm:w-fit sm:gap-1 [&>button]:h-9 [&>button]:px-1 [&>button]:text-xs sm:[&>button]:h-full sm:[&>button]:px-2 sm:[&>button]:text-sm"
+          className="grid! h-auto! w-full grid-cols-2 gap-0 min-[360px]:grid-cols-3 sm:flex! sm:h-10! sm:w-fit sm:gap-1 [&>button]:h-9 [&>button]:px-1 [&>button]:text-xs sm:[&>button]:h-full sm:[&>button]:px-2 sm:[&>button]:text-sm"
         >
           <TabsTrigger value="agent">Consignes</TabsTrigger>
           <TabsTrigger value="entries">Informations</TabsTrigger>

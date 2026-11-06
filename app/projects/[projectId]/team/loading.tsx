@@ -77,9 +77,9 @@ export default function TeamLoading() {
                 key={index}
                 className="flex items-start gap-3 px-4 py-3.5 sm:items-center sm:px-5"
               >
-                <Skeleton className="size-10 shrink-0 rounded-full" />
+                <Skeleton className="size-9 shrink-0 rounded-full sm:size-10" />
                 <div className="min-w-0 flex-1">
-                  <Skeleton className={`h-4 max-w-full ${name}`} />
+                  <Skeleton className={`h-3.5 max-w-full ${name}`} />
                   <Skeleton className={`mt-1.5 h-3 max-w-full ${email}`} />
                   {/* Mobile : rôle et présence sous l’e-mail. */}
                   <div className="mt-2 flex items-center gap-2.5">
@@ -91,6 +91,8 @@ export default function TeamLoading() {
                     <Skeleton className="mt-2.5 h-8 w-24 rounded-md sm:hidden" />
                   )}
                 </div>
+                {/* Mobile : seul le menu d’actions reste à droite. */}
+                {assignable && <Skeleton className="size-8 shrink-0 rounded-md sm:hidden" />}
                 <div className="hidden shrink-0 items-center gap-2 sm:flex">
                   <Skeleton className="h-5 w-24 rounded-full" />
                   {assignable && <Skeleton className="h-8 w-24 rounded-md" />}
