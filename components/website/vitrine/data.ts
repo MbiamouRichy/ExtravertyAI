@@ -222,7 +222,7 @@ export const SCENARIOS: readonly Scenario[] = [
       {
         kind: "message",
         delay: 1100,
-        message: { id: "s1", speaker: "system", text: "Clara a repris la conversation · IA en pause", time: "14:05" },
+        message: { id: "s1", speaker: "system", text: "Clara a repris la main · IA en pause", time: "14:05" },
       },
       { kind: "typing", delay: 500, who: "agent" },
       {
