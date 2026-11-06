@@ -33,7 +33,7 @@ export default async function BroadcastsPage({ params }: { params: Promise<{ pro
     where: { userId_projectId: { userId, projectId } },
     select: {
       role: true,
-      project: { select: { name: true, plan: true, deletionPending: true, instanceStatus: true } },
+      project: { select: { name: true, plan: true, timeZone: true, deletionPending: true, instanceStatus: true } },
     },
   });
   if (!membership || membership.project.deletionPending) notFound();
@@ -43,7 +43,7 @@ export default async function BroadcastsPage({ params }: { params: Promise<{ pro
 
   const [broadcasts, usage, optedOut, optedOutTotal] = await Promise.all([
     listBroadcasts(prisma, projectId),
-    broadcastUsage(prisma, projectId, membership.project.plan),
+    broadcastUsage(prisma, { id: projectId, ...membership.project }),
     listOptedOut(prisma, { projectId, userId }),
     prisma.contact.count({ where: { projectId, broadcastOptOutAt: { not: null } } }),
   ]);

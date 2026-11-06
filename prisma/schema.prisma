@@ -185,6 +185,9 @@ model Project {
   pairingCodeRequestedAt  DateTime?
   // --- 💳 FACTURATION STRIPE ---
   currency String @default("XAF")
+  // Fuseau IANA de l'activité (celui de ses clients) : plage d'envoi des diffusions.
+  // Détecté à la création depuis le navigateur, modifiable par les admins.
+  timeZone String @default("Africa/Libreville")
   csatEnabled Boolean @default(false)
   // Badge « client en attente » dans la messagerie (réglable par les admins).
   showWaitingTime Boolean @default(true)

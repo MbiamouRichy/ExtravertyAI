@@ -27,6 +27,7 @@ import { ProjectLogoSettings } from "./project-logo-settings";
 import { TeamAutoAssignSettings } from "./team-auto-assign-settings";
 import { CsatSettings } from "./csat-settings";
 import { WaitingTimeSettings } from "./waiting-time-settings";
+import { ProjectTimeZoneSettings } from "./project-time-zone-settings";
 import type { ProjectSettingsView } from "@/lib/settings-types";
 import { formatStorage } from "@/lib/storage-quota";
 import {
@@ -300,6 +301,13 @@ export default function ProjectSettingsPage({
               initial={p.showWaitingTime}
               disabled={!!pending || p.deletionPending}
             />
+            <ProjectTimeZoneSettings
+              key={`time-zone-${p.id}`}
+              projectId={p.id}
+              initial={p.timeZone}
+              groups={p.timeZoneGroups}
+              disabled={!!pending || p.deletionPending}
+            />
             <TeamAutoAssignSettings
               key={`auto-assign-${p.id}`}
               projectId={p.id}
@@ -533,6 +541,8 @@ export default function ProjectSettingsPage({
                                 ? "Temps d’attente des clients affiché"
                                 : item.action === "waiting.disabled"
                                   ? "Temps d’attente des clients masqué"
+                              : item.action === "timezone.updated"
+                                ? "Fuseau horaire modifié"
                               : item.action === "auto_assign.enabled"
                                 ? "Répartition automatique activée"
                                 : item.action === "auto_assign.disabled"

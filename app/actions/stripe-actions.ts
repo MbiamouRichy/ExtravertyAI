@@ -25,6 +25,7 @@ import { can } from "@/lib/project-permissions";
 import { resolvePlanId, type PlanId } from "@/lib/pricing";
 import { needsInitialCheckout } from "@/lib/billing-display";
 import { isTrialAvailable, reserveTrial } from "@/lib/trial-eligibility";
+import { getBrowserTimeZone } from "@/lib/server-time-zone";
 import {
   createEvolutionInstance,
   deleteEvolutionInstance,
@@ -160,6 +161,9 @@ export async function createProjectAndCheckout(
 
   let isInstanceCreated = false;
   let createdProjectId: string | null = null;
+  // The creator usually works where the business is: their browser's zone is
+  // the best first guess (broadcast hours), editable later in the settings.
+  const timeZone = (await getBrowserTimeZone()) ?? undefined;
 
   try {
     // Si votre fonction d'API accepte le token, vous pouvez lui passer instanceToken
@@ -176,6 +180,7 @@ export async function createProjectAndCheckout(
           instanceStatus: "connecting",
           plan: data.plan,
           status: "inactive",
+          timeZone,
           members: {
             create: {
               userId: session.user.id,

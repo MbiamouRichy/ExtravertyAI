@@ -184,7 +184,7 @@ export function BroadcastsWorkspace({
         </div>
         <p className="mt-3 text-xs text-muted-foreground">
           Jusqu’à <span className="text-foreground">{number(usage.recipientsLimit)} contacts</span> par diffusion,
-          envoyés entre {BROADCAST_WINDOW.startHour} h et {BROADCAST_WINDOW.endHour} h (UTC+1), au
+          envoyés entre {BROADCAST_WINDOW.startHour} h et {BROADCAST_WINDOW.endHour} h (heure de votre activité, {usage.sendingZone}), au
           rythme d’un message toutes les 8 à 15 secondes pour protéger votre numéro.
         </p>
       </section>

@@ -28,7 +28,7 @@ export default async function NewBroadcastPage({ params }: { params: Promise<{ p
     where: { userId_projectId: { userId: session.user.id, projectId } },
     select: {
       role: true,
-      project: { select: { name: true, plan: true, deletionPending: true, instanceStatus: true } },
+      project: { select: { name: true, plan: true, timeZone: true, deletionPending: true, instanceStatus: true } },
     },
   });
   if (!membership || membership.project.deletionPending) notFound();
@@ -48,7 +48,7 @@ export default async function NewBroadcastPage({ params }: { params: Promise<{ p
       select: { id: true, name: true },
       take: 100,
     }),
-    broadcastUsage(prisma, projectId, membership.project.plan),
+    broadcastUsage(prisma, { id: projectId, ...membership.project }),
   ]);
 
   return (

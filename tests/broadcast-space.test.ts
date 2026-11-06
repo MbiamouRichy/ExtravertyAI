@@ -63,7 +63,7 @@ async function setup(prisma: PrismaClient) {
 test("the broadcast space", { timeout: 240000 }, async (t) => {
   await withTestDatabase(async (prisma) => {
     const { project, owner, member, outsider, contacts } = await setup(prisma);
-    const inWindow = new Date(tomorrowWindow(new Date()).getTime() + 2 * 3_600_000);
+    const inWindow = new Date(tomorrowWindow(new Date(), project.timeZone).getTime() + 2 * 3_600_000);
     const broadcast = await createBroadcast(prisma, {
       projectId: project.id,
       userId: owner.id,

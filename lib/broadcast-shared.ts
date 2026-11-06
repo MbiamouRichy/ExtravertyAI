@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { PIPELINE_STAGES } from "./pipeline-shared";
+import { projectTimeZone } from "./time-zones";
 
 /** Shared by the composer, the server actions and the sending worker. */
 export const BROADCAST_LIMITS = {
@@ -19,11 +20,10 @@ const NAME_PATTERN = /\{\s*pr[ée]nom\s*\}/giu;
 export const OPT_OUT_FOOTER = "Répondez STOP pour ne plus recevoir ces messages.";
 
 /**
- * Sending only happens during business hours in this time zone, at a random
- * pace between two messages: a regular, human rhythm keeps the WhatsApp
- * number safe from spam detection.
+ * Sending only happens during business hours in the project's time zone, the
+ * one of its customers, at a random pace between two messages: a regular,
+ * human rhythm keeps the WhatsApp number safe from spam detection.
  */
-export const BROADCAST_TIME_ZONE = "Africa/Libreville";
 export const BROADCAST_WINDOW = { startHour: 8, endHour: 20 } as const;
 export const BROADCAST_PACE_MS = { min: 8_000, max: 15_000 } as const;
 
@@ -166,10 +166,14 @@ export function broadcastKeyword(text: string): "OPT_OUT" | "OPT_IN" | null {
   return null;
 }
 
-function zonedParts(date: Date) {
-  const parts = Object.fromEntries(
-    new Intl.DateTimeFormat("en-GB", {
-      timeZone: BROADCAST_TIME_ZONE,
+const zonedFormatters = new Map<string, Intl.DateTimeFormat>();
+
+function zonedFormatter(timeZone: string) {
+  let formatter = zonedFormatters.get(timeZone);
+  if (!formatter) {
+    // The zone is validated on save: an unknown one falls back instead of throwing.
+    formatter = new Intl.DateTimeFormat("en-GB", {
+      timeZone: projectTimeZone(timeZone),
       hourCycle: "h23",
       year: "numeric",
       month: "2-digit",
@@ -177,7 +181,17 @@ function zonedParts(date: Date) {
       hour: "2-digit",
       minute: "2-digit",
       second: "2-digit",
-    })
+    });
+    // Bound process-wide memory while reusing one formatter per project zone.
+    if (zonedFormatters.size >= 64) zonedFormatters.clear();
+    zonedFormatters.set(timeZone, formatter);
+  }
+  return formatter;
+}
+
+function zonedParts(date: Date, timeZone: string) {
+  const parts = Object.fromEntries(
+    zonedFormatter(timeZone)
       .formatToParts(date)
       .map((part) => [part.type, Number(part.value)]),
   ) as Record<"year" | "month" | "day" | "hour" | "minute" | "second", number>;
@@ -186,25 +200,25 @@ function zonedParts(date: Date) {
 }
 
 /** Instant of a local wall-clock time, `dayShift` days after the local date of `date`. */
-function localTime(date: Date, hour: number, dayShift = 0) {
-  const { year, month, day, offset } = zonedParts(date);
+function localTime(date: Date, timeZone: string, hour: number, dayShift = 0) {
+  const { year, month, day, offset } = zonedParts(date, timeZone);
   return new Date(Date.UTC(year, month - 1, day + dayShift, hour) - offset);
 }
 
-export function localDayStart(date: Date) {
-  return localTime(date, 0);
+export function localDayStart(date: Date, timeZone: string) {
+  return localTime(date, timeZone, 0);
 }
 
-/** Now when inside business hours, otherwise the next opening. */
-export function nextSendingWindow(date: Date) {
-  const { hour } = zonedParts(date);
-  if (hour < BROADCAST_WINDOW.startHour) return localTime(date, BROADCAST_WINDOW.startHour);
-  if (hour >= BROADCAST_WINDOW.endHour) return localTime(date, BROADCAST_WINDOW.startHour, 1);
+/** Now when inside business hours of `timeZone`, otherwise the next opening. */
+export function nextSendingWindow(date: Date, timeZone: string) {
+  const { hour } = zonedParts(date, timeZone);
+  if (hour < BROADCAST_WINDOW.startHour) return localTime(date, timeZone, BROADCAST_WINDOW.startHour);
+  if (hour >= BROADCAST_WINDOW.endHour) return localTime(date, timeZone, BROADCAST_WINDOW.startHour, 1);
   return date;
 }
 
-export function tomorrowWindow(date: Date) {
-  return localTime(date, BROADCAST_WINDOW.startHour, 1);
+export function tomorrowWindow(date: Date, timeZone: string) {
+  return localTime(date, timeZone, BROADCAST_WINDOW.startHour, 1);
 }
 
 export function nextPace(now: Date, random: () => number = Math.random) {
