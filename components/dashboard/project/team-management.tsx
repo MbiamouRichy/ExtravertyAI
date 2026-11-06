@@ -463,7 +463,9 @@ export default function TeamManagement({
                         }
                       />
                     </span>
-                    <span aria-hidden="true" className="text-muted-foreground/60">
+                    {/* Sur mobile la rangée passe à la ligne : sans séparateur
+                        orphelin en début de ligne. */}
+                    <span aria-hidden="true" className="text-muted-foreground/60 max-sm:hidden">
                       ·
                     </span>
                     <span className="whitespace-nowrap tabular-nums">
