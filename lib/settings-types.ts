@@ -32,8 +32,6 @@ export type ProjectSettingsView = {
   /** Fichiers déposés (médias, PDF) et quota de l’offre, en octets. */
   storage: { used: number; limit: number };
   csat: { enabled: boolean; message: string; available: boolean };
-  /** Essai : numéro seul autorisé à échanger avec le projet. Null hors essai. */
-  trialTest: { number: string | null; changesLeft: number } | null;
   showWaitingTime: boolean;
   aiQuietEnabled: boolean;
   /** Répartition automatique des nouvelles conversations (offre Business). */

@@ -1,20 +1,49 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { can, homePath } from "@/lib/project-permissions";
 import { notFound, redirect } from "next/navigation";
-import { ArrowLeft, Bot, Clock3, ShieldCheck, Sparkles } from "lucide-react";
+import { ArrowLeft, Clock3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getSession } from "@/lib/auth-server";
 import prisma from "@/lib/prisma";
-import { AgentEditor } from "@/components/dashboard/project/agent-editor";
+import { can, homePath } from "@/lib/project-permissions";
 import { AGENT_DEFAULTS, type AgentConfig } from "@/lib/agent-config";
 import { knowledgeOverview } from "@/lib/knowledge";
+import { sandboxUsage } from "@/lib/agent-sandbox";
+import { ProjectIcon } from "@/components/dashboard/project/project-icon";
+import { projectLogoUrl } from "@/lib/project-logo";
+import { AgentSetup } from "@/components/dashboard/project/setup/agent-setup";
 import { SetupKnowledge } from "@/components/dashboard/project/knowledge/setup-knowledge";
+
 export const metadata: Metadata = {
-  title: "Configurer votre agent IA | ExtravertyAI",
+  title: "Configurer votre assistant IA | ExtravertyAI",
   robots: { index: false, follow: false },
 };
 export const dynamic = "force-dynamic";
+
+const DEFAULT_SUGGESTIONS = [
+  "Bonjour, quels sont vos horaires ?",
+  "Vous livrez en dehors de la capitale ?",
+  "Comment puis-je passer commande ?",
+];
+
+/** Premières questions du test, tirées des données déjà saisies quand c’est possible. */
+function testSuggestions(
+  knowledge: NonNullable<Awaited<ReturnType<typeof knowledgeOverview>>> | null,
+) {
+  const short = (text: string) => text.trim().replace(/\s+/g, " ").slice(0, 80);
+  const questions = (knowledge?.entries ?? [])
+    .filter((entry) => entry.kind === "FAQ" && entry.enabled)
+    .map((entry) => short(entry.title))
+    .filter((title) => title.length > 3)
+    .slice(0, 2);
+  const product = knowledge?.products.find((entry) => entry.enabled);
+  const fromData = [
+    ...questions,
+    ...(product ? [`Combien coûte « ${short(product.title)} » ?`] : []),
+  ];
+  return [...fromData, ...DEFAULT_SUGGESTIONS].slice(0, 3);
+}
+
 export default async function AgentSetupPage({
   params,
 }: {
@@ -38,13 +67,13 @@ export default async function AgentSetupPage({
       <main className="flex min-h-[70dvh] items-center justify-center p-4 sm:p-8">
         <section
           aria-labelledby="setup-wait-title"
-          className="w-full max-w-md rounded-3xl border bg-card p-8 text-center"
+          className="w-full max-w-md text-center"
         >
           <span className="mx-auto flex size-12 items-center justify-center rounded-2xl border bg-muted/50">
             <Clock3 aria-hidden="true" className="size-5" />
           </span>
           <h1 id="setup-wait-title" className="mt-5 text-2xl md:text-3xl">
-            Votre agent se prépare
+            Votre assistant se prépare
           </h1>
           <p className="mt-3 text-sm text-muted-foreground">
             Un propriétaire ou un administrateur de {p.name} doit terminer sa
@@ -59,6 +88,7 @@ export default async function AgentSetupPage({
         </section>
       </main>
     );
+
   const initial = Object.fromEntries(
     Object.keys(AGENT_DEFAULTS).map((key) => [
       key,
@@ -66,16 +96,20 @@ export default async function AgentSetupPage({
     ]),
   ) as AgentConfig;
   // Réservé OWNER/ADMIN côté serveur ; null si l’accès a changé entre-temps.
-  const knowledge = await knowledgeOverview(prisma, projectId, session.user.id);
+  const [knowledge, usage] = await Promise.all([
+    knowledgeOverview(prisma, projectId, session.user.id),
+    sandboxUsage(prisma, projectId, p.plan),
+  ]);
   const entryView = (
     entry: NonNullable<typeof knowledge>["entries"][number],
   ) => ({
     ...entry,
     updatedAt: entry.updatedAt.toISOString(),
   });
+
   return (
-    <main className="mx-auto w-full max-w-6xl p-4 sm:p-6 xl:p-8">
-      <div className="mb-6 flex items-center justify-between gap-3">
+    <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col px-4 pt-4 sm:px-6 sm:pt-6 xl:px-8 xl:pt-8">
+      <div className="mb-10 flex items-center justify-between gap-3">
         <Button
           asChild
           variant="ghost"
@@ -87,54 +121,28 @@ export default async function AgentSetupPage({
             Mes projets
           </Link>
         </Button>
-        <span className="inline-flex min-w-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs">
-          <Bot aria-hidden="true" className="size-3.5 shrink-0" />
+        <span className="flex min-w-0 items-center gap-2 text-sm text-muted-foreground">
+          <ProjectIcon
+            name={p.name}
+            logoUrl={projectLogoUrl(p.id, p.logoKey)}
+            className="size-6 rounded-md after:rounded-md"
+            fallbackClassName="rounded-md text-[10px]"
+          />
           <span className="truncate">{p.name}</span>
         </span>
       </div>
 
-      <header className="mb-8 grid gap-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
-        <div className="max-w-2xl">
-          <p className="font-mono text-xs uppercase tracking-wider text-muted-foreground">
-            Configuration de l’agent
-          </p>
-          <h1 className="mt-2 text-[2.4rem] leading-[1.05] sm:text-5xl">
-            Votre entreprise.
-            <span className="block text-muted-foreground">
-              La voix de votre agent.
-            </span>
-          </h1>
-          <p className="mt-4 text-pretty text-muted-foreground">
-            Avant ses premières conversations, donnez-lui une identité, une
-            mission et une façon de répondre, puis, si vous le souhaitez, ce
-            qu’il doit savoir. Tout reste modifiable dans Assistant IA.
-          </p>
-        </div>
-        <ul className="flex flex-wrap gap-2 text-xs lg:flex-col lg:items-end">
-          {[
-            { icon: Clock3, text: "3 étapes + 1 facultative" },
-            { icon: Sparkles, text: "Aperçu en direct du style" },
-            { icon: ShieldCheck, text: "Visible uniquement par votre équipe" },
-          ].map(({ icon: Icon, text }) => (
-            <li
-              key={text}
-              className="inline-flex items-center gap-1.5 rounded-full border bg-card px-2.5 py-1"
-            >
-              <Icon aria-hidden="true" className="size-3.5" />
-              {text}
-            </li>
-          ))}
-        </ul>
-      </header>
-
-      <AgentEditor
-        key={p.agentConfigVersion}
+      <AgentSetup
+        key={p.id}
         projectId={p.id}
         projectName={p.name}
         initial={initial}
         version={p.agentConfigVersion}
-        onboarding
-        dataStep={
+        sandbox={{
+          remaining: usage.remaining,
+          suggestions: testSuggestions(knowledge),
+        }}
+        knowledge={
           knowledge && (
             <SetupKnowledge
               projectId={p.id}

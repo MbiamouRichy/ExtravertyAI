@@ -51,6 +51,8 @@ const CheckoutOptionsSchema = z
 
 class TrialTakenError extends Error {}
 
+const PROJECTS_PER_HOUR = 5;
+
 export async function createProjectAndCheckout(
   data: ProjectCheckoutInput,
   options?: { withoutTrial?: boolean },
@@ -68,6 +70,25 @@ export async function createProjectAndCheckout(
     };
   const withoutTrial =
     CheckoutOptionsSchema.safeParse(options).data?.withoutTrial === true;
+  // Chaque création ouvre une instance WhatsApp et peut réserver l’essai d’un
+  // numéro : limite durable en base, et rafale bloquée sur cette instance.
+  const recentProjects = await prisma.projectMembership.count({
+    where: {
+      userId: session.user.id,
+      role: "OWNER",
+      createdAt: { gte: new Date(Date.now() - 60 * 60 * 1000) },
+    },
+  });
+  if (recentProjects >= PROJECTS_PER_HOUR)
+    return {
+      success: false as const,
+      error: "Trop de projets créés récemment. Réessayez dans une heure.",
+    };
+  if (!allowRequest(`project-create:${session.user.id}`, 3, 60 * 1000))
+    return {
+      success: false as const,
+      error: "Trop de tentatives. Réessayez dans une minute.",
+    };
 
   const parsed = ProjectCheckoutSchema.safeParse(data);
   if (!parsed.success) {

@@ -1,6 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Ne révèle pas le framework utilisé dans chaque réponse.
+  poweredByHeader: false,
   images: {
     remotePatterns: [
       {

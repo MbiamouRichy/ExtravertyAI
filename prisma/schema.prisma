@@ -223,11 +223,6 @@ model Project {
   // Fournisseur des identifiants ci-dessous : les colonnes stripe* servent aussi à Polar,
   // où un même client (une adresse e-mail) peut payer plusieurs projets.
   billingProvider      String         @default("stripe")
-  // Essai : seul ce numéro (chiffres E.164) échange avec le projet. Son @lid
-  // WhatsApp est appris au premier message reçu de lui.
-  trialTestNumber        String?
-  trialTestJid           String?
-  trialTestNumberChanges Int            @default(0)
   stripeCustomerId     String?
   stripeSubscriptionId String?        @unique
   stripePriceId        String?

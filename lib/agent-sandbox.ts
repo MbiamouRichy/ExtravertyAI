@@ -59,8 +59,10 @@ export async function runAgentTest(
     // Chaque essai appelle le modèle : l’offre ne vaut qu’une fois le paiement confirmé.
     const access = await getBillingAccess(tx, projectId);
     if (!access.allowed) throw new SandboxError(access.message);
-    if (!project.agentSetupCompletedAt) {
-      throw new SandboxError("Configurez d’abord votre agent dans les paramètres.");
+    // Pendant la configuration initiale, le brouillon enregistré se teste
+    // avant d’activer l’agent sur WhatsApp.
+    if (!AgentConfigSchema.safeParse(project).success) {
+      throw new SandboxError("Terminez d’abord les étapes de configuration de votre agent.");
     }
     const [{ now }] = await tx.$queryRaw<Array<{ now: Date }>>`SELECT clock_timestamp() AS now`;
     const limit = planFeatures(project.plan).sandboxPerDay;

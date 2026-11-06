@@ -7,7 +7,6 @@ import prisma from "@/lib/prisma";
 import { chatContactName } from "@/lib/chat-privacy";
 import { csvCell } from "@/lib/export-csv";
 import { getUserTimeZone } from "@/lib/server-time-zone";
-import { isTrialRestricted, TRIAL_EXPORT_BLOCKED } from "@/lib/trial-restrictions";
 
 export const runtime = "nodejs";
 
@@ -66,19 +65,7 @@ export async function GET(
   try {
     const membership = await prisma.projectMembership.findUnique({
       where: { userId_projectId: { userId: session.user.id, projectId } },
-      select: {
-        role: true,
-        project: {
-          select: {
-            deletionPending: true,
-            status: true,
-            automationPaused: true,
-            statusBeforePause: true,
-            trialTestNumber: true,
-            trialTestJid: true,
-          },
-        },
-      },
+      select: { role: true, project: { select: { deletionPending: true } } },
     });
     if (
       !membership ||
@@ -86,8 +73,6 @@ export async function GET(
       !can(membership.role, "conversations.handle")
     )
       return error("Conversation introuvable.", 404);
-    if (isTrialRestricted(membership.project))
-      return error(TRIAL_EXPORT_BLOCKED, 403);
 
     // Le contact doit appartenir à ce projet (isolation entre projets).
     const contact = await prisma.contact.findFirst({

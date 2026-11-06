@@ -1,6 +1,5 @@
 "use server";
 import { projectBillingStatus } from "@/lib/project-status";
-import { TRIAL_RECIPIENT_BLOCKED, trialAllowsJid } from "@/lib/trial-restrictions";
 import { can } from "@/lib/project-permissions";
 
 import { z } from "zod";
@@ -130,8 +129,6 @@ export async function sendWhatsAppMessage(
           statusBeforePause: true,
           instanceStatus: true,
           deletionPending: true,
-          trialTestNumber: true,
-          trialTestJid: true,
         },
       });
 
@@ -147,9 +144,9 @@ export async function sendWhatsAppMessage(
       }
 
       const contactLock = await tx.$queryRaw<
-        Array<{ id: string; aiActive: boolean; remoteJid: string }>
+        Array<{ id: string; aiActive: boolean }>
       >`
-                SELECT id, "aiActive", "remoteJid"
+                SELECT id, "aiActive"
                 FROM "contact"
                 WHERE id = ${contactId}
                   AND "projectId" = ${projectId}
@@ -158,9 +155,6 @@ export async function sendWhatsAppMessage(
 
       if (!contactLock[0]) {
         throw new SendRejected("Contact indisponible.");
-      }
-      if (!trialAllowsJid(project, contactLock[0].remoteJid)) {
-        throw new SendRejected(TRIAL_RECIPIENT_BLOCKED);
       }
 
       const quota = await reserveMessageQuota(tx, projectId);

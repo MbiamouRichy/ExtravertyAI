@@ -9,10 +9,6 @@ import type { ProjectSettingsView } from "@/lib/settings-types";
 import { planAllows } from "@/lib/plan-features";
 import { storageUsage } from "@/lib/storage-quota";
 import { projectLogoUrl } from "@/lib/project-logo";
-import {
-  isTrialRestricted,
-  TRIAL_TEST_NUMBER_MAX_CHANGES,
-} from "@/lib/trial-restrictions";
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "Paramètres du projet | ExtravertyAI",
@@ -94,12 +90,6 @@ export default async function SettingsPage({
     showWaitingTime: p.showWaitingTime,
     aiQuietEnabled: p.aiQuietEnabled,
     autoAssign: { enabled: p.autoAssignTeam, available: p.plan === "business" },
-    trialTest: isTrialRestricted(p)
-      ? {
-          number: p.trialTestNumber,
-          changesLeft: TRIAL_TEST_NUMBER_MAX_CHANGES - p.trialTestNumberChanges,
-        }
-      : null,
     csat: {
       enabled: p.csatEnabled,
       message: p.csatMessage,

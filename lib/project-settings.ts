@@ -38,12 +38,18 @@ export async function requireProjectAdmin(
     ownerOnly ? "project.own" : "project.manage",
   );
 }
+/**
+ * Enregistre la configuration de l’agent. Pendant la configuration initiale,
+ * `activate: false` garde un brouillon : l’agent reste silencieux sur WhatsApp
+ * tant que son propriétaire ne l’a pas testé puis activé.
+ */
 export async function writeAgentConfig(
   tx: Prisma.TransactionClient,
   projectId: string,
   actorId: string,
   expectedVersion: number,
   input: unknown,
+  { activate = true }: { activate?: boolean } = {},
 ) {
   await tx.$queryRaw`SELECT id FROM project WHERE id = ${projectId} FOR UPDATE`;
   const { project } = await requireProjectAdmin(tx, projectId, actorId);
@@ -63,13 +69,49 @@ export async function writeAgentConfig(
     data: {
       ...config,
       agentConfigVersion: version,
-      agentSetupCompletedAt: project.agentSetupCompletedAt || new Date(),
+      agentSetupCompletedAt:
+        project.agentSetupCompletedAt ?? (activate ? new Date() : null),
     },
   });
   await tx.settingsAudit.create({
     data: { projectId, actorId, action: "agent.updated", version },
   });
   return version;
+}
+
+/**
+ * Fin de la configuration initiale : l’agent commence à répondre sur WhatsApp.
+ * La configuration enregistrée est revalidée ici, jamais crue du navigateur.
+ */
+export async function activateAgent(
+  tx: Prisma.TransactionClient,
+  projectId: string,
+  actorId: string,
+) {
+  await tx.$queryRaw`SELECT id FROM project WHERE id = ${projectId} FOR UPDATE`;
+  const { project } = await requireProjectAdmin(tx, projectId, actorId);
+  if (project.deletionPending)
+    throw new SettingsError("Ce projet est en cours de suppression.");
+  if (project.agentSetupCompletedAt) return false;
+  const access = await getBillingAccess(tx, projectId);
+  if (!access.allowed) throw new SettingsError(access.message);
+  if (!AgentConfigSchema.safeParse(project).success)
+    throw new SettingsError(
+      "Terminez la configuration de votre agent avant de l’activer.",
+    );
+  await tx.project.update({
+    where: { id: projectId },
+    data: { agentSetupCompletedAt: new Date() },
+  });
+  await tx.settingsAudit.create({
+    data: {
+      projectId,
+      actorId,
+      action: "agent.activated",
+      version: project.agentConfigVersion,
+    },
+  });
+  return true;
 }
 
 export async function markProjectForDeletion(

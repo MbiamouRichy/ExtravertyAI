@@ -5,7 +5,6 @@ import { getSession } from "@/lib/auth-server";
 import prisma from "@/lib/prisma";
 import { csvCell } from "@/lib/export-csv";
 import { contactExportSnapshot, signExportReceipt } from "@/lib/contact-export";
-import { isTrialRestricted, TRIAL_EXPORT_BLOCKED } from "@/lib/trial-restrictions";
 export const runtime = "nodejs";
 export async function GET(
   req: Request,
@@ -17,18 +16,7 @@ export async function GET(
     return NextResponse.json({ error: "Connexion requise." }, { status: 401 });
   const membership = await prisma.projectMembership.findUnique({
     where: { userId_projectId: { userId: session.user.id, projectId } },
-    select: {
-      role: true,
-      project: {
-        select: {
-          status: true,
-          automationPaused: true,
-          statusBeforePause: true,
-          trialTestNumber: true,
-          trialTestJid: true,
-        },
-      },
-    },
+    select: { role: true },
   });
   if (!can(membership?.role, "contacts.export"))
     return NextResponse.json({ error: "Accès refusé." }, { status: 403 });
@@ -42,9 +30,6 @@ export async function GET(
         { error: "Seul le propriétaire peut préparer la suppression." },
         { status: 403 },
       );
-    // La copie avant suppression reste possible : l'essai ne garde que le contact de test.
-    if (!forDeletion && isTrialRestricted(membership!.project))
-      return NextResponse.json({ error: TRIAL_EXPORT_BLOCKED }, { status: 403 });
     const { contacts, hash } = await contactExportSnapshot(prisma, projectId);
     const timeZone = await getUserTimeZone();
     const dateFormat = new Intl.DateTimeFormat("fr-FR", {

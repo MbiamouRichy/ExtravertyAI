@@ -1,12 +1,14 @@
 "use server";
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth-server";
 import prisma from "@/lib/prisma";
 import { isRecentSession } from "@/lib/recent-session";
 import { AgentConfigSchema } from "@/lib/agent-config";
 import {
   SettingsError,
+  activateAgent,
   requireProjectAdmin,
   requireProjectPermission,
   writeAgentConfig,
@@ -50,6 +52,33 @@ function invalidate(projectId: string) {
   revalidatePath("/projects");
 }
 export async function saveAgentConfiguration(input: unknown) {
+  return saveAgent(input, true);
+}
+
+/** Configuration initiale : chaque étape garde un brouillon, l’agent reste inactif. */
+export async function saveAgentDraft(input: unknown) {
+  return saveAgent(input, false);
+}
+
+/**
+ * Dernière étape de la configuration, après les tests : l’agent répond
+ * désormais sur WhatsApp et la messagerie s’ouvre.
+ */
+export async function activateAgentSetup(input: unknown) {
+  let projectId: string;
+  try {
+    projectId = z.object({ projectId: Id }).parse(input).projectId;
+    const userId = await actor();
+    await prisma.$transaction((tx) => activateAgent(tx, projectId, userId));
+    invalidate(projectId);
+    await notifyChatChanged(projectId);
+  } catch (error) {
+    return { success: false as const, error: publicError(error) };
+  }
+  redirect(`/projects/${projectId}/chat`);
+}
+
+async function saveAgent(input: unknown, activate: boolean) {
   try {
     const parsed = z
       .object({
@@ -66,6 +95,7 @@ export async function saveAgentConfiguration(input: unknown) {
         userId,
         parsed.expectedVersion,
         parsed.config,
+        { activate },
       ),
     );
     invalidate(parsed.projectId);

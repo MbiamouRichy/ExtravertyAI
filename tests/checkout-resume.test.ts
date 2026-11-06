@@ -34,8 +34,14 @@ type Project = {
 function loadResume(
   role: string | null,
   project: Partial<Project> = {},
-  options: { trialAvailable?: boolean; emailVerified?: boolean } = {},
+  options: {
+    trialAvailable?: boolean;
+    emailVerified?: boolean;
+    recentProjects?: number;
+    burstAllowed?: boolean;
+  } = {},
 ) {
+  const counted: Array<{ where: Record<string, unknown> }> = [];
   const sessions: Array<Record<string, unknown>> = [];
   const reservations: Array<[string, string]> = [];
   const plan = pricing.PRICING_PLANS.find((p) => p.id === "pro")!;
@@ -45,6 +51,10 @@ function loadResume(
     "@/lib/prisma": {
       default: {
         projectMembership: {
+          count: async (args: { where: Record<string, unknown> }) => {
+            counted.push(args);
+            return options.recentProjects ?? 0;
+          },
           findUnique: async () =>
             role && {
               role,
@@ -96,7 +106,7 @@ function loadResume(
     "@/lib/checkout-price": checkoutPrice,
     "@/lib/project-creation-schema": { ProjectCheckoutSchema: z.object({}) },
     zod: { default: z, z },
-    "@/lib/rate-limit": { allowRequest: () => true },
+    "@/lib/rate-limit": { allowRequest: () => options.burstAllowed ?? true },
     "@/lib/project-permissions": permissions,
     "@/lib/pricing": pricing,
     "@/lib/billing-display": billingDisplay,
@@ -129,7 +139,13 @@ function loadResume(
       return modules[name];
     },
   });
-  return { resume: exports.resumeProjectCheckout, sessions, reservations };
+  return {
+    resume: exports.resumeProjectCheckout,
+    create: exports.createProjectAndCheckout,
+    sessions,
+    reservations,
+    counted,
+  };
 }
 
 test("the owner and billing role resume an abandoned checkout for the same project", async () => {
@@ -201,4 +217,27 @@ test("an unverified email address cannot start a trial", async () => {
   assert.equal(result.code, "EMAIL_NOT_VERIFIED");
   assert.equal(sessions.length, 0);
   assert.equal(reservations.length, 0);
+});
+
+test("project creation is rate limited before any trial reservation or WhatsApp instance", async () => {
+  const input = { name: "Boutique", numero: "+24166000001", plan: "pro" };
+  // Limite durable : 5 projets possédés créés dans l'heure, comptés en base.
+  const hourly = loadResume("OWNER", {}, { recentProjects: 5 });
+  const refused = (await hourly.create(input)) as { success: boolean; error?: string };
+  assert.equal(refused.success, false);
+  assert.match(refused.error ?? "", /une heure/);
+  assert.equal(hourly.reservations.length, 0);
+  assert.equal(hourly.sessions.length, 0);
+  const [{ where }] = hourly.counted;
+  assert.equal(where.userId, "u");
+  assert.equal(where.role, "OWNER");
+  const since = (where.createdAt as { gte: Date }).gte.getTime();
+  assert.ok(Math.abs(Date.now() - 60 * 60 * 1000 - since) < 5000);
+
+  // Rafale sur la même instance : refusée avant tout appel externe.
+  const burst = loadResume("OWNER", {}, { burstAllowed: false });
+  const blocked = (await burst.create(input)) as { success: boolean; error?: string };
+  assert.equal(blocked.success, false);
+  assert.match(blocked.error ?? "", /une minute/);
+  assert.equal(burst.reservations.length, 0);
 });

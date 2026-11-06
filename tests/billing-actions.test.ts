@@ -26,6 +26,7 @@ function setup(
   const modules: Record<string, unknown> = {
     zod: { z },
     "next/cache": { revalidatePath: () => {} },
+    "next/navigation": { redirect: () => {} },
     "@/lib/agent-config": {},
     "@/lib/chat-realtime": {},
     "@/lib/whatsapp-settings-sync": {},

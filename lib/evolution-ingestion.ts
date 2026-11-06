@@ -8,7 +8,6 @@ import { broadcastKeyword } from "./broadcast-shared";
 import { applyBroadcastKeyword } from "./broadcasts";
 import { isAcknowledgment } from "./conversation-end";
 import { openCsatSurvey, parseCsatScore } from "./csat";
-import { isTrialRestricted, trialAllowsJid } from "./trial-restrictions";
 import {
   emitIntegrationEvent,
   integrationContact,
@@ -19,9 +18,6 @@ export const IncomingSchema = z.object({
   key: z.object({
     id: z.string().min(1).max(250),
     remoteJid: z.string().min(1).max(250),
-    // Numéro réel quand WhatsApp désigne l'expéditeur par son @lid.
-    remoteJidAlt: z.string().max(250).optional(),
-    senderPn: z.string().max(250).optional(),
     fromMe: z.boolean(),
   }),
   pushName: z.string().max(250).optional(),
@@ -129,40 +125,6 @@ function emitMessageReceived(
   }));
 }
 
-/**
- * Pendant l'essai, un message d'un autre numéro que le numéro de test n'est
- * pas enregistré : ni contact, ni conversation, ni réponse de l'IA.
- */
-async function trialAcceptsSender(
-  tx: Prisma.TransactionClient,
-  projectId: string,
-  key: z.infer<typeof IncomingSchema>["key"],
-) {
-  const project = await tx.project.findUniqueOrThrow({
-    where: { id: projectId },
-    select: {
-      status: true,
-      automationPaused: true,
-      statusBeforePause: true,
-      trialTestNumber: true,
-      trialTestJid: true,
-    },
-  });
-  if (!isTrialRestricted(project)) return true;
-  const testNumber = [key.remoteJid, key.remoteJidAlt, key.senderPn]
-    .map((jid) => jid?.split(":")[0].split("@")[0])
-    .find((digits) => !!digits && digits === project.trialTestNumber);
-  if (testNumber && key.remoteJid.endsWith("@lid") && project.trialTestJid !== key.remoteJid) {
-    // Les réponses visent ce @lid : il devient joignable au même titre que le numéro.
-    await tx.project.update({
-      where: { id: projectId },
-      data: { trialTestJid: key.remoteJid },
-    });
-    return true;
-  }
-  return !!testNumber || trialAllowsJid(project, key.remoteJid);
-}
-
 export async function ingestMessage(
   tx: Prisma.TransactionClient,
   projectId: string,
@@ -212,7 +174,6 @@ export async function ingestMessage(
   });
   if (existing) return;
   if (!msg.message) return;
-  if (!(await trialAcceptsSender(tx, projectId, msg.key))) return;
   // A short rating answering an open survey is recorded: it neither reopens
   // the resolved conversation nor triggers an AI reply.
   const score = type === "TEXT" ? parseCsatScore(text) : null;

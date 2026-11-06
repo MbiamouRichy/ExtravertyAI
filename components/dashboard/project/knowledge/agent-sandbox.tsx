@@ -25,7 +25,7 @@ const KIND_LABEL: Record<string, string> = {
   CHUNK: "Document",
 };
 
-const SUGGESTIONS = [
+const DEFAULT_SUGGESTIONS = [
   "Bonjour, quels sont vos horaires ?",
   "Vous livrez en dehors de la capitale ?",
   "Combien coûte votre produit le plus vendu ?",
@@ -103,7 +103,28 @@ function Trace({ trace }: { trace: SandboxTrace }) {
   );
 }
 
-export function AgentSandbox({ projectId, initialRemaining }: { projectId: string; initialRemaining: number }) {
+/**
+ * Conversation de test : la génération de production, sans rien envoyer sur
+ * WhatsApp ni consommer le quota de messages.
+ */
+export function SandboxChat({
+  projectId,
+  initialRemaining,
+  suggestions = DEFAULT_SUGGESTIONS,
+  onReply,
+  counterOnlyOnMobile = false,
+  className,
+}: {
+  projectId: string;
+  initialRemaining: number;
+  /** Premières questions proposées, tirées des données du projet si possible. */
+  suggestions?: readonly string[];
+  /** Appelé à chaque réponse reçue, avec le nombre de tests restants. */
+  onReply?: (remaining: number) => void;
+  /** Page Assistant IA : le compteur passe dans le panneau latéral sur grand écran. */
+  counterOnlyOnMobile?: boolean;
+  className?: string;
+}) {
   const id = useId();
   const [turns, setTurns] = useState<Turn[]>([]);
   const [remaining, setRemaining] = useState(initialRemaining);
@@ -140,160 +161,181 @@ export function AgentSandbox({ projectId, initialRemaining }: { projectId: strin
     }
     setRemaining(result.remaining);
     setTurns([...history, { role: "assistant", content: result.reply, trace: result.trace }]);
+    onReply?.(result.remaining);
   }
 
   return (
-    <div className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_18rem]">
-      <section
-        aria-labelledby={`${id}-title`}
-        className="flex h-[max(24rem,min(34rem,75dvh))] min-w-0 flex-col overflow-hidden rounded-2xl border bg-card"
-      >
-        <header className="flex min-w-0 items-center gap-2 border-b px-3 py-2.5 sm:px-4 sm:py-3">
-          <h2
-            id={`${id}-title`}
-            className="flex min-w-0 flex-1 items-center gap-2 text-sm font-semibold tracking-normal"
-          >
-            <FlaskConical aria-hidden="true" className="size-4 shrink-0" />
-            <span className="truncate">Conversation de test</span>
-          </h2>
-          {/* Compteur visible ici sur mobile : le panneau latéral passe sous le chat. */}
-          <span className="shrink-0 rounded-full border px-2 py-0.5 text-[11px] text-muted-foreground tabular-nums lg:hidden">
-            {remaining} test{remaining > 1 ? "s" : ""}
-          </span>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            disabled={!turns.length || thinking}
-            onClick={() => setTurns([])}
-            aria-label="Recommencer la conversation de test"
-            className="shrink-0 max-sm:size-8 max-sm:px-0"
-          >
-            <RotateCcw data-icon="inline-start" className="max-sm:m-0" />
-            <span className="hidden sm:inline">Recommencer</span>
-          </Button>
-        </header>
-
-        <div aria-live="polite" className="min-h-0 flex-1 space-y-3 overflow-x-hidden overflow-y-auto overscroll-contain p-3 sm:space-y-4 sm:p-4">
-          {!turns.length && (
-            <div className="flex min-h-full flex-col items-center justify-center gap-4 py-4 text-center sm:py-8">
-              <p className="max-w-sm text-pretty text-sm text-muted-foreground">
-                Jouez le rôle d’un client. L’assistant répond avec vos instructions
-                et votre base de connaissances, sans rien envoyer sur WhatsApp.
-              </p>
-              <div className="flex w-full max-w-md flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-center">
-                {SUGGESTIONS.map((suggestion) => (
-                  <Button
-                    key={suggestion}
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="h-auto max-w-full justify-start whitespace-normal py-2 text-left leading-snug sm:justify-center sm:text-center"
-                    disabled={thinking || remaining <= 0}
-                    onClick={() => void send({ message: suggestion })}
-                  >
-                    {suggestion}
-                  </Button>
-                ))}
-              </div>
-            </div>
+    <section
+      aria-labelledby={`${id}-title`}
+      className={cn(
+        "flex h-[max(24rem,min(34rem,75dvh))] min-w-0 flex-col overflow-hidden rounded-2xl border bg-card",
+        className,
+      )}
+    >
+      <header className="flex min-w-0 items-center gap-2 border-b px-3 py-2.5 sm:px-4 sm:py-3">
+        <h2
+          id={`${id}-title`}
+          className="flex min-w-0 flex-1 items-center gap-2 text-sm font-semibold tracking-normal"
+        >
+          <FlaskConical aria-hidden="true" className="size-4 shrink-0" />
+          <span className="truncate">Conversation de test</span>
+        </h2>
+        {/* Compteur visible ici sur mobile : le panneau latéral passe sous le chat. */}
+        <span
+          className={cn(
+            "shrink-0 rounded-full border px-2 py-0.5 text-[11px] text-muted-foreground tabular-nums",
+            counterOnlyOnMobile && "lg:hidden",
           )}
-          {turns.map((turn, index) => (
-            <div key={index} className={cn("flex gap-2", turn.role === "assistant" && "flex-row-reverse")}>
-              {/* Téléphone : la largeur revient aux messages. */}
-              <span className="mt-1 hidden size-7 shrink-0 items-center justify-center rounded-full border bg-background sm:flex">
-                {turn.role === "user" ? (
-                  <UserRound aria-hidden="true" className="size-3.5" />
-                ) : (
-                  <Bot aria-hidden="true" className="size-3.5" />
-                )}
-              </span>
-              <div className={cn("min-w-0 max-w-[92%] sm:max-w-[85%]", turn.role === "assistant" && "flex flex-col items-end")}>
-                <p className="sr-only">{turn.role === "user" ? "Client test :" : "Assistant :"}</p>
-                {turn.role === "assistant" && turn.trace.ending === "silent" ? (
-                  <p className="flex items-center gap-1.5 rounded-2xl rounded-br-md border border-dashed px-3.5 py-2 text-sm text-muted-foreground">
-                    <Moon aria-hidden="true" className="size-3.5 shrink-0" />
-                    Pas de réponse : la conversation est terminée.
-                  </p>
-                ) : (
-                  <p
-                    dir="auto"
-                    className={cn(
-                      "whitespace-pre-wrap wrap-anywhere rounded-2xl px-3.5 py-2 text-sm leading-relaxed",
-                      turn.role === "user"
-                        ? "rounded-bl-md border bg-background"
-                        : withheld(turn)
-                          ? "rounded-br-md border border-dashed text-muted-foreground"
-                          : "rounded-br-md bg-primary text-primary-foreground",
-                    )}
-                  >
-                    {turn.content}
-                  </p>
-                )}
-                {turn.role === "assistant" && <Trace trace={turn.trace} />}
-              </div>
-            </div>
-          ))}
-          {thinking && (
-            <p role="status" className="flex items-center justify-end gap-2 text-xs text-muted-foreground">
-              <Loader2 aria-hidden="true" className="size-3.5 animate-spin motion-reduce:animate-none" />
-              L’assistant rédige sa réponse…
+        >
+          {remaining} test{remaining > 1 ? "s" : ""}
+        </span>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          disabled={!turns.length || thinking}
+          onClick={() => setTurns([])}
+          aria-label="Recommencer la conversation de test"
+          className="shrink-0 max-sm:size-8 max-sm:px-0"
+        >
+          <RotateCcw data-icon="inline-start" className="max-sm:m-0" />
+          <span className="hidden sm:inline">Recommencer</span>
+        </Button>
+      </header>
+
+      <div aria-live="polite" className="min-h-0 flex-1 space-y-3 overflow-x-hidden overflow-y-auto overscroll-contain p-3 sm:space-y-4 sm:p-4">
+        {!turns.length && (
+          <div className="flex min-h-full flex-col items-center justify-center gap-4 py-4 text-center sm:py-8">
+            <p className="max-w-sm text-pretty text-sm text-muted-foreground">
+              Jouez le rôle d’un client. L’assistant répond avec vos instructions
+              et votre base de connaissances, sans rien envoyer sur WhatsApp.
             </p>
-          )}
-          {turns.length > 0 && <div ref={endRef} />}
-        </div>
+            <div className="flex w-full max-w-md flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-center">
+              {suggestions.map((suggestion) => (
+                <Button
+                  key={suggestion}
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-auto max-w-full justify-start whitespace-normal py-2 text-left leading-snug sm:justify-center sm:text-center"
+                  disabled={thinking || remaining <= 0}
+                  onClick={() => void send({ message: suggestion })}
+                >
+                  {suggestion}
+                </Button>
+              ))}
+            </div>
+          </div>
+        )}
+        {turns.map((turn, index) => (
+          <div key={index} className={cn("flex gap-2", turn.role === "assistant" && "flex-row-reverse")}>
+            {/* Téléphone : la largeur revient aux messages. */}
+            <span className="mt-1 hidden size-7 shrink-0 items-center justify-center rounded-full border bg-background sm:flex">
+              {turn.role === "user" ? (
+                <UserRound aria-hidden="true" className="size-3.5" />
+              ) : (
+                <Bot aria-hidden="true" className="size-3.5" />
+              )}
+            </span>
+            <div className={cn("min-w-0 max-w-[92%] sm:max-w-[85%]", turn.role === "assistant" && "flex flex-col items-end")}>
+              <p className="sr-only">{turn.role === "user" ? "Client test :" : "Assistant :"}</p>
+              {turn.role === "assistant" && turn.trace.ending === "silent" ? (
+                <p className="flex items-center gap-1.5 rounded-2xl rounded-br-md border border-dashed px-3.5 py-2 text-sm text-muted-foreground">
+                  <Moon aria-hidden="true" className="size-3.5 shrink-0" />
+                  Pas de réponse : la conversation est terminée.
+                </p>
+              ) : (
+                <p
+                  dir="auto"
+                  className={cn(
+                    "whitespace-pre-wrap wrap-anywhere rounded-2xl px-3.5 py-2 text-sm leading-relaxed",
+                    turn.role === "user"
+                      ? "rounded-bl-md border bg-background"
+                      : withheld(turn)
+                        ? "rounded-br-md border border-dashed text-muted-foreground"
+                        : "rounded-br-md bg-primary text-primary-foreground",
+                  )}
+                >
+                  {turn.content}
+                </p>
+              )}
+              {turn.role === "assistant" && <Trace trace={turn.trace} />}
+            </div>
+          </div>
+        ))}
+        {thinking && (
+          <p role="status" className="flex items-center justify-end gap-2 text-xs text-muted-foreground">
+            <Loader2 aria-hidden="true" className="size-3.5 animate-spin motion-reduce:animate-none" />
+            L’assistant rédige sa réponse…
+          </p>
+        )}
+        {turns.length > 0 && <div ref={endRef} />}
+      </div>
 
-        {/* Compositeur d’une seule pièce, comme dans une messagerie : le champ
-            grandit avec le texte, le bouton d’envoi reste en bas à droite. */}
-        <form noValidate onSubmit={form.handleSubmit(send)} className="border-t p-2 sm:p-3">
-          <Controller
-            name="message"
-            control={form.control}
-            render={({ field, fieldState }) => (
-              <Field data-invalid={fieldState.invalid} className="gap-1.5">
-                <FieldLabel htmlFor={`${id}-message`} className="sr-only">
-                  Message du client test
-                </FieldLabel>
-                <InputGroup className="items-end rounded-2xl bg-background has-[>textarea]:h-auto dark:bg-input/30">
-                  <InputGroupTextarea
-                    {...field}
-                    id={`${id}-message`}
-                    rows={1}
-                    maxLength={1000}
-                    placeholder={remaining > 0 ? "Message de test…" : "Limite du jour atteinte"}
+      {/* Compositeur d’une seule pièce, comme dans une messagerie : le champ
+          grandit avec le texte, le bouton d’envoi reste en bas à droite. */}
+      <form noValidate onSubmit={form.handleSubmit(send)} className="border-t p-2 sm:p-3">
+        <Controller
+          name="message"
+          control={form.control}
+          render={({ field, fieldState }) => (
+            <Field data-invalid={fieldState.invalid} className="gap-1.5">
+              <FieldLabel htmlFor={`${id}-message`} className="sr-only">
+                Message du client test
+              </FieldLabel>
+              <InputGroup className="items-end rounded-2xl bg-background has-[>textarea]:h-auto dark:bg-input/30">
+                <InputGroupTextarea
+                  {...field}
+                  id={`${id}-message`}
+                  rows={1}
+                  maxLength={1000}
+                  placeholder={remaining > 0 ? "Message de test…" : "Limite du jour atteinte"}
+                  disabled={thinking || remaining <= 0}
+                  aria-invalid={fieldState.invalid}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
+                      event.preventDefault();
+                      void form.handleSubmit(send)();
+                    }
+                  }}
+                  className="max-h-28 min-h-10 min-w-0 py-2.5 pl-3.5"
+                />
+                <InputGroupAddon align="inline-end" className="pb-1">
+                  <InputGroupButton
+                    type="submit"
+                    variant="default"
+                    size="icon-sm"
+                    className="rounded-full"
                     disabled={thinking || remaining <= 0}
-                    aria-invalid={fieldState.invalid}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
-                        event.preventDefault();
-                        void form.handleSubmit(send)();
-                      }
-                    }}
-                    className="max-h-28 min-h-10 min-w-0 py-2.5 pl-3.5"
-                  />
-                  <InputGroupAddon align="inline-end" className="pb-1">
-                    <InputGroupButton
-                      type="submit"
-                      variant="default"
-                      size="icon-sm"
-                      className="rounded-full"
-                      disabled={thinking || remaining <= 0}
-                      aria-label="Envoyer le message de test"
-                    >
-                      {thinking ? (
-                        <Loader2 aria-hidden="true" className="animate-spin motion-reduce:animate-none" />
-                      ) : (
-                        <SendHorizontal aria-hidden="true" />
-                      )}
-                    </InputGroupButton>
-                  </InputGroupAddon>
-                </InputGroup>
-                {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
-              </Field>
-            )}
-          />
-        </form>
-      </section>
+                    aria-label="Envoyer le message de test"
+                  >
+                    {thinking ? (
+                      <Loader2 aria-hidden="true" className="animate-spin motion-reduce:animate-none" />
+                    ) : (
+                      <SendHorizontal aria-hidden="true" />
+                    )}
+                  </InputGroupButton>
+                </InputGroupAddon>
+              </InputGroup>
+              {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+            </Field>
+          )}
+        />
+      </form>
+    </section>
+  );
+}
+
+export function AgentSandbox({ projectId, initialRemaining }: { projectId: string; initialRemaining: number }) {
+  const [remaining, setRemaining] = useState(initialRemaining);
+  return (
+    <div className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_18rem]">
+      <SandboxChat
+        projectId={projectId}
+        initialRemaining={initialRemaining}
+        onReply={setRemaining}
+        counterOnlyOnMobile
+      />
 
       <aside className="hidden min-w-0 space-y-3 rounded-2xl border bg-card p-4 text-sm lg:block">
         <p className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">Tests aujourd’hui</p>

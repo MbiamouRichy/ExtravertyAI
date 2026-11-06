@@ -36,16 +36,13 @@ const MAX_LENGTH = 12000;
 function SaveIndicator({
   status,
   error,
-  onboarding,
 }: {
   status: SaveStatus;
   error?: string;
-  onboarding: boolean;
 }) {
   const failed = status === "error" || status === "invalid";
-  const label = onboarding
-    ? "Brouillon conservé"
-    : status === "saving"
+  const label =
+    status === "saving"
       ? "Enregistrement…"
       : status === "waiting"
         ? "Modifications en cours…"
@@ -56,9 +53,8 @@ function SaveIndicator({
             : status === "error"
               ? "Échec de l’enregistrement"
               : "Enregistrement automatique";
-  const Icon = onboarding
-    ? Check
-    : status === "saving" || status === "waiting"
+  const Icon =
+    status === "saving" || status === "waiting"
       ? Loader2
       : status === "saved"
         ? Check
@@ -81,7 +77,6 @@ function SaveIndicator({
         className={cn(
           "size-3.5 shrink-0",
           (status === "saving" || status === "waiting") &&
-            !onboarding &&
             "animate-spin motion-reduce:animate-none",
         )}
       />
@@ -98,7 +93,6 @@ export function SystemMessageDialog({
   status,
   saveError,
   error,
-  onboarding,
 }: {
   projectId: string;
   config: AgentConfig;
@@ -107,7 +101,6 @@ export function SystemMessageDialog({
   status: SaveStatus;
   saveError?: string;
   error?: { message?: string };
-  onboarding: boolean;
 }) {
   const trigger = useRef<HTMLButtonElement>(null);
   const editor = useRef<HTMLTextAreaElement | null>(null);
@@ -231,17 +224,11 @@ export function SystemMessageDialog({
             <div className="min-w-0 flex-1">
               <DialogTitle className="text-base">Message système</DialogTitle>
               <DialogDescription className="sr-only">
-                Modifiez les instructions de votre agent.{" "}
-                {onboarding
-                  ? "Le brouillon sera enregistré à la fin de la configuration."
-                  : "Chaque modification est enregistrée automatiquement."}
+                Modifiez les instructions de votre agent. Chaque modification
+                est enregistrée automatiquement.
               </DialogDescription>
               <div className="flex min-w-0 items-center gap-2">
-                <SaveIndicator
-                  status={status}
-                  error={saveError}
-                  onboarding={onboarding}
-                />
+                <SaveIndicator status={status} error={saveError} />
                 <span
                   className="shrink-0 text-xs tabular-nums text-muted-foreground"
                   aria-label={`${length} caractères sur ${MAX_LENGTH}`}
