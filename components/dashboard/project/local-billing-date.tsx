@@ -3,9 +3,12 @@ import { useUserTimeZone } from "@/components/local-date";
 export function LocalBillingDate({
   value,
   dateOnly = false,
+  shortMonth = false,
 }: {
   value: Date | string | number | null | undefined;
   dateOnly?: boolean;
+  /** Mois abrégé (« 30 oct. 2026 ») pour les colonnes étroites. */
+  shortMonth?: boolean;
 }) {
   const timeZone = useUserTimeZone();
   if (value == null) return <span>Non disponible</span>;
@@ -20,7 +23,7 @@ export function LocalBillingDate({
         ? new Intl.DateTimeFormat("fr-FR", {
             timeZone,
             day: "numeric",
-            month: "long",
+            month: shortMonth ? "short" : "long",
             year: "numeric",
             ...(!dateOnly
               ? ({

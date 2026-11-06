@@ -55,12 +55,21 @@ export function BillingActions({
     }
   }
   if (needsCheckout)
-    return <BillingPlanButton projectId={projectId} intent="renew" needsCheckout />;
+    return (
+      <BillingPlanButton
+        projectId={projectId}
+        intent="renew"
+        needsCheckout
+        className="min-h-10 w-full sm:min-h-9 sm:w-auto"
+      />
+    );
+  // Mobile : boutons pleine largeur, l'action principale en haut (même
+  // convention que les pieds de dialogue). Dès sm : en ligne, principale à droite.
   return (
-    <div className="flex flex-col gap-2 min-[400px]:grid min-[400px]:grid-cols-2 sm:flex sm:flex-row">
+    <div className="flex shrink-0 flex-col-reverse gap-2 sm:flex-row">
       <Button
         variant="outline"
-        className="h-auto min-h-9 whitespace-normal"
+        className="h-auto min-h-10 whitespace-normal sm:min-h-9"
         disabled={busy || !configured}
         aria-busy={busy}
         onClick={() => void openPortal()}
@@ -79,6 +88,7 @@ export function BillingActions({
           label={primary.label}
           variant="default"
           disabled={!configured}
+          className="min-h-10 sm:min-h-9"
         />
       )}
     </div>
@@ -129,10 +139,12 @@ export function BillingCancelSection({
       <LocalBillingDate value={cancellation.endsAt} dateOnly />
     </strong>
   ) : null;
+  // Un seul bouton à la fois, comme la suppression dans les paramètres :
+  // résilier après une connexion récente, sinon se reconnecter d'abord.
   return (
     <section
       aria-labelledby="cancel-title"
-      className="flex flex-col gap-4 border-t pt-8 sm:flex-row sm:items-center sm:justify-between"
+      className="flex flex-col gap-4 rounded-xl border p-4 sm:flex-row sm:items-center sm:justify-between sm:gap-6 sm:p-6"
     >
       <div className="min-w-0">
         <h2 id="cancel-title" className="text-sm font-medium">
@@ -142,62 +154,66 @@ export function BillingCancelSection({
           {cancellation.atPeriodEnd
             ? "Aucun nouveau prélèvement. Votre offre reste active jusqu’à la fin de la période en cours."
             : "Le paiement en attente est abandonné et l’abonnement s’arrête immédiatement."}
-          {!recentLogin &&
-            " Par sécurité, reconnectez-vous d’abord : la résiliation reste possible 10 minutes après la connexion."}
         </p>
-      </div>
-      <div className="flex shrink-0 flex-wrap gap-2">
         {!recentLogin && (
-          <ReauthButton
-            callbackUrl={`/projects/${projectId}/billing`}
-            label="Se reconnecter"
-          />
+          <p className="mt-2 max-w-lg text-xs text-muted-foreground">
+            Par sécurité, reconnectez-vous d’abord : la résiliation reste
+            possible 10 minutes après la connexion.
+          </p>
         )}
-        <AlertDialog open={open} onOpenChange={(next) => !busy && setOpen(next)}>
-          <Button
-            variant="destructive"
-            disabled={!recentLogin}
-            onClick={() => setOpen(true)}
-          >
-            Résilier
-          </Button>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Résilier l’abonnement ?</AlertDialogTitle>
-              <AlertDialogDescription>
-                {!cancellation.atPeriodEnd ? (
-                  <>
-                    Le paiement en attente est abandonné et l’abonnement
-                    s’arrête immédiatement. Vous pourrez souscrire de nouveau à
-                    tout moment.
-                  </>
-                ) : cancellation.trial ? (
-                  <>
-                    Votre essai reste actif{date ? <> jusqu’au {date}</> : " jusqu’à son terme"}, et
-                    vous ne serez pas prélevé. Vous pouvez réactiver
-                    l’abonnement d’ici là.
-                  </>
-                ) : (
-                  <>
-                    Votre offre reste active{date ? <> jusqu’au {date}</> : " jusqu’à la fin de la période"}, puis
-                    aucun nouveau paiement n’est prélevé. Vous pouvez réactiver
-                    l’abonnement d’ici là.
-                  </>
-                )}
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel disabled={busy}>Garder l’abonnement</AlertDialogCancel>
-              <Button variant="destructive" disabled={busy} onClick={() => void confirm()}>
-                {busy && (
-                  <Loader2 aria-hidden="true" className="size-4 animate-spin motion-reduce:animate-none" />
-                )}
-                {busy ? "Résiliation…" : "Résilier"}
-              </Button>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
       </div>
+      {recentLogin ? (
+        <Button
+          variant="destructive"
+          className="min-h-10 w-full shrink-0 sm:min-h-9 sm:w-auto"
+          onClick={() => setOpen(true)}
+        >
+          Résilier
+        </Button>
+      ) : (
+        <ReauthButton
+          callbackUrl={`/projects/${projectId}/billing`}
+          label="Se reconnecter"
+          className="min-h-10 w-full shrink-0 sm:min-h-9 sm:w-auto"
+        />
+      )}
+      <AlertDialog open={open} onOpenChange={(next) => !busy && setOpen(next)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Résilier l’abonnement ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {!cancellation.atPeriodEnd ? (
+                <>
+                  Le paiement en attente est abandonné et l’abonnement
+                  s’arrête immédiatement. Vous pourrez souscrire de nouveau à
+                  tout moment.
+                </>
+              ) : cancellation.trial ? (
+                <>
+                  Votre essai reste actif{date ? <> jusqu’au {date}</> : " jusqu’à son terme"}, et
+                  vous ne serez pas prélevé. Vous pouvez réactiver
+                  l’abonnement d’ici là.
+                </>
+              ) : (
+                <>
+                  Votre offre reste active{date ? <> jusqu’au {date}</> : " jusqu’à la fin de la période"}, puis
+                  aucun nouveau paiement n’est prélevé. Vous pouvez réactiver
+                  l’abonnement d’ici là.
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={busy}>Garder l’abonnement</AlertDialogCancel>
+            <Button variant="destructive" disabled={busy} onClick={() => void confirm()}>
+              {busy && (
+                <Loader2 aria-hidden="true" className="size-4 animate-spin motion-reduce:animate-none" />
+              )}
+              {busy ? "Résiliation…" : "Résilier"}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </section>
   );
 }

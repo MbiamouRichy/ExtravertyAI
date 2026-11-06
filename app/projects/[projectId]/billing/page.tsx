@@ -292,10 +292,12 @@ export default async function BillingPage({
       : null;
 
   return (
-    <main className="mx-auto w-full min-w-0 max-w-4xl space-y-10 p-4 [overflow-wrap:anywhere] sm:p-6 xl:p-8">
+    // wrap-break-word plutôt que « anywhere » : les longues valeurs passent à
+    // la ligne sans que les boutons et libellés se cassent au milieu d'un mot.
+    <main className="mx-auto w-full min-w-0 max-w-4xl space-y-8 p-4 wrap-break-word sm:space-y-10 sm:p-6 xl:p-8">
       <header className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
         <div className="min-w-0">
-          <p className="text-sm text-muted-foreground">{p.name}</p>
+          <p className="truncate text-sm text-muted-foreground">{p.name}</p>
           <h1 className="mt-1 text-2xl font-semibold tracking-tight sm:text-3xl">
             Facturation
           </h1>
@@ -322,9 +324,9 @@ export default async function BillingPage({
         </p>
       )}
 
-      <section aria-labelledby="plan-title" className="rounded-xl border bg-card">
-        <div className="p-5 sm:p-6">
-          <h2 id="plan-title" className="flex flex-wrap items-center gap-2">
+      <section aria-labelledby="plan-title" className="overflow-hidden rounded-xl border bg-card">
+        <div className="p-4 sm:p-6">
+          <h2 id="plan-title" className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
             <span className="text-xl font-semibold capitalize tracking-tight">{p.plan}</span>
             <Badge variant={cancelling || ended ? "outline" : "secondary"}>
               {cancelling && !ended ? "Résiliation programmée" : billingStatusLabel(status)}
@@ -341,18 +343,18 @@ export default async function BillingPage({
             )}
           </p>
         </div>
-        <dl className="grid border-t max-sm:divide-y sm:grid-cols-3 sm:divide-x">
-          <div className="p-5 sm:p-6">
+        <dl className="grid grid-cols-1 border-t max-sm:divide-y sm:grid-cols-3 sm:divide-x">
+          <div className="px-4 py-3.5 sm:p-6">
             <dt className="text-xs text-muted-foreground">{endLabel}</dt>
             <dd className="mt-1 text-sm font-medium">
               <LocalBillingDate value={subscription?.cancel_at || endsAt} dateOnly />
             </dd>
           </div>
-          <div className="p-5 sm:p-6">
+          <div className="px-4 py-3.5 sm:p-6">
             <dt className="text-xs text-muted-foreground">Renouvellement</dt>
             <dd className="mt-1 text-sm font-medium">{renewal}</dd>
           </div>
-          <div className="p-5 sm:p-6">
+          <div className="px-4 py-3.5 sm:p-6">
             <dt className="text-xs text-muted-foreground">Messages</dt>
             {quota ? (
               <dd className="mt-1">
@@ -400,7 +402,7 @@ export default async function BillingPage({
           Paiement
         </h2>
         <dl className="divide-y rounded-xl border bg-card text-sm">
-          <div className="flex flex-col gap-1 p-5 sm:flex-row sm:gap-6">
+          <div className="flex flex-col gap-1 px-4 py-3.5 sm:flex-row sm:gap-6 sm:p-5">
             <dt className="text-muted-foreground sm:w-40 sm:shrink-0">Moyen de paiement</dt>
             <dd className="min-w-0">
               {card ? (
@@ -420,7 +422,7 @@ export default async function BillingPage({
               )}
             </dd>
           </div>
-          <div className="flex flex-col gap-1 p-5 sm:flex-row sm:gap-6">
+          <div className="flex flex-col gap-1 px-4 py-3.5 sm:flex-row sm:gap-6 sm:p-5">
             <dt className="text-muted-foreground sm:w-40 sm:shrink-0">Facturé à</dt>
             <dd className="min-w-0">
               <p className="font-medium">{billingName || p.name}</p>
@@ -456,11 +458,37 @@ export default async function BillingPage({
         </h2>
         {rows.length ? (
           <div className="overflow-hidden rounded-xl border bg-card">
+            {/* Mobile : une ligne par facture, sans défilement horizontal.
+                Date et montant en tête, statut et numéro dessous, document à droite. */}
+            <ul aria-labelledby="invoices-title" className="divide-y sm:hidden">
+              {rows.map((row) => (
+                <li
+                  key={row.id}
+                  className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-0.5 px-4 py-3"
+                >
+                  <p className="text-sm">
+                    <LocalBillingDate value={row.date} dateOnly shortMonth />
+                  </p>
+                  <p className="text-right text-sm font-medium tabular-nums">{row.amount}</p>
+                  <p className="min-w-0 text-xs text-muted-foreground">
+                    {billingStatusLabel(row.status)}
+                    <span aria-hidden="true"> · </span>
+                    <span className="break-all font-mono">
+                      {row.number || "Numéro en préparation"}
+                    </span>
+                  </p>
+                  <div className="-mr-2.5 justify-self-end">{row.document}</div>
+                </li>
+              ))}
+            </ul>
+            {/* Dès sm : tableau. « relative » garde dans la zone défilante le
+                libellé masqué de la colonne Document (positionné en absolu),
+                qui sinon élargissait toute la page. */}
             <div
               role="region"
               aria-label="Historique des factures"
               tabIndex={0}
-              className="overflow-x-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="relative overflow-x-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring max-sm:hidden"
             >
               <table className="w-full min-w-[32rem] text-left text-sm">
                 <thead className="border-b text-xs text-muted-foreground">
@@ -492,7 +520,7 @@ export default async function BillingPage({
               </table>
             </div>
             {(!firstPage || (hasMore && nextHref)) && (
-              <div className="flex flex-wrap justify-end gap-2 border-t p-3">
+              <div className="flex flex-wrap justify-end gap-2 border-t p-2 sm:p-3">
                 {!firstPage && (
                   <Button variant="ghost" size="sm" asChild>
                     <Link href={`/projects/${projectId}/billing`}>Plus récentes</Link>
@@ -507,7 +535,7 @@ export default async function BillingPage({
             )}
           </div>
         ) : (
-          <div className="flex flex-wrap items-center gap-3 rounded-xl border border-dashed p-5 text-sm text-muted-foreground">
+          <div className="flex flex-wrap items-center gap-3 rounded-xl border border-dashed p-4 text-sm text-muted-foreground sm:p-5">
             <FileText aria-hidden="true" className="size-4 shrink-0" />
             <p className="min-w-0 flex-1">
               {unavailable
