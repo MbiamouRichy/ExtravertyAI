@@ -73,30 +73,33 @@ export default function TeamLoading() {
 
           <div className="divide-y">
             {MEMBERS.map(({ name, email, assignable }, index) => (
+              // Même grille que la ligne réelle : avatar, nom et menu en tête
+              // sur mobile, puis e-mail, rôle et action sur toute la largeur.
               <div
                 key={index}
-                className="flex items-start gap-3 px-4 py-3.5 sm:items-center sm:px-5"
+                className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-3 px-4 py-3.5 sm:flex sm:px-5"
               >
                 <Skeleton className="size-9 shrink-0 rounded-full sm:size-10" />
-                <div className="min-w-0 flex-1">
-                  <Skeleton className={`h-3.5 max-w-full ${name}`} />
-                  <Skeleton className={`mt-1.5 h-3 max-w-full ${email}`} />
-                  {/* Mobile : rôle et présence sous l’e-mail. */}
-                  <div className="mt-2 flex items-center gap-2.5">
+                <div className="min-w-0 flex-1 max-sm:contents">
+                  <div className="flex h-5 items-center">
+                    <Skeleton className={`h-3.5 max-w-full ${name}`} />
+                  </div>
+                  <div className="flex h-5 items-center max-sm:col-span-3 max-sm:mt-2.5">
+                    <Skeleton className={`h-3 max-w-full ${email}`} />
+                  </div>
+                  <div className="mt-1.5 flex items-center gap-2.5 max-sm:col-span-3 sm:mt-0.5">
                     <Skeleton className="h-5 w-20 rounded-full sm:hidden" />
                     <Skeleton className="h-3 w-16" />
                     <Skeleton className="h-3 w-20" />
                   </div>
                   {assignable && (
-                    <Skeleton className="mt-2.5 h-8 w-24 rounded-md sm:hidden" />
+                    <Skeleton className="col-span-3 mt-2.5 h-8 rounded-md sm:hidden" />
                   )}
                 </div>
-                {/* Mobile : seul le menu d’actions reste à droite. */}
-                {assignable && <Skeleton className="size-8 shrink-0 rounded-md sm:hidden" />}
-                <div className="hidden shrink-0 items-center gap-2 sm:flex">
-                  <Skeleton className="h-5 w-24 rounded-full" />
-                  {assignable && <Skeleton className="h-8 w-24 rounded-md" />}
-                  <Skeleton className="size-8 rounded-md" />
+                <div className="flex shrink-0 items-center gap-2 max-sm:col-start-3 max-sm:row-start-1">
+                  <Skeleton className="hidden h-5 w-24 rounded-full sm:block" />
+                  {assignable && <Skeleton className="hidden h-8 w-24 rounded-md sm:block" />}
+                  <Skeleton className={`size-8 rounded-md ${assignable ? "" : "max-sm:hidden"}`} />
                 </div>
               </div>
             ))}

@@ -37,10 +37,13 @@ export function useRecentSession(sessionCreatedAt: string) {
 export function RecentSessionGate({
   sessionCreatedAt,
   callbackUrl,
+  className,
   children,
 }: {
   sessionCreatedAt: string;
   callbackUrl: string;
+  /** Classes du bouton de reconnexion (largeur, retour à la ligne). */
+  className?: string;
   children: ReactNode;
 }) {
   const recentLogin = useRecentSession(sessionCreatedAt);
@@ -50,6 +53,7 @@ export function RecentSessionGate({
       callbackUrl={callbackUrl}
       label="Se reconnecter pour modifier"
       size="sm"
+      className={className}
     />
   );
 }

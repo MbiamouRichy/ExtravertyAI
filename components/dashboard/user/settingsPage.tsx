@@ -71,7 +71,9 @@ export default function UserSettingsPage({
           ) : null
         }
       >
-        <div role="group" aria-label="Thème de l’application" className="grid grid-cols-3 gap-3">
+        {/* Mobile : la coche passe dans l’aperçu pour que le libellé tienne
+            toujours dans sa colonne. */}
+        <div role="group" aria-label="Thème de l’application" className="grid grid-cols-3 gap-2 sm:gap-3">
           {themes.map((item) => {
             const selected = mounted && theme === item.id;
             return (
@@ -82,16 +84,20 @@ export default function UserSettingsPage({
                 aria-pressed={selected}
                 onClick={() => handleThemeChange(item.id)}
                 className={cn(
-                  "h-auto flex-col items-stretch gap-2 rounded-2xl border bg-card p-2 hover:bg-muted/40",
+                  "h-auto min-w-0 flex-col items-stretch gap-2 rounded-2xl border bg-card p-1.5 hover:bg-muted/40 sm:p-2",
                   selected && "border-primary ring-2 ring-primary/20",
                 )}
               >
                 {/* Aperçu illustratif du thème : couleurs littérales volontaires. */}
-                <span aria-hidden="true" className={cn("flex h-20 items-center justify-center rounded-xl border", item.preview)}>
+                <span aria-hidden="true" className={cn("relative flex h-16 items-center justify-center rounded-xl border sm:h-20", item.preview)}>
                   <span className={cn("h-1/2 w-1/2 rounded-md shadow-xs", item.inner)} />
+                  {selected && (
+                    <span className="absolute right-1.5 top-1.5 flex size-5 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-xs">
+                      <Check className="size-3" />
+                    </span>
+                  )}
                 </span>
-                <span className="flex items-center justify-center gap-1.5 text-sm font-medium">
-                  {selected && <Check aria-hidden="true" className="size-3.5" />}
+                <span className="truncate pb-0.5 text-center text-xs font-medium sm:text-sm">
                   {item.label}
                 </span>
               </Button>
@@ -106,8 +112,8 @@ export default function UserSettingsPage({
         description="Ces actions sont définitives."
         danger
       >
-        <div className="flex flex-col justify-between gap-4 rounded-2xl border border-destructive/30 bg-card p-5 sm:flex-row sm:items-center">
-          <div>
+        <div className="flex flex-col justify-between gap-4 rounded-2xl border border-destructive/30 bg-card p-4 sm:flex-row sm:items-center sm:gap-6 sm:p-5">
+          <div className="min-w-0">
             <p className="text-sm font-medium">Supprimer le compte</p>
             <p className="mt-1 text-sm text-muted-foreground">
               Supprime votre profil et les projets dont vous êtes l’unique membre.

@@ -138,7 +138,8 @@ export default async function BroadcastPage({
           <h2 id="broadcast-message" className="text-sm font-medium">
             Message envoyé
           </h2>
-          <div className="mt-3 ml-auto max-w-[92%] overflow-hidden rounded-xl rounded-tr-sm bg-muted">
+          {/* Toute la largeur du bloc : le texte garde des lignes longues sur mobile. */}
+          <div className="mt-3 overflow-hidden rounded-xl rounded-tr-sm bg-muted">
             {broadcast.mediaUrl && (
               // eslint-disable-next-line @next/next/no-img-element -- private image behind a membership check
               <img

@@ -425,9 +425,13 @@ export default function TeamManagement({
             const isMe = member.userId === currentUserId;
 
             return (
+              // Mobile : avatar, nom et menu sur la première ligne, puis
+              // l’adresse, le rôle, la présence et l’action sur toute la
+              // largeur (le bloc d’informations s’efface en « contents »).
+              // Dès sm : une seule rangée.
               <li
                 key={member.id}
-                className="flex items-start gap-3 px-4 py-3.5 transition-colors hover:bg-muted/30 sm:items-center sm:px-5"
+                className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-3 px-4 py-3.5 transition-colors hover:bg-muted/30 sm:flex sm:px-5"
               >
                 <Avatar className="size-9 shrink-0 sm:size-10">
                   <AvatarImage src={member.image || undefined} alt="" />
@@ -435,7 +439,7 @@ export default function TeamManagement({
                     {getInitials(member.name)}
                   </AvatarFallback>
                 </Avatar>
-                <div className="min-w-0 flex-1">
+                <div className="min-w-0 flex-1 max-sm:contents">
                   {/* Mobile : nom et adresse passent à la ligne plutôt que
                       d’être coupés ; une seule ligne dès sm. */}
                   <p className="text-sm font-medium leading-snug break-words sm:flex sm:min-w-0 sm:items-center sm:gap-2">
@@ -446,9 +450,9 @@ export default function TeamManagement({
                       </span>
                     )}
                   </p>
-                  <p className="text-xs text-muted-foreground break-all sm:truncate sm:break-normal">{member.email}</p>
+                  <p className="text-xs text-muted-foreground break-all max-sm:col-span-3 max-sm:mt-2.5 sm:truncate sm:break-normal">{member.email}</p>
                   {/* Mobile : rôle et présence sous l’email, pour laisser la largeur au nom. */}
-                  <div className="mt-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[11px] text-muted-foreground sm:mt-0.5">
+                  <div className="mt-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[11px] text-muted-foreground max-sm:col-span-3 sm:mt-0.5">
                     <span className="sm:hidden">{getRoleBadge(member.role)}</span>
                     <span className="whitespace-nowrap">
                       <MemberPresence
@@ -473,12 +477,12 @@ export default function TeamManagement({
                       projectId={projectId}
                       assigneeId={member.userId}
                       assigneeName={member.name || "ce membre"}
-                      className="mt-2.5 sm:hidden"
+                      className="col-span-3 mt-2.5 sm:hidden"
                     />
                   )}
                 </div>
 
-                <div className="flex shrink-0 items-center gap-2">
+                <div className="flex shrink-0 items-center gap-2 max-sm:col-start-3 max-sm:row-start-1">
                   <span className="hidden sm:inline-flex">{getRoleBadge(member.role)}</span>
                   {/* Le propriétaire choisit ses conversations lui-même. */}
                   {canReceive && (
