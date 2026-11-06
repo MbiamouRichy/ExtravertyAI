@@ -37,6 +37,8 @@ import {
   type ScenarioId,
 } from "@/components/maquettes/reports-v2/scenario";
 import { BAND_K, BASELINE_WEEKS } from "@/lib/report-signal";
+import { formatWeekClose } from "@/lib/report-week";
+import { getUserTimeZone } from "@/lib/server-time-zone";
 
 export const metadata: Metadata = {
   title: "Rapport de décision (test)",
@@ -355,7 +357,11 @@ export default async function ReportsDecisionPreview({
       />
       {!legacy && (
         <>
-          <WeekDetail week={week} base={appBase} />
+          <WeekDetail
+            week={week}
+            base={appBase}
+            closeLabel={formatWeekClose(new Date(week.weekEnd), await getUserTimeZone())}
+          />
           <LegacyCounters
             current={week.legacy}
             previous={previous?.legacy ?? null}
