@@ -9,7 +9,8 @@ import { BeforeAfterThread } from "./before-after-thread";
 /** Headline and manifesto of the À propos page. */
 export function AboutHeroCopy({ titleAs: Title = "h1" }: { titleAs?: "h1" | "p" }) {
   return (
-    <div className="grid gap-10 px-4 pt-14 pb-16 sm:px-8 md:pt-20 lg:grid-cols-12 lg:items-end lg:gap-8 lg:px-12 lg:pb-24">
+    // grid-cols-1 caps the column at the viewport: a long word can no longer widen it.
+    <div className="grid grid-cols-1 gap-10 px-4 pt-14 pb-16 sm:px-8 md:pt-20 lg:grid-cols-12 lg:items-end lg:gap-8 lg:px-12 lg:pb-24">
       <div className="lg:col-span-8">
         <Eyebrow>
           <span className="text-foreground">À propos</span>
@@ -18,7 +19,7 @@ export function AboutHeroCopy({ titleAs: Title = "h1" }: { titleAs?: "h1" | "p" 
         </Eyebrow>
         <Title
           id={Title === "h1" ? "apropos-titre" : undefined}
-          className="mt-6 font-heading text-5xl leading-[1.06] font-extrabold tracking-[-0.055em] text-balance sm:text-6xl lg:text-8xl"
+          className="mt-6 font-heading text-4xl leading-[1.06] font-extrabold tracking-[-0.055em] text-balance min-[360px]:text-5xl sm:text-6xl lg:text-8xl"
         >
           La technologie avance. <Serif>La relation reste.</Serif>
         </Title>
@@ -47,7 +48,7 @@ export function AboutHero() {
       <section aria-labelledby="depart-titre" className="relative border-t">
         <Crosshair className="-top-1.5 -left-1.5" />
         <Crosshair className="-top-1.5 -right-1.5" />
-        <div className="grid lg:grid-cols-12">
+        <div className="grid grid-cols-1 lg:grid-cols-12">
           <div className="flex flex-col justify-between gap-10 px-4 py-14 sm:px-8 lg:col-span-5 lg:px-12 lg:py-20">
             <div>
               <Eyebrow>
@@ -68,7 +69,7 @@ export function AboutHero() {
                 et que la bonne personne prenne le relais quand cela compte.
               </p>
             </div>
-            <Button asChild variant="outline" size="lg" className="group w-fit">
+            <Button asChild variant="outline" size="lg" className="group w-full sm:w-fit">
               <Link href="/contact">
                 Faisons connaissance
                 <ArrowUpRight

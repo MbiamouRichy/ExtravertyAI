@@ -74,7 +74,7 @@ export function AboutCta() {
         <Eyebrow className="text-primary-foreground/60">Construisons la suite</Eyebrow>
         <h2
           id="apropos-cta-titre"
-          className="mt-6 max-w-4xl text-5xl text-balance tracking-tight md:text-7xl"
+          className="mt-6 max-w-4xl text-4xl text-balance tracking-tight min-[360px]:text-5xl md:text-7xl"
         >
           Votre prochaine bonne conversation <Serif>commence ici.</Serif>
         </h2>
