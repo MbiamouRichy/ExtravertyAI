@@ -170,7 +170,8 @@ export function ReportSettingsForm({
           {error}
         </p>
       )}
-      <div className="flex flex-wrap gap-2">
+      {/* Deux moitiés égales sur mobile, libellé court qui tient toujours. */}
+      <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
         <Button type="submit" disabled={pending || !form.formState.isDirty}>
           {pending ? "Enregistrement…" : "Enregistrer"}
         </Button>
@@ -183,7 +184,7 @@ export function ReportSettingsForm({
             setError(null);
           }}
         >
-          Annuler les modifications
+          Annuler<span className="max-sm:hidden"> les modifications</span>
         </Button>
       </div>
     </form>

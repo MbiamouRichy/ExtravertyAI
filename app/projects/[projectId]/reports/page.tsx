@@ -16,7 +16,9 @@ import prisma from "@/lib/prisma";
 import { getBillingAccess } from "@/lib/billing-access";
 import { readIndicators } from "@/lib/report-indicators";
 import { BASELINE_WEEKS, BAND_K } from "@/lib/report-signal";
-import { emptyWeek, isoWeek } from "@/lib/report-week";
+import { emptyWeek, formatWeekClose, isoWeek } from "@/lib/report-week";
+import { WAITING_CLOSE_UTC } from "@/lib/report-findings";
+import { getUserTimeZone } from "@/lib/server-time-zone";
 import {
   ReportSnapshotSchema,
   reportRange,
@@ -223,8 +225,16 @@ export default async function ReportsPage({
   const index = weeks.length - 1;
   const readings = weeks.length ? readIndicators(weeks, index) : [];
   const week = weeks[index];
+  // Clôture lue à l’heure de l’utilisateur, dans le bloc dédié comme dans
+  // le constat figé (écrit en UTC pour l’e-mail).
+  const closeLabel = week
+    ? formatWeekClose(new Date(week.weekEnd), await getUserTimeZone())
+    : "";
   const findings = (v2?.findings ?? []).map((finding) => ({
     ...finding,
+    evidence: finding.evidence.map((line) =>
+      line.replace(`, ${WAITING_CLOSE_UTC}`, ` à la clôture, ${closeLabel}`),
+    ),
     action: { ...finding.action, href: `${base}${finding.action.href}` },
   }));
   const position = selected
@@ -383,7 +393,7 @@ export default async function ReportsPage({
           />
           {v2 && (
             <>
-              <WeekDetail week={week} base={base} />
+              <WeekDetail week={week} base={base} closeLabel={closeLabel} />
               <LegacyCounters
                 current={week.legacy}
                 previous={weeks[index - 1]?.legacy ?? null}
@@ -403,9 +413,9 @@ export default async function ReportsPage({
 
       <section
         aria-labelledby="sending-title"
-        className="grid gap-10 border-t pt-10 md:grid-cols-2"
+        className="grid grid-cols-1 gap-10 border-t pt-10 md:grid-cols-2"
       >
-        <div>
+        <div className="min-w-0">
           <SectionHeader
             id="sending-title"
             title="Programmation"
@@ -461,7 +471,7 @@ export default async function ReportsPage({
             </>
           )}
         </div>
-        <div>
+        <div className="min-w-0">
           <SectionHeader
             id="recipients-title"
             title="Destinataires"
@@ -476,23 +486,26 @@ export default async function ReportsPage({
                 <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-medium">
                   {getInitials(recipient.user.name || recipient.user.email)}
                 </span>
+                {/* Rôle sur la ligne du nom : l’adresse garde toute la largeur. */}
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate">{recipient.user.name}</span>
+                  <span className="flex min-w-0 items-baseline justify-between gap-3">
+                    <span className="truncate">{recipient.user.name}</span>
+                    <span
+                      className={cn(
+                        "shrink-0 text-xs",
+                        recipient.user.emailVerified
+                          ? "text-muted-foreground"
+                          : "text-destructive",
+                      )}
+                    >
+                      {recipient.user.emailVerified
+                        ? roleLabel(recipient.role)
+                        : "Adresse à vérifier"}
+                    </span>
+                  </span>
                   <span className="block truncate text-xs text-muted-foreground">
                     {recipient.user.email}
                   </span>
-                </span>
-                <span
-                  className={cn(
-                    "shrink-0 text-xs",
-                    recipient.user.emailVerified
-                      ? "text-muted-foreground"
-                      : "text-destructive",
-                  )}
-                >
-                  {recipient.user.emailVerified
-                    ? roleLabel(recipient.role)
-                    : "Adresse à vérifier"}
                 </span>
               </li>
             ))}
@@ -506,7 +519,7 @@ export default async function ReportsPage({
       </section>
 
       {readings.length > 0 && (
-        <div className="grid gap-10 md:grid-cols-[1.4fr_1fr]">
+        <div className="grid grid-cols-1 gap-10 md:grid-cols-[1.4fr_1fr]">
           <Definitions readings={readings} />
           <section aria-labelledby="method-title">
             <SectionHeader id="method-title" title="Méthode" />
