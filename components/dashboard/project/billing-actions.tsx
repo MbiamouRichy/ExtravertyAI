@@ -57,7 +57,7 @@ export function BillingActions({
   if (needsCheckout)
     return <BillingPlanButton projectId={projectId} intent="renew" needsCheckout />;
   return (
-    <div className="grid grid-cols-2 gap-2 sm:flex">
+    <div className="flex flex-col gap-2 min-[400px]:grid min-[400px]:grid-cols-2 sm:flex sm:flex-row">
       <Button
         variant="outline"
         className="h-auto min-h-9 whitespace-normal"

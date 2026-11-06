@@ -1,88 +1,116 @@
 import { Skeleton } from "@/components/ui/skeleton";
 import { PageLoading } from "@/components/page-loading";
 
-// Miroir de la page Facturation : en-tête, offre + consommation, moyens de
-// paiement et factures, pour un remplacement sans décalage.
+// Miroir de la page Facturation : en-tête et actions, carte de l’offre avec
+// ses trois repères, paiement, factures. Mêmes boîtes de ligne que la page
+// (paragraphes en leading-relaxed) pour un remplacement sans décalage.
 export default function BillingLoading() {
   return (
     <PageLoading
       label="Chargement de la facturation…"
-      className="mx-auto w-full max-w-6xl p-4 sm:p-6 xl:p-8"
+      className="mx-auto w-full max-w-4xl p-4 sm:p-6 xl:p-8"
     >
-      <div className="space-y-8">
-        <header className="flex flex-col justify-between gap-5 lg:flex-row lg:items-end">
-          <div className="min-w-0 space-y-2">
-            <Skeleton className="h-3 w-44" />
-            <Skeleton className="h-9 w-80 max-w-full" />
-            <Skeleton className="h-4 w-96 max-w-full" />
+      <div className="space-y-10">
+        <header className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+          <div className="min-w-0">
+            <div className="flex h-5.5 items-center">
+              <Skeleton className="h-3.5 w-32" />
+            </div>
+            <div className="mt-1 flex h-6.5 items-center sm:h-8">
+              <Skeleton className="h-6 w-40 sm:h-7 sm:w-48" />
+            </div>
           </div>
-          <div className="grid grid-cols-2 gap-2 sm:flex">
-            <Skeleton className="col-span-2 h-9 sm:col-span-1 sm:w-40" />
-            <Skeleton className="h-9 sm:w-36" />
-            <Skeleton className="h-9 sm:w-44" />
+          <div className="flex flex-col gap-2 min-[400px]:grid min-[400px]:grid-cols-2 sm:flex sm:flex-row">
+            <Skeleton className="h-9 rounded-md sm:w-44" />
+            <Skeleton className="h-9 rounded-md sm:w-48" />
           </div>
         </header>
 
-        <section className="grid overflow-hidden rounded-3xl border lg:grid-cols-[1.1fr_1fr]">
-          <div className="space-y-6 bg-primary p-6 sm:p-8">
-            <div className="flex items-center justify-between">
-              <Skeleton className="h-3 w-28 bg-primary-foreground/15" />
-              <Skeleton className="h-5 w-14 rounded-full bg-primary-foreground/15" />
+        <section className="rounded-xl border bg-card">
+          <div className="p-5 sm:p-6">
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="flex h-7 items-center">
+                <Skeleton className="h-5 w-24" />
+              </div>
+              <Skeleton className="h-5 w-24 rounded-full" />
             </div>
-            <Skeleton className="h-10 w-40 bg-primary-foreground/15" />
-            <Skeleton className="h-7 w-48 bg-primary-foreground/15" />
-            <div className="grid gap-4 border-t border-primary-foreground/15 pt-5 sm:grid-cols-2">
-              {[0, 1].map((index) => (
-                <div key={index} className="space-y-2">
-                  <Skeleton className="h-3 w-24 bg-primary-foreground/15" />
-                  <Skeleton className="h-4 w-40 bg-primary-foreground/15" />
-                </div>
-              ))}
+            <div className="mt-1 flex h-5.5 items-center">
+              <Skeleton className="h-3.5 w-36" />
             </div>
-            <Skeleton className="h-3 w-3/4 bg-primary-foreground/15" />
           </div>
-          <div className="flex flex-col gap-4 bg-card p-6 sm:p-8">
-            <Skeleton className="h-3 w-28" />
-            <Skeleton className="mt-2 h-10 w-52 max-w-full" />
-            <Skeleton className="h-2.5 w-full rounded-full" />
-            <Skeleton className="h-4 w-44" />
-            <div className="mt-auto space-y-2 border-t pt-4">
-              <Skeleton className="h-3 w-full" />
-              <Skeleton className="h-3 w-2/3" />
+          <div className="grid border-t max-sm:divide-y sm:grid-cols-3 sm:divide-x">
+            {["w-28", "w-24", "w-16"].map((label, index) => (
+              <div key={label} className="p-5 sm:p-6">
+                <div className="flex h-4 items-center">
+                  <Skeleton className={`h-3 ${label}`} />
+                </div>
+                <div className="mt-1 flex h-5 items-center">
+                  <Skeleton className="h-3.5 w-32 max-w-full" />
+                </div>
+                {index === 2 && (
+                  <>
+                    <Skeleton className="mt-2 h-1.5 w-full rounded-full" />
+                    <div className="mt-2 space-y-2 py-1">
+                      <Skeleton className="h-3 w-full" />
+                      <Skeleton className="h-3 w-2/3" />
+                    </div>
+                  </>
+                )}
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="space-y-3">
+          <div className="flex h-5 items-center">
+            <Skeleton className="h-3.5 w-20" />
+          </div>
+          <div className="divide-y rounded-xl border bg-card">
+            <div className="flex flex-col gap-1 p-5 sm:flex-row sm:gap-6">
+              <div className="flex h-5 items-center sm:w-40 sm:shrink-0">
+                <Skeleton className="h-3.5 w-36" />
+              </div>
+              <div className="flex h-5 items-center gap-3">
+                <Skeleton className="size-4 rounded-sm" />
+                <Skeleton className="h-3.5 w-28" />
+              </div>
+            </div>
+            <div className="flex flex-col gap-1 p-5 sm:flex-row sm:gap-6">
+              <div className="flex h-5 items-center sm:w-40 sm:shrink-0">
+                <Skeleton className="h-3.5 w-20" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex h-5.5 items-center">
+                  <Skeleton className="h-3.5 w-32" />
+                </div>
+                <div className="flex h-5.5 items-center">
+                  <Skeleton className="h-3.5 w-52 max-w-full" />
+                </div>
+              </div>
             </div>
           </div>
         </section>
 
-        <div className="grid gap-4 sm:grid-cols-2">
-          {[0, 1].map((index) => (
-            <div key={index} className="space-y-4 rounded-2xl border bg-card p-5">
-              <Skeleton className="h-5 w-48 max-w-full" />
-              <div className="flex items-center gap-4">
-                {index === 0 && <Skeleton className="h-10 w-14 rounded-md" />}
-                <div className="flex-1 space-y-2">
-                  <Skeleton className="h-4 w-40 max-w-full" />
-                  <Skeleton className="h-3 w-28" />
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <section className="overflow-hidden rounded-2xl border bg-card">
-          <div className="space-y-2 border-b p-5">
-            <Skeleton className="h-5 w-24" />
-            <Skeleton className="h-3 w-56 max-w-full" />
+        <section className="space-y-3">
+          <div className="flex h-5 items-center">
+            <Skeleton className="h-3.5 w-20" />
           </div>
-          <div className="divide-y">
-            {[0, 1, 2, 3].map((row) => (
-              <div key={row} className="grid grid-cols-[1fr_1fr_auto] items-center gap-4 px-5 py-4 sm:grid-cols-5">
-                <Skeleton className="h-3.5 w-24" />
-                <Skeleton className="h-3.5 w-20" />
-                <Skeleton className="hidden h-3.5 w-20 sm:block" />
-                <Skeleton className="hidden h-5 w-16 rounded-full sm:block" />
-                <Skeleton className="h-7 w-16 justify-self-end rounded-md" />
-              </div>
-            ))}
+          <div className="overflow-hidden rounded-xl border bg-card">
+            <div className="flex h-10 items-center gap-6 border-b px-5">
+              {["w-10", "w-14", "w-14", "w-12"].map((width, index) => (
+                <Skeleton key={index} className={`h-3 ${width} ${index > 1 ? "max-sm:hidden" : ""}`} />
+              ))}
+            </div>
+            <div className="divide-y">
+              {[0, 1].map((row) => (
+                <div key={row} className="flex h-12 items-center gap-6 px-5">
+                  <Skeleton className="h-3.5 w-24" />
+                  <Skeleton className="h-3 w-20 max-sm:hidden" />
+                  <Skeleton className="h-3.5 w-16" />
+                  <Skeleton className="ml-auto h-8 w-16 rounded-md" />
+                </div>
+              ))}
+            </div>
           </div>
         </section>
       </div>

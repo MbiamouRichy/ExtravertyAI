@@ -28,7 +28,7 @@ export function AuthShowcaseSkeleton() {
 /** Ligne logo + bouton « Accueil » en haut de la colonne formulaire. */
 export function AuthTopBarSkeleton() {
   return (
-    <div className="flex items-center justify-between">
+    <div className="flex h-8 items-center justify-between">
       <div className="flex items-center gap-1.5">
         <Skeleton className="size-6 rounded-md" />
         <Skeleton className="h-5 w-28" />
@@ -38,30 +38,36 @@ export function AuthTopBarSkeleton() {
   );
 }
 
-/** Champ de formulaire : libellé + InputGroup. */
-export function AuthFieldSkeleton({ labelWidth = "w-24", withAside = false }: { labelWidth?: string; withAside?: boolean }) {
+/** Champ de formulaire : libellé + InputGroup, mêmes hauteurs que Field. */
+export function AuthFieldSkeleton({
+  labelWidth = "w-24",
+  withAside = false,
+}: {
+  labelWidth?: string;
+  withAside?: boolean;
+}) {
   return (
-    <div className="space-y-2">
-      <div className="flex items-center justify-between">
+    <div className="flex flex-col gap-3">
+      <div className="flex h-[1.203125rem] items-center justify-between">
         <Skeleton className={`h-3.5 ${labelWidth}`} />
         {withAside && <Skeleton className="h-3 w-28" />}
       </div>
-      <div className="flex h-9 items-center gap-2 rounded-md border px-2.5">
+      <div className="flex h-9 items-center gap-2 rounded-md border px-3">
         <Skeleton className="size-4 rounded-sm" />
-        <Skeleton className="h-3 w-40" />
+        <Skeleton className="h-3 w-40 max-w-[60%]" />
       </div>
     </div>
   );
 }
 
-/** Boutons Google et TikTok (empilés). */
+/** Boutons Google et TikTok, empilés avec l’écart réel de SignInSocialButton. */
 export function AuthSocialSkeleton() {
   return (
-    <div className="space-y-2">
+    <div className="flex flex-col gap-4">
       {[0, 1].map((index) => (
         <div key={index} className="flex h-9 items-center justify-center gap-2 rounded-md border">
           <Skeleton className="size-4 rounded-full" />
-          <Skeleton className="h-3.5 w-36" />
+          <Skeleton className="h-3.5 w-40 max-w-[60%]" />
         </div>
       ))}
     </div>
@@ -69,11 +75,11 @@ export function AuthSocialSkeleton() {
 }
 
 /** Séparateur « ou » entre les connexions sociales et l’e-mail. */
-export function AuthDividerSkeleton() {
+export function AuthDividerSkeleton({ labelWidth = "w-24" }: { labelWidth?: string }) {
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex h-4 items-center gap-2">
       <div className="h-px flex-1 bg-border" />
-      <Skeleton className="h-3 w-24" />
+      <Skeleton className={`h-3 ${labelWidth}`} />
       <div className="h-px flex-1 bg-border" />
     </div>
   );
