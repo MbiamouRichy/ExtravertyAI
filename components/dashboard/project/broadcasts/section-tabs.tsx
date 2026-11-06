@@ -43,7 +43,7 @@ export function SectionTabs({
           compteur dessous ; tout reste visible sans défilement caché. */}
       <TabsList
         aria-label={label}
-        className="grid w-full group-data-horizontal/tabs:h-auto sm:inline-flex sm:w-fit sm:group-data-horizontal/tabs:h-9"
+        className="grid w-full items-stretch group-data-horizontal/tabs:h-auto sm:inline-flex sm:items-center sm:w-fit sm:group-data-horizontal/tabs:h-9"
         style={{ gridTemplateColumns: `repeat(${tabs.length}, minmax(0, 1fr))` }}
       >
         {tabs.map((tab) => (
