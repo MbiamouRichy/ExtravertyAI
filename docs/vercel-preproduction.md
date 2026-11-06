@@ -50,6 +50,21 @@ npm run db:deploy
 
 Créer ensuite le déploiement de `codex/preproduction`. Si l’URL stable n’était pas encore disponible lors du premier déploiement, la reporter dans les trois variables d’URL et redéployer avant de créer les comptes de test.
 
+### Migrations appliquées par le build
+
+Dans **Settings → Build and Deployment**, régler la commande de build sur `npm run vercel-build`, pour tous les environnements. Ce script (`scripts/vercel-build.ts`) :
+
+1. compile l’application (`npm run build`) ; un build qui échoue ne touche jamais la base ;
+2. puis applique les migrations (`npm run db:deploy`) avec le `DATABASE_URL` de l’environnement du build, **uniquement** pour un build de production et pour la préversion `codex/preproduction` (liste dans `lib/build-migrations.ts`). Les autres branches ne migrent pas : tant que préversion et production partagent une base, une branche d’essai modifierait sinon les données réelles.
+
+Le journal du build indique la décision : « Migrations : application (…) » ou « Migrations ignorées : … ». Si la migration échoue, le déploiement échoue et la version en ligne reste servie. Pour relancer un build sans toucher à la base, définir `SKIP_BUILD_MIGRATIONS=1` dans l’environnement concerné, puis redéployer.
+
+Précautions :
+
+- **Suppressions en deux temps.** La migration s’exécute pendant que l’ancienne version sert encore les visiteurs, et le retour arrière de Vercel ne restaure que le code. Supprimer ou renommer une colonne demande d’abord une version qui ne l’utilise plus, puis la suppression dans une version suivante.
+- **Sauvegarde.** Une fois la base de production séparée, la sauvegarder avant chaque mise en production qui contient une migration.
+- **Connexion directe.** `prisma migrate deploy` ne passe pas par un pooler en mode transaction (PgBouncer, URL « pooled »). Si `DATABASE_URL` en utilise un, définir aussi `DIRECT_URL` (connexion directe) : `prisma.config.ts` la préfère pour les migrations, l’application garde `DATABASE_URL`.
+
 ## 4. Brancher Stripe et Evolution
 
 Dans Stripe en mode test, créer un endpoint vers `https://VOTRE-HOTE/api/webhooks/stripe`, avec les événements :

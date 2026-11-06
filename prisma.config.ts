@@ -8,7 +8,10 @@ export default defineConfig({
   migrations: {
     path: "prisma/migrations",
   },
+  // Utilisé par la CLI seulement (migrations) ; l'application se connecte via
+  // lib/prisma.ts. DIRECT_URL, facultatif, sert quand DATABASE_URL passe par
+  // un pooler en mode transaction, que `prisma migrate deploy` ne supporte pas.
   datasource: {
-    url: process.env["DATABASE_URL"],
+    url: process.env["DIRECT_URL"] || process.env["DATABASE_URL"],
   },
 });
