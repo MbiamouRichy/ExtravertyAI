@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
+import { maquettesEnabled } from "@/lib/maquettes";
 
 export const metadata: Metadata = {
   title: {
@@ -12,5 +14,7 @@ export const metadata: Metadata = {
 };
 
 export default function MaquettesLayout({ children }: { children: ReactNode }) {
+  // The proxy already answers 404 in production; nothing is rendered either way.
+  if (!maquettesEnabled()) notFound();
   return children;
 }
