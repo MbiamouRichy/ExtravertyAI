@@ -1,4 +1,5 @@
 import { chatContactName } from "@/lib/chat-privacy";
+import { contactAvatarUrl } from "@/lib/contact-avatar";
 import { can } from "@/lib/project-permissions";
 import { chatMediaFields } from "@/lib/chat-media";
 import {
@@ -194,6 +195,7 @@ export async function GET(
           id: true,
           name: true,
           pushName: true,
+          avatarKey: true,
           aiActive: true,
           resolvedAt: true,
           assignee: { select: { id: true, name: true, image: true } },
@@ -317,6 +319,7 @@ export async function GET(
           return {
             id: contact.id,
             name: chatContactName(contact),
+            avatarUrl: contactAvatarUrl(projectId, contact.id, contact.avatarKey),
             aiActive: contact.aiActive,
             resolvedAt: contact.resolvedAt?.toISOString() ?? null,
             assignee: contact.assignee,

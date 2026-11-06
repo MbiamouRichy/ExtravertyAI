@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { notifyChatChanged } from "@/lib/chat-realtime";
 import { requireProjectAdmin, SettingsError } from "@/lib/project-settings";
 import { setContactAiState } from "./setContactAiState";
+import { removeContactAvatar } from "@/lib/contact-avatar";
 async function mutateContact(
   projectId: string,
   contactId: string,
@@ -18,6 +19,8 @@ async function mutateContact(
     }).parse({ projectId, contactId });
     const user = await getUser();
     if (!user?.id) throw new SettingsError("Connexion requise.");
+    // Photo du contact supprimé, retirée du stockage une fois la suppression validée.
+    let removedAvatar: string | null = null;
     await prisma.$transaction(async (tx) => {
       await tx.$queryRaw`SELECT id FROM project WHERE id = ${projectId} FOR UPDATE`;
       const { project } = await requireProjectAdmin(tx, projectId, user.id);
@@ -47,8 +50,10 @@ async function mutateContact(
             "Un envoi est en cours ou son résultat reste à vérifier. La suppression est temporairement indisponible.",
           );
         await tx.contact.delete({ where: { id: contactId } });
+        removedAvatar = contact.avatarKey;
       }
     });
+    await removeContactAvatar(removedAvatar);
     revalidatePath(`/projects/${projectId}`, "layout");
     await notifyChatChanged(projectId);
     return { success: true as const };

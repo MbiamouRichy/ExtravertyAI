@@ -1,10 +1,12 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { timingSafeEqual } from "node:crypto";
 import { z } from "zod";
 import prisma from "@/lib/prisma";
 import { notifyChatChanged } from "@/lib/chat-realtime";
+import { refreshContactAvatars } from "@/lib/contact-avatar";
 import { relayPresenceUpdate } from "@/lib/contact-presence";
 import {
+  IncomingSchema,
   deliveryStatus,
   ingestMessage,
   reconcileReceipt,
@@ -69,6 +71,8 @@ export async function POST(req: Request) {
             (await getEvolutionOwnerJid(instance).catch(() => null)),
         );
     }
+    // Prospects qui viennent d’écrire : leur photo est vérifiée après la réponse.
+    const senders: string[] = [];
     await prisma.$transaction(
       async (tx) => {
         await tx.$queryRaw`SELECT id FROM project WHERE id = ${project.id} FOR UPDATE`;
@@ -81,8 +85,12 @@ export async function POST(req: Request) {
             : Array.isArray(data)
               ? data
               : [data];
-          for (const message of messages)
+          for (const message of messages) {
             await ingestMessage(tx, project.id, message);
+            const parsed = IncomingSchema.safeParse(message);
+            if (parsed.success && !parsed.data.key.fromMe)
+              senders.push(parsed.data.key.remoteJid);
+          }
         } else if (eventName === "messages.update") {
           for (const raw of Array.isArray(data) ? data : [data]) {
             const update = Update.parse(raw);
@@ -124,6 +132,20 @@ export async function POST(req: Request) {
       await logoutEvolutionInstance(instance).catch(() => undefined);
     }
     await notifyChatChanged(project.id);
+    // Photo de profil : après la réponse, sans retarder le message ni l’IA.
+    if (senders.length)
+      after(async () => {
+        try {
+          const changed = await refreshContactAvatars(prisma, {
+            projectId: project.id,
+            instanceName: instance,
+            remoteJids: senders,
+          });
+          if (changed) await notifyChatChanged(project.id);
+        } catch {
+          console.error("[avatar] Vérification des photos reportée.");
+        }
+      });
     return NextResponse.json({ success: true });
   } catch (error) {
     if (error instanceof z.ZodError || error instanceof SyntaxError) {

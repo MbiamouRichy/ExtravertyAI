@@ -3,7 +3,7 @@ import { LocalDate } from "@/components/local-date";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { ReactNode } from "react";
 import { Phone } from "lucide-react";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { getInitials } from "@/components/getInitials";
 import type { ProspectClassification } from "@/lib/instinct-classification";
 import { InstinctCell } from "./instinct-badge";
@@ -11,6 +11,7 @@ export type ContactTableType = {
   id: string;
   name: string | null;
   displayName: string;
+  avatarUrl: string | null;
   phone: string;
   aiActive: boolean;
   aiVersion: number;
@@ -34,6 +35,7 @@ export function ContactsTableColumns(options: {
       cell: ({ row: { original: contact } }) => (
         <div className="flex min-w-0 items-center gap-3">
           <Avatar className="size-8">
+            {contact.avatarUrl && <AvatarImage src={contact.avatarUrl} alt="" className="object-cover" />}
             <AvatarFallback>{getInitials(contact.displayName)}</AvatarFallback>
           </Avatar>
           <div className="min-w-0 flex-1">

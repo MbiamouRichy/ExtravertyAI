@@ -286,6 +286,10 @@ model Contact {
   // --- Identifiants Evolution API ---
   remoteJid   String    // Identifiant exact WhatsApp (ex: 24107123456@s.whatsapp.net)
   pushName    String?   // Pseudo public WhatsApp du prospect
+  // Photo de profil WhatsApp, recopiée dans notre stockage : le lien de WhatsApp expire.
+  avatarKey       String?
+  // Dernière vérification de la photo : au plus une par semaine et par contact.
+  avatarCheckedAt DateTime?
   
   name        String?   // Nom assigné par l'agent ou l'IA dans l'interface
   aiActive    Boolean   @default(true) // Handover: False si un agent a pris le relais

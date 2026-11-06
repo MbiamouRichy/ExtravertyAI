@@ -13,6 +13,8 @@ export const PROJECT_STORAGE_PREFIXES = [
   "project-logos",
   // PDF de la base de connaissances.
   "knowledge",
+  // Photos de profil WhatsApp des prospects.
+  "contact-avatars",
 ] as const;
 
 export function projectStoragePrefixes(projectId: string) {
@@ -90,7 +92,7 @@ export async function deleteProjectMedia(
  * prefix was covered. Unknown prefixes are never reported.
  */
 export async function isOrphanedProjectObject(
-  db: Pick<PrismaClient, "message" | "knowledgeSource" | "project" | "broadcast">,
+  db: Pick<PrismaClient, "message" | "knowledgeSource" | "project" | "broadcast" | "contact">,
   key: string,
 ) {
   const [root, projectId] = key.split("/");
@@ -106,6 +108,9 @@ export async function isOrphanedProjectObject(
       return !(await db.knowledgeSource.findFirst({ where: { storageKey: key }, select: { id: true } }));
     case "project-logos":
       return !(await db.project.findFirst({ where: { logoKey: key }, select: { id: true } }));
+    case "contact-avatars":
+      // Photo remplacée, ou contact supprimé avant que sa copie soit retirée.
+      return !(await db.contact.findFirst({ where: { avatarKey: key }, select: { id: true } }));
     default:
       return false;
   }

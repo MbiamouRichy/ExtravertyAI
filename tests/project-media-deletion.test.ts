@@ -9,6 +9,7 @@ import {
 import { knowledgeFileKey } from "../lib/knowledge";
 import { forgetProjectNotifications } from "../lib/notifications";
 import { projectLogoKey } from "../lib/project-logo";
+import { contactAvatarKey } from "../lib/contact-avatar";
 import { createProject, createUser, withTestDatabase } from "./helpers/database";
 
 // In-memory bucket answering the two commands the purge uses.
@@ -40,6 +41,7 @@ test("every kind of project file lives under a purged prefix", () => {
   for (const key of [
     knowledgeFileKey("p1", "source"),
     projectLogoKey("p1", crypto.randomUUID(), "image/png"),
+    contactAvatarKey("p1", "c1", "a".repeat(32), "image/png"),
     `chat-media/p1/${crypto.randomUUID()}.jpg`,
   ]) {
     assert.ok(
@@ -146,6 +148,8 @@ test("project records outside the cascade and orphaned files", { timeout: 120000
       });
       const logo = projectLogoKey(project.id, crypto.randomUUID(), "image/png");
       await prisma.project.update({ where: { id: project.id }, data: { logoKey: logo } });
+      const avatar = contactAvatarKey(project.id, contact.id, "b".repeat(32), "image/png");
+      await prisma.contact.update({ where: { id: contact.id }, data: { avatarKey: avatar } });
 
       for (const [key, orphaned] of [
         [`chat-media/${project.id}/kept.jpg`, false],
@@ -154,6 +158,8 @@ test("project records outside the cascade and orphaned files", { timeout: 120000
         [knowledgeFileKey("deleted-project", "left-behind"), true],
         [logo, false],
         [projectLogoKey(project.id, crypto.randomUUID(), "image/png"), true],
+        [avatar, false],
+        [contactAvatarKey(project.id, contact.id, "c".repeat(32), "image/png"), true],
         ["profiles/someone.png", false],
         ["knowledge/../secret", false],
       ] as const) {

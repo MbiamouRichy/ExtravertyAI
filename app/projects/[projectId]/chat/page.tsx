@@ -1,4 +1,5 @@
 import { chatContactName } from "@/lib/chat-privacy";
+import { contactAvatarUrl } from "@/lib/contact-avatar";
 import { can, homePath } from "@/lib/project-permissions";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
@@ -137,6 +138,7 @@ export default async function ChatPage({ params, searchParams }: PageProps) {
           id: true,
           name: true,
           pushName: true,
+          avatarKey: true,
           aiActive: true,
           lastMessageAt: true,
           createdAt: true,
@@ -152,6 +154,7 @@ export default async function ChatPage({ params, searchParams }: PageProps) {
     ? {
         id: contact.id,
         name: chatContactName(contact),
+        avatarUrl: contactAvatarUrl(projectId, contact.id, contact.avatarKey),
         aiActive: contact.aiActive,
         lastActivityAt: (
           contact.lastMessageAt || contact.createdAt

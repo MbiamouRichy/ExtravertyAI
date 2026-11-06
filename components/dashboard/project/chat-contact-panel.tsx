@@ -195,6 +195,7 @@ export function ChatContactPanel({
       <header className="flex min-w-0 items-center gap-3 py-5">
         <span className="relative shrink-0">
           <Avatar className="size-11">
+            {client.avatarUrl && <AvatarImage src={client.avatarUrl} alt="" className="object-cover" />}
             <AvatarFallback className="font-heading text-sm font-semibold">
               {getInitials(client.name)}
             </AvatarFallback>

@@ -1834,6 +1834,9 @@ export default function WhatsappWorkspace({
                         )}
                         <span className="relative shrink-0">
                           <Avatar className="size-9">
+                            {client.avatarUrl && (
+                              <AvatarImage src={client.avatarUrl} alt="" className="object-cover" />
+                            )}
                             <AvatarFallback className="bg-muted font-heading text-xs font-semibold">
                               {getInitials(client.name)}
                             </AvatarFallback>
@@ -2015,6 +2018,9 @@ export default function WhatsappWorkspace({
                   >
                     <span className="relative hidden shrink-0 sm:flex md:hidden lg:flex">
                       <Avatar className="size-9">
+                        {activeClient.avatarUrl && (
+                          <AvatarImage src={activeClient.avatarUrl} alt="" className="object-cover" />
+                        )}
                         <AvatarFallback className="font-heading text-xs font-semibold">
                           {getInitials(activeClient.name)}
                         </AvatarFallback>

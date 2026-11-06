@@ -5,6 +5,7 @@ import { z } from "zod";
 import { getSession } from "@/lib/auth-server";
 import prisma from "@/lib/prisma";
 import { currentProspectClassification } from "@/lib/instinct-classification";
+import { contactAvatarUrl } from "@/lib/contact-avatar";
 import { ContactsWorkspace } from "@/components/dashboard/project/contacts-workspace";
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
@@ -75,6 +76,7 @@ export default async function ContactsPage({
       id: true,
       name: true,
       pushName: true,
+      avatarKey: true,
       phone: true,
       aiActive: true,
       aiVersion: true,
@@ -108,6 +110,7 @@ export default async function ContactsPage({
         id: c.id,
         name: c.name,
         displayName: c.name || c.pushName || c.phone,
+        avatarUrl: contactAvatarUrl(projectId, c.id, c.avatarKey),
         phone: c.phone,
         aiActive: c.aiActive,
         aiVersion: c.aiVersion,
