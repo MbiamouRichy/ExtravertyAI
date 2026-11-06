@@ -190,8 +190,9 @@ export function BroadcastsWorkspace({
       </section>
 
       {!connected && (
-        <p role="status" className="flex items-start gap-2 rounded-xl border border-destructive/40 p-3 text-sm text-destructive">
-          <WifiOff aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+        // Icon inline with the text: wrapped lines use the full width, not a column beside it.
+        <p role="status" className="rounded-xl border border-destructive/40 p-3 text-sm text-pretty text-destructive">
+          <WifiOff aria-hidden="true" className="mr-2 inline-block size-4 align-[-0.2em]" />
           WhatsApp n’est pas connecté : les diffusions attendent sa reconnexion pour partir.
         </p>
       )}
