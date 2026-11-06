@@ -78,7 +78,7 @@ export const SCENARIOS: readonly Scenario[] = [
     id: "commande",
     label: "Commande",
     shortLabel: "Achat",
-    contact: { name: "Kevin M.", initials: "KM", business: "Urban Shoes · Yaoundé" },
+    contact: { name: "Kevin M.", initials: "KM", business: "Urban Shoes · Sneakers" },
     outcome: { label: "Prospect qualifié", detail: "Étiqueté « Intéressant » par Instinct IA" },
     beats: [
       {
@@ -101,7 +101,7 @@ export const SCENARIOS: readonly Scenario[] = [
         message: {
           id: "a1",
           speaker: "ai",
-          text: "Bonsoir Kevin 👋 Oui, il nous reste 3 paires en 42. Je vous en mets une de côté ? Livraison possible à Yaoundé dès demain.",
+          text: "Bonsoir Kevin 👋 Oui, il nous reste 3 paires en 42. Je vous en mets une de côté ? Livraison possible dès demain.",
           time: "21:47",
         },
       },
@@ -129,7 +129,7 @@ export const SCENARIOS: readonly Scenario[] = [
     id: "rendez-vous",
     label: "Rendez-vous",
     shortLabel: "RDV",
-    contact: { name: "Aminata D.", initials: "AD", business: "Salon Nappy Queen · Dakar" },
+    contact: { name: "Aminata D.", initials: "AD", business: "Salon Nappy Queen · Coiffure" },
     outcome: { label: "À relancer", detail: "Étiqueté « À suivre » en attente de confirmation" },
     beats: [
       {
@@ -190,7 +190,7 @@ export const SCENARIOS: readonly Scenario[] = [
     id: "reclamation",
     label: "Réclamation",
     shortLabel: "SAV",
-    contact: { name: "Grace T.", initials: "GT", business: "Maison Akwa · Douala" },
+    contact: { name: "Grace T.", initials: "GT", business: "Maison Luma · Prêt-à-porter" },
     agentName: "Clara",
     outcome: { label: "Transfert humain", detail: "Clara a repris la main avec le résumé IA" },
     beats: [

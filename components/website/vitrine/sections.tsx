@@ -138,7 +138,7 @@ function PipelineWidget() {
 }
 
 const KNOWLEDGE_DEMO: readonly { kind: string; text: string; meta: string }[] = [
-  { kind: "FAQ", text: "Livrez-vous à Douala ?", meta: "Oui, sous 48 h" },
+  { kind: "FAQ", text: "Livrez-vous à domicile ?", meta: "Oui, sous 48 h" },
   { kind: "Produit", text: "Sneakers Urban blanches", meta: "45 000 FCFA · 3 en stock" },
   { kind: "PDF", text: "catalogue-2026.pdf", meta: "Prêt · 24 pages" },
 ];

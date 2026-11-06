@@ -105,7 +105,7 @@ export const DESCRIPTION_EXAMPLES = [
   },
   {
     label: "Restaurant",
-    text: "Restaurant bistronomique à Lyon, ouvert du mardi au samedi. Réservations, menu du jour et privatisations.",
+    text: "Restaurant bistronomique, ouvert du mardi au samedi. Réservations, menu du jour et privatisations.",
   },
   {
     label: "Immobilier",

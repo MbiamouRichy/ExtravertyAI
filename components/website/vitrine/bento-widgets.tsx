@@ -122,7 +122,7 @@ export function TakeoverWidget() {
 /* -------------------------------------------------------------------------- */
 
 const WAVE = [4, 6, 9, 5, 7, 10, 8, 4, 6, 9, 7, 5, 8, 10, 6, 4, 7, 9, 5, 6, 8, 4, 6, 9, 7, 5, 3, 6, 8, 5, 4, 3];
-const TRANSCRIPT = "Bonjour, vous livrez à Bafoussam ce week-end ? J’aimerais deux sacs noirs.".split(" ");
+const TRANSCRIPT = "Bonjour, vous livrez ce week-end ? J’aimerais deux sacs noirs.".split(" ");
 const VOICE_DURATION_S = 3.4;
 // The filled waveform is revealed left to right over the muted one.
 const CLIP_EMPTY = "inset(0 100% 0 0)";
@@ -222,7 +222,7 @@ function Waveform({ className }: { className?: string }) {
 
 const SUMMARY = [
   "Cliente fidèle, commande environ trois fois par mois.",
-  "Souhaite une livraison groupée de 12 pièces à Douala.",
+  "Souhaite une livraison groupée de 12 pièces.",
   "À faire : envoyer un devis avec remise volume avant vendredi.",
 ];
 

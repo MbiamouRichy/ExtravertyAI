@@ -212,10 +212,10 @@ function TeamClock({ className }: { className?: string }) {
         <span aria-hidden="true" className="motion-safe:animate-pulse">:</span>
         <span className="sr-only"> heures </span>
         {minutes}
-        <span className="sr-only"> au Gabon</span>
+        <span className="sr-only"> pour l’équipe</span>
       </p>
       <p className="mt-auto font-mono text-[11px] text-muted-foreground">
-        Gabon · UTC+1
+        UTC+1
         {gapHours !== null &&
           (gapHours === 0
             ? " · même heure que vous"

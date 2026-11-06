@@ -581,7 +581,7 @@ export function BroadcastComposer({
                     />
                     <FieldDescription id={`${id}-date-help`}>
                       Heure de votre appareil. Hors de {BROADCAST_WINDOW.startHour} h – {BROADCAST_WINDOW.endHour} h
-                      (Libreville), l’envoi attend l’ouverture suivante.
+                      (UTC+1), l’envoi attend l’ouverture suivante.
                     </FieldDescription>
                     {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
                   </Field>
