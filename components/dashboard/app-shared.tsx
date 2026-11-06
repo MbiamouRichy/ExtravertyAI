@@ -89,7 +89,7 @@ export const getNavGroups = (projectId: string): SidebarNavGroup[] => [
         show: false,
       },
       {
-        title: "Projets",
+        title: "Mes projets",
         path: "/projects", // Reste statique si c'est la liste générale
         icon: <BriefcaseIcon />,
       },

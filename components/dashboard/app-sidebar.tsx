@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useParams } from "next/navigation";
 import { cn } from "@/lib/utils";
 import {
@@ -8,13 +7,12 @@ import {
 	SidebarContent,
 	SidebarFooter,
 	SidebarHeader,
-	SidebarMenuButton,
 } from "@/components/ui/sidebar";
 import { navGroupsForRole } from "@/components/dashboard/app-shared";
 import { NavGroup } from "@/components/dashboard/nav-group";
 import { useIsProjectContext } from "./conditional-sidebar-trigger";
 import { useProjectIdentity } from "./project-identity";
-import { ProjectIcon } from "./project/project-icon";
+import { ProjectSwitcher } from "./project-switcher";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export function AppSidebar() {
@@ -37,33 +35,9 @@ export function AppSidebar() {
 				collapsible="icon"
 				variant="inset"
 			>
-				{/* Le projet ouvert (icône et nom) plutôt que la marque de l’application. */}
+				{/* Le projet ouvert, qui sert aussi à passer d’un projet à l’autre. */}
 				<SidebarHeader className="h-14 justify-center px-2">
-					<SidebarMenuButton asChild size="lg" tooltip={identity?.name}>
-						<Link
-							href={`/projects/${encodeURIComponent(projectId)}`}
-							// Nom lisible même replié en icône ou pendant le chargement.
-							aria-label={identity ? `Tableau de bord de ${identity.name}` : "Tableau de bord du projet"}
-						>
-							{identity ? (
-								<ProjectIcon
-									name={identity.name}
-									logoUrl={identity.logoUrl}
-									className="size-8 rounded-lg after:rounded-lg"
-									fallbackClassName="rounded-lg text-xs"
-								/>
-							) : (
-								<Skeleton className="size-8 shrink-0 rounded-lg" />
-							)}
-							{identity ? (
-								<span className="truncate font-heading text-sm font-semibold">
-									{identity.name}
-								</span>
-							) : (
-								<Skeleton className="h-4 w-28" />
-							)}
-						</Link>
-					</SidebarMenuButton>
+					<ProjectSwitcher identity={identity} />
 				</SidebarHeader>
 				<SidebarContent>
 					{/* Liens affichés une fois le rôle connu : jamais de lien vers une page fermée. */}
