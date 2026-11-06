@@ -300,9 +300,10 @@ function ConnectionPanel({ projectId }: { projectId: string }) {
         </span>
       </div>
 
-      {/* Mobile : le QR code ou le code d’abord, les étapes ensuite. */}
-      <div className="grid md:grid-cols-2">
-        <div className="flex min-h-80 flex-col items-center justify-center gap-4 border-b p-6 md:border-b-0 md:border-r">
+      {/* Mobile : le QR code ou le code d’abord, les étapes ensuite. Pistes
+          minmax(0, 1fr) : rien ne peut élargir la grille au-delà de la carte. */}
+      <div className="grid grid-cols-1 md:grid-cols-2">
+        <div className="flex min-h-80 min-w-0 flex-col items-center justify-center gap-4 border-b px-4 py-6 sm:p-6 md:border-b-0 md:border-r">
           {unavailable ? (
             <div className="text-center">
               <AlertCircle
@@ -378,14 +379,14 @@ function ConnectionPanel({ projectId }: { projectId: string }) {
                   </p>
                   <div
                     aria-hidden="true"
-                    className="flex items-center justify-center gap-1 sm:gap-1.5"
+                    className="flex w-full max-w-sm items-center justify-center gap-1 sm:gap-1.5"
                   >
                     {pairingCode.split("").map((char, index) => (
                       <span key={index} className="contents">
                         {index > 0 && index % 4 === 0 && (
-                          <span className="mx-0.5 h-px w-2 bg-muted-foreground/50" />
+                          <span className="mx-0.5 h-px w-2 shrink-0 bg-muted-foreground/50" />
                         )}
-                        <span className="flex h-11 w-6 items-center justify-center rounded-lg border bg-background font-mono text-base font-semibold sm:w-8 sm:text-lg">
+                        <span className="flex h-11 min-w-0 max-w-8 flex-1 basis-0 items-center justify-center rounded-lg border bg-background font-mono text-base font-semibold sm:text-lg">
                           {char}
                         </span>
                       </span>
@@ -399,16 +400,16 @@ function ConnectionPanel({ projectId }: { projectId: string }) {
                 !actionError && (
                   <div
                     role="status"
-                    className="flex items-center justify-center gap-1 sm:gap-1.5"
+                    className="flex w-full max-w-sm items-center justify-center gap-1 sm:gap-1.5"
                   >
                     <span className="sr-only">Génération du code…</span>
                     {Array.from({ length: 8 }, (_, index) => (
                       <span key={index} aria-hidden="true" className="contents">
                         {index === 4 && (
-                          <span className="mx-0.5 h-px w-2 bg-muted-foreground/50" />
+                          <span className="mx-0.5 h-px w-2 shrink-0 bg-muted-foreground/50" />
                         )}
                         <span
-                          className="h-11 w-6 rounded-lg border bg-background motion-safe:animate-pulse sm:w-8"
+                          className="h-11 min-w-0 max-w-8 flex-1 basis-0 rounded-lg border bg-background motion-safe:animate-pulse"
                           style={{ animationDelay: `${index * 90}ms` }}
                         />
                       </span>
@@ -468,7 +469,7 @@ function ConnectionPanel({ projectId }: { projectId: string }) {
           )}
         </div>
 
-        <ol className="space-y-5 self-center p-6 text-sm leading-relaxed text-muted-foreground">
+        <ol className="min-w-0 space-y-5 self-center px-4 py-6 text-sm leading-relaxed text-muted-foreground sm:p-6">
           <Step number={1}>
             Ouvrez <Label>WhatsApp</Label> sur{" "}
             {method === "qr"
@@ -511,7 +512,7 @@ function ConnectionPanel({ projectId }: { projectId: string }) {
 
 function Step({ number, children }: { number: number; children: ReactNode }) {
   return (
-    <li className="flex gap-3">
+    <li className="flex gap-2.5 sm:gap-3">
       <span
         aria-hidden="true"
         className="flex size-6 shrink-0 items-center justify-center rounded-full border font-mono text-xs text-foreground tabular-nums"

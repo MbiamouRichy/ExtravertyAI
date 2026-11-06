@@ -176,15 +176,27 @@ export default function AnalyticsLoading() {
             </ChartCard>
             <ChartCard>
               <Skeleton className="mb-3 h-9 w-full rounded-md sm:max-w-xs" />
-              <div className="divide-y rounded-xl border">
-                {Array.from({ length: 5 }, (_, row) => (
-                  <div key={row} className="flex items-center gap-3 p-3">
-                    <Skeleton className="size-8 shrink-0 rounded-full" />
-                    <div className="min-w-0 flex-1 space-y-1.5">
-                      <Skeleton className="h-3.5 w-32 max-w-full" />
-                      <Skeleton className="h-3 w-20" />
+              {/* Fiches bord à bord, comme la liste réelle sur carte étroite. */}
+              <div className="-mx-4 divide-y border-t sm:-mx-5">
+                {Array.from({ length: 4 }, (_, row) => (
+                  <div key={row} className="space-y-3 px-4 py-3 sm:px-5">
+                    <div className="flex items-center gap-3">
+                      <Skeleton className="size-9 shrink-0 rounded-full" />
+                      <div className="min-w-0 flex-1 space-y-1.5">
+                        <Skeleton className="h-3.5 w-32 max-w-full" />
+                        <Skeleton className="h-3 w-20 max-w-full" />
+                      </div>
+                      <Skeleton className="size-9 shrink-0 rounded-md @xl:h-8 @xl:w-28" />
                     </div>
-                    <Skeleton className="h-8 w-24 shrink-0 rounded-md" />
+                    <div className="grid grid-cols-2 gap-2">
+                      <Skeleton className="h-9 rounded-lg" />
+                      <Skeleton className="h-9 rounded-lg" />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Skeleton className="h-5 w-24 rounded-md" />
+                      <Skeleton className="h-5 w-20 rounded-md" />
+                      <Skeleton className="ml-auto h-3 w-16" />
+                    </div>
                   </div>
                 ))}
               </div>

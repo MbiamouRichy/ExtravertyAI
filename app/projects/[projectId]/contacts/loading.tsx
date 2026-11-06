@@ -56,20 +56,24 @@ export default function ContactsLoading() {
             </div>
 
             {/* Mobile : cartes */}
-            <div className="divide-y rounded-xl border md:hidden">
+            <div className="-mx-4 divide-y border-y md:hidden sm:-mx-5">
               {Array.from({ length: 4 }, (_, row) => (
-                <div key={row} className="space-y-3 p-3">
+                <div key={row} className="@container space-y-3 px-4 py-3 sm:px-5">
                   <div className="flex items-center gap-3">
                     <Skeleton className="size-8 shrink-0 rounded-full" />
                     <div className="min-w-0 flex-1 space-y-1.5">
-                      <Skeleton className="h-4 w-32" />
-                      <Skeleton className="h-3 w-24" />
+                      <Skeleton className="h-4 w-32 max-w-full" />
+                      <Skeleton className="h-3 w-24 max-w-full" />
                     </div>
-                    <Skeleton className="size-9 rounded-full" />
+                    <Skeleton className="size-8 shrink-0 rounded-full" />
                   </div>
-                  <div className="flex gap-2">
-                    <Skeleton className="h-6 w-28 rounded-full" />
-                    <Skeleton className="h-6 w-24 rounded-full" />
+                  <div className="flex items-center justify-between gap-2">
+                    <Skeleton className="h-3 w-16" />
+                    <Skeleton className="h-5 w-24 rounded-full" />
+                  </div>
+                  <div className="flex flex-col items-stretch gap-2 border-t border-border/60 pt-3 @[16rem]:flex-row @[16rem]:items-center @[16rem]:justify-between">
+                    <Skeleton className="h-3 w-28" />
+                    <Skeleton className="h-10 rounded-md @[16rem]:h-9 @[16rem]:w-28" />
                   </div>
                 </div>
               ))}

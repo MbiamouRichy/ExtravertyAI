@@ -335,21 +335,25 @@ export function TopContactsCard({
             </p>
           ) : (
             <>
-              {/* Carte étroite : une fiche par contact. */}
-              <ul className="divide-y rounded-xl border @4xl/top-contacts:hidden">
+              {/* Carte étroite : une fiche par contact, bord à bord pour
+                  laisser toute la largeur au nom et aux chiffres. */}
+              <ul className="-mx-4 divide-y border-t sm:-mx-5 @4xl/top-contacts:hidden">
                 {rows.map((row) => {
                   const contact = row.original;
                   return (
-                    <li key={row.id} className="p-3 sm:p-4">
+                    <li key={row.id} className="space-y-3 px-4 py-3 sm:px-5">
                       <div className="flex items-center gap-3">
-                        <span className="w-4 shrink-0 text-xs tabular-nums text-muted-foreground">
-                          {contact.rank}
-                        </span>
-                        <Avatar className="size-9 shrink-0 border">
-                          <AvatarFallback className="bg-muted/60 text-xs font-medium">
-                            {getInitials(contact.name)}
-                          </AvatarFallback>
-                        </Avatar>
+                        <div className="relative shrink-0">
+                          <Avatar className="size-9 border">
+                            <AvatarFallback className="bg-muted/60 text-xs font-medium">
+                              {getInitials(contact.name)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <span className="absolute -left-1.5 -top-1.5 flex size-5 items-center justify-center rounded-full border bg-background text-[10px] font-medium tabular-nums text-muted-foreground">
+                            <span className="sr-only">Rang </span>
+                            {contact.rank}
+                          </span>
+                        </div>
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-sm font-medium">
                             {contact.name}
@@ -362,7 +366,7 @@ export function TopContactsCard({
                           asChild
                           variant="outline"
                           size="sm"
-                          className="shrink-0"
+                          className="shrink-0 @max-xs/top-contacts:size-9 @max-xs/top-contacts:px-0"
                         >
                           <Link
                             href={chatHref(projectId, contact.id)}
@@ -375,32 +379,30 @@ export function TopContactsCard({
                           </Link>
                         </Button>
                       </div>
-                      <div className="mt-3 space-y-2.5 pl-7">
-                        <dl className="grid grid-cols-2 gap-2">
-                          {[
-                            ["Reçus", contact.received],
-                            ["Envoyés", contact.sent],
-                          ].map(([label, value]) => (
-                            <div
-                              key={label}
-                              className="rounded-lg bg-muted/50 px-3 py-2"
-                            >
-                              <dt className="text-[11px] text-muted-foreground">
-                                {label}
-                              </dt>
-                              <dd className="text-sm font-semibold tabular-nums">
-                                {formatNumberFr(Number(value))}
-                              </dd>
-                            </div>
-                          ))}
-                        </dl>
-                        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-                          <InstinctCell classification={contact.instinct} />
-                          <AiBadge active={contact.aiActive} />
-                          <span className="ml-auto whitespace-nowrap text-[11px] text-muted-foreground">
-                            {contact.lastActivityLabel}
-                          </span>
-                        </div>
+                      <dl className="grid grid-cols-2 gap-2">
+                        {[
+                          ["Reçus", contact.received],
+                          ["Envoyés", contact.sent],
+                        ].map(([label, value]) => (
+                          <div
+                            key={label}
+                            className="flex min-w-0 items-baseline justify-between gap-2 rounded-lg bg-muted/50 px-3 py-2"
+                          >
+                            <dt className="truncate text-[11px] text-muted-foreground">
+                              {label}
+                            </dt>
+                            <dd className="text-sm font-semibold tabular-nums">
+                              {formatNumberFr(Number(value))}
+                            </dd>
+                          </div>
+                        ))}
+                      </dl>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <InstinctCell classification={contact.instinct} />
+                        <AiBadge active={contact.aiActive} />
+                        <span className="ml-auto whitespace-nowrap text-[11px] text-muted-foreground">
+                          {contact.lastActivityLabel}
+                        </span>
                       </div>
                     </li>
                   );

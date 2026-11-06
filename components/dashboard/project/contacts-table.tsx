@@ -221,7 +221,7 @@ export function ContactsTable(p: Props) {
       </div>
       <div
         className={
-          "overflow-hidden rounded-xl border bg-card md:hidden " +
+          "-mx-4 overflow-hidden border-y md:hidden sm:-mx-5 " +
           (p.pending ? "opacity-60" : "")
         }
         aria-busy={p.pending}
@@ -237,7 +237,7 @@ export function ContactsTable(p: Props) {
                 (cell) => !["name", "actions"].includes(cell.column.id),
               );
               return (
-                <li key={row.id} className="min-w-0 space-y-3 p-3">
+                <li key={row.id} className="@container min-w-0 space-y-3 px-4 py-3 sm:px-5">
                   <div className="flex items-start gap-3">
                     <div className="min-w-0 flex-1">
                       {identity &&
@@ -252,7 +252,7 @@ export function ContactsTable(p: Props) {
                           type="button"
                           variant="ghost"
                           size="icon"
-                          className="size-11 shrink-0 rounded-full"
+                          className="-mr-2 -mt-1 size-10 shrink-0 rounded-full"
                           disabled={p.busy || p.pending}
                           aria-label={"Actions pour " + contact.displayName}
                         >
@@ -327,7 +327,9 @@ export function ContactsTable(p: Props) {
                       ))}
                     </dl>
                   )}
-                  <div className="flex items-center justify-between gap-3 border-t border-border/60 pt-3">
+                  {/* Sur une carte étroite, « Discuter » passe sous le mode
+                      de prise en charge et prend toute la largeur. */}
+                  <div className="flex flex-col items-stretch gap-2 border-t border-border/60 pt-3 @[16rem]:flex-row @[16rem]:items-center @[16rem]:justify-between @[16rem]:gap-3">
                     <span className="inline-flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
                       {contact.aiActive ? (
                         <Bot aria-hidden className="size-3.5 shrink-0" />
@@ -341,7 +343,7 @@ export function ContactsTable(p: Props) {
                       type="button"
                       variant="outline"
                       size="sm"
-                      className="h-10 shrink-0"
+                      className="h-10 shrink-0 @[16rem]:h-9"
                     >
                       <Link href={chatHref}>
                         <MessageSquare aria-hidden className="size-4" />

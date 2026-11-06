@@ -37,11 +37,11 @@ export function ContactsTableColumns(options: {
             <AvatarFallback>{getInitials(contact.displayName)}</AvatarFallback>
           </Avatar>
           <div className="min-w-0 flex-1">
-            <p className="whitespace-normal wrap-anywhere font-medium md:max-w-48 md:truncate">
+            <p className="text-sm font-medium leading-snug break-words max-md:line-clamp-2 md:max-w-48 md:truncate">
               {contact.displayName}
             </p>
             {options.phoneUnderName && (
-              <p className="wrap-anywhere font-mono text-xs text-muted-foreground">
+              <p className="truncate font-mono text-xs text-muted-foreground tabular-nums">
                 {contact.phone.startsWith("+")
                   ? contact.phone
                   : `+${contact.phone}`}
