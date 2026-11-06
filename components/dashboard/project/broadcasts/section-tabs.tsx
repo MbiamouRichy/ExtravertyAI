@@ -14,7 +14,14 @@ export function SectionTabs({
   label,
 }: {
   label: string;
-  tabs: Array<{ id: string; label: string; count?: number; content: ReactNode }>;
+  /** shortLabel : libellé affiché sous 400 px de large. */
+  tabs: Array<{
+    id: string;
+    label: string;
+    shortLabel?: string;
+    count?: number;
+    content: ReactNode;
+  }>;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -32,20 +39,35 @@ export function SectionTabs({
 
   return (
     <Tabs value={current} onValueChange={select}>
-      <div className="-mx-4 overflow-x-auto overflow-y-hidden px-4 [scrollbar-width:none] sm:mx-0 sm:px-0">
-        <TabsList aria-label={label}>
-          {tabs.map((tab) => (
-            <TabsTrigger key={tab.id} value={tab.id}>
-              {tab.label}
-              {tab.count !== undefined && (
-                <span className="font-mono text-[11px] tabular-nums text-muted-foreground">
-                  {tab.count.toLocaleString("fr-FR")}
-                </span>
-              )}
-            </TabsTrigger>
-          ))}
-        </TabsList>
-      </div>
+      {/* Mobile : barre pleine largeur à parts égales, libellé court et
+          compteur dessous ; tout reste visible sans défilement caché. */}
+      <TabsList
+        aria-label={label}
+        className="grid w-full group-data-horizontal/tabs:h-auto sm:inline-flex sm:w-fit sm:group-data-horizontal/tabs:h-9"
+        style={{ gridTemplateColumns: `repeat(${tabs.length}, minmax(0, 1fr))` }}
+      >
+        {tabs.map((tab) => (
+          <TabsTrigger
+            key={tab.id}
+            value={tab.id}
+            className="min-w-0 max-sm:h-auto max-sm:flex-col max-sm:gap-0 max-sm:px-1 max-sm:py-1.5 max-sm:text-xs"
+          >
+            {tab.shortLabel ? (
+              <>
+                <span className="truncate min-[400px]:hidden">{tab.shortLabel}</span>
+                <span className="truncate max-[399px]:hidden">{tab.label}</span>
+              </>
+            ) : (
+              <span className="truncate">{tab.label}</span>
+            )}
+            {tab.count !== undefined && (
+              <span className="font-mono text-[11px] tabular-nums text-muted-foreground">
+                {tab.count.toLocaleString("fr-FR")}
+              </span>
+            )}
+          </TabsTrigger>
+        ))}
+      </TabsList>
       {tabs.map((tab) => (
         <TabsContent key={tab.id} value={tab.id} className="mt-4">
           {tab.content}

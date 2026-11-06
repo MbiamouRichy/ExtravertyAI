@@ -210,10 +210,11 @@ export default async function BroadcastPage({
       <SectionTabs
         label="Sections de la diffusion"
         tabs={[
-          { id: "apercu", label: "Vue d’ensemble", content: overview },
+          { id: "apercu", label: "Vue d’ensemble", shortLabel: "Aperçu", content: overview },
           {
             id: "destinataires",
             label: "Destinataires",
+            shortLabel: "Contacts",
             count: counts.all,
             content: (
               <RecipientsPanel projectId={projectId} broadcastId={broadcast.id} counts={counts} initial={recipients} />
