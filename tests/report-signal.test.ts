@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { classify, median, quantile, wilson } from "../lib/report-signal";
 import { buildVerdict } from "../lib/report-findings";
 import { readIndicators } from "../lib/report-indicators";
-import { emptyWeek, isoWeek, type WeekAggregate } from "../lib/report-week";
+import { emptyWeek, isoWeek, projectWeek, type WeekAggregate } from "../lib/report-week";
 
 const WEEK = 7 * 86_400_000;
 
@@ -106,4 +106,17 @@ test("ISO weeks across the year change, and invariants of a read week", () => {
       .tone,
     "empty",
   );
+});
+
+test("weeks are numbered from the project's first week, not the calendar", () => {
+  // Projet créé le mardi 27 oct. 2026 : sa première semaine commence le lundi 26.
+  const created = new Date("2026-10-27T15:30:00Z");
+  assert.equal(projectWeek(new Date("2026-10-26T00:00:00Z"), created), 1);
+  assert.equal(projectWeek(new Date("2026-11-02T00:00:00Z"), created), 2);
+  assert.equal(projectWeek(new Date("2027-01-04T00:00:00Z"), created), 11);
+  // Créé un lundi à minuit : c'est déjà la semaine 1, pas la suivante.
+  assert.equal(projectWeek(new Date("2026-10-26T00:00:00Z"), new Date("2026-10-26T00:00:00Z")), 1);
+  // Créé un dimanche soir : la semaine se termine quelques heures plus tard.
+  assert.equal(projectWeek(new Date("2026-10-26T00:00:00Z"), new Date("2026-11-01T23:59:00Z")), 1);
+  assert.equal(projectWeek(new Date("2026-10-19T00:00:00Z"), created), 0);
 });
