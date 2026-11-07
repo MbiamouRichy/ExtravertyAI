@@ -40,7 +40,11 @@ import {
   Trash2,
   X,
 } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { getInitials } from "@/components/getInitials";
+import { LocalDate } from "@/components/local-date";
 import { ContactsTableColumns, type ContactTableType } from "./contacts-column";
+import { InstinctCell } from "./instinct-badge";
 
 // Trois largeurs : cartes (mobile), tableau resserré (tablette, petit écran
 // avec barre latérale) et tableau complet. Chacune garde ses propres choix de colonnes.
@@ -90,12 +94,16 @@ export function ContactsTable(p: Props) {
   const [visibility, setVisibility] = useState<
     Record<ViewportTier, VisibilityState>
   >({
-    mobile: { phone: false, aiActive: false, createdAt: false },
+    // Carte : numéro sous le nom, Instinct IA et prise en charge sur une ligne.
+    mobile: { createdAt: false },
     // Identité (avec le numéro dessous), prise en charge et actions tiennent sans défilement.
     compact: { phone: false, instinct: false, createdAt: false },
     wide: {},
   });
   const columnVisibility = visibility[tier];
+  // Les cartes n'existent que sur mobile : elles suivent toujours ces choix-là,
+  // y compris au premier rendu serveur (pas de saut de mise en page).
+  const showOnMobile = (column: string) => visibility.mobile[column] !== false;
   const columns = ContactsTableColumns({
     phoneUnderName: columnVisibility.phone === false,
     renderStatus: p.renderStatus,
@@ -229,127 +237,126 @@ export function ContactsTable(p: Props) {
         {table.getRowModel().rows.length ? (
           <ul aria-label="Contacts" className="divide-y">
             {table.getRowModel().rows.map((row) => {
-              const cells = row.getVisibleCells();
-              const identity = cells.find((cell) => cell.column.id === "name");
               const contact = row.original;
               const chatHref = `/projects/${p.projectId}/chat?contactId=${encodeURIComponent(contact.id)}`;
-              const details = cells.filter(
-                (cell) => !["name", "actions"].includes(cell.column.id),
-              );
+              const meta =
+                showOnMobile("instinct") ||
+                showOnMobile("aiActive") ||
+                showOnMobile("createdAt");
               return (
-                <li key={row.id} className="@container min-w-0 space-y-3 px-4 py-3 sm:px-5">
-                  <div className="flex items-start gap-3">
-                    <div className="min-w-0 flex-1">
-                      {identity &&
-                        flexRender(
-                          identity.column.columnDef.cell,
-                          identity.getContext(),
-                        )}
-                    </div>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="-mr-2 -mt-1 size-10 shrink-0 rounded-full"
-                          disabled={p.busy || p.pending}
-                          aria-label={"Actions pour " + contact.displayName}
-                        >
-                          <MoreHorizontal aria-hidden />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent
-                        align="end"
-                        className="w-64 max-w-[calc(100vw-2rem)]"
-                      >
-                        <DropdownMenuLabel className="space-y-1 whitespace-normal break-words">
-                          <span className="block">{contact.displayName}</span>
-                          <span className="block text-xs font-normal text-muted-foreground">
-                            Actions du contact
-                          </span>
-                        </DropdownMenuLabel>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem asChild>
-                          <Link href={chatHref}>
-                            <MessageSquare aria-hidden />
-                            Discuter
+                // Toute la ligne ouvre la conversation, comme dans WhatsApp ;
+                // le menu ⋯ reste au-dessus pour les autres actions.
+                <li
+                  key={row.id}
+                  className="relative flex min-w-0 gap-3 px-4 py-3 transition-colors hover:bg-muted/40 active:bg-muted/60 has-[a:focus-visible]:ring-2 has-[a:focus-visible]:ring-ring has-[a:focus-visible]:ring-inset motion-reduce:transition-none sm:px-5"
+                >
+                  <Avatar className="size-10 shrink-0">
+                    {contact.avatarUrl && (
+                      <AvatarImage src={contact.avatarUrl} alt="" className="object-cover" />
+                    )}
+                    <AvatarFallback>{getInitials(contact.displayName)}</AvatarFallback>
+                  </Avatar>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-start gap-2">
+                      <div className="min-w-0 flex-1">
+                        <p className="line-clamp-2 text-sm font-medium leading-snug wrap-anywhere">
+                          <Link
+                            href={chatHref}
+                            aria-label={`Discuter avec ${contact.displayName}`}
+                            className="outline-none after:absolute after:inset-0"
+                          >
+                            {contact.displayName}
                           </Link>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onSelect={() => p.onRename(contact)}>
-                          <Pencil aria-hidden />
-                          Modifier le nom
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onSelect={() => p.onToggleAi(contact)}
+                        </p>
+                        {showOnMobile("phone") && (
+                          <p className="truncate font-mono text-xs text-muted-foreground tabular-nums">
+                            {contact.phone.startsWith("+") ? contact.phone : `+${contact.phone}`}
+                          </p>
+                        )}
+                      </div>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="relative z-10 -mr-2 -mt-1.5 size-9 shrink-0 rounded-full"
+                            disabled={p.busy || p.pending}
+                            aria-label={"Actions pour " + contact.displayName}
+                          >
+                            <MoreHorizontal aria-hidden />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent
+                          align="end"
+                          className="w-64 max-w-[calc(100vw-2rem)]"
                         >
-                          {contact.aiActive ? (
-                            <UserRound aria-hidden />
-                          ) : (
-                            <Bot aria-hidden />
-                          )}
-                          {contact.aiActive
-                            ? "Confier à l’équipe"
-                            : "Activer l’assistant IA"}
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem
-                          variant="destructive"
-                          onSelect={() => p.onDelete(contact)}
-                        >
-                          <Trash2 aria-hidden />
-                          Supprimer le contact
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                  {!!details.length && (
-                    <dl className="space-y-2">
-                      {details.map((cell) => (
-                        <div
-                          key={cell.id}
-                          className="flex min-w-0 flex-wrap items-center justify-between gap-2 text-xs"
-                        >
-                          <dt className="text-muted-foreground">
-                            {labels[cell.column.id]}
-                          </dt>
-                          <dd className="min-w-0 max-w-full whitespace-normal wrap-anywhere">
-                            {cell.column.id === "aiActive"
-                              ? contact.aiActive
-                                ? "Assistant IA"
-                                : "Équipe humaine"
-                              : flexRender(
-                                  cell.column.columnDef.cell,
-                                  cell.getContext(),
-                                )}
-                          </dd>
-                        </div>
-                      ))}
-                    </dl>
-                  )}
-                  {/* Sur une carte étroite, « Discuter » passe sous le mode
-                      de prise en charge et prend toute la largeur. */}
-                  <div className="flex flex-col items-stretch gap-2 border-t border-border/60 pt-3 @[16rem]:flex-row @[16rem]:items-center @[16rem]:justify-between @[16rem]:gap-3">
-                    <span className="inline-flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
-                      {contact.aiActive ? (
-                        <Bot aria-hidden className="size-3.5 shrink-0" />
-                      ) : (
-                        <UserRound aria-hidden className="size-3.5 shrink-0" />
-                      )}
-                      {contact.aiActive ? "Assistant IA" : "Équipe humaine"}
-                    </span>
-                    <Button
-                      asChild
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="h-10 shrink-0 @[16rem]:h-9"
-                    >
-                      <Link href={chatHref}>
-                        <MessageSquare aria-hidden className="size-4" />
-                        Discuter
-                      </Link>
-                    </Button>
+                          <DropdownMenuLabel className="space-y-1 whitespace-normal break-words">
+                            <span className="block">{contact.displayName}</span>
+                            <span className="block text-xs font-normal text-muted-foreground">
+                              Actions du contact
+                            </span>
+                          </DropdownMenuLabel>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem asChild>
+                            <Link href={chatHref}>
+                              <MessageSquare aria-hidden />
+                              Discuter
+                            </Link>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onSelect={() => p.onRename(contact)}>
+                            <Pencil aria-hidden />
+                            Modifier le nom
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onSelect={() => p.onToggleAi(contact)}
+                          >
+                            {contact.aiActive ? (
+                              <UserRound aria-hidden />
+                            ) : (
+                              <Bot aria-hidden />
+                            )}
+                            {contact.aiActive
+                              ? "Confier à l’équipe"
+                              : "Activer l’assistant IA"}
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            variant="destructive"
+                            onSelect={() => p.onDelete(contact)}
+                          >
+                            <Trash2 aria-hidden />
+                            Supprimer le contact
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                    {meta && (
+                      <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-muted-foreground">
+                        {showOnMobile("instinct") && (
+                          <InstinctCell classification={contact.instinct} />
+                        )}
+                        {showOnMobile("aiActive") && (
+                          <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+                            {contact.aiActive ? (
+                              <Bot aria-hidden className="size-3.5 shrink-0" />
+                            ) : (
+                              <UserRound aria-hidden className="size-3.5 shrink-0" />
+                            )}
+                            {contact.aiActive ? "Assistant IA" : "Équipe humaine"}
+                          </span>
+                        )}
+                        {showOnMobile("createdAt") && (
+                          <span className="whitespace-nowrap">
+                            Ajouté le{" "}
+                            <LocalDate
+                              value={contact.createdAt}
+                              options={{ day: "2-digit", month: "short", year: "numeric" }}
+                            />
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </li>
               );

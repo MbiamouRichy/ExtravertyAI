@@ -49,11 +49,6 @@ export function ContactsTableColumns(options: {
                   : `+${contact.phone}`}
               </p>
             )}
-            {!contact.name && contact.displayName !== contact.phone && (
-              <p className="text-[10px] text-muted-foreground">
-                Nom public WhatsApp
-              </p>
-            )}
           </div>
         </div>
       ),
