@@ -58,15 +58,15 @@ export default function ReportsLoading() {
             {[0, 1].map((item) => (
               <div
                 key={item}
-                className="grid grid-cols-[1.5rem_minmax(0,1fr)] gap-x-3 gap-y-3 p-4 sm:p-5 md:grid-cols-[1.5rem_minmax(0,1fr)_auto] md:items-center"
+                className="grid grid-cols-1 gap-3 p-4 sm:p-5 md:grid-cols-[1.5rem_minmax(0,1fr)_auto] md:items-center"
               >
-                <Skeleton className="size-6 rounded-full" />
+                <Skeleton className="hidden size-6 rounded-full md:block" />
                 <div className="min-w-0 space-y-2">
                   <Skeleton className="h-4 w-full max-w-md" />
                   <Skeleton className="h-3.5 w-4/5 max-w-sm" />
                   <Skeleton className="h-3 w-44 max-w-full" />
                 </div>
-                <Skeleton className="col-start-2 h-8 w-40 rounded-md md:col-start-3" />
+                <Skeleton className="h-8 w-40 rounded-md" />
               </div>
             ))}
           </div>

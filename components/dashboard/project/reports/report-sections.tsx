@@ -174,18 +174,25 @@ export function FindingsList({ findings }: { findings: Finding[] }) {
           {findings.map((finding, index) => {
             const impact = Math.round(finding.impact);
             return (
+              // Sur mobile le rang passe dans le titre : le texte garde toute la largeur.
               <li
                 key={finding.id}
-                className="grid grid-cols-[1.5rem_minmax(0,1fr)] items-start gap-x-3 gap-y-3 p-4 sm:p-5 md:grid-cols-[1.5rem_minmax(0,1fr)_auto]"
+                className="grid grid-cols-1 items-start gap-3 p-4 sm:p-5 md:grid-cols-[1.5rem_minmax(0,1fr)_auto] md:gap-x-3"
               >
                 <span
                   aria-hidden="true"
-                  className="flex size-6 items-center justify-center rounded-full bg-muted font-mono text-xs"
+                  className="hidden size-6 items-center justify-center rounded-full bg-muted font-mono text-xs md:flex"
                 >
                   {index + 1}
                 </span>
                 <div className="min-w-0">
                   <h3 className="font-sans text-sm leading-snug font-medium tracking-normal text-pretty sm:text-base">
+                    <span
+                      aria-hidden="true"
+                      className="mr-2 inline-flex size-5 items-center justify-center rounded-full bg-muted align-[0.1em] font-mono text-[11px] md:hidden"
+                    >
+                      {index + 1}
+                    </span>
                     {finding.title}
                   </h3>
                   <p className="mt-1 text-sm text-pretty text-muted-foreground">
@@ -202,7 +209,7 @@ export function FindingsList({ findings }: { findings: Finding[] }) {
                   asChild
                   size="sm"
                   variant={index === 0 ? "default" : "outline"}
-                  className="col-start-2 h-auto min-h-8 max-w-full justify-self-start py-1.5 text-left whitespace-normal md:col-start-3 md:self-center"
+                  className="h-auto min-h-8 max-w-full justify-self-start py-1.5 text-left whitespace-normal md:col-start-3 md:self-center"
                 >
                   <Link href={finding.action.href}>
                     {finding.action.label}
@@ -909,28 +916,33 @@ export function HistoryList({
                     {report.label}
                   </span>
                   <span className="min-w-0">
-                    <span className={cn("block truncate", current && "font-medium")}>
+                    <span className={cn("block", current && "font-medium")}>
                       {report.range}
                     </span>
                     <span
                       className={cn(
-                        "mt-0.5 flex items-center gap-1.5 text-xs",
+                        "mt-0.5 flex items-baseline gap-1.5 text-xs",
                         watch ? "text-destructive" : "text-muted-foreground",
                       )}
                     >
-                      <Dot tone={watch ? "bad" : "neutral"} />
-                      <span className="truncate">{status}</span>
-                      {!report.skipped && (
-                        <span className="hidden truncate md:inline">
-                          · {sent} {emailStates.SENT}
-                          {sent > 1 ? "s" : ""}
-                          {other ? ` · 1 ${emailStates[other.state]}` : ""}
-                        </span>
-                      )}
+                      <span className="self-center">
+                        <Dot tone={watch ? "bad" : "neutral"} />
+                      </span>
+                      <span className="min-w-0">
+                        {status}
+                        {!report.skipped && (
+                          <span className="hidden md:inline">
+                            {" "}· {sent} {emailStates.SENT}
+                            {sent > 1 ? "s" : ""}
+                            {other ? ` · 1 ${emailStates[other.state]}` : ""}
+                          </span>
+                        )}
+                      </span>
                     </span>
                   </span>
                   {current ? (
-                    <span className="text-xs text-foreground">Affiché</span>
+                    // La ligne affichée est déjà surlignée : le mot n’apparaît qu’à partir du format tablette.
+                    <span className="text-xs text-foreground max-sm:sr-only">Affiché</span>
                   ) : (
                     <ChevronRight aria-hidden="true" className="size-4 text-muted-foreground" />
                   )}

@@ -491,10 +491,10 @@ export default async function ReportsPage({
                 <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-medium">
                   {getInitials(recipient.user.name || recipient.user.email)}
                 </span>
-                {/* Rôle sur la ligne du nom : l’adresse garde toute la largeur. */}
+                {/* Rôle à droite du nom, ou dessous s’il manque de place ; rien n’est tronqué. */}
                 <span className="min-w-0 flex-1">
-                  <span className="flex min-w-0 items-baseline justify-between gap-3">
-                    <span className="truncate">{recipient.user.name}</span>
+                  <span className="flex min-w-0 flex-wrap items-baseline justify-between gap-x-3">
+                    <span className="min-w-0 wrap-anywhere">{recipient.user.name}</span>
                     <span
                       className={cn(
                         "shrink-0 text-xs",
@@ -508,7 +508,7 @@ export default async function ReportsPage({
                         : "Adresse à vérifier"}
                     </span>
                   </span>
-                  <span className="block truncate text-xs text-muted-foreground">
+                  <span className="block text-xs wrap-anywhere text-muted-foreground">
                     {recipient.user.email}
                   </span>
                 </span>
