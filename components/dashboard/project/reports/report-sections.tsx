@@ -388,7 +388,7 @@ export function IndicatorGrid({
               key={definition.key}
               className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-4 gap-y-1.5 p-4 sm:px-5 md:grid-cols-[minmax(0,1fr)_10rem_7rem] md:items-center"
             >
-              <div className="row-span-2 min-w-0 md:row-span-1">
+              <div className="min-w-0">
                 <div className="flex items-center gap-0.5">
                   <h3 className="font-sans text-sm font-medium tracking-normal">
                     {definition.label}
@@ -440,7 +440,7 @@ export function IndicatorGrid({
                 {value}
               </p>
               {trend && values.length > 1 && (
-                <div className="col-start-2 w-20 md:col-start-2 md:row-start-1 md:w-full">
+                <div className="col-span-2 mt-1 md:col-span-1 md:col-start-2 md:row-start-1 md:mt-0">
                   <ReportSparkline
                     points={sparkPoints(reading, weeks, offset)}
                     band={reading.signal.band}
@@ -480,7 +480,7 @@ export function IndicatorGrid({
                 role="region"
                 aria-label={`Valeurs des ${readings[0].series.length} dernières semaines`}
                 tabIndex={0}
-                className="mt-3 overflow-x-auto rounded-xl border outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+                className="relative mt-3 overflow-x-auto rounded-xl border outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
               >
                 <table className="w-full min-w-[40rem] text-sm">
                   <caption className="sr-only">
