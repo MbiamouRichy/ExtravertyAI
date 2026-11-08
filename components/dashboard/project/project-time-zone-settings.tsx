@@ -10,7 +10,6 @@ import { Globe2, Loader2, LocateFixed } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Field,
-  FieldDescription,
   FieldError,
   FieldLabel,
 } from "@/components/ui/field";
@@ -130,7 +129,7 @@ export function ProjectTimeZoneSettings({
                     ref={field.ref}
                     onBlur={field.onBlur}
                     aria-invalid={fieldState.invalid}
-                    aria-describedby={`${id}-description ${id}-error`}
+                    aria-describedby={`${id}-error`}
                     className="h-10 w-full min-w-0 sm:max-w-sm"
                   >
                     <Globe2 aria-hidden="true" className="text-muted-foreground" />
@@ -157,10 +156,6 @@ export function ProjectTimeZoneSettings({
                   />
                 )}
               </div>
-              <FieldDescription id={`${id}-description`}>
-                Les diffusions partent entre {WINDOW} à l’heure de ce fuseau, pour ne
-                jamais déranger vos clients la nuit.
-              </FieldDescription>
               <FieldError id={`${id}-error`} errors={[fieldState.error]} />
               {device && (
                 <Button

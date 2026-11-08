@@ -110,14 +110,14 @@ export default async function AdminAiCostsPage({
           label="Coût du mois"
           value={usd(totals.costMicros)}
           hint={
-            report.projectedCostMicros !== null
+            report.projectedCostMicros
               ? `≈ ${usd(report.projectedCostMicros)} au rythme actuel`
               : undefined
           }
         >
           <DeltaBadge
             value={delta(totals.costMicros, report.previousCostMicros)}
-            label="vs mois précédent"
+            label={`vs ${monthLabel(previous).split(" ")[0]}`}
             inverse
           />
         </Tile>

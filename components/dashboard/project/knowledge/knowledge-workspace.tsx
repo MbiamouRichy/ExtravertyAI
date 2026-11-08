@@ -92,18 +92,25 @@ export function KnowledgeWorkspace({
       </div>
       {DATA_TABS.has(tab) && (
         <p className="text-xs text-muted-foreground tabular-nums">
+          {/* Chaque groupe reste d’un seul tenant quand la ligne se replie. */}
           Base :{" "}
           <span
             className={cn(
+              "whitespace-nowrap",
               usage.words >= usage.wordLimit && "font-medium text-destructive",
             )}
           >
             {usage.words.toLocaleString("fr-FR")} mots sur{" "}
             {usage.wordLimit.toLocaleString("fr-FR")}
           </span>{" "}
-          (≈ {wordsToPages(usage.wordLimit).toLocaleString("fr-FR")} pages) ·{" "}
-          {usage.documents.toLocaleString("fr-FR")} /{" "}
-          {usage.documentLimit.toLocaleString("fr-FR")} documents
+          <span className="whitespace-nowrap">
+            (≈ {wordsToPages(usage.wordLimit).toLocaleString("fr-FR")} pages)
+          </span>{" "}
+          ·{" "}
+          <span className="whitespace-nowrap">
+            {usage.documents.toLocaleString("fr-FR")} /{" "}
+            {usage.documentLimit.toLocaleString("fr-FR")} documents
+          </span>
         </p>
       )}
       {/* Toujours monté : un enregistrement auto en attente survit au changement d’onglet. */}

@@ -91,21 +91,23 @@ export function TeamAutoAssignSettings({
           name="enabled"
           control={form.control}
           render={({ field }) => (
-            <Field orientation="horizontal" className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-x-4 gap-y-2 sm:gap-y-1">
-              <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-lg border bg-background sm:row-span-2">
+            // Même disposition que « Messagerie » : titre et interrupteur
+            // alignés, texte sur toute la largeur sur mobile.
+            <Field orientation="horizontal" className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-4 gap-y-1.5 sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:gap-y-1">
+              <span className="mt-0.5 hidden size-9 shrink-0 items-center justify-center rounded-lg border bg-background sm:row-span-2 sm:flex">
                 <Shuffle aria-hidden="true" className="size-4" />
               </span>
               <FieldContent className="contents">
-                <FieldLabel htmlFor={`${id}-switch`} className="col-start-2 row-start-1 self-center sm:self-start">
+                <FieldLabel htmlFor={`${id}-switch`} className="col-start-1 row-start-1 min-h-6 items-center sm:col-start-2 sm:min-h-0">
                   Répartition automatique
                 </FieldLabel>
-                <FieldDescription id={`${id}-description`} className="col-span-full sm:col-span-1 sm:col-start-2">
+                <FieldDescription id={`${id}-description`} className="col-span-2 sm:col-span-1 sm:col-start-2">
                   {available
                     ? "Chaque nouvelle conversation est confiée au membre en ligne qui en a le moins en cours, à tour de rôle. Le propriétaire n’est pas inclus. Si personne n’est en ligne, elle reste non assignée."
                     : "Disponible avec l’offre Business : chaque nouvelle conversation est confiée au membre en ligne le moins chargé."}
                 </FieldDescription>
               </FieldContent>
-              <div className="col-start-3 row-start-1 flex shrink-0 items-center gap-2 pt-0.5">
+              <div className="col-start-2 row-start-1 flex min-h-6 shrink-0 items-center gap-2 sm:col-start-3 sm:min-h-0 sm:pt-0.5">
                 {saving && (
                   <Loader2
                     aria-hidden="true"
