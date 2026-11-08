@@ -12,6 +12,8 @@ import {
   Download,
   ShieldCheck,
   ArrowUpRight,
+  ArrowRight,
+  UsersRound,
   Loader2,
   AlertTriangle,
   Trash2,
@@ -476,38 +478,50 @@ export default function ProjectSettingsPage({
                   réservés aux propriétaires et administrateurs, dans la limite
                   de 10 000 contacts par export.
                 </p>
-                {/* Libellés sur deux lignes si besoin plutôt que coupés. */}
-                <div className="mt-6 grid grid-cols-1 gap-2 sm:flex sm:flex-wrap sm:gap-3 [&>*]:h-auto [&>*]:min-h-10 [&>*]:whitespace-normal">
+                {/* Trois actions de même gabarit : pictogramme en tête, libellé
+                    court et centré sur une ligne. Téléphone : pleine largeur,
+                    empilées ; dès sm, côte à côte, l’équipe à part à droite.
+                    Repli sur deux lignes centrées si l’écran est très étroit. */}
+                <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:gap-3 [&>*]:h-auto [&>*]:min-h-10 [&>*]:px-4 [&>*]:text-center [&>*]:whitespace-normal">
                   <Button
                     disabled={!!pending}
+                    aria-busy={pending === "csv"}
                     onClick={() => void download("csv")}
                     variant="outline"
                     size="lg"
                   >
                     {pending === "csv" ? (
-                      <Loader2 className="size-4 animate-spin" />
+                      <Loader2
+                        aria-hidden="true"
+                        className="animate-spin motion-reduce:animate-none"
+                      />
                     ) : (
-                      <Download className="size-4" />
-                    )}{" "}
-                    Export CSV
+                      <Download aria-hidden="true" />
+                    )}
+                    Exporter en CSV
                   </Button>
                   <Button
                     disabled={!!pending}
+                    aria-busy={pending === "xlsx"}
                     onClick={() => void download("xlsx")}
                     variant="outline"
                     size="lg"
                   >
                     {pending === "xlsx" ? (
-                      <Loader2 className="size-4 animate-spin" />
+                      <Loader2
+                        aria-hidden="true"
+                        className="animate-spin motion-reduce:animate-none"
+                      />
                     ) : (
-                      <Download className="size-4" />
-                    )}{" "}
-                    Export Excel
+                      <Download aria-hidden="true" />
+                    )}
+                    Exporter en Excel
                   </Button>
-                  <Button asChild variant="outline" size="lg">
+                  <Button asChild variant="outline" size="lg" className="sm:ml-auto">
                     <Link href={`/projects/${p.id}/team`}>
-                      Gérer les accès de l’équipe{" "}
-                      <ArrowUpRight className="size-4" />
+                      <UsersRound aria-hidden="true" />
+                      Gérer l’équipe
+                      <ArrowRight aria-hidden="true" className="text-muted-foreground" />
                     </Link>
                   </Button>
                 </div>

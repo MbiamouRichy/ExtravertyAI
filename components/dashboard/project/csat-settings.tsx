@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useId, useState } from "react";
-import { Controller, useForm, useWatch } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
@@ -11,7 +11,6 @@ import { ArrowRight, Loader2, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Field,
-  FieldContent,
   FieldDescription,
   FieldError,
   FieldGroup,
@@ -39,7 +38,6 @@ export function CsatSettings({
     defaultValues: { enabled: initial.enabled, message: initial.message },
   });
   const [saving, setSaving] = useState(false);
-  const message = useWatch({ control: form.control, name: "message" });
 
   if (!initial.available) {
     return (
@@ -94,17 +92,29 @@ export function CsatSettings({
             name="enabled"
             control={form.control}
             render={({ field }) => (
-              <Field orientation="horizontal" className="items-start justify-between gap-4">
-                <FieldContent>
-                  <FieldLabel htmlFor={`${id}-enabled`}>Envoyer le questionnaire à la résolution</FieldLabel>
-                  <FieldDescription>Désactivé par défaut.</FieldDescription>
-                </FieldContent>
-                <Switch
-                  id={`${id}-enabled`}
-                  checked={field.value}
-                  onCheckedChange={field.onChange}
-                  disabled={saving}
-                />
+              // Interrupteur sur la ligne du titre, texte en pleine largeur dessous.
+              <Field className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-4 gap-y-1.5">
+                <FieldLabel
+                  htmlFor={`${id}-enabled`}
+                  className="col-start-1 row-start-1 min-h-6 items-center"
+                >
+                  Envoyer le questionnaire à la résolution
+                </FieldLabel>
+                <span className="col-start-2 row-start-1 flex min-h-6 items-center">
+                  <Switch
+                    id={`${id}-enabled`}
+                    name={field.name}
+                    ref={field.ref}
+                    onBlur={field.onBlur}
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                    disabled={saving}
+                    aria-describedby={`${id}-enabled-description`}
+                  />
+                </span>
+                <FieldDescription id={`${id}-enabled-description`} className="col-span-2">
+                  Désactivé par défaut.
+                </FieldDescription>
               </Field>
             )}
           />
@@ -121,13 +131,11 @@ export function CsatSettings({
                   maxLength={500}
                   disabled={saving}
                   aria-invalid={fieldState.invalid}
-                  aria-describedby={`${id}-message-help`}
+                  aria-describedby={fieldState.invalid ? `${id}-message-error` : undefined}
                 />
-                <FieldDescription id={`${id}-message-help`}>
-                  Demandez une note de 1 à 5 : c’est la seule réponse reconnue
-                  (« 4 », « 4/5 », « ⭐⭐⭐⭐ »…). {message.trim().length} / 500
-                </FieldDescription>
-                {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                {fieldState.invalid && (
+                  <FieldError id={`${id}-message-error`} errors={[fieldState.error]} />
+                )}
               </Field>
             )}
           />
