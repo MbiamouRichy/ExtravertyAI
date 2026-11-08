@@ -188,6 +188,8 @@ model Project {
   // Fuseau IANA de l'activité (celui de ses clients) : plage d'envoi des diffusions.
   // Détecté à la création depuis le navigateur, modifiable par les admins.
   timeZone String @default("Africa/Libreville")
+  // Numéro WhatsApp prouvé par un code avant l'enregistrement : condition de l'essai.
+  numeroVerifiedAt DateTime?
   csatEnabled Boolean @default(false)
   // Badge « client en attente » dans la messagerie (réglable par les admins).
   showWaitingTime Boolean @default(true)
@@ -233,6 +235,7 @@ model Project {
 
   // --- 👥 RELATIONS CRM ---
   members              ProjectMembership[]
+  phoneVerifications   PhoneVerification[]
   contacts             Contact[]      // Les prospects WhatsApp du projet
   tags                 Tag[]
   internalNotes        InternalNote[]
@@ -461,6 +464,7 @@ model User {
   globalRole    GlobalRole @default(USER)
 
   memberships   ProjectMembership[]
+  phoneVerifications PhoneVerification[]
   messagesSent  Message[] // Historique des messages envoyés manuellement par cet utilisateur
   resolvedContacts Contact[] @relation("ContactResolvedBy")
   assignedContacts Contact[] @relation("ContactAssignee")
@@ -1319,4 +1323,29 @@ model BroadcastEvent {
 
   @@index([broadcastId, createdAt, id])
   @@map("broadcast_event")
+}
+
+// Code à usage unique envoyé par WhatsApp pour prouver qu'un numéro appartient
+// à l'utilisateur, avant l'enregistrement du projet. Jamais conservé en clair.
+model PhoneVerification {
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // Empreinte du numéro : la preuve ne vaut que pour lui, et les envois vers
+  // un même numéro sont limités tous comptes confondus.
+  numberHash String
+  codeHash   String
+  attempts   Int       @default(0)
+  expiresAt  DateTime
+  verifiedAt DateTime?
+  // Une preuve n'enregistre qu'un seul projet.
+  consumedAt DateTime?
+  projectId  String?
+  project    Project?  @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  createdAt  DateTime  @default(now())
+
+  @@index([userId, createdAt])
+  @@index([numberHash, createdAt])
+  @@index([projectId])
+  @@map("phone_verification")
 }

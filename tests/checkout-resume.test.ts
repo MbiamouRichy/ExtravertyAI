@@ -12,6 +12,10 @@ import * as billingDisplay from "../lib/billing-display";
 import { needsInitialCheckout } from "../lib/billing-display";
 
 const PROJECT_ID = "cmuhe8ap1000004l64j9yddk1";
+const VERIFICATION_ID = crypto.randomUUID();
+const VERIFIED_AT = new Date("2026-11-08T08:00:00Z");
+/** Objets nés dans le bac à sable vm : comparés par leur contenu. */
+const plain = (value: unknown) => JSON.parse(JSON.stringify(value));
 
 test("only a project whose first payment never went through needs a new checkout", () => {
   const unpaid = { status: "inactive", stripeCustomerId: null, stripeSubscriptionId: null };
@@ -29,6 +33,7 @@ type Project = {
   deletionPending: boolean;
   stripeCustomerId: string | null;
   stripeSubscriptionId: string | null;
+  numeroVerifiedAt: Date | null;
 };
 
 function loadResume(
@@ -39,17 +44,42 @@ function loadResume(
     emailVerified?: boolean;
     recentProjects?: number;
     burstAllowed?: boolean;
+    /** Faux : aucune preuve utilisable du numéro pour ce compte. */
+    proof?: boolean;
+    /** Faux : la preuve a servi entre-temps (autre onglet). */
+    proofUnused?: boolean;
+    checkoutFails?: boolean;
   } = {},
 ) {
   const counted: Array<{ where: Record<string, unknown> }> = [];
   const sessions: Array<Record<string, unknown>> = [];
   const reservations: Array<[string, string]> = [];
+  const created: Array<{ data: Record<string, unknown> }> = [];
+  const instances: string[] = [];
+  const deletedInstances: string[] = [];
+  const deletedProjects: string[] = [];
+  const consumed: Array<Record<string, unknown>> = [];
+  const released: Array<Record<string, unknown>> = [];
+  const verifiedProjects: Array<Record<string, unknown>> = [];
   const plan = pricing.PRICING_PLANS.find((p) => p.id === "pro")!;
   const modules: Record<string, unknown> = {
     crypto: { default: crypto },
     "next/cache": { revalidatePath: () => undefined },
     "@/lib/prisma": {
       default: {
+        $transaction: async (run: (tx: unknown) => Promise<unknown>) => run(db),
+        project: {
+          findFirst: async () => null,
+          create: async (args: { data: Record<string, unknown> }) => {
+            created.push(args);
+            return { id: PROJECT_ID };
+          },
+          delete: async (args: { where: { id: string } }) => void deletedProjects.push(args.where.id),
+          updateMany: async (args: Record<string, unknown>) => {
+            verifiedProjects.push(args);
+            return { count: 1 };
+          },
+        },
         projectMembership: {
           count: async (args: { where: Record<string, unknown> }) => {
             counted.push(args);
@@ -65,6 +95,7 @@ function loadResume(
                 deletionPending: false,
                 stripeCustomerId: null,
                 stripeSubscriptionId: null,
+                numeroVerifiedAt: VERIFIED_AT,
                 ...project,
               },
             },
@@ -96,6 +127,7 @@ function loadResume(
         checkout: {
           sessions: {
             create: async (params: Record<string, unknown>) => {
+              if (options.checkoutFails) throw new Error("stripe down");
               sessions.push(params);
               return { url: "https://checkout.stripe.com/c/pay/test" };
             },
@@ -104,7 +136,7 @@ function loadResume(
       },
     },
     "@/lib/checkout-price": checkoutPrice,
-    "@/lib/project-creation-schema": { ProjectCheckoutSchema: z.object({}) },
+    "@/lib/project-creation-schema": { ProjectCheckoutSchema: z.object({}).passthrough() },
     zod: { default: z, z },
     "@/lib/rate-limit": { allowRequest: () => options.burstAllowed ?? true },
     "@/lib/project-permissions": permissions,
@@ -112,7 +144,23 @@ function loadResume(
     "@/lib/billing-display": billingDisplay,
     "@/lib/billing-provider": { checkoutProvider: () => "stripe" },
     "@/lib/polar": {},
-    "./evolutionAPI": {},
+    "./evolutionAPI": {
+      createEvolutionInstance: async (name: string) => void instances.push(name),
+      deleteEvolutionInstance: async (name: string) => void deletedInstances.push(name),
+    },
+    "@/lib/server-time-zone": { getBrowserTimeZone: async () => "Africa/Libreville" },
+    "@/lib/phone-verification": {
+      formatVerificationNumber: () => "+241 66 00 00 01",
+      usableNumberProof: async () => (options.proof === false ? null : { verifiedAt: VERIFIED_AT }),
+      consumeNumberProof: async (_db: unknown, input: Record<string, unknown>) => {
+        if (options.proof === false || options.proofUnused === false) return false;
+        consumed.push(input);
+        return true;
+      },
+      releaseNumberProof: async (_db: unknown, input: Record<string, unknown>) =>
+        void released.push(input),
+    },
+    "@/lib/project-number-conflict": { ownProjectNumberConflict: async () => null },
     "@/lib/trial-eligibility": {
       isTrialAvailable: async () => options.trialAvailable ?? true,
       reserveTrial: async (_db: unknown, numero: string, projectId: string) => {
@@ -121,7 +169,11 @@ function loadResume(
       },
     },
   };
-  const exports: Record<string, (input: unknown) => Promise<{ success: boolean; url?: string; error?: string }>> = {};
+  const db = (modules["@/lib/prisma"] as { default: unknown }).default;
+  const exports: Record<
+    string,
+    (input: unknown, options?: unknown) => Promise<{ success: boolean; url?: string; error?: string; code?: string }>
+  > = {};
   const source = ts.transpileModule(readFileSync("app/actions/stripe-actions.ts", "utf8"), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
   }).outputText;
@@ -145,6 +197,13 @@ function loadResume(
     sessions,
     reservations,
     counted,
+    created,
+    instances,
+    deletedInstances,
+    deletedProjects,
+    consumed,
+    released,
+    verifiedProjects,
   };
 }
 
@@ -240,4 +299,87 @@ test("project creation is rate limited before any trial reservation or WhatsApp 
   assert.equal(blocked.success, false);
   assert.match(blocked.error ?? "", /une minute/);
   assert.equal(burst.reservations.length, 0);
+});
+
+test("a project saved before the check pays only once its number is proved", async () => {
+  const unverified = { numeroVerifiedAt: null };
+  // Sans preuve : ni essai réservé, ni paiement ouvert.
+  const blocked = loadResume("OWNER", unverified);
+  const refused = (await blocked.resume({ projectId: PROJECT_ID })) as {
+    success: boolean;
+    code?: string;
+    number?: string;
+  };
+  assert.equal(refused.success, false);
+  assert.equal(refused.code, "NUMBER_NOT_VERIFIED");
+  assert.equal(refused.number, "+241 66 00 00 01");
+  assert.equal(blocked.reservations.length, 0);
+  assert.equal(blocked.sessions.length, 0);
+  assert.equal(blocked.verifiedProjects.length, 0);
+
+  // Preuve déjà utilisée ailleurs : refusée de même.
+  const used = loadResume("OWNER", unverified, { proofUnused: false });
+  const reused = await used.resume({ projectId: PROJECT_ID, verificationId: VERIFICATION_ID });
+  assert.equal(reused.code, "NUMBER_NOT_VERIFIED");
+  assert.equal(used.sessions.length, 0);
+
+  // Bon code : le numéro du projet est marqué prouvé, puis le paiement s'ouvre.
+  const proved = loadResume("OWNER", unverified);
+  const result = await proved.resume({ projectId: PROJECT_ID, verificationId: VERIFICATION_ID });
+  assert.equal(result.success, true);
+  assert.deepEqual(plain(proved.consumed), [
+    { verificationId: VERIFICATION_ID, userId: "u", numero: "+24166000001", projectId: PROJECT_ID },
+  ]);
+  assert.equal(proved.verifiedProjects.length, 1);
+  assert.deepEqual(proved.reservations, [["+24166000001", PROJECT_ID]]);
+  assert.equal(proved.sessions.length, 1);
+});
+
+test("nothing is created before the number is proved by its code", async () => {
+  const input = { name: "Boutique", numero: "+24166000001", plan: "pro" };
+  for (const [options, verificationId] of [
+    [{}, undefined],
+    [{ proof: false }, VERIFICATION_ID],
+    [{}, "pas-un-uuid"],
+  ] as const) {
+    const attempt = loadResume("OWNER", {}, options);
+    const result = await attempt.create(input, { verificationId });
+    assert.equal(result.success, false, String(verificationId));
+    assert.equal(result.code, "NUMBER_NOT_VERIFIED");
+    assert.equal(attempt.instances.length, 0);
+    assert.equal(attempt.created.length, 0);
+    assert.equal(attempt.reservations.length, 0);
+    assert.equal(attempt.sessions.length, 0);
+  }
+});
+
+test("a proved number saves the project, spends the proof and opens the checkout", async () => {
+  const input = { name: "Boutique", numero: "+24166000001", plan: "pro" };
+  const ok = loadResume("OWNER");
+  const result = await ok.create(input, { verificationId: VERIFICATION_ID });
+  assert.equal(result.success, true);
+  assert.equal(result.url, "https://checkout.stripe.com/c/pay/test");
+  assert.equal(ok.instances.length, 1);
+  assert.equal(ok.created[0].data.status, "inactive");
+  assert.deepEqual(ok.created[0].data.numeroVerifiedAt, VERIFIED_AT);
+  assert.deepEqual(plain(ok.consumed), [
+    { verificationId: VERIFICATION_ID, userId: "u", numero: "+24166000001", projectId: PROJECT_ID },
+  ]);
+  assert.deepEqual(ok.reservations, [["+24166000001", PROJECT_ID]]);
+  assert.equal(ok.sessions.length, 1);
+
+  // La même preuve utilisée dans un autre onglet : l'instance créée est retirée.
+  const race = loadResume("OWNER", {}, { proofUnused: false });
+  const raced = await race.create(input, { verificationId: VERIFICATION_ID });
+  assert.equal(raced.code, "NUMBER_NOT_VERIFIED");
+  assert.deepEqual(race.deletedInstances, race.instances);
+  assert.equal(race.sessions.length, 0);
+
+  // Paiement impossible à préparer : projet annulé, preuve rendue pour réessayer.
+  const down = loadResume("OWNER", {}, { checkoutFails: true });
+  const failed = await down.create(input, { verificationId: VERIFICATION_ID });
+  assert.equal(failed.success, false);
+  assert.deepEqual(down.deletedProjects, [PROJECT_ID]);
+  assert.deepEqual(plain(down.released), [{ verificationId: VERIFICATION_ID, userId: "u" }]);
+  assert.deepEqual(down.deletedInstances, down.instances);
 });

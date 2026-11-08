@@ -25,6 +25,13 @@ import { can } from "@/lib/project-permissions";
 import { resolvePlanId, type PlanId } from "@/lib/pricing";
 import { needsInitialCheckout } from "@/lib/billing-display";
 import { isTrialAvailable, reserveTrial } from "@/lib/trial-eligibility";
+import {
+  consumeNumberProof,
+  formatVerificationNumber,
+  releaseNumberProof,
+  usableNumberProof,
+} from "@/lib/phone-verification";
+import { ownProjectNumberConflict } from "@/lib/project-number-conflict";
 import { getBrowserTimeZone } from "@/lib/server-time-zone";
 import {
   createEvolutionInstance,
@@ -44,19 +51,32 @@ const EMAIL_NOT_VERIFIED_ERROR =
   "Confirmez votre adresse e-mail avant de créer un projet.";
 const TRIAL_UNAVAILABLE_ERROR =
   "Ce numéro WhatsApp a déjà bénéficié de l’essai gratuit.";
+const NUMBER_NOT_VERIFIED_ERROR =
+  "Confirmez d’abord votre numéro WhatsApp avec le code reçu.";
 
-/** Le client confirme explicitement un paiement sans essai. */
+/**
+ * Le client confirme explicitement un paiement sans essai, et présente la
+ * preuve de son numéro (envoi WhatsApp dont il a saisi le bon code).
+ */
 const CheckoutOptionsSchema = z
-  .object({ withoutTrial: z.boolean().optional() })
+  .object({
+    withoutTrial: z.boolean().optional(),
+    verificationId: z.string().uuid().optional(),
+  })
   .optional();
 
 class TrialTakenError extends Error {}
+class NumberProofUsedError extends Error {}
 
 const PROJECTS_PER_HOUR = 5;
 
+/**
+ * Enregistre le projet et ouvre le paiement, une fois le numéro prouvé : rien
+ * n’est créé (projet, instance WhatsApp, réservation d’essai) avant le bon code.
+ */
 export async function createProjectAndCheckout(
   data: ProjectCheckoutInput,
-  options?: { withoutTrial?: boolean },
+  options?: { withoutTrial?: boolean; verificationId?: string },
 ) {
   const session = await getSession();
   if (!session?.user?.id || !session?.user?.email) {
@@ -69,8 +89,9 @@ export async function createProjectAndCheckout(
       code: "EMAIL_NOT_VERIFIED" as const,
       error: EMAIL_NOT_VERIFIED_ERROR,
     };
-  const withoutTrial =
-    CheckoutOptionsSchema.safeParse(options).data?.withoutTrial === true;
+  const checkoutOptions = CheckoutOptionsSchema.safeParse(options).data;
+  const withoutTrial = checkoutOptions?.withoutTrial === true;
+  const verificationId = checkoutOptions?.verificationId;
   // Chaque création ouvre une instance WhatsApp et peut réserver l’essai d’un
   // numéro : limite durable en base, et rafale bloquée sur cette instance.
   const recentProjects = await prisma.projectMembership.count({
@@ -100,6 +121,19 @@ export async function createProjectAndCheckout(
   }
   data = parsed.data;
   const cleanedNumero = parsed.data.numero;
+  const userId = session.user.id;
+
+  // Sans preuve du numéro, rien n’est créé et l’essai n’est même pas consulté.
+  const proof = verificationId
+    ? await usableNumberProof(prisma, { verificationId, userId, numero: cleanedNumero })
+    : null;
+  if (!verificationId || !proof?.verifiedAt)
+    return {
+      success: false as const,
+      code: "NUMBER_NOT_VERIFIED" as const,
+      error: NUMBER_NOT_VERIFIED_ERROR,
+    };
+  const verifiedAt = proof.verifiedAt;
 
   if (!checkoutReference(data.plan)) {
     // Variable d'environnement absente : à corriger côté hébergement, pas par le client.
@@ -128,21 +162,8 @@ export async function createProjectAndCheckout(
     };
   }
 
-  const existingProject = await prisma.project.findFirst({
-    where: {
-      numero: cleanedNumero,
-      members: { some: { userId: session.user.id } },
-    },
-  });
-
-  if (existingProject) {
-    return {
-      success: false,
-      error: existingProject.stripeSubscriptionId
-        ? "Ce numéro WhatsApp est déjà configuré sur l'un de vos projets."
-        : `Ce numéro est déjà associé au projet « ${existingProject.name} », dont le paiement n’est pas terminé. Ouvrez sa facturation pour reprendre le paiement.`,
-    };
-  }
+  const conflict = await ownProjectNumberConflict(prisma, userId, cleanedNumero);
+  if (conflict) return { success: false, error: conflict };
 
   // Lecture avant toute création externe ; la réservation atomique suit.
   const trial = await isTrialAvailable(prisma, cleanedNumero);
@@ -181,14 +202,25 @@ export async function createProjectAndCheckout(
           plan: data.plan,
           status: "inactive",
           timeZone,
+          numeroVerifiedAt: verifiedAt,
           members: {
             create: {
-              userId: session.user.id,
+              userId,
               role: "OWNER",
             },
           },
         },
       });
+      // Une preuve n’enregistre qu’un projet, même sur deux onglets à la fois.
+      if (
+        !(await consumeNumberProof(tx, {
+          verificationId,
+          userId,
+          numero: cleanedNumero,
+          projectId: created.id,
+        }))
+      )
+        throw new NumberProofUsedError();
       // Deux comptes sur le même numéro : un seul obtient l’essai.
       if (trial && !(await reserveTrial(tx, cleanedNumero, created.id)))
         throw new TrialTakenError();
@@ -206,15 +238,18 @@ export async function createProjectAndCheckout(
 
     revalidatePath("/projects");
 
-    return { success: true, url };
+    return { success: true as const, url };
   } catch (error) {
     const trialTaken = error instanceof TrialTakenError;
-    if (!trialTaken)
+    const proofUsed = error instanceof NumberProofUsedError;
+    if (!trialTaken && !proofUsed)
       console.error("❌ Échec de la création (Rollback) :", error);
 
     if (createdProjectId) {
       try {
         await prisma.project.delete({ where: { id: createdProjectId } });
+        // Projet annulé : la preuve resservira, sans nouveau code.
+        await releaseNumberProof(prisma, { verificationId, userId });
       } catch (dbError) {
         console.error("CRITIQUE: Échec de suppression du projet", dbError);
       }
@@ -233,6 +268,12 @@ export async function createProjectAndCheckout(
         success: false as const,
         code: "TRIAL_UNAVAILABLE" as const,
         error: TRIAL_UNAVAILABLE_ERROR,
+      };
+    if (proofUsed)
+      return {
+        success: false as const,
+        code: "NUMBER_NOT_VERIFIED" as const,
+        error: NUMBER_NOT_VERIFIED_ERROR,
       };
     return {
       success: false,
@@ -304,6 +345,8 @@ async function createCheckoutUrl(input: {
 const ResumeSchema = z.object({
   projectId: z.string().cuid(),
   withoutTrial: z.boolean().optional(),
+  /** Preuve du numéro, pour un projet enregistré avant la vérification. */
+  verificationId: z.string().uuid().optional(),
 });
 
 /**
@@ -326,7 +369,7 @@ export async function resumeProjectCheckout(
       code: "EMAIL_NOT_VERIFIED" as const,
       error: EMAIL_NOT_VERIFIED_ERROR,
     };
-  const { projectId, withoutTrial } = parsed.data;
+  const { projectId, withoutTrial, verificationId } = parsed.data;
   const membership = await prisma.projectMembership.findUnique({
     where: { userId_projectId: { userId: session.user.id, projectId } },
     select: {
@@ -339,6 +382,7 @@ export async function resumeProjectCheckout(
           deletionPending: true,
           stripeCustomerId: true,
           stripeSubscriptionId: true,
+          numeroVerifiedAt: true,
         },
       },
     },
@@ -360,6 +404,35 @@ export async function resumeProjectCheckout(
       error:
         "Ce projet a déjà un abonnement : utilisez « Gérer l’abonnement ».",
     };
+  // Aucun essai ni paiement tant que le numéro n'est pas prouvé par un code.
+  if (!project.numeroVerifiedAt) {
+    const userId = session.user.id;
+    const proved =
+      !!verificationId &&
+      (await prisma.$transaction(async (tx) => {
+        if (
+          !(await consumeNumberProof(tx, {
+            verificationId,
+            userId,
+            numero: project.numero,
+            projectId,
+          }))
+        )
+          return false;
+        await tx.project.updateMany({
+          where: { id: projectId, numeroVerifiedAt: null },
+          data: { numeroVerifiedAt: new Date() },
+        });
+        return true;
+      }));
+    if (!proved)
+      return {
+        success: false as const,
+        code: "NUMBER_NOT_VERIFIED" as const,
+        error: "Confirmez d’abord le numéro WhatsApp du projet.",
+        number: formatVerificationNumber(project.numero),
+      };
+  }
   // Chaque appel ouvre une session de paiement : pas de rafale.
   if (!allowRequest(`checkout-resume:${projectId}`, 5, 10 * 60 * 1000))
     return {
