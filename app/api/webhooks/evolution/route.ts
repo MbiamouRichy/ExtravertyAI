@@ -14,6 +14,12 @@ import {
 } from "@/lib/evolution-ingestion";
 import { isForeignTrialNumber } from "@/lib/instance-connection";
 import {
+  isOtpInstance,
+  receiveVerificationMessage,
+  sendWhatsAppCode,
+} from "@/lib/phone-verification";
+import { allowRequest } from "@/lib/rate-limit";
+import {
   getEvolutionOwnerJid,
   logoutEvolutionInstance,
 } from "@/app/actions/evolutionAPI";
@@ -31,6 +37,38 @@ const Update = z.object({
   status: z.union([z.number(), z.string()]).optional(),
 });
 
+/** Messages d’un `messages.upsert`, qu’Evolution les envoie seuls ou groupés. */
+function upsertedMessages(data: unknown) {
+  const envelope = z.object({ messages: z.array(z.unknown()) }).safeParse(data);
+  return envelope.success
+    ? envelope.data.messages
+    : Array.isArray(data)
+      ? data
+      : [data];
+}
+
+/**
+ * Numéro d’ExtravertyAI : seuls les codes de vérification envoyés par les
+ * clients y sont lus, puis le client reçoit une réponse dans sa conversation.
+ */
+async function receiveOtpEvent(eventName: string, data: unknown) {
+  if (eventName !== "messages.upsert") return;
+  const replies: Array<{ digits: string; reply: string }> = [];
+  for (const message of upsertedMessages(data)) {
+    const outcome = await receiveVerificationMessage(prisma, message);
+    // Une seule réponse par numéro toutes les quelques minutes, jamais de boucle.
+    if (outcome && allowRequest(`otp-reply:${outcome.digits}`, 3, 10 * 60 * 1000))
+      replies.push(outcome);
+  }
+  if (replies.length)
+    after(async () => {
+      for (const { digits, reply } of replies)
+        await sendWhatsAppCode(digits, reply).catch(() =>
+          console.error("[otp] Réponse WhatsApp non envoyée."),
+        );
+    });
+}
+
 export async function POST(req: Request) {
   const secret =
     new URL(req.url).searchParams.get("secret") ||
@@ -46,6 +84,10 @@ export async function POST(req: Request) {
   }
   try {
     const { event, instance, data } = Body.parse(await req.json());
+    if (isOtpInstance(instance)) {
+      await receiveOtpEvent(event.toLowerCase().replaceAll("_", "."), data);
+      return NextResponse.json({ success: true });
+    }
     const project = await prisma.project.findUnique({
       where: { instanceName: instance },
       select: { id: true, numero: true, status: true },
@@ -77,15 +119,7 @@ export async function POST(req: Request) {
       async (tx) => {
         await tx.$queryRaw`SELECT id FROM project WHERE id = ${project.id} FOR UPDATE`;
         if (eventName === "messages.upsert") {
-          const envelope = z
-            .object({ messages: z.array(z.unknown()) })
-            .safeParse(data);
-          const messages = envelope.success
-            ? envelope.data.messages
-            : Array.isArray(data)
-              ? data
-              : [data];
-          for (const message of messages) {
+          for (const message of upsertedMessages(data)) {
             await ingestMessage(tx, project.id, message);
             const parsed = IncomingSchema.safeParse(message);
             if (parsed.success && !parsed.data.key.fromMe)

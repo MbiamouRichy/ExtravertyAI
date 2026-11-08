@@ -2,15 +2,22 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   CODE_TTL_MS,
+  INBOUND_REPLIES,
   PhoneVerificationError,
   confirmVerificationCode,
   consumeNumberProof,
   formatVerificationNumber,
   hashVerificationCode,
+  inboundMessage,
+  isOtpInstance,
+  receiveVerificationMessage,
   releaseNumberProof,
   sendVerificationCode,
+  senderNumberDigits,
+  startInboundVerification,
   usableNumberProof,
   verificationMessage,
+  verificationStatus,
   type OtpSender,
   type VerificationTarget,
 } from "../lib/phone-verification";
@@ -19,6 +26,9 @@ import type { PrismaClient } from "../src/generated/prisma/client";
 import { addMember, createUser, withTestDatabase } from "./helpers/database";
 
 process.env.BETTER_AUTH_SECRET ??= "test-secret";
+// Numéro et instance d’ExtravertyAI, auxquels les clients envoient leur code.
+process.env.OTP_WHATSAPP_NUMBER = "+241 76 20 56 29";
+process.env.OTP_WHATSAPP_INSTANCE = "extravertyai-otp";
 
 /** Faux WhatsApp : garde chaque message pour relire le code reçu. */
 function phone() {
@@ -290,5 +300,158 @@ test("a failed send leaves no code behind and limits hold across accounts", { ti
     assert.equal(perDay.code, "RATE_LIMITED");
     assert.equal(perDay.retryAfterSeconds, 86400);
     assert.equal(await count(busy.id), 15);
+  });
+});
+
+/** Message WhatsApp reçu par le numéro d’ExtravertyAI, tel qu’Evolution le transmet. */
+function incoming(text: string, sender: string, extra: Record<string, unknown> = {}) {
+  return {
+    key: { id: crypto.randomUUID(), remoteJid: sender, fromMe: false, ...extra },
+    message: { conversation: text },
+  };
+}
+
+test("the sender is read from WhatsApp, even behind a hidden identifier", () => {
+  assert.equal(senderNumberDigits({ remoteJid: "24166000039@s.whatsapp.net" }), "24166000039");
+  assert.equal(senderNumberDigits({ remoteJid: "24166000039:12@s.whatsapp.net" }), "24166000039");
+  assert.equal(
+    senderNumberDigits({ remoteJid: "123456789012345@lid", remoteJidAlt: "24166000039@s.whatsapp.net" }),
+    "24166000039",
+  );
+  assert.equal(
+    senderNumberDigits({ remoteJid: "123456789012345@lid", senderPn: "24166000039@s.whatsapp.net" }),
+    "24166000039",
+  );
+  assert.equal(senderNumberDigits({ remoteJid: "123456789012345@lid" }), null);
+  assert.equal(senderNumberDigits({ remoteJid: "120363000000000000@g.us" }), null);
+  assert.equal(senderNumberDigits({ remoteJid: "../x@s.whatsapp.net" }), null);
+  assert.ok(isOtpInstance("extravertyai-otp"));
+  assert.equal(isOtpInstance("ext_123_abcde"), false);
+});
+
+test("the customer proves the number by sending the code from it", { timeout: 180000 }, async () => {
+  await withTestDatabase(async (prisma) => {
+    const user = await createUser(prisma, "Owner");
+    const other = await createUser(prisma, "Other");
+    const start = (numero = "+24166000020", userId = user.id, available = true) =>
+      startInboundVerification(prisma, { userId, target: { numero } }, available);
+    const status = (verificationId: string, userId = user.id) =>
+      verificationStatus(prisma, { userId, verificationId });
+
+    assert.equal((await failure(start("+24166000020", user.id, false))).code, "UNAVAILABLE");
+
+    // Code à envoyer vers le numéro d’ExtravertyAI, message déjà écrit.
+    const pending = await start();
+    assert.match(pending.code, /^\d{6}$/);
+    assert.equal(pending.text, inboundMessage(pending.code));
+    assert.equal(
+      pending.link,
+      `https://wa.me/24176205629?text=${encodeURIComponent(pending.text)}`,
+    );
+    assert.equal(pending.to, "+241 76 20 56 29");
+    assert.ok(Math.abs(pending.expiresAt.getTime() - (Date.now() + CODE_TTL_MS)) < 10000);
+    const row = await prisma.phoneVerification.findUniqueOrThrow({ where: { id: pending.verificationId } });
+    assert.equal(row.direction, "INBOUND");
+    assert.equal(row.codeHash, hashVerificationCode(row.id, pending.code));
+    assert.equal(await status(pending.verificationId), "pending");
+
+    // Recopier ce code ne prouve rien : il faut l’envoyer depuis le numéro.
+    assert.equal(
+      (await failure(confirmVerificationCode(prisma, {
+        userId: user.id,
+        verificationId: pending.verificationId,
+        code: pending.code,
+      }))).code,
+      "EXPIRED",
+    );
+
+    // Bon code envoyé depuis un autre numéro : refusé, avec une explication.
+    const intruder = await receiveVerificationMessage(
+      prisma,
+      incoming(pending.text, "24166999999@s.whatsapp.net"),
+    );
+    assert.deepEqual(intruder, { digits: "24166999999", reply: INBOUND_REPLIES.unknown });
+    // Message sans rapport, message envoyé par nous, ou sans code : ignorés.
+    assert.equal(await receiveVerificationMessage(prisma, incoming(`Livraison ${wrong(pending.code)} ?`, "24166000020@s.whatsapp.net")), null);
+    assert.equal(
+      await receiveVerificationMessage(prisma, incoming(pending.text, "24166000020@s.whatsapp.net", { fromMe: true })),
+      null,
+    );
+    assert.equal(await receiveVerificationMessage(prisma, incoming("Bonjour ExtravertyAI", "24166000020@s.whatsapp.net")), null);
+    assert.equal(await receiveVerificationMessage(prisma, { nothing: true }), null);
+    assert.equal(await status(pending.verificationId), "pending");
+
+    // Envoyé depuis le bon numéro, même caché derrière un @lid : numéro prouvé.
+    const proved = await receiveVerificationMessage(
+      prisma,
+      incoming(pending.text, "123456789012345@lid", { remoteJidAlt: "24166000020@s.whatsapp.net" }),
+    );
+    assert.deepEqual(proved, { digits: "24166000020", reply: INBOUND_REPLIES.verified });
+    assert.equal(await status(pending.verificationId), "verified");
+    // L’état n’est lisible que par son compte.
+    assert.equal(await status(pending.verificationId, other.id), "expired");
+    assert.ok(
+      await usableNumberProof(prisma, {
+        verificationId: pending.verificationId,
+        userId: user.id,
+        numero: "+24166000020",
+      }),
+    );
+    // Un second envoi du même message ne refait rien.
+    assert.deepEqual(
+      await receiveVerificationMessage(prisma, incoming(pending.text, "24166000020@s.whatsapp.net")),
+      { digits: "24166000020", reply: INBOUND_REPLIES.unknown },
+    );
+
+    // Nouveau code : le précédent, pas encore envoyé, ne vaut plus rien.
+    const first = await start("+24166000021");
+    const second = await start("+24166000021");
+    assert.equal(await status(first.verificationId), "expired");
+    const late = await receiveVerificationMessage(
+      prisma,
+      incoming(first.text, "24166000021@s.whatsapp.net"),
+    );
+    assert.equal(late?.reply, INBOUND_REPLIES.unknown);
+    assert.equal(await status(second.verificationId), "pending");
+
+    // Code expiré au bout de 10 minutes.
+    await prisma.$executeRaw`UPDATE phone_verification SET "expiresAt" = "expiresAt" - interval '11 minutes' WHERE id = ${second.verificationId}`;
+    assert.equal(await status(second.verificationId), "expired");
+    const expired = await receiveVerificationMessage(
+      prisma,
+      incoming(second.text, "24166000021@s.whatsapp.net"),
+    );
+    assert.equal(expired?.reply, INBOUND_REPLIES.unknown);
+  });
+});
+
+test("codes to send do not use the sending quota and are limited apart", { timeout: 180000 }, async () => {
+  await withTestDatabase(async (prisma) => {
+    const user = await createUser(prisma, "Owner");
+    const device = phone();
+    for (let index = 0; index < 20; index++)
+      await startInboundVerification(
+        prisma,
+        { userId: user.id, target: { numero: `+241660001${String(index).padStart(2, "0")}` } },
+        true,
+      );
+    const hourly = await failure(
+      startInboundVerification(prisma, { userId: user.id, target: { numero: "+24166000199" } }, true),
+    );
+    assert.equal(hourly.code, "RATE_LIMITED");
+    assert.equal(hourly.retryAfterSeconds, 3600);
+    // Aucun message n’est parti : le code reçu reste possible en secours.
+    await sendVerificationCode(prisma, { userId: user.id, target: { numero: "+24166000199" } }, device.send, true);
+    assert.equal(device.inbox.length, 1);
+
+    // Un projet non payé : seule l’équipe facturation prépare le code.
+    const agent = await createUser(prisma, "Agent");
+    const project = await inactiveProject(prisma, "24166000150");
+    await addMember(prisma, project.id, agent.id, "AGENT");
+    const target: VerificationTarget = { projectId: project.id };
+    assert.equal(
+      (await failure(startInboundVerification(prisma, { userId: agent.id, target }, true))).code,
+      "FORBIDDEN",
+    );
   });
 });

@@ -7,11 +7,15 @@ import {
   PhoneVerificationError,
   confirmVerificationCode,
   sendVerificationCode,
+  startInboundVerification,
+  verificationStatus,
+  type VerificationTarget,
 } from "@/lib/phone-verification";
 import { ProjectCheckoutSchema } from "@/lib/project-creation-schema";
 import { ownProjectNumberConflict } from "@/lib/project-number-conflict";
+import { allowRequest } from "@/lib/rate-limit";
 
-const SendSchema = z.union([
+const TargetSchema = z.union([
   // Création : le numéro saisi, normalisé comme à l’enregistrement du projet.
   z.object({ numero: ProjectCheckoutSchema.shape.numero }).strict(),
   // Reprise d’un paiement jamais abouti : le numéro du projet enregistré.
@@ -22,6 +26,8 @@ const ConfirmSchema = z.object({
   verificationId: z.string().uuid(),
   code: z.string().trim().regex(/^\d{6}$/),
 });
+
+const StatusSchema = z.object({ verificationId: z.string().uuid() });
 
 async function currentUserId() {
   const session = await getSession();
@@ -45,26 +51,89 @@ function failure(error: unknown) {
   };
 }
 
-/** Envoie par WhatsApp un code au numéro saisi (ou à celui du projet). */
-export async function sendNumberCode(input: z.input<typeof SendSchema>) {
-  const parsed = SendSchema.safeParse(input);
+/** Numéro saisi validé, sans projet de ce compte qui l’utilise déjà. */
+async function checkedTarget(input: unknown) {
+  const parsed = TargetSchema.safeParse(input);
   if (!parsed.success)
     return {
-      success: false as const,
-      code: "INVALID_NUMBER" as const,
-      error: "Saisissez un numéro international valide.",
+      ok: false as const,
+      failure: {
+        success: false as const,
+        code: "INVALID_NUMBER" as const,
+        error: "Saisissez un numéro international valide.",
+      },
     };
   const userId = await currentUserId();
-  if (!userId) return { success: false as const, error: "Connexion requise." };
-  const target = parsed.data;
-  // Inutile de prouver un numéro qu’un de vos projets utilise déjà.
+  if (!userId)
+    return {
+      ok: false as const,
+      failure: { success: false as const, error: "Connexion requise." },
+    };
+  const target: VerificationTarget = parsed.data;
   if ("numero" in target) {
+    // Inutile de prouver un numéro qu’un de vos projets utilise déjà.
     const conflict = await ownProjectNumberConflict(prisma, userId, target.numero);
     if (conflict)
-      return { success: false as const, code: "NUMBER_IN_USE" as const, error: conflict };
+      return {
+        ok: false as const,
+        failure: {
+          success: false as const,
+          code: "NUMBER_IN_USE" as const,
+          error: conflict,
+        },
+      };
   }
+  return { ok: true as const, userId, target };
+}
+
+/**
+ * Vérification inversée (par défaut) : un code que le client envoie lui-même
+ * depuis son WhatsApp au numéro d’ExtravertyAI.
+ */
+export async function startNumberMessage(input: z.input<typeof TargetSchema>) {
+  const checked = await checkedTarget(input);
+  if (!checked.ok) return checked.failure;
   try {
-    const sent = await sendVerificationCode(prisma, { userId, target });
+    const started = await startInboundVerification(prisma, {
+      userId: checked.userId,
+      target: checked.target,
+    });
+    return {
+      success: true as const,
+      verificationId: started.verificationId,
+      code: started.code,
+      text: started.text,
+      link: started.link,
+      to: started.to,
+      expiresAt: started.expiresAt.toISOString(),
+    };
+  } catch (error) {
+    return failure(error);
+  }
+}
+
+/** La page attend le message du client : la preuve est-elle arrivée ? */
+export async function checkNumberMessage(input: z.input<typeof StatusSchema>) {
+  const parsed = StatusSchema.safeParse(input);
+  if (!parsed.success) return { success: false as const, error: "Demande invalide." };
+  const userId = await currentUserId();
+  if (!userId) return { success: false as const, error: "Connexion requise." };
+  // Interrogée toutes les quelques secondes : au-delà, c’est un abus.
+  if (!allowRequest(`otp-status:${userId}`, 60, 60 * 1000))
+    return { success: false as const, error: "Trop de vérifications. Patientez un instant." };
+  const status = await verificationStatus(prisma, { userId, ...parsed.data });
+  return { success: true as const, status };
+}
+
+/** En secours : envoie par WhatsApp un code au numéro saisi (ou à celui du projet). */
+export async function sendNumberCode(input: z.input<typeof TargetSchema>) {
+  const checked = await checkedTarget(input);
+  if (!checked.ok) return checked.failure;
+  try {
+    const sent = await sendVerificationCode(prisma, {
+      userId: checked.userId,
+      target: checked.target,
+    });
     return {
       success: true as const,
       verificationId: sent.verificationId,
@@ -76,7 +145,7 @@ export async function sendNumberCode(input: z.input<typeof SendSchema>) {
   }
 }
 
-/** Vérifie le code ; la preuve obtenue permet d’enregistrer le projet. */
+/** Vérifie le code recopié ; la preuve obtenue permet d’enregistrer le projet. */
 export async function confirmNumberCode(input: z.input<typeof ConfirmSchema>) {
   const parsed = ConfirmSchema.safeParse(input);
   if (!parsed.success)

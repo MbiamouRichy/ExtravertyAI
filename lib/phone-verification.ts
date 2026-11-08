@@ -1,5 +1,6 @@
 import { createHmac, randomInt, randomUUID, timingSafeEqual } from "node:crypto";
 import { parsePhoneNumberFromString } from "libphonenumber-js/max";
+import { z } from "zod";
 import type { Prisma, PrismaClient } from "../src/generated/prisma/client";
 import { needsInitialCheckout } from "./billing-display";
 import { can } from "./project-permissions";
@@ -7,11 +8,15 @@ import { hashTrialNumber, trialNumberDigits } from "./trial-eligibility";
 
 /**
  * Preuve qu’un numéro WhatsApp appartient à l’utilisateur, avant que le projet
- * ne soit enregistré.
+ * ne soit enregistré. Deux façons, au choix de l’utilisateur :
  *
- * Un code à 6 chiffres part par WhatsApp, depuis le numéro d’ExtravertyAI, vers
- * le numéro saisi. Le bon code fait de cet envoi une preuve, valable 30 minutes,
- * qui permet d’enregistrer un seul projet sur ce numéro (et d’y réserver l’essai).
+ * - par défaut, le client envoie lui-même un code depuis son WhatsApp vers le
+ *   numéro d’ExtravertyAI (vérification inversée) : c’est WhatsApp qui garantit
+ *   l’expéditeur, et notre numéro n’écrit jamais en premier à un inconnu ;
+ * - en secours, un code part du numéro d’ExtravertyAI et le client le recopie.
+ *
+ * Une fois prouvé, le numéro permet pendant 30 minutes d’enregistrer un seul
+ * projet (et d’y réserver l’essai).
  *
  * - Le code n’est jamais conservé en clair (empreinte HMAC liée à l’envoi).
  * - Il expire au bout de 10 minutes et accepte 5 essais.
@@ -27,6 +32,8 @@ export const PROOF_TTL_MS = 30 * 60 * 1000;
 const PER_USER_PER_HOUR = 5;
 const PER_NUMBER_PER_DAY = 10;
 const PER_USER_PER_DAY = 15;
+/** Codes à envoyer soi-même : rien ne part, la limite évite seulement les abus. */
+const INBOUND_STARTS_PER_HOUR = 20;
 const HOUR = 60 * 60 * 1000;
 const DAY = 24 * HOUR;
 
@@ -104,6 +111,36 @@ export function whatsAppVerificationAvailable() {
   );
 }
 
+/** Numéro WhatsApp d’ExtravertyAI, auquel le client envoie son code (chiffres E.164). */
+function otpNumberDigits() {
+  const digits = process.env.OTP_WHATSAPP_NUMBER?.replace(/\D/g, "") ?? "";
+  return /^[1-9]\d{7,14}$/.test(digits) ? digits : null;
+}
+
+/** La vérification inversée est-elle configurée (instance branchée et numéro connu) ? */
+export function inboundVerificationAvailable() {
+  return whatsAppVerificationAvailable() && otpNumberDigits() !== null;
+}
+
+/** Instance Evolution du numéro d’ExtravertyAI (aucun projet ne l’utilise). */
+export function isOtpInstance(instance: string) {
+  const name = process.env.OTP_WHATSAPP_INSTANCE;
+  return !!name && instance === name;
+}
+
+/** Message prérempli que le client envoie depuis son WhatsApp. */
+export function inboundMessage(code: string) {
+  return `Bonjour ExtravertyAI, voici mon code de vérification : ${code}`;
+}
+
+/** Réponses du numéro d’ExtravertyAI, dans la conversation ouverte par le client. */
+export const INBOUND_REPLIES = {
+  verified:
+    "✅ Numéro vérifié. Revenez sur ExtravertyAI : la création de votre projet continue automatiquement.",
+  unknown:
+    "Ce code n’est pas valable pour ce numéro, ou il a expiré. Envoyez-le depuis le WhatsApp du numéro saisi sur ExtravertyAI, ou demandez un nouveau code.",
+} as const;
+
 /** Envoi depuis le numéro d’ExtravertyAI, connecté à Evolution comme un projet. */
 export const sendWhatsAppCode: OtpSender = async (digits, text) => {
   const base = process.env.EVOLUTION_API_URL!.replace(/\/+$/, "");
@@ -164,6 +201,12 @@ async function loadProject(db: Db, projectId: string, userId: string) {
   return project;
 }
 
+async function resolveNumero(db: Db, userId: string, target: VerificationTarget) {
+  return "projectId" in target
+    ? (await loadProject(db, target.projectId, userId)).numero
+    : target.numero;
+}
+
 function digitsOf(numero: string) {
   try {
     return trialNumberDigits(numero);
@@ -176,8 +219,8 @@ function digitsOf(numero: string) {
 }
 
 /**
- * Envoie un nouveau code. Le code précédent du compte est annulé, quel que soit
- * son numéro : un seul code valable à la fois.
+ * Envoie un nouveau code. Le code envoyé précédemment au compte est annulé,
+ * quel que soit son numéro : un seul code reçu valable à la fois.
  */
 export async function sendVerificationCode(
   db: Db,
@@ -185,11 +228,7 @@ export async function sendVerificationCode(
   send: OtpSender = sendWhatsAppCode,
   available = whatsAppVerificationAvailable(),
 ) {
-  const numero =
-    "projectId" in input.target
-      ? (await loadProject(db, input.target.projectId, input.userId)).numero
-      : input.target.numero;
-  const digits = digitsOf(numero);
+  const digits = digitsOf(await resolveNumero(db, input.userId, input.target));
   if (!available)
     throw new PhoneVerificationError(
       "La vérification par WhatsApp est momentanément indisponible. Réessayez plus tard.",
@@ -203,7 +242,7 @@ export async function sendVerificationCode(
     const now = Date.now();
     // Délai avant de renvoyer au même numéro ; un numéro corrigé part tout de suite.
     const last = await tx.phoneVerification.findFirst({
-      where: { userId: input.userId, numberHash },
+      where: { userId: input.userId, numberHash, direction: "OUTBOUND" },
       orderBy: { createdAt: "desc" },
       select: { createdAt: true },
     });
@@ -214,15 +253,18 @@ export async function sendVerificationCode(
         "RATE_LIMITED",
         Math.ceil(wait / 1000),
       );
+    // Seuls les codes réellement envoyés comptent : écrire en premier à un
+    // numéro est ce qui expose le numéro d’ExtravertyAI.
+    const sent = { direction: "OUTBOUND" as const };
     const [perHour, perNumber, perDay] = await Promise.all([
       tx.phoneVerification.count({
-        where: { userId: input.userId, createdAt: { gte: new Date(now - HOUR) } },
+        where: { ...sent, userId: input.userId, createdAt: { gte: new Date(now - HOUR) } },
       }),
       tx.phoneVerification.count({
-        where: { numberHash, createdAt: { gte: new Date(now - DAY) } },
+        where: { ...sent, numberHash, createdAt: { gte: new Date(now - DAY) } },
       }),
       tx.phoneVerification.count({
-        where: { userId: input.userId, createdAt: { gte: new Date(now - DAY) } },
+        where: { ...sent, userId: input.userId, createdAt: { gte: new Date(now - DAY) } },
       }),
     ]);
     if (perHour >= PER_USER_PER_HOUR)
@@ -238,7 +280,12 @@ export async function sendVerificationCode(
         86400,
       );
     await tx.phoneVerification.updateMany({
-      where: { userId: input.userId, verifiedAt: null, expiresAt: { gt: new Date(now) } },
+      where: {
+        ...sent,
+        userId: input.userId,
+        verifiedAt: null,
+        expiresAt: { gt: new Date(now) },
+      },
       data: { expiresAt: new Date(now) },
     });
     const id = randomUUID();
@@ -247,6 +294,7 @@ export async function sendVerificationCode(
         id,
         userId: input.userId,
         numberHash,
+        direction: "OUTBOUND",
         codeHash: hashVerificationCode(id, code),
         expiresAt: new Date(now + CODE_TTL_MS),
       },
@@ -280,8 +328,9 @@ export async function confirmVerificationCode(
   db: Pick<PrismaClient, "phoneVerification">,
   input: { userId: string; verificationId: string; code: string },
 ) {
+  // Un code à envoyer soi-même ne se recopie pas : il ne prouverait rien.
   const latest = await db.phoneVerification.findFirst({
-    where: { id: input.verificationId, userId: input.userId },
+    where: { id: input.verificationId, userId: input.userId, direction: "OUTBOUND" },
     select: { id: true, codeHash: true, attempts: true, expiresAt: true, verifiedAt: true },
   });
   // Double envoi du formulaire : la preuve existe déjà.
@@ -319,6 +368,169 @@ export async function confirmVerificationCode(
     data: { verifiedAt: new Date() },
   });
   return { verificationId: latest.id };
+}
+
+/**
+ * Vérification inversée : prépare un code que le client envoie depuis le
+ * WhatsApp du numéro à prouver. Rien ne part de notre numéro.
+ */
+export async function startInboundVerification(
+  db: Db,
+  input: { userId: string; target: VerificationTarget },
+  available = inboundVerificationAvailable(),
+) {
+  const digits = digitsOf(await resolveNumero(db, input.userId, input.target));
+  const to = otpNumberDigits();
+  if (!available || !to)
+    throw new PhoneVerificationError(
+      "La vérification par message WhatsApp est momentanément indisponible.",
+      "UNAVAILABLE",
+    );
+  const numberHash = hashTrialNumber(digits);
+  const code = generateVerificationCode();
+  const verification = await db.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT id FROM "user" WHERE id = ${input.userId} FOR UPDATE`;
+    const now = Date.now();
+    const recent = await tx.phoneVerification.count({
+      where: {
+        userId: input.userId,
+        direction: "INBOUND",
+        createdAt: { gte: new Date(now - HOUR) },
+      },
+    });
+    if (recent >= INBOUND_STARTS_PER_HOUR)
+      throw new PhoneVerificationError(
+        "Trop de codes demandés. Réessayez dans une heure.",
+        "RATE_LIMITED",
+        3600,
+      );
+    // Un seul code à envoyer valable à la fois.
+    await tx.phoneVerification.updateMany({
+      where: {
+        userId: input.userId,
+        direction: "INBOUND",
+        verifiedAt: null,
+        expiresAt: { gt: new Date(now) },
+      },
+      data: { expiresAt: new Date(now) },
+    });
+    const id = randomUUID();
+    return tx.phoneVerification.create({
+      data: {
+        id,
+        userId: input.userId,
+        numberHash,
+        direction: "INBOUND",
+        codeHash: hashVerificationCode(id, code),
+        expiresAt: new Date(now + CODE_TTL_MS),
+      },
+      select: { id: true, expiresAt: true },
+    });
+  });
+  const text = inboundMessage(code);
+  return {
+    verificationId: verification.id,
+    code,
+    text,
+    link: `https://wa.me/${to}?text=${encodeURIComponent(text)}`,
+    to: formatVerificationNumber(to),
+    expiresAt: verification.expiresAt,
+  };
+}
+
+/** Où en est une vérification de ce compte ? Lue par la page qui attend le message. */
+export async function verificationStatus(
+  db: Pick<PrismaClient, "phoneVerification">,
+  input: { userId: string; verificationId: string },
+) {
+  const row = await db.phoneVerification.findFirst({
+    where: { id: input.verificationId, userId: input.userId },
+    select: { verifiedAt: true, expiresAt: true },
+  });
+  if (row?.verifiedAt) return "verified" as const;
+  if (!row || row.expiresAt.getTime() <= Date.now()) return "expired" as const;
+  return "pending" as const;
+}
+
+const PERSON_SUFFIX = "@s.whatsapp.net";
+
+/** Chiffres du numéro qui a écrit, même quand WhatsApp le cache derrière un @lid. */
+export function senderNumberDigits(key: {
+  remoteJid: string;
+  remoteJidAlt?: string;
+  senderPn?: string;
+}) {
+  for (const jid of [key.remoteJid, key.remoteJidAlt, key.senderPn]) {
+    if (!jid?.endsWith(PERSON_SUFFIX)) continue;
+    const digits = jid.slice(0, -PERSON_SUFFIX.length).split(":")[0];
+    if (/^[1-9]\d{7,14}$/.test(digits)) return digits;
+  }
+  return null;
+}
+
+const InboundMessageSchema = z.object({
+  key: z.object({
+    remoteJid: z.string().max(250),
+    remoteJidAlt: z.string().max(250).optional(),
+    senderPn: z.string().max(250).optional(),
+    fromMe: z.boolean(),
+  }),
+  message: z
+    .object({
+      conversation: z.string().max(4096).optional(),
+      extendedTextMessage: z.object({ text: z.string().max(4096).optional() }).optional(),
+    })
+    .passthrough()
+    .nullish(),
+});
+
+/**
+ * Message reçu sur le numéro d’ExtravertyAI. S’il vient du numéro à prouver et
+ * porte son code, ce numéro est prouvé. Renvoie la réponse à faire au client,
+ * ou null pour un message sans rapport (rien n’est répondu).
+ */
+export async function receiveVerificationMessage(
+  db: Pick<PrismaClient, "phoneVerification">,
+  raw: unknown,
+) {
+  const parsed = InboundMessageSchema.safeParse(raw);
+  if (!parsed.success || parsed.data.key.fromMe) return null;
+  const text =
+    parsed.data.message?.conversation ??
+    parsed.data.message?.extendedTextMessage?.text ??
+    "";
+  const code = /(?<!\d)(\d{6})(?!\d)/.exec(text)?.[1];
+  // L’expéditeur est garanti par WhatsApp : c’est lui qui fait la preuve.
+  const digits = senderNumberDigits(parsed.data.key);
+  if (!code || !digits) return null;
+  const now = new Date();
+  const candidates = await db.phoneVerification.findMany({
+    where: {
+      numberHash: hashTrialNumber(digits),
+      direction: "INBOUND",
+      verifiedAt: null,
+      expiresAt: { gt: now },
+    },
+    orderBy: { createdAt: "desc" },
+    take: 10,
+    select: { id: true, codeHash: true },
+  });
+  for (const candidate of candidates) {
+    const expected = Buffer.from(candidate.codeHash, "hex");
+    const received = Buffer.from(hashVerificationCode(candidate.id, code), "hex");
+    if (expected.length !== received.length || !timingSafeEqual(expected, received))
+      continue;
+    await db.phoneVerification.updateMany({
+      where: { id: candidate.id, verifiedAt: null },
+      data: { verifiedAt: now },
+    });
+    return { digits, reply: INBOUND_REPLIES.verified };
+  }
+  // Six chiffres sans vérification en cours : on n’aide que si le message nous
+  // était manifestement destiné.
+  return /extravert|code|v[ée]rif/i.test(text)
+    ? { digits, reply: INBOUND_REPLIES.unknown }
+    : null;
 }
 
 type ProofInput = { verificationId: string; userId: string; numero: string };

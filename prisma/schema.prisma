@@ -1325,8 +1325,15 @@ model BroadcastEvent {
   @@map("broadcast_event")
 }
 
-// Code à usage unique envoyé par WhatsApp pour prouver qu'un numéro appartient
-// à l'utilisateur, avant l'enregistrement du projet. Jamais conservé en clair.
+// Sens de la preuve : code envoyé au client (il le recopie) ou message envoyé
+// par le client lui-même depuis son WhatsApp (vérification inversée).
+enum PhoneVerificationDirection {
+  OUTBOUND
+  INBOUND
+}
+
+// Code à usage unique qui prouve qu'un numéro appartient à l'utilisateur, avant
+// l'enregistrement du projet. Jamais conservé en clair.
 model PhoneVerification {
   id         String    @id @default(cuid())
   userId     String
@@ -1334,6 +1341,7 @@ model PhoneVerification {
   // Empreinte du numéro : la preuve ne vaut que pour lui, et les envois vers
   // un même numéro sont limités tous comptes confondus.
   numberHash String
+  direction  PhoneVerificationDirection @default(OUTBOUND)
   codeHash   String
   attempts   Int       @default(0)
   expiresAt  DateTime
