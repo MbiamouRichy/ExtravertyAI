@@ -83,21 +83,24 @@ export default function SettingsLoading() {
           </div>
 
           <div className="min-w-0 space-y-6">
-            {/* Logo du projet */}
-            <div className="flex items-center gap-4 rounded-2xl border bg-card p-4 sm:p-6">
-              <Skeleton className="size-14 shrink-0 rounded-xl" />
-              <div className="min-w-0 flex-1 space-y-2">
-                <Skeleton className="h-5 w-36 max-w-full" />
-                <Skeleton className="h-3 w-full max-w-xs" />
-              </div>
-            </div>
-
-            {/* Nom du projet */}
-            <div className="space-y-6 rounded-2xl border bg-card p-4 sm:p-6">
-              <CardHeading width="w-40" />
-              <div className="space-y-2">
-                <Skeleton className="h-4 w-28" />
-                <Skeleton className="h-11 w-full rounded-md" />
+            {/* Identité du projet : logo (aperçu, texte, action), puis nom. */}
+            <div className="rounded-2xl border bg-card p-4 sm:p-6">
+              <CardHeading width="w-44" />
+              <div className="mt-5 space-y-5">
+                <div className="flex items-center gap-4">
+                  <Skeleton className="size-14 shrink-0 rounded-xl" />
+                  <div className="min-w-0 flex-1 space-y-2.5 sm:flex sm:items-center sm:justify-between sm:gap-4 sm:space-y-0">
+                    <div className="space-y-1.5">
+                      <Skeleton className="h-4 w-12" />
+                      <Skeleton className="h-3 w-full max-w-40" />
+                    </div>
+                    <Skeleton className="h-8 w-24 shrink-0 rounded-md" />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Skeleton className="h-4 w-10" />
+                  <Skeleton className="h-9 w-full rounded-md" />
+                </div>
               </div>
             </div>
 

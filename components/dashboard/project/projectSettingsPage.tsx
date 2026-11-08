@@ -281,22 +281,39 @@ export default function ProjectSettingsPage({
             <CsatSettings key={p.id} projectId={p.id} initial={p.csat} />
           </div>
           <div hidden={tab !== "general"} className="space-y-6">
-            <ProjectLogoSettings
-              key={`logo-${p.id}`}
-              projectId={p.id}
-              name={p.name}
-              logoUrl={p.logoUrl}
-              disabled={!canPause || !!pending || p.deletionPending}
-            />
-            <ProjectNameForm
-              key={p.id}
-              projectId={p.id}
-              name={p.name}
-              version={Math.max(settingsVersion, p.settingsVersion)}
-              disabled={!!pending || p.deletionPending}
-              onVersionChange={setSettingsVersion}
-              onSavingChange={setNameSaving}
-            />
+            {/* Une seule carte pour l’identité : logo puis nom. */}
+            <section
+              aria-labelledby="project-identity-title"
+              className="rounded-2xl border bg-card p-4 sm:p-6"
+            >
+              <h2
+                id="project-identity-title"
+                className="font-heading text-lg font-semibold tracking-tight"
+              >
+                Identité du projet
+              </h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Le nom et le logo que voit votre équipe.
+              </p>
+              <div className="mt-5 space-y-5">
+                <ProjectLogoSettings
+                  key={`logo-${p.id}`}
+                  projectId={p.id}
+                  name={p.name}
+                  logoUrl={p.logoUrl}
+                  disabled={!canPause || !!pending || p.deletionPending}
+                />
+                <ProjectNameForm
+                  key={p.id}
+                  projectId={p.id}
+                  name={p.name}
+                  version={Math.max(settingsVersion, p.settingsVersion)}
+                  disabled={!!pending || p.deletionPending}
+                  onVersionChange={setSettingsVersion}
+                  onSavingChange={setNameSaving}
+                />
+              </div>
+            </section>
             <WaitingTimeSettings
               key={`waiting-${p.id}`}
               projectId={p.id}
