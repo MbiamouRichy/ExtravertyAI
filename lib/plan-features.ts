@@ -1,4 +1,4 @@
-import { resolvePlanId, type PlanId } from "./pricing";
+import { PRICING_PLANS, resolvePlanId, type PlanId } from "./pricing";
 
 /** Limits and gated capabilities per plan. Always enforced on the server. */
 export type PlanFeatures = {
@@ -19,6 +19,12 @@ export type PlanFeatures = {
   sandboxPerDay: number;
   /** Profondeur d’historique consultable dans Analytics, en jours. */
   analyticsDays: number;
+  /** Transcription des notes vocales reçues, lue par l’IA. */
+  audio: boolean;
+  /** Analyse des images reçues, lue par l’IA. */
+  images: boolean;
+  /** Instinct IA : chaque conversation est analysée pour repérer les prospects. */
+  instinct: boolean;
   pipeline: boolean;
   csat: boolean;
   /** Page Intégrations et Google Sheets. */
@@ -45,6 +51,9 @@ export const PLAN_FEATURES: Record<PlanId, PlanFeatures> = {
     contextMessages: 20,
     sandboxPerDay: 30,
     analyticsDays: 30,
+    audio: false,
+    images: false,
+    instinct: false,
     pipeline: false,
     csat: false,
     integrations: true,
@@ -63,7 +72,12 @@ export const PLAN_FEATURES: Record<PlanId, PlanFeatures> = {
     contextMessages: 30,
     sandboxPerDay: 100,
     analyticsDays: 90,
-    pipeline: true,
+    audio: true,
+    images: false,
+    instinct: true,
+    // Pipeline de ventes : Business seulement. Instinct IA continue de classer
+    // les prospects ; ils sont déjà dans le pipeline au passage à Business.
+    pipeline: false,
     csat: true,
     integrations: true,
     webhooks: true,
@@ -81,6 +95,9 @@ export const PLAN_FEATURES: Record<PlanId, PlanFeatures> = {
     contextMessages: 50,
     sandboxPerDay: 300,
     analyticsDays: 365,
+    audio: true,
+    images: true,
+    instinct: true,
     pipeline: true,
     csat: true,
     integrations: true,
@@ -92,17 +109,20 @@ export const PLAN_FEATURES: Record<PlanId, PlanFeatures> = {
   },
 };
 
-export type GatedFeature = "pipeline" | "csat" | "integrations" | "webhooks" | "broadcast";
-
-const REQUIRED_PLAN_LABEL: Record<GatedFeature, string> = {
-  pipeline: "Pro ou Business",
-  csat: "Pro ou Business",
-  integrations: "Starter, Pro ou Business",
-  webhooks: "Pro ou Business",
-  broadcast: "Pro ou Business",
-};
+export type GatedFeature =
+  | "audio"
+  | "images"
+  | "instinct"
+  | "pipeline"
+  | "csat"
+  | "integrations"
+  | "webhooks"
+  | "broadcast";
 
 const FEATURE_LABEL: Record<GatedFeature, string> = {
+  audio: "La compréhension des notes vocales",
+  images: "La compréhension des images",
+  instinct: "Instinct IA",
   pipeline: "Le pipeline de prospects",
   csat: "Le questionnaire de satisfaction",
   integrations: "Les intégrations",
@@ -121,8 +141,32 @@ export function planAllows(plan: unknown, feature: GatedFeature): boolean {
   return planFeatures(plan)[feature];
 }
 
+/** Capacité qui rend un média reçu compréhensible par l’IA ; null pour les autres types. */
+export function mediaFeature(type: string): "audio" | "images" | null {
+  return type === "AUDIO" ? "audio" : type === "IMAGE" ? "images" : null;
+}
+
+/** Offres qui incluent la fonctionnalité, de la moins chère à la plus complète. */
+export function plansWith(feature: GatedFeature): PlanId[] {
+  return PRICING_PLANS.filter((plan) => PLAN_FEATURES[plan.id][feature]).map((plan) => plan.id);
+}
+
+/** Offre la moins chère qui débloque la fonctionnalité : celle à proposer. */
+export function minimumPlanFor(feature: GatedFeature): PlanId {
+  return plansWith(feature)[0] ?? "business";
+}
+
+/** « Business », « Pro ou Business »… toujours déduit de `PLAN_FEATURES`. */
+export function requiredPlanLabel(feature: GatedFeature): string {
+  const names = PRICING_PLANS.filter((plan) => PLAN_FEATURES[plan.id][feature]).map(
+    (plan) => plan.name,
+  );
+  if (names.length <= 1) return names[0] ?? "Business";
+  return `${names.slice(0, -1).join(", ")} ou ${names[names.length - 1]}`;
+}
+
 export function planUpgradeMessage(feature: GatedFeature): string {
-  return `${FEATURE_LABEL[feature]} est disponible avec l’offre ${REQUIRED_PLAN_LABEL[feature]}.`;
+  return `${FEATURE_LABEL[feature]} est disponible avec l’offre ${requiredPlanLabel(feature)}.`;
 }
 
 export function requirePlanFeature(plan: unknown, feature: GatedFeature) {

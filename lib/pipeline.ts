@@ -1,6 +1,6 @@
 import type { PrismaClient, Prisma } from "../src/generated/prisma/client";
 import { chatContactName } from "./chat-privacy";
-import { requirePlanFeature } from "./plan-features";
+import { planAllows, requirePlanFeature } from "./plan-features";
 import { requireProjectAdmin } from "./project-settings";
 import { emitIntegrationEvent, integrationContact } from "./integration-events";
 import { rolesWith } from "./project-permissions";
@@ -150,9 +150,10 @@ export async function pipelineBoard(
       deletionPending: false,
       members: { some: { userId, role: { in: rolesWith("pipeline.view") } } },
     },
-    select: { currency: true },
+    select: { currency: true, plan: true },
   });
-  if (!project) return null;
+  // Hors offre Business, rien n'est lu : les données restent intactes en base.
+  if (!project || !planAllows(project.plan, "pipeline")) return null;
   const [totals, ...cardsByStage] = await Promise.all([
     db.contact.groupBy({
       by: ["pipelineStage"],
@@ -203,6 +204,16 @@ export async function pipelineBoard(
       };
     }),
   };
+}
+
+/**
+ * Prospects déjà suivis (étape avancée ou montant saisi), conservés quand
+ * l'offre ne comprend plus le pipeline : chiffre rassurant de la page d'offre.
+ */
+export async function keptPipelineCount(db: PrismaClient, projectId: string): Promise<number> {
+  return db.contact.count({
+    where: { projectId, OR: [{ pipelineStage: { not: "NEW" } }, { dealValue: { not: null } }] },
+  });
 }
 
 /** Value won over a period, for the analytics card. */

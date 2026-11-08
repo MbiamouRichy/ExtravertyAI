@@ -26,6 +26,8 @@ export type AgentSettingsView = {
   config: AgentConfig;
   version: number;
   aiQuietEnabled: boolean;
+  /** L’offre inclut Instinct IA. */
+  instinctAvailable: boolean;
 };
 
 /** Onglets qui consomment le quota : l’utilisation n’apparaît que pour eux. */
@@ -124,6 +126,7 @@ export function KnowledgeWorkspace({
           projectName={agent.projectName}
           initial={agent.config}
           version={agent.version}
+          instinctAvailable={agent.instinctAvailable}
         />
         <AiQuietSettings projectId={projectId} initial={agent.aiQuietEnabled} />
       </TabsContent>

@@ -58,7 +58,7 @@ function eventFeature(event: IntegrationEvent): GatedFeature | null {
   return "feature" in event ? event.feature : null;
 }
 
-/** Events the plan can actually produce: no pipeline or CSAT event on Starter. */
+/** Events the plan can actually produce: CSAT from Pro, pipeline on Business only. */
 export function integrationEventsForPlan(plan: unknown): IntegrationEvent[] {
   return INTEGRATION_EVENTS.filter((event) => {
     const feature = eventFeature(event);

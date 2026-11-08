@@ -36,7 +36,8 @@ export const PRICING_PLANS = [
       "Assistant disponible 24 h/24, 7 j/7",
       "Statistiques sur 90 jours",
       "Résumé IA des conversations",
-      "Pipeline et qualification des prospects",
+      "Qualification des prospects par Instinct IA",
+      "Questionnaire de satisfaction",
       "Webhooks et Google Sheets",
       "Diffusion : 500 contacts par envoi, 2 000 messages par mois",
       "1,2 Go de fichiers",
@@ -50,16 +51,18 @@ export const PRICING_PLANS = [
     messageLimit: 25000,
     users: 10,
     storage: "3 Go",
-    description: "Pour les équipes avec un volume important de conversations.",
+    description: "Pour les équipes qui pilotent leurs ventes sur WhatsApp.",
     highlighted: false,
+    // Le pipeline en 4e position : la carte d'accueil n'affiche que les quatre premières lignes.
     features: [
       "10 utilisateurs · 1 numéro WhatsApp",
       "25 000 messages par mois",
       "Texte, notes vocales et compréhension des images",
+      "Pipeline de prospects et valeur des affaires",
       "Assistant disponible 24 h/24, 7 j/7",
       "Statistiques sur 12 mois",
       "Résumé IA et qualification des prospects",
-      "Pipeline, intégrations et rapports programmés",
+      "Webhooks, Google Sheets et rapports programmés",
       "Répartition automatique des conversations",
       "Diffusion : 2 000 contacts par envoi, 10 000 messages par mois",
       "3 Go de fichiers",
@@ -73,6 +76,12 @@ export type PlanId = PricingPlan["id"];
 
 export function resolvePlanId(value: unknown): PlanId {
   return PRICING_PLANS.find((plan) => plan.id === value)?.id ?? "starter";
+}
+
+/** Fiche d'une offre ; une valeur inconnue retombe sur Starter, comme `resolvePlanId`. */
+export function pricingPlan(value: unknown): PricingPlan {
+  const id = resolvePlanId(value);
+  return PRICING_PLANS.find((plan) => plan.id === id) ?? PRICING_PLANS[0];
 }
 
 export function projectPlanHref(plan: PlanId) {
@@ -118,7 +127,6 @@ export const PLAN_CAPABILITIES: Record<PlanId, readonly string[]> = {
     "Compréhension des notes vocales",
     "Instinct IA : repère les prospects intéressants",
     "Résumé IA des conversations",
-    "Pipeline de prospects",
     "Questionnaire de satisfaction",
     "Connexion à vos outils (Make, Zapier, CRM)",
     "Diffusion de messages : 500 contacts par envoi, 2 000 messages par mois, 300 par jour",
@@ -131,11 +139,12 @@ export const PLAN_CAPABILITIES: Record<PlanId, readonly string[]> = {
     "Compréhension des notes vocales et des images",
     "Instinct IA : repère les prospects intéressants",
     "Résumé IA des conversations",
-    "Pipeline de prospects",
+    "Pipeline de prospects : étapes, valeur des affaires et chiffre gagné",
     "Questionnaire de satisfaction",
     "Connexion à vos outils (Make, Zapier, CRM)",
     "Répartition automatique entre les membres en ligne",
     "Diffusion de messages : 2 000 contacts par envoi, 10 000 messages par mois, 1 000 par jour",
+    "Ciblage des diffusions par étape du pipeline",
     "Rapports hebdomadaires programmés",
     "Statistiques sur 12 mois",
     "3 Go de fichiers",

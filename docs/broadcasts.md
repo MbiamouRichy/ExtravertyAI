@@ -9,6 +9,9 @@ Envoi d’un même message, personnalisé avec le prénom, à des contacts Whats
 | Contacts par diffusion | 500 | 2 000 |
 | Messages de diffusion par période de facturation | 2 000 | 10 000 |
 | Messages de diffusion par jour | 300 | 1 000 |
+| Ciblage par étape du pipeline | Non | Oui |
+
+Le ciblage par étape suit l’offre du pipeline (Business) : une audience avec des étapes est refusée côté serveur sur Pro, à l’estimation comme à la création.
 
 Chaque message de diffusion est aussi décompté du quota mensuel de messages de l’offre. Les limites sont définies dans `lib/plan-features.ts` et vérifiées côté serveur à la création **et** à chaque envoi.
 

@@ -4,11 +4,13 @@ import {
   PipelineError,
   currencyDigits,
   formatDealValue,
+  keptPipelineCount,
   movePipelineStage,
   parseDealValue,
   pipelineBoard,
   promoteInterestingProspect,
   setDealValue,
+  setProjectCurrency,
   wonValue,
 } from "../lib/pipeline";
 import { PlanFeatureError } from "../lib/plan-features";
@@ -39,22 +41,27 @@ test("lead pipeline", { timeout: 120000 }, async (t) => {
     const owner = await createUser(prisma, "Clara Mba");
     const outsider = await createUser(prisma);
 
-    await t.test("the pipeline is reserved to Pro and Business plans", async () => {
-      const starter = await createProject(prisma, { plan: "starter" });
-      await addMember(prisma, starter.id, owner.id, "OWNER");
-      const contact = await ingestText(prisma, starter.id, "Bonjour");
-      await assert.rejects(
-        movePipelineStage(prisma, {
-          projectId: starter.id,
-          contactId: contact.id,
-          userId: owner.id,
-          stage: "WON",
-        }),
-        PlanFeatureError,
-      );
+    await t.test("the pipeline is reserved to the Business plan, on the server", async () => {
+      for (const plan of ["starter", "pro"] as const) {
+        const other = await createProject(prisma, { plan });
+        await addMember(prisma, other.id, owner.id, "OWNER");
+        const contact = await ingestText(prisma, other.id, "Bonjour");
+        const target = { projectId: other.id, contactId: contact.id, userId: owner.id };
+        await assert.rejects(movePipelineStage(prisma, { ...target, stage: "WON" }), PlanFeatureError, plan);
+        await assert.rejects(setDealValue(prisma, { ...target, value: 1000 }), /offre Business/, plan);
+        await assert.rejects(
+          setProjectCurrency(prisma, { projectId: other.id, userId: owner.id, currency: "EUR" }),
+          PlanFeatureError,
+          plan,
+        );
+        assert.equal(await pipelineBoard(prisma, other.id, owner.id), null, plan);
+        const saved = await prisma.contact.findUniqueOrThrow({ where: { id: contact.id } });
+        assert.equal(saved.pipelineStage, "NEW");
+        assert.equal(saved.dealValue, null);
+      }
     });
 
-    const project = await createProject(prisma, { plan: "pro" });
+    const project = await createProject(prisma, { plan: "business" });
     await addMember(prisma, project.id, owner.id, "OWNER");
     const contact = await ingestText(prisma, project.id, "Vous avez le modèle en 42 ?");
     const actor = { projectId: project.id, contactId: contact.id, userId: owner.id };
@@ -116,6 +123,31 @@ test("lead pipeline", { timeout: 120000 }, async (t) => {
         deals: 1,
       });
       assert.equal(await pipelineBoard(prisma, project.id, outsider.id), null);
+    });
+
+    await t.test("a downgrade hides the pipeline but keeps every stage and amount", async () => {
+      const before = await pipelineBoard(prisma, project.id, owner.id);
+      assert.ok(before);
+      assert.equal(await keptPipelineCount(prisma, project.id), 2);
+
+      await prisma.project.update({ where: { id: project.id }, data: { plan: "pro" } });
+      assert.equal(await pipelineBoard(prisma, project.id, owner.id), null);
+      await assert.rejects(movePipelineStage(prisma, { ...actor, stage: "LOST" }), PlanFeatureError);
+      // Instinct IA keeps classifying: new prospects are ready when Business comes back.
+      const later = await ingestText(prisma, project.id, "Combien ?", "24188888888@s.whatsapp.net");
+      assert.equal(
+        await prisma.$transaction((tx) => promoteInterestingProspect(tx, project.id, later.id)),
+        true,
+      );
+      assert.equal(await keptPipelineCount(prisma, project.id), 3);
+
+      await prisma.project.update({ where: { id: project.id }, data: { plan: "business" } });
+      const after = await pipelineBoard(prisma, project.id, owner.id);
+      assert.ok(after);
+      const totals = (board: NonNullable<typeof after>) =>
+        board.columns.map((column) => [column.id, column.total]);
+      assert.deepEqual(totals(after), totals(before));
+      assert.equal(after.columns.find((column) => column.id === "INTERESTED")?.count, 1);
     });
   });
 });

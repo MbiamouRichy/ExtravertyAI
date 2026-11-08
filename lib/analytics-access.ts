@@ -61,6 +61,7 @@ export const getAnalyticsAccess = cache(async (projectId: string) => {
   return {
     status: "authorized",
     projectName: membership.project.name,
+    role: project.userRole,
     plan: resolvePlanId(membership.project.plan),
     // Historique consultable : imposé côté serveur, pas seulement dans l’interface.
     analyticsDays: planFeatures(membership.project.plan).analyticsDays,

@@ -29,6 +29,7 @@ import {
 } from "@/components/ui/field";
 import type { AutosaveStatus } from "@/lib/autosave-queue";
 import { AGENT_TONES, type AgentConfig } from "@/lib/agent-config";
+import { planUpgradeMessage } from "@/lib/plan-features";
 import { cn } from "@/lib/utils";
 import {
   AutosaveFieldIcon,
@@ -289,10 +290,20 @@ export function AgentBehaviorFields({
   onChange,
   only,
   legend = "Comportements",
-}: FieldProps & { only?: readonly BehaviorKey[]; legend?: string }) {
+  instinctAvailable = true,
+}: FieldProps & {
+  only?: readonly BehaviorKey[];
+  legend?: string;
+  /** Faux sur une offre sans Instinct IA : l’agent qualifie, sans analyse des prospects. */
+  instinctAvailable?: boolean;
+}) {
   const items = only
     ? AGENT_BEHAVIORS.filter((item) => only.includes(item.key))
     : AGENT_BEHAVIORS;
+  const description = (item: (typeof AGENT_BEHAVIORS)[number]) =>
+    item.key === "agentQualifyLeads" && !instinctAvailable
+      ? `Identifier la demande et son échéance. ${planUpgradeMessage("instinct")}`
+      : item.text;
   return (
     <FieldSet>
       <FieldLegend variant="label">{legend}</FieldLegend>
@@ -324,7 +335,7 @@ export function AgentBehaviorFields({
                     id={`agent-${item.key}-description`}
                     className="mt-1 text-xs leading-relaxed"
                   >
-                    {item.text}
+                    {description(item)}
                   </FieldDescription>
                   <FieldError
                     id={`agent-${item.key}-error`}

@@ -225,6 +225,8 @@ test(
         "expired trials block manual, automatic and auxiliary AI access without a webhook",
         async () => {
           const { project } = await fixture();
+          // Offre avec Instinct IA : seul l’essai expiré doit bloquer l’analyse.
+          await client.project.update({ where: { id: project.id }, data: { plan: "pro" } });
           assert.equal(
             (await getBillingAccess(client, project.id)).reason,
             "trial_expired",

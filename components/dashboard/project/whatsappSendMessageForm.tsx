@@ -164,7 +164,7 @@ type WorkspaceProps = {
   canPublishCorrection?: boolean;
   /** Propriétaire ou administrateur (vérifié à nouveau côté serveur). */
   canCopyPhone?: boolean;
-  /** Offre Pro ou Business : étape et montant dans la fiche contact. */
+  /** Offre Business : étape et montant dans la fiche contact. */
   pipeline?: { enabled: boolean; currency: string };
 };
 

@@ -1,8 +1,9 @@
 import { randomUUID } from "node:crypto";
 import { aiMeter } from "./ai-usage";
 import { getBillingAccess } from "./billing-access";
-import type { PrismaClient } from "../src/generated/prisma/client";
+import { Prisma, type PrismaClient } from "../src/generated/prisma/client";
 import { readProviderMedia, readStoredMedia } from "./chat-media-server";
+import { mediaFeature, planAllows, plansWith } from "./plan-features";
 import {
   analyzeImage,
   ImageAnalysisError,
@@ -17,9 +18,24 @@ import {
 } from "./audio-transcription";
 
 const MAX_ATTEMPTS = 3;
+/** Analyse écartée parce que l’offre du projet n’inclut pas ce média. */
+const PLAN_EXCLUDED = "PLAN_EXCLUDED";
+
+/** Message `m` dont l’offre du projet `p` inclut la compréhension du média. */
+function mediaAllowedSql() {
+  return Prisma.sql`((m.type = 'AUDIO' AND p.plan::text = ANY(${plansWith("audio")}::text[]))
+    OR (m.type = 'IMAGE' AND p.plan::text = ANY(${plansWith("images")}::text[])))`;
+}
 
 // Atomic claim shared by all worker instances; do not hold a DB transaction during I/O.
 export async function claimMessageExtraction(prisma: PrismaClient) {
+  // Projet passé à une offre sans ce média : le message n’attend plus d’analyse,
+  // donc ni la réponse de l’IA ni Instinct ne restent bloqués derrière lui.
+  await prisma.$executeRaw`UPDATE message m SET "extractionStatus" = NULL,
+    "extractionAvailableAt" = NULL, "extractionErrorCode" = ${PLAN_EXCLUDED},
+    "updatedAt" = clock_timestamp()
+    FROM project p WHERE p.id = m."projectId" AND m."extractionStatus" = 'PENDING'
+      AND NOT ${mediaAllowedSql()}`;
   await prisma.$executeRaw`UPDATE message SET
     "extractionStatus" = CASE WHEN "extractionAttempts" >= ${MAX_ATTEMPTS} THEN 'FAILED'::"ExtractionStatus" ELSE 'PENDING'::"ExtractionStatus" END,
     "extractionLeaseToken" = NULL, "extractionLeaseUntil" = NULL,
@@ -35,6 +51,7 @@ export async function claimMessageExtraction(prisma: PrismaClient) {
       WHERE m.type IN ('AUDIO', 'IMAGE') AND m."senderType" = 'CLIENT' AND NOT m."fromMe"
         AND m."extractionStatus" = 'PENDING' AND m."extractionAttempts" < ${MAX_ATTEMPTS}
         AND m."extractionAvailableAt" <= clock_timestamp()
+        AND ${mediaAllowedSql()}
         AND NOT p."deletionPending"
         AND (p.status IN ('active', 'trialing') OR (p."automationPaused" AND p.status = 'paused' AND p."statusBeforePause" IN ('active', 'trialing')))
         AND EXISTS (SELECT 1 FROM quota_period q WHERE q."projectId" = p.id AND q."isCurrent"
@@ -99,8 +116,28 @@ export async function runMessageExtraction(
         extractionLeaseUntil: { gt: new Date() },
         project: { deletionPending: false },
       },
+      select: { project: { select: { plan: true } } },
     });
     if (!current) return;
+    // Changement d’offre depuis la réservation : aucun appel payant.
+    const feature = mediaFeature(job.type);
+    if (!feature || !planAllows(current.project.plan, feature)) {
+      await prisma.message.updateMany({
+        where: {
+          id: job.id,
+          projectId: job.projectId,
+          extractionLeaseToken: job.extractionLeaseToken,
+        },
+        data: {
+          extractionStatus: null,
+          extractionAvailableAt: null,
+          extractionLeaseToken: null,
+          extractionLeaseUntil: null,
+          extractionErrorCode: PLAN_EXCLUDED,
+        },
+      });
+      return;
+    }
     if (!(await getBillingAccess(prisma, job.projectId)).allowed) {
       await prisma.message.updateMany({
         where: {

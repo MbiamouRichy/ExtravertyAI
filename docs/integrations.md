@@ -1,6 +1,6 @@
 # Intégrations : webhooks, Make/Zapier et Google Sheets
 
-Fonctionnalité réservée à l’offre **Business** (vérifiée côté serveur à chaque action et à chaque émission d’événement).
+Google Sheets est inclus dans toutes les offres, les webhooks à partir de **Pro**. Les événements suivent l’offre : `csat.received` à partir de Pro, `pipeline.stage_changed` avec **Business** seulement, comme le pipeline. Tout est vérifié côté serveur à chaque action et à chaque émission d’événement (`lib/plan-features.ts`, `integrationEventsForPlan`).
 
 ## Variables d’environnement
 

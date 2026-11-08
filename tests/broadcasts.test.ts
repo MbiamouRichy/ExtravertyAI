@@ -160,16 +160,39 @@ test("broadcasts end to end", { timeout: 240000 }, async (t) => {
       const tagged = await estimateAudience(prisma, {
         projectId: project.id,
         userId: owner.id,
-        audience: { tagIds: [vip.id], stages: ["INTERESTED"] },
+        audience: { tagIds: [vip.id] },
       });
       assert.equal(tagged.count, 1);
+    });
+
+    await t.test("targeting a pipeline stage needs the Business plan", async () => {
+      // Pro : pas de pipeline, donc pas de ciblage par étape, même par un appel direct.
       await assert.rejects(
-        createBroadcast(prisma, {
-          ...draft(),
+        estimateAudience(prisma, {
           projectId: project.id,
           userId: owner.id,
-          audience: { stages: ["WON"] },
+          audience: { tagIds: [vip.id], stages: ["INTERESTED"] },
         }),
+        /étape du pipeline est disponible avec l’offre Business/,
+      );
+      await assert.rejects(
+        createBroadcast(prisma, { ...draft(), projectId: project.id, userId: owner.id, audience: { stages: ["INTERESTED"] } }),
+        /offre Business/,
+      );
+
+      const business = await proProject(prisma, "business");
+      await addMember(prisma, business.id, owner.id, "OWNER");
+      const lead = await customer(prisma, business.id, "Awa Ndiaye");
+      await prisma.contact.update({ where: { id: lead.id }, data: { pipelineStage: "INTERESTED" } });
+      await customer(prisma, business.id, "Yann Koffi");
+      const interested = await estimateAudience(prisma, {
+        projectId: business.id,
+        userId: owner.id,
+        audience: { stages: ["INTERESTED"] },
+      });
+      assert.deepEqual(interested, { count: 1, optedOut: 0, limit: 2000 });
+      await assert.rejects(
+        createBroadcast(prisma, { ...draft(), projectId: business.id, userId: owner.id, audience: { stages: ["WON"] } }),
         /Aucun contact/,
       );
     });

@@ -36,7 +36,12 @@ export default async function ContactsPage({
     select: {
       role: true,
       project: {
-        select: { name: true, agentQualifyLeads: true, agentConfigVersion: true },
+        select: {
+          name: true,
+          plan: true,
+          agentQualifyLeads: true,
+          agentConfigVersion: true,
+        },
       },
     },
   });

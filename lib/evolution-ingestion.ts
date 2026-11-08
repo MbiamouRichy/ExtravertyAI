@@ -13,6 +13,7 @@ import {
   integrationContact,
   integrationMessage,
 } from "./integration-events";
+import { mediaFeature, planAllows } from "./plan-features";
 
 export const IncomingSchema = z.object({
   key: z.object({
@@ -251,6 +252,10 @@ export async function ingestMessage(
     project.aiQuietEnabled &&
     type === "TEXT" &&
     isAcknowledgment(text);
+  // Média compris seulement sur les offres qui l’incluent ; sinon il reste
+  // lisible dans la messagerie et l’IA le voit comme « non analysé ».
+  const media = mediaFeature(type);
+  const analysed = media !== null && planAllows(project.plan, media);
   const message = await tx.message.create({
     data: {
       projectId,
@@ -263,7 +268,7 @@ export async function ingestMessage(
       status: "DELIVERED",
       type,
       source: "whatsapp",
-      ...(type === "AUDIO" || type === "IMAGE"
+      ...(analysed
         ? {
             extractionStatus: "PENDING" as const,
             extractionAvailableAt: new Date(),

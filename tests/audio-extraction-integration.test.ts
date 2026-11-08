@@ -52,6 +52,8 @@ test(
             numero: "24100000000",
             instanceName: crypto.randomUUID(),
             status: "active",
+            // Notes vocales, images et Instinct IA : tous inclus dans Business.
+            plan: "business",
             instanceStatus: "connected",
             agentSetupCompletedAt: new Date(),
             agentSystemMessage:

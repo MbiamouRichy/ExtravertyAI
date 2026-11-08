@@ -4,9 +4,13 @@ import { randomBytes } from "node:crypto";
 import type { LookupAddress } from "node:dns";
 import {
   PlanFeatureError,
+  minimumPlanFor,
   planAllows,
   planFeatures,
+  planUpgradeMessage,
+  plansWith,
   requirePlanFeature,
+  requiredPlanLabel,
 } from "../lib/plan-features";
 import { openSecret, sealSecret } from "../lib/secret-box";
 import {
@@ -17,8 +21,12 @@ import {
 } from "../lib/safe-fetch";
 
 test("plan features gate pipeline, satisfaction and integrations", () => {
+  // Pipeline de ventes : Business seulement ; la satisfaction reste dès Pro.
   assert.equal(planAllows("starter", "pipeline"), false);
-  assert.equal(planAllows("pro", "pipeline"), true);
+  assert.equal(planAllows("pro", "pipeline"), false);
+  assert.equal(planAllows("business", "pipeline"), true);
+  assert.throws(() => requirePlanFeature("pro", "pipeline"), PlanFeatureError);
+  assert.equal(planAllows("pro", "csat"), true);
   assert.equal(planAllows("pro", "integrations"), true);
   // Google Sheets pour toutes les offres, webhooks dès Pro.
   assert.equal(planAllows("starter", "integrations"), true);
@@ -39,6 +47,21 @@ test("plan features gate pipeline, satisfaction and integrations", () => {
   );
   assert.throws(() => requirePlanFeature("starter", "csat"), PlanFeatureError);
   assert.doesNotThrow(() => requirePlanFeature("business", "csat"));
+});
+
+test("upgrade messages name the plans that really unlock a feature", () => {
+  assert.deepEqual(plansWith("pipeline"), ["business"]);
+  assert.equal(minimumPlanFor("pipeline"), "business");
+  assert.equal(requiredPlanLabel("pipeline"), "Business");
+  assert.equal(
+    planUpgradeMessage("pipeline"),
+    "Le pipeline de prospects est disponible avec l’offre Business.",
+  );
+  assert.equal(minimumPlanFor("broadcast"), "pro");
+  assert.equal(requiredPlanLabel("broadcast"), "Pro ou Business");
+  assert.equal(requiredPlanLabel("csat"), "Pro ou Business");
+  assert.equal(requiredPlanLabel("integrations"), "Starter, Pro ou Business");
+  assert.throws(() => requirePlanFeature("pro", "pipeline"), /offre Business\./);
 });
 
 test("secret box round-trips and binds ciphertexts to their context", () => {

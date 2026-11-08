@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Sparkles } from "lucide-react";
+import { ArrowRight, Sparkles } from "lucide-react";
 
 import { formatNumberFr, formatPctFr } from "@/lib/analytics";
 import { Button } from "@/components/ui/button";
@@ -10,11 +10,46 @@ export function InstinctFunnelCard({
   instinct,
   rangeLabel,
   settingsHref,
+  locked,
 }: {
   instinct: { active: number; followUp: number; interesting: number } | null;
   rangeLabel: string;
   settingsHref: string;
+  /**
+   * Offre sans Instinct IA : offre à proposer, et lien vers la facturation
+   * (null quand le membre ne peut pas changer d’offre).
+   */
+  locked?: { planName: string; upgradeHref: string | null };
 }) {
+  if (locked) {
+    return (
+      <AnalyticsCard
+        title="Instinct IA"
+        description={`Disponible avec l’offre ${locked.planName}`}
+      >
+        <ChartEmptyState
+          icon={Sparkles}
+          title="Prospects repérés par l’IA"
+          description="Après chaque message, Instinct IA repère les prospects intéressants et ceux à relancer, selon les objectifs de votre agent."
+        />
+        <div className="mt-2 flex justify-center">
+          {locked.upgradeHref ? (
+            <Button asChild variant="outline" size="sm">
+              <Link href={locked.upgradeHref}>
+                Passer à {locked.planName}
+                <ArrowRight data-icon="inline-end" />
+              </Link>
+            </Button>
+          ) : (
+            <p className="text-center text-xs text-muted-foreground">
+              Le propriétaire du projet peut changer d’offre depuis la facturation.
+            </p>
+          )}
+        </div>
+      </AnalyticsCard>
+    );
+  }
+
   if (!instinct) {
     return (
       <AnalyticsCard title="Instinct IA" description="Du contact actif au prospect intéressant">

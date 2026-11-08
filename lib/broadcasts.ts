@@ -16,7 +16,12 @@ import {
 import { chatContactName } from "./chat-privacy";
 import { maskContactPhone } from "./contact-details";
 import { MessageQuotaError, reserveMessageQuota } from "./message-quota";
-import { planAllows, planFeatures, planUpgradeMessage } from "./plan-features";
+import {
+  planAllows,
+  planFeatures,
+  planUpgradeMessage,
+  requiredPlanLabel,
+} from "./plan-features";
 import { projectBillingStatus } from "./project-status";
 import { can } from "./project-permissions";
 import { projectTimeZone } from "./time-zones";
@@ -59,6 +64,15 @@ async function requireBroadcastAdmin(db: Db, projectId: string, userId: string, 
     throw new BroadcastError(planUpgradeMessage("broadcast"));
   }
   return membership.project;
+}
+
+/** Cibler par étape suppose le pipeline : même offre que lui (Business). */
+export function requireAudienceForPlan(plan: unknown, audience: Audience) {
+  if (audience.stages.length && !planAllows(plan, "pipeline")) {
+    throw new BroadcastError(
+      `Le ciblage par étape du pipeline est disponible avec l’offre ${requiredPlanLabel("pipeline")}.`,
+    );
+  }
 }
 
 /**
@@ -127,6 +141,7 @@ export async function estimateAudience(
 ) {
   const project = await requireBroadcastAdmin(db, input.projectId, input.userId);
   const audience = AudienceSchema.parse(input.audience);
+  requireAudienceForPlan(project.plan, audience);
   const now = new Date();
   const [count, optedOut] = await Promise.all([
     db.contact.count({ where: audienceWhere(input.projectId, audience, now) }),
@@ -161,6 +176,7 @@ export async function createBroadcast(db: PrismaClient, input: BroadcastInput) {
       if (!locked) throw new BroadcastError("Projet indisponible.");
       const { now } = locked;
       const project = await requireBroadcastAdmin(tx, input.projectId, input.userId);
+      requireAudienceForPlan(project.plan, audience);
 
       const existing = await tx.broadcast.findUnique({ where: { requestId: input.requestId } });
       if (existing) {

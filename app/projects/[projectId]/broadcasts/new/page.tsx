@@ -8,7 +8,8 @@ import { z } from "zod";
 import prisma from "@/lib/prisma";
 import { getSession } from "@/lib/auth-server";
 import { broadcastUsage } from "@/lib/broadcasts";
-import { planAllows } from "@/lib/plan-features";
+import { minimumPlanFor, planAllows } from "@/lib/plan-features";
+import { pricingPlan } from "@/lib/pricing";
 import { Button } from "@/components/ui/button";
 import { BroadcastComposer } from "@/components/dashboard/project/broadcasts/broadcast-composer";
 
@@ -79,6 +80,11 @@ export default async function NewBroadcastPage({ params }: { params: Promise<{ p
           tags={tags}
           usage={usage}
           connected={membership.project.instanceStatus === "connected"}
+          stageTargeting={
+            planAllows(membership.project.plan, "pipeline")
+              ? { enabled: true }
+              : { enabled: false, planName: pricingPlan(minimumPlanFor("pipeline")).name }
+          }
         />
       )}
     </main>

@@ -108,7 +108,11 @@ test(
       await t.test(
         "AI instinct persists manual-chat assessments, caches and fences concurrent workers",
         async () => {
-          const project = await fixture();
+          const project = await client.project.update({
+            where: { id: (await fixture()).id },
+            // Instinct IA n’est inclus qu’à partir de Pro.
+            data: { plan: "pro" },
+          });
           await incoming(project.id, "instinct-first");
           const contact = await client.contact.findFirstOrThrow({
             where: { projectId: project.id },

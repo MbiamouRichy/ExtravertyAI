@@ -14,6 +14,8 @@ export const AgentConfigSchema = z.object({
   agentResponseLength: z.enum(["concise", "balanced", "detailed"]),
   agentLanguage: z.enum(["auto", "fr", "en"]),
   agentUseEmojis: z.boolean(),
+  // Questions de qualification sur toutes les offres ; active aussi Instinct IA
+  // là où l’offre l’inclut (`instinctEnabled`, contrôlé côté serveur).
   agentQualifyLeads: z.boolean(),
   agentAskOneQuestion: z.boolean(),
   agentHumanHandover: z.boolean(),

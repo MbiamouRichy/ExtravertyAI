@@ -16,7 +16,7 @@ import {
   type PlanId,
   type PricingPlan,
 } from "@/lib/pricing";
-import { PLAN_FEATURES } from "@/lib/plan-features";
+import { PLAN_FEATURES, type GatedFeature } from "@/lib/plan-features";
 import { wordsToPages } from "@/lib/knowledge-shared";
 
 /* -------------------------------------------------------------------------- */
@@ -284,6 +284,13 @@ export interface PipelineNode {
 
 export const PIPELINE_STAGES = ["Entrée", "Analyse", "Décision", "Issue"] as const;
 
+/** « Pro, Business »… lu dans PLAN_FEATURES, comme les lignes oui/non de la matrice. */
+function offersWith(feature: GatedFeature): string {
+  return PRICING_PLANS.filter((plan) => PLAN_FEATURES[plan.id][feature])
+    .map((plan) => plan.name)
+    .join(", ");
+}
+
 export const PIPELINE_NODES: readonly PipelineNode[] = [
   {
     id: "texte",
@@ -310,7 +317,7 @@ export const PIPELINE_NODES: readonly PipelineNode[] = [
     config: [
       { key: "format", value: "audio WhatsApp" },
       { key: "transcription", value: "automatique" },
-      { key: "offres", value: "Pro, Business" },
+      { key: "offres", value: offersWith("audio") },
     ],
   },
   {
@@ -324,7 +331,7 @@ export const PIPELINE_NODES: readonly PipelineNode[] = [
     config: [
       { key: "format", value: "image" },
       { key: "analyse", value: "contenu de l’image" },
-      { key: "offres", value: "Business" },
+      { key: "offres", value: offersWith("images") },
     ],
   },
   {
@@ -381,7 +388,7 @@ export const PIPELINE_NODES: readonly PipelineNode[] = [
     config: [
       { key: "étiquettes", value: "Intéressant · À suivre" },
       { key: "déclenchement", value: "après chaque message" },
-      { key: "offres", value: "Pro, Business" },
+      { key: "offres", value: offersWith("instinct") },
     ],
   },
   {
@@ -544,6 +551,11 @@ function byPlan(pick: (plan: PricingPlan) => MatrixCell): Record<PlanId, MatrixC
   return { starter: pick(starter), pro: pick(pro), business: pick(business) };
 }
 
+/** Oui/non lu dans PLAN_FEATURES : la matrice suit les contrôles faits côté serveur. */
+function gated(feature: GatedFeature): Record<PlanId, MatrixCell> {
+  return byPlan((plan) => PLAN_FEATURES[plan.id][feature]);
+}
+
 /** Inclus dans toutes les offres : affiché une fois, au-dessus du comparatif. */
 export const INCLUDED_EVERYWHERE: readonly string[] = [
   "Assistant WhatsApp 24 h/24, 7 j/7",
@@ -571,8 +583,8 @@ export const MATRIX_GROUPS: readonly MatrixGroup[] = [
   {
     title: "Intelligence artificielle",
     rows: [
-      { label: "Compréhension des notes vocales", values: fromPro },
-      { label: "Compréhension des images", values: { starter: false, pro: false, business: true } },
+      { label: "Compréhension des notes vocales", values: gated("audio") },
+      { label: "Compréhension des images", values: gated("images") },
       {
         label: "Base de connaissances",
         values: byPlan(
@@ -588,17 +600,25 @@ export const MATRIX_GROUPS: readonly MatrixGroup[] = [
   {
     title: "Ventes",
     rows: [
-      { label: "Instinct IA : prospects repérés", values: fromPro },
-      { label: "Pipeline de prospects", values: fromPro },
+      { label: "Instinct IA : prospects repérés", values: gated("instinct") },
       { label: "Résumé IA des conversations", values: fromPro },
-      { label: "Questionnaire de satisfaction", values: fromPro },
+      { label: "Questionnaire de satisfaction", values: gated("csat") },
+      { label: "Pipeline de prospects", values: gated("pipeline") },
+      {
+        label: "Diffusion de messages",
+        values: byPlan((plan) =>
+          PLAN_FEATURES[plan.id].broadcast
+            ? `${count(PLAN_FEATURES[plan.id].broadcastRecipients)} contacts / envoi`
+            : false,
+        ),
+      },
     ],
   },
   {
     title: "Équipe et outils",
     rows: [
       { label: "Répartition automatique des conversations", values: { starter: false, pro: false, business: true } },
-      { label: "Connexion à vos outils (Make, Zapier, CRM)", values: fromPro },
+      { label: "Connexion à vos outils (Make, Zapier, CRM)", values: gated("webhooks") },
     ],
   },
   {
@@ -656,7 +676,10 @@ export const MATRIX_HINTS: Readonly<Record<string, string>> = {
   "Taille maximale d’un PDF": "Poids maximal d’un PDF importé dans la base de connaissances.",
   "Tests de l’agent par jour": "Conversations d’essai pour vérifier les réponses de l’IA avant vos clients.",
   "Instinct IA : prospects repérés": "Après chaque message, l’IA repère les prospects intéressants et ceux à relancer.",
-  "Pipeline de prospects": "Suivez chaque prospect de « Intéressé » à « Gagné », avec la valeur de l’affaire.",
+  "Pipeline de prospects":
+    "Suivez chaque prospect de « Nouveau » à « Gagné », avec la valeur de l’affaire et le chiffre gagné. Les diffusions peuvent cibler une étape.",
+  "Diffusion de messages":
+    "Un même message, personnalisé avec le prénom, envoyé aux clients qui vous ont déjà écrit, à un rythme sûr pour votre numéro.",
   "Résumé IA des conversations": "L’essentiel d’une longue conversation en quelques lignes.",
   "Questionnaire de satisfaction": "Une note demandée au client après la résolution de sa demande.",
   "Export CSV des contacts": "Téléchargez la liste de vos contacts pour votre tableur ou votre CRM.",

@@ -195,6 +195,7 @@ export function AgentSetup({
   version,
   knowledge,
   sandbox,
+  instinctAvailable,
 }: {
   projectId: string;
   projectName: string;
@@ -203,6 +204,8 @@ export function AgentSetup({
   /** Étape facultative : outils de la base de connaissances. */
   knowledge: ReactNode | null;
   sandbox: { remaining: number; suggestions: readonly string[] };
+  /** L’offre inclut Instinct IA (lu côté serveur dans `PLAN_FEATURES`). */
+  instinctAvailable: boolean;
 }) {
   const formId = useId();
   const steps: StepId[] = knowledge
@@ -398,6 +401,7 @@ export function AgentSetup({
                       "agentHumanHandover",
                     ]}
                     legend="Règles de conversation"
+                    instinctAvailable={instinctAvailable}
                   />
                 </>
               )}

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Check, Minus } from "lucide-react";
 
 import { PRICING_PLANS, formatMessageLimit } from "@/lib/pricing";
+import { PLAN_FEATURES, type GatedFeature } from "@/lib/plan-features";
 import { Button } from "@/components/ui/button";
 import {
   Accordion,
@@ -17,6 +18,10 @@ import { PricingPlans } from "@/components/website/pricing/pricing-plans";
 
 
 type Cell = boolean | string;
+
+/** Oui/non lu dans PLAN_FEATURES, comme les contrôles serveur. */
+const gated = (feature: GatedFeature): Cell[] =>
+  PRICING_PLANS.map((plan) => PLAN_FEATURES[plan.id][feature]);
 
 const comparison: { group: string; rows: { label: string; values: Cell[] }[] }[] = [
   {
@@ -46,9 +51,11 @@ const comparison: { group: string; rows: { label: string; values: Cell[] }[] }[]
     group: "Pilotage",
     rows: [
       { label: "Historique des statistiques", values: ["30 jours", "90 jours", "12 mois"] },
-      { label: "Pipeline de prospects", values: [false, true, true] },
-      { label: "Google Sheets", values: [true, true, true] },
-      { label: "Webhooks (Make, Zapier, CRM)", values: [false, true, true] },
+      { label: "Pipeline de prospects", values: gated("pipeline") },
+      { label: "Questionnaire de satisfaction", values: gated("csat") },
+      { label: "Diffusion de messages", values: gated("broadcast") },
+      { label: "Google Sheets", values: gated("integrations") },
+      { label: "Webhooks (Make, Zapier, CRM)", values: gated("webhooks") },
       { label: "Répartition automatique des conversations", values: [false, false, true] },
       { label: "Export CSV des contacts", values: [true, true, true] },
       { label: "Rapports programmés", values: [false, false, true] },

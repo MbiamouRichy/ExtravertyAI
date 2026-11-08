@@ -210,6 +210,7 @@ export async function GET(
           instinctClassification: true,
           project: {
             select: {
+              plan: true,
               agentQualifyLeads: true,
               showWaitingTime: true,
             },

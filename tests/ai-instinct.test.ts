@@ -7,8 +7,17 @@ import {
 } from "../lib/instinct-decision";
 import {
   currentProspectClassification,
+  instinctEnabled,
   lastProspectClassification,
 } from "../lib/instinct-classification";
+import { runInstinctCycle } from "../lib/ai-instinct";
+import { planAllows, requiredPlanLabel } from "../lib/plan-features";
+import {
+  activateBilling,
+  createProject,
+  ingestText,
+  withTestDatabase,
+} from "./helpers/database";
 
 const goals = "Vendre des sites web professionnels";
 const history = [
@@ -199,16 +208,89 @@ test("instinct routes complete context and validates Decisions responses", async
 test("the inbox keeps the last assessment until the next one", () => {
   const contact = {
     instinctClassification: "interesting" as const,
-    project: { agentQualifyLeads: true },
+    project: { plan: "pro", agentQualifyLeads: true },
   };
   assert.equal(lastProspectClassification(contact), "interesting");
   assert.equal(
     lastProspectClassification({
       ...contact,
-      project: { agentQualifyLeads: false },
+      project: { plan: "pro", agentQualifyLeads: false },
     }),
     null,
   );
+  // Anciennes analyses d’un projet passé à Starter : plus affichées.
+  assert.equal(
+    lastProspectClassification({
+      ...contact,
+      project: { plan: "starter", agentQualifyLeads: true },
+    }),
+    null,
+  );
+});
+
+test("Instinct IA is sold and enabled from Pro only", () => {
+  assert.equal(planAllows("starter", "instinct"), false);
+  assert.equal(planAllows("pro", "instinct"), true);
+  assert.equal(planAllows("business", "instinct"), true);
+  assert.equal(requiredPlanLabel("instinct"), "Pro ou Business");
+  assert.equal(instinctEnabled({ plan: "starter", agentQualifyLeads: true }), false);
+  assert.equal(instinctEnabled({ plan: "business", agentQualifyLeads: true }), true);
+  assert.equal(instinctEnabled({ plan: "business", agentQualifyLeads: false }), false);
+  // Valeur inconnue : retombe sur Starter, donc pas d’analyse.
+  assert.equal(instinctEnabled({ plan: "enterprise", agentQualifyLeads: true }), false);
+});
+
+test("the Instinct worker analyses Pro projects and never Starter ones", async () => {
+  await withTestDatabase(async (prisma) => {
+    async function setup(plan: "starter" | "pro") {
+      const { id } = await createProject(prisma, { plan });
+      await activateBilling(prisma, id);
+      await prisma.project.update({
+        where: { id },
+        data: { agentSetupCompletedAt: new Date(), agentSystemMessage: goals },
+      });
+      const contact = await ingestText(prisma, id, "Je souhaite un devis pour mon site.");
+      return { id, contactId: contact.id };
+    }
+    const contact = (id: string) => prisma.contact.findUniqueOrThrow({ where: { id } });
+    const starter = await setup("starter");
+    const pro = await setup("pro");
+    let starterCalls = 0;
+
+    // Seul le contact Pro est analysé ; il ne reste ensuite plus aucun candidat.
+    assert.equal(await runInstinctCycle(prisma, async () => "interesting"), pro.id);
+    assert.equal(
+      await runInstinctCycle(prisma, async () => {
+        starterCalls += 1;
+        return "interesting";
+      }),
+      null,
+    );
+    assert.equal(starterCalls, 0);
+    assert.equal((await contact(pro.contactId)).instinctClassification, "interesting");
+    const untouched = await contact(starter.contactId);
+    assert.equal(untouched.instinctClassification, null);
+    assert.equal(untouched.instinctLeaseToken, null);
+
+    // Passage à Starter pendant l’analyse : le résultat n’est pas enregistré.
+    await ingestText(prisma, pro.id, "Finalement, je préfère réfléchir.");
+    assert.equal(
+      await runInstinctCycle(prisma, async () => {
+        await prisma.project.update({ where: { id: pro.id }, data: { plan: "starter" } });
+        return "none";
+      }),
+      null,
+    );
+    assert.equal((await contact(pro.contactId)).instinctClassification, "interesting");
+    assert.equal(
+      await runInstinctCycle(prisma, async () => {
+        starterCalls += 1;
+        return "none";
+      }),
+      null,
+    );
+    assert.equal(starterCalls, 0);
+  });
 });
 
 test("only current enabled assessments are exposed to reports", () => {
@@ -216,7 +298,7 @@ test("only current enabled assessments are exposed to reports", () => {
     instinctClassification: "follow_up" as const,
     instinctSourceId: "m1",
     instinctConfigVersion: 2,
-    project: { agentQualifyLeads: true, agentConfigVersion: 2 },
+    project: { plan: "pro", agentQualifyLeads: true, agentConfigVersion: 2 },
   };
   assert.equal(currentProspectClassification(contact, "m1"), "follow_up");
   assert.equal(currentProspectClassification(contact, "m2"), null);
@@ -231,6 +313,13 @@ test("only current enabled assessments are exposed to reports", () => {
   assert.equal(
     currentProspectClassification(
       { ...contact, project: { ...contact.project, agentQualifyLeads: false } },
+      "m1",
+    ),
+    null,
+  );
+  assert.equal(
+    currentProspectClassification(
+      { ...contact, project: { ...contact.project, plan: "starter" } },
       "m1",
     ),
     null,
