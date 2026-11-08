@@ -25,6 +25,9 @@ export type KnowledgeSourceView = {
 };
 
 export type KnowledgeUsage = {
+  /** Volume de la base en mots : la limite affichée de l’offre. */
+  words: number;
+  wordLimit: number;
   entries: number;
   entryLimit: number;
   documents: number;

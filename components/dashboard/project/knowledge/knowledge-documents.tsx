@@ -40,7 +40,12 @@ import {
   getKnowledgeSourceContentAction,
   retryKnowledgeSourceAction,
 } from "@/app/actions/knowledge";
-import { KNOWLEDGE_LIMITS, extractBlocks, sourceErrorLabel } from "@/lib/knowledge-shared";
+import {
+  KNOWLEDGE_LIMITS,
+  extractBlocks,
+  sourceErrorLabel,
+  wordsToPages,
+} from "@/lib/knowledge-shared";
 import type { KnowledgeSourceView, KnowledgeUsage } from "./types";
 
 const UrlFormSchema = z.object({
@@ -236,7 +241,9 @@ export function KnowledgeDocuments({
   const fileInput = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [pending, startTransition] = useTransition();
-  const full = usage.documents >= usage.documentLimit;
+  // Confort uniquement : le serveur revérifie les deux limites.
+  const baseFull = usage.words >= usage.wordLimit;
+  const full = baseFull || usage.documents >= usage.documentLimit;
 
   async function upload(file: File) {
     // Confort uniquement : la limite de l’offre est vérifiée par le serveur.
@@ -301,8 +308,20 @@ export function KnowledgeDocuments({
       </div>
       {full && (
         <p role="status" className="rounded-xl border bg-muted/40 p-3 text-sm">
-          Vous avez atteint la limite de {usage.documentLimit} documents de votre offre.
-          Supprimez une source ou changez d’offre pour en ajouter.
+          {baseFull ? (
+            <>
+              Votre base de connaissances est pleine :{" "}
+              {usage.wordLimit.toLocaleString("fr-FR")} mots (≈{" "}
+              {wordsToPages(usage.wordLimit).toLocaleString("fr-FR")} pages) avec votre
+              offre. Supprimez des contenus ou changez d’offre pour importer d’autres
+              documents.
+            </>
+          ) : (
+            <>
+              Vous avez atteint la limite de {usage.documentLimit} documents de votre
+              offre. Supprimez une source ou changez d’offre pour en ajouter.
+            </>
+          )}
         </p>
       )}
 

@@ -10,6 +10,7 @@ import {
 } from "@/lib/writing-assistance";
 import { getBillingAccess } from "@/lib/billing-access";
 import { knowledgeContext } from "@/lib/knowledge";
+import { aiMeter } from "@/lib/ai-usage";
 import { z } from "zod";
 
 /** Message clair selon la cause, sans exposer de détail technique sensible. */
@@ -161,6 +162,7 @@ export async function assistWriting(input: unknown) {
         mode === "suggest"
           ? contact.project.agentSystemMessage.slice(0, 12000) + knowledge.block
           : "",
+      meter: aiMeter(prisma, projectId, "writing"),
     });
     const current = await authorizedContact();
     if (!current || (current.aiActive && !current.project.automationPaused))

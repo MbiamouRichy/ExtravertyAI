@@ -17,6 +17,7 @@ import {
   type PricingPlan,
 } from "@/lib/pricing";
 import { PLAN_FEATURES } from "@/lib/plan-features";
+import { wordsToPages } from "@/lib/knowledge-shared";
 
 /* -------------------------------------------------------------------------- */
 /* Navigation                                                                  */
@@ -574,7 +575,9 @@ export const MATRIX_GROUPS: readonly MatrixGroup[] = [
       { label: "Compréhension des images", values: { starter: false, pro: false, business: true } },
       {
         label: "Base de connaissances",
-        values: byPlan((plan) => `${count(PLAN_FEATURES[plan.id].knowledgeEntries)} entrées`),
+        values: byPlan(
+          (plan) => `≈ ${count(wordsToPages(PLAN_FEATURES[plan.id].knowledgeWords))} pages`,
+        ),
       },
       {
         label: "Documents PDF et pages web",

@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { AgentConfigSchema } from "./agent-config";
+import type { AiMeter } from "./ai-usage";
 
 export const SystemAssistanceInput = z.object({
   projectId: z.string().cuid(),
@@ -27,6 +28,7 @@ export async function generateSystemMessage(input: {
   mode: "generate" | "rewrite";
   projectName: string;
   config: z.infer<typeof SystemAssistanceInput>["config"];
+  meter?: AiMeter;
 }) {
   const key = process.env.OPENROUTER_API_KEY;
   const model = process.env.OPENROUTER_MODEL;
@@ -95,6 +97,7 @@ export async function generateSystemMessage(input: {
     reader.releaseLock();
   }
   const payload = JSON.parse(Buffer.concat(chunks).toString("utf8"));
+  await input.meter?.(payload, model);
   const choice = payload?.choices?.[0];
   if (
     choice?.finish_reason !== "stop" ||

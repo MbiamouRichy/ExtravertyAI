@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { aiMeter } from "./ai-usage";
 import { getBillingAccess } from "./billing-access";
 import type { PrismaClient } from "../src/generated/prisma/client";
 import { readProviderMedia, readStoredMedia } from "./chat-media-server";
@@ -119,8 +120,12 @@ export async function runMessageExtraction(
     const media = await load(job);
     const result =
       job.type === "IMAGE"
-        ? ImageExtractionSchema.parse(await analyze(media))
-        : TranscriptSchema.parse(await transcribe(media));
+        ? ImageExtractionSchema.parse(
+            await analyze(media, aiMeter(prisma, job.projectId, "image")),
+          )
+        : TranscriptSchema.parse(
+            await transcribe(media, aiMeter(prisma, job.projectId, "audio")),
+          );
     await prisma.$transaction(async (tx) => {
       await tx.$queryRaw`SELECT id FROM project WHERE id = ${job.projectId} FOR UPDATE`;
       await tx.$queryRaw`SELECT id FROM contact WHERE id = ${job.contactId} FOR UPDATE`;

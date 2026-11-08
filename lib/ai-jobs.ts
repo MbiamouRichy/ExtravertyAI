@@ -4,6 +4,8 @@ import type { PrismaClient, Prisma } from "../src/generated/prisma/client";
 import { MessageQuotaError, reserveMessageQuota } from "./message-quota";
 import { knowledgeContext } from "./knowledge";
 import { planFeatures } from "./plan-features";
+import { fitHistory } from "./ai-history";
+import { aiMeter, type AiMeter } from "./ai-usage";
 import { MISSING_INFO_INSTRUCTION, splitMissingInfo } from "./missing-info";
 import {
   CONVERSATION_FLOW_INSTRUCTION,
@@ -238,6 +240,8 @@ export async function generateReply(
     quiet?: boolean;
     /** One-off instruction after a repeated reply. */
     avoid?: string;
+    /** Records the tokens and cost of the call for the project. */
+    meter?: AiMeter;
   } = {},
 ) {
   const key = process.env.OPENROUTER_API_KEY;
@@ -282,6 +286,7 @@ export async function generateReply(
   );
   if (!response.ok) throw new Error(`AI_HTTP_${response.status}`);
   const payload = await response.json();
+  await extras.meter?.(payload, model);
   const content: unknown = payload?.choices?.[0]?.message?.content;
   if (typeof content !== "string" || !content.trim() || content.length > 4096)
     throw new Error("AI_INVALID_RESPONSE");
@@ -332,15 +337,18 @@ export async function runAiJob(
         select: { content: true },
       })
     ).map((m) => m.content);
-    const prompt = ordered.map((m) => ({
-      role: m.fromMe ? "assistant" : "user",
-      content: ((m.type === "IMAGE" || m.type === "VIDEO") &&
-      m.content !== "[" + m.type + "]" &&
-      m.extractionStatus !== "COMPLETED"
-        ? "[Légende de la pièce jointe]\n" + m.content
-        : messageAiContent(m)
-      ).slice(0, 4096),
-    }));
+    // Nombre de messages de l’offre, puis 12 000 caractères au plus en tout.
+    const prompt = fitHistory(
+      ordered.map((m) => ({
+        role: m.fromMe ? "assistant" : "user",
+        content: ((m.type === "IMAGE" || m.type === "VIDEO") &&
+        m.content !== "[" + m.type + "]" &&
+        m.extractionStatus !== "COMPLETED"
+          ? "[Légende de la pièce jointe]\n" + m.content
+          : messageAiContent(m)
+        ).slice(0, 4096),
+      })),
+    );
     // The client asked the same thing again: answering it again is legitimate.
     const clientTexts = ordered.filter((m) => !m.fromMe).map((m) => messageAiContent(m));
     const clientAsked =
@@ -352,6 +360,7 @@ export async function runAiJob(
       knowledge: knowledge.block,
       flagMissing: true,
       quiet: job.project.aiQuietEnabled,
+      meter: aiMeter(prisma, job.projectId, "reply"),
     };
     let draft = readDraft(
       await generate(prompt, job.project.name, contactName, config, extras),

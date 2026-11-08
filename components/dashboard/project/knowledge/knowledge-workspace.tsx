@@ -6,6 +6,8 @@ import { useCallback, useState, useTransition } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useChatRealtime } from "@/hooks/use-chat-data";
 import type { AgentConfig } from "@/lib/agent-config";
+import { wordsToPages } from "@/lib/knowledge-shared";
+import { cn } from "@/lib/utils";
 import { AgentEditor } from "../agent-editor";
 import { AiQuietSettings } from "../ai-quiet-settings";
 import { AgentSandbox } from "./agent-sandbox";
@@ -90,8 +92,16 @@ export function KnowledgeWorkspace({
       </div>
       {DATA_TABS.has(tab) && (
         <p className="text-xs text-muted-foreground tabular-nums">
-          {usage.entries.toLocaleString("fr-FR")} /{" "}
-          {usage.entryLimit.toLocaleString("fr-FR")} entrées ·{" "}
+          Base :{" "}
+          <span
+            className={cn(
+              usage.words >= usage.wordLimit && "font-medium text-destructive",
+            )}
+          >
+            {usage.words.toLocaleString("fr-FR")} mots sur{" "}
+            {usage.wordLimit.toLocaleString("fr-FR")}
+          </span>{" "}
+          (≈ {wordsToPages(usage.wordLimit).toLocaleString("fr-FR")} pages) ·{" "}
           {usage.documents.toLocaleString("fr-FR")} /{" "}
           {usage.documentLimit.toLocaleString("fr-FR")} documents
         </p>

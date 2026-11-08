@@ -248,6 +248,7 @@ model Project {
   webhookEventsVersion Int            @default(1)
   knowledgeEntries     KnowledgeEntry[]
   agentTestRuns        AgentTestRun[]
+  aiUsage              AiUsage[]
   aiFeedback           AiFeedback[]
   knowledgeGaps        KnowledgeGap[]
   csatSurveys          CsatSurvey[]
@@ -1040,6 +1041,9 @@ model KnowledgeEntry {
   // Minuscules sans accents ; la colonne tsvector est générée par la base.
   searchText  String                   @db.Text
   search      Unsupported("tsvector")?
+  // Mots du titre et du contenu, calculés par la base (colonne générée) :
+  // jamais écrite par l'application.
+  words       Int                      @default(dbgenerated())
   createdById String?
   createdBy   User?                    @relation(fields: [createdById], references: [id], onDelete: SetNull)
   feedback    AiFeedback[]
@@ -1050,6 +1054,26 @@ model KnowledgeEntry {
   @@index([projectId, kind, createdAt])
   @@index([sourceId])
   @@map("knowledge_entry")
+}
+
+// Un appel au modèle (OpenRouter) : tokens et coût facturé, par projet et par usage.
+model AiUsage {
+  id               String   @id @default(cuid())
+  projectId        String?
+  project          Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  // reply, sandbox, summary, writing, system_message, image, audio, instinct
+  feature          String
+  model            String
+  promptTokens     Int      @default(0)
+  completionTokens Int      @default(0)
+  cachedTokens     Int      @default(0)
+  // Millionièmes de dollar ; null si le fournisseur ne l'a pas communiqué.
+  costMicros       Int?
+  createdAt        DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([projectId, createdAt])
+  @@map("ai_usage")
 }
 
 model AgentTestRun {

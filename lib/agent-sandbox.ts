@@ -2,6 +2,8 @@ import { z } from "zod";
 import type { PrismaClient } from "../src/generated/prisma/client";
 import { AgentConfigSchema } from "./agent-config";
 import { generateReply } from "./ai-jobs";
+import { fitHistory } from "./ai-history";
+import { aiMeter } from "./ai-usage";
 import { findRepetition, repetitionHint, splitConversationEnd } from "./conversation-end";
 import { knowledgeContext } from "./knowledge";
 import { splitMissingInfo } from "./missing-info";
@@ -90,7 +92,14 @@ export async function runAgentTest(
     project.currency,
     messages.filter((message) => message.role === "user").map((message) => message.content),
   );
-  const extras = { knowledge: knowledge.block, flagMissing: true, quiet: project.aiQuietEnabled };
+  const extras = {
+    knowledge: knowledge.block,
+    flagMissing: true,
+    quiet: project.aiQuietEnabled,
+    meter: aiMeter(db, projectId, "sandbox"),
+  };
+  // Même plafond de caractères d’historique qu’en production.
+  const prompt = fitHistory(messages);
   // Same loop guard as in production, against the assistant's previous test replies.
   const previous = messages
     .filter((message) => message.role === "assistant")
@@ -103,11 +112,11 @@ export async function runAgentTest(
   let raw: string;
   let repeated = false;
   try {
-    raw = await generate(messages, project.name, "Client test", config, extras);
+    raw = await generate(prompt, project.name, "Client test", config, extras);
     const first = splitConversationEnd(raw);
     const repetition = first.silent ? null : findRepetition(first.text, previous, { clientAsked });
     if (repetition) {
-      raw = await generate(messages, project.name, "Client test", config, {
+      raw = await generate(prompt, project.name, "Client test", config, {
         ...extras,
         avoid: repetitionHint(repetition),
       });

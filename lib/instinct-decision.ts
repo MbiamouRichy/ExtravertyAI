@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { hasExtractedText, messageAiContent } from "./message-ai-content";
 import type { SummaryMessage } from "./conversation-summary";
+import type { AiMeter } from "./ai-usage";
 
 export const INSTINCT_MODELS = {
   primary: "typesafe/jev-1.13",
@@ -68,7 +69,12 @@ export function selectInstinctModel(state: object) {
 
 class ContextLimitError extends Error {}
 
-async function requestDecision(model: string, state: object, key: string) {
+async function requestDecision(
+  model: string,
+  state: object,
+  key: string,
+  meter?: AiMeter,
+) {
   const response = await fetch("https://openrouter.ai/api/alpha/decisions", {
     method: "POST",
     redirect: "error",
@@ -95,15 +101,18 @@ async function requestDecision(model: string, state: object, key: string) {
     }
     throw new Error("INSTINCT_PROVIDER_ERROR");
   }
+  const payload: unknown = await response.json();
+  await meter?.(payload, model);
   const result = z
     .object({ answers: z.object({ classification: AnswerSchema }) })
-    .parse(await response.json());
+    .parse(payload);
   return result.answers.classification.choice;
 }
 
 export async function assessProspect(
   goals: string,
   history: SummaryMessage[],
+  meter?: AiMeter,
 ): Promise<InstinctClassification> {
   // Media placeholders are not client evidence. Keep complete text messages,
   // including the latest refusal; never truncate content to fit the cheaper model.
@@ -128,13 +137,13 @@ export async function assessProspect(
   const state = { goals, history: usefulHistory };
   const model = selectInstinctModel(state);
   try {
-    return await requestDecision(model, state, key);
+    return await requestDecision(model, state, key, meter);
   } catch (error) {
     if (
       model === INSTINCT_MODELS.primary &&
       error instanceof ContextLimitError
     ) {
-      return requestDecision(INSTINCT_MODELS.overflow, state, key);
+      return requestDecision(INSTINCT_MODELS.overflow, state, key, meter);
     }
     throw error;
   }

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { AiMeter } from "./ai-usage";
 import { readLimitedBody, validateMediaBytes } from "./chat-media-server";
 
 export const IMAGE_ANALYSIS_VERSION = 1;
@@ -42,7 +43,10 @@ export function imageAnalysisModel() {
   return parsed.data;
 }
 
-export async function analyzeImage(media: { bytes: Buffer; mime: string }) {
+export async function analyzeImage(
+  media: { bytes: Buffer; mime: string },
+  meter?: AiMeter,
+) {
   const key = process.env.OPENROUTER_API_KEY;
   if (!key) throw new ImageAnalysisError("IMAGE_CONFIG_MISSING", false);
   const model = imageAnalysisModel();
@@ -123,6 +127,7 @@ export async function analyzeImage(media: { bytes: Buffer; mime: string }) {
   const raw = await readLimitedBody(response.body, 256_000);
   try {
     const payload = JSON.parse(raw.toString());
+    await meter?.(payload, model);
     const choice = payload?.choices?.[0];
     if (choice?.message?.refusal || choice?.finish_reason === "content_filter")
       throw new ImageAnalysisError("IMAGE_REFUSED", false);

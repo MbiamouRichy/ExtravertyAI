@@ -9,6 +9,7 @@ import { can } from "@/lib/project-permissions";
 import { getSession } from "@/lib/auth-server";
 import prisma from "@/lib/prisma";
 import { getBillingAccess } from "@/lib/billing-access";
+import { aiMeter } from "@/lib/ai-usage";
 import {
   generateConversationSummary,
   prepareSummaryHistory,
@@ -92,7 +93,11 @@ export async function summarizeConversation(input: unknown) {
       contactId,
       summaryFingerprint(messages),
       partial || messages.length > 200,
-      () => generateConversationSummary(history),
+      () =>
+        generateConversationSummary(
+          history,
+          aiMeter(prisma, projectId, "summary"),
+        ),
     );
     // Membership may have been revoked while the provider was responding.
     const stillMember = await prisma.projectMembership.findUnique({

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { AiMeter } from "./ai-usage";
 import { MEDIA_TYPES } from "./chat-media";
 import { readLimitedBody, validateMediaBytes } from "./chat-media-server";
 
@@ -19,7 +20,10 @@ export class TranscriptionError extends Error {
     super(code);
   }
 }
-export async function transcribeAudio(media: { bytes: Buffer; mime: string }) {
+export async function transcribeAudio(
+  media: { bytes: Buffer; mime: string },
+  meter?: AiMeter,
+) {
   const key = process.env.OPENROUTER_API_KEY;
   if (!key) throw new TranscriptionError("TRANSCRIPTION_CONFIG_MISSING", false);
   if (!media.mime.startsWith("audio/"))
@@ -57,6 +61,7 @@ export async function transcribeAudio(media: { bytes: Buffer; mime: string }) {
       }
       const bytes = await readLimitedBody(response.body, 512_000);
       const payload = JSON.parse(bytes.toString());
+      await meter?.(payload, model);
       return TranscriptSchema.parse({ text: payload?.text, model });
     } catch (error) {
       if (error instanceof TranscriptionError && !error.retryable) throw error;

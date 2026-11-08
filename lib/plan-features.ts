@@ -2,6 +2,12 @@ import { resolvePlanId, type PlanId } from "./pricing";
 
 /** Limits and gated capabilities per plan. Always enforced on the server. */
 export type PlanFeatures = {
+  /**
+   * Volume de la base de connaissances, en mots (≈ 500 par page) : c’est la
+   * limite affichée, celle qui borne ce que l’IA peut lire.
+   */
+  knowledgeWords: number;
+  /** Garde-fou technique sur le nombre d’entrées (morceaux de documents compris). */
   knowledgeEntries: number;
   knowledgeSources: number;
   /** Taille maximale d’un PDF importé dans la base de connaissances. */
@@ -31,7 +37,8 @@ export type PlanFeatures = {
 
 export const PLAN_FEATURES: Record<PlanId, PlanFeatures> = {
   starter: {
-    knowledgeEntries: 100,
+    knowledgeWords: 20_000,
+    knowledgeEntries: 500,
     knowledgeSources: 3,
     pdfMaxMb: 5,
     storageMb: 500,
@@ -48,7 +55,8 @@ export const PLAN_FEATURES: Record<PlanId, PlanFeatures> = {
     broadcastDaily: 0,
   },
   pro: {
-    knowledgeEntries: 1000,
+    knowledgeWords: 150_000,
+    knowledgeEntries: 3000,
     knowledgeSources: 20,
     pdfMaxMb: 10,
     storageMb: 1200,
@@ -65,6 +73,7 @@ export const PLAN_FEATURES: Record<PlanId, PlanFeatures> = {
     broadcastDaily: 300,
   },
   business: {
+    knowledgeWords: 600_000,
     knowledgeEntries: 10000,
     knowledgeSources: 100,
     pdfMaxMb: 10,

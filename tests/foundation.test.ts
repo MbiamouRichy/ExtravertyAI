@@ -31,7 +31,12 @@ test("plan features gate pipeline, satisfaction and integrations", () => {
     [20, 30, 50],
   );
   // Unknown plans fall back to the most restrictive one.
-  assert.equal(planFeatures("enterprise").knowledgeEntries, 100);
+  assert.equal(planFeatures("enterprise").knowledgeWords, 20_000);
+  // Volume de la base : ≈ 40, 300 puis 1 200 pages.
+  assert.deepEqual(
+    ["starter", "pro", "business"].map((plan) => planFeatures(plan).knowledgeWords),
+    [20_000, 150_000, 600_000],
+  );
   assert.throws(() => requirePlanFeature("starter", "csat"), PlanFeatureError);
   assert.doesNotThrow(() => requirePlanFeature("business", "csat"));
 });

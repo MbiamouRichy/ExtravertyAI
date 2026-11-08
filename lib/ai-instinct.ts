@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { PrismaClient } from "../src/generated/prisma/client";
 import { assessProspect } from "./instinct-decision";
+import { aiMeter } from "./ai-usage";
 import { promoteInterestingProspect } from "./pipeline";
 import { emitIntegrationEvent, integrationContact } from "./integration-events";
 export { assessProspect } from "./instinct-decision";
@@ -71,7 +72,11 @@ export async function runInstinctCycle(
         extractionStatus: true,
       },
     });
-    const classification = await assess(candidate.goals, messages.reverse());
+    const classification = await assess(
+      candidate.goals,
+      messages.reverse(),
+      aiMeter(prisma, candidate.projectId, "instinct"),
+    );
     const saved = await prisma.$transaction(async (tx) => {
       const before = await tx.contact.findUnique({
         where: { id: candidate.id },

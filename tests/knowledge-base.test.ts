@@ -5,6 +5,7 @@ import {
   KNOWLEDGE_LIMITS,
   buildSearchQuery,
   chunkText,
+  countEntryWords,
   extractBlocks,
   formatKnowledgeBlock,
   normalizeSearchText,
@@ -18,6 +19,7 @@ import {
   claimKnowledgeSource,
   importProductsCsv,
   knowledgeContext,
+  knowledgeOverview,
   sourceContent,
   retrieveKnowledge,
   runKnowledgeSource,
@@ -195,21 +197,104 @@ test("knowledge base", { timeout: 180000 }, async (t) => {
       await prisma.knowledgeSource.delete({ where: { id: source.id } });
     });
 
-    await t.test("CSV imports stop at the plan limit and are flagged", async () => {
+    await t.test("CSV imports stop at the entry guard and are flagged", async () => {
       const used = await prisma.knowledgeEntry.count({ where: { projectId: project.id } });
-      const lines = Array.from({ length: 120 }, (_, index) => `Produit ${index},${1000 + index},5,Desc`);
+      const lines = Array.from({ length: 520 }, (_, index) => `Produit ${index},${1000 + index},5,Desc`);
       const result = await importProductsCsv(prisma, {
         ...admin,
         fileName: "catalogue.csv",
         text: ["nom,prix,stock,description", ...lines].join("\n"),
       });
-      assert.equal(result.imported, 100 - used);
+      assert.equal(result.imported, 500 - used);
       assert.equal(result.truncated, true);
       await assert.rejects(
         saveEntry(prisma, { ...admin, entry: { kind: "TEXT", title: "En plus", content: "x", price: null, stock: null } }),
-        /Limite de 100 entrées/,
+        /Limite de 500 entrées/,
       );
       await prisma.knowledgeEntry.deleteMany({ where: { projectId: project.id, kind: "PRODUCT", title: { startsWith: "Produit " } } });
+      await prisma.knowledgeSource.deleteMany({ where: { projectId: project.id, type: "CSV" } });
+    });
+
+    await t.test("the plan's word volume caps every addition", async () => {
+      const words = (count: number) => Array.from({ length: count }, () => "mot").join(" ");
+      const wordsIn = async () =>
+        (await prisma.knowledgeEntry.aggregate({ where: { projectId: project.id }, _sum: { words: true } }))._sum.words ?? 0;
+
+      // Starter : 20 000 mots. Un catalogue qui ne tient pas est refusé entier.
+      const heavy = Array.from({ length: 60 }, (_, index) => `Produit ${index},1000,5,${words(400)}`);
+      await assert.rejects(
+        importProductsCsv(prisma, { ...admin, fileName: "gros.csv", text: ["nom,prix,stock,description", ...heavy].join("\n") }),
+        /environ 24\s120 mots, il en reste/,
+      );
+      assert.equal(await prisma.knowledgeSource.count({ where: { projectId: project.id, type: "CSV" } }), 0);
+
+      // La base compte elle-même les mots (titre + contenu), comme l’application.
+      await prisma.knowledgeEntry.createMany({
+        data: Array.from({ length: 20 }, (_, index) => ({
+          projectId: project.id,
+          kind: "TEXT" as const,
+          title: `Remplissage ${index}`,
+          content: `\n ${words(990)}  `,
+          searchText: "remplissage",
+        })),
+      });
+      const filler = await prisma.knowledgeEntry.findFirstOrThrow({
+        where: { projectId: project.id, title: "Remplissage 0" },
+      });
+      assert.equal(filler.words, 992);
+      assert.equal(countEntryWords(filler), 992);
+      const overview = await knowledgeOverview(prisma, project.id, owner.id);
+      assert.equal(overview?.usage.words, await wordsIn());
+      assert.equal(overview?.usage.wordLimit, 20_000);
+
+      // Il ne reste que 3 mots.
+      const left = 20_000 - (await wordsIn());
+      assert.ok(left > 5 && left < 1000);
+      await prisma.knowledgeEntry.create({
+        data: { projectId: project.id, kind: "TEXT", title: "Remplissage", content: words(left - 4), searchText: "reste" },
+      });
+      const entry = (title: string, count: number) => ({
+        kind: "TEXT" as const,
+        title,
+        content: words(count),
+        price: null,
+        stock: null,
+      });
+      await assert.rejects(
+        saveEntry(prisma, { ...admin, entry: entry("Horaires", 10) }),
+        /environ 11 mots, il en reste 3 dans votre base \(20\s000 mots/,
+      );
+      // Allonger au-delà du reste est refusé ; raccourcir est toujours permis.
+      await assert.rejects(
+        saveEntry(prisma, { ...admin, id: filler.id, entry: entry("Remplissage 0", 1000) }),
+        /il en reste 3 dans/,
+      );
+      await saveEntry(prisma, { ...admin, id: filler.id, entry: entry("Remplissage 0", 100) });
+      assert.equal(20_000 - (await wordsIn()), 3 + 890);
+
+      // Base pleine : aucun document de plus.
+      await prisma.knowledgeEntry.create({
+        data: { projectId: project.id, kind: "TEXT", title: "Plein", content: words(1000), searchText: "plein" },
+      });
+      await assert.rejects(addUrlSource(prisma, { ...admin, url: "https://example.com/plein" }), /base de connaissances est pleine/);
+      await prisma.knowledgeEntry.deleteMany({ where: { projectId: project.id, title: "Plein" } });
+      // Un document plus long que le reste (893 mots) est refusé entier.
+      const source = await prisma.knowledgeSource.create({
+        data: { projectId: project.id, type: "URL", name: "Trop long", url: "https://example.com/long", status: "QUEUED" },
+      });
+      const job = await claimKnowledgeSource(prisma);
+      assert.equal(job?.id, source.id);
+      await runKnowledgeSource(prisma, job!, {
+        fetchPage: async () => ({ title: "Trop long", text: `${words(150)}.\n\n`.repeat(40) }),
+        readPdf: async () => ({ title: "", text: "" }),
+      });
+      const refused = await prisma.knowledgeSource.findUniqueOrThrow({ where: { id: source.id } });
+      assert.equal(refused.status, "FAILED");
+      assert.equal(refused.errorCode, "WORD_LIMIT");
+      assert.equal(await prisma.knowledgeEntry.count({ where: { sourceId: source.id } }), 0);
+
+      await prisma.knowledgeSource.delete({ where: { id: source.id } });
+      await prisma.knowledgeEntry.deleteMany({ where: { projectId: project.id, title: { startsWith: "Remplissage" } } });
     });
 
     await t.test("URL sources are public-only, unique and limited per plan", async () => {
