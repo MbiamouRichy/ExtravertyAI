@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { Prisma, type PrismaClient } from "../src/generated/prisma/client";
 import { PRICING_PLANS, type PlanId } from "./pricing";
-import { SITE_PAGES } from "./site-analytics";
+import { APP_FLOW_REFERRERS, SITE_PAGES } from "./site-analytics";
 
 /** Périodes du tableau de bord : du jour près (30, 90 jours) au mois près (1 ou 2 ans). */
 export const DASHBOARD_RANGES = {
@@ -118,6 +118,16 @@ async function visitorStats(db: PrismaClient, period: DashboardPeriod) {
 }
 
 export type ShareRow = { label: string; value: number; share: number };
+
+// Vues déjà enregistrées avec un retour de paiement ou de connexion : écartées
+// aussi des sources (les nouvelles ne sont plus enregistrées avec ce référent).
+const appFlowReferrers = Prisma.join(
+  APP_FLOW_REFERRERS.flatMap((domain) => [
+    Prisma.sql`"referrerHost" = ${domain}`,
+    Prisma.sql`"referrerHost" LIKE ${`%.${domain}`}`,
+  ]),
+  " OR ",
+);
 const TOP_COLUMNS = {
   country: '"country"',
   path: '"path"',
@@ -141,7 +151,7 @@ async function topBy(
     SELECT ${col} AS label, ${measure} AS value
     FROM "page_view"
     WHERE "createdAt" >= ${period.start}
-      ${column === "referrerHost" ? Prisma.sql`AND "referrerHost" IS NOT NULL` : Prisma.empty}
+      ${column === "referrerHost" ? Prisma.sql`AND "referrerHost" IS NOT NULL AND NOT (${appFlowReferrers})` : Prisma.empty}
       ${column === "path" ? Prisma.sql`AND "path" IN (${Prisma.join([...SITE_PAGES])})` : Prisma.empty}
     GROUP BY 1
     ORDER BY 2 DESC, 1 ASC`;

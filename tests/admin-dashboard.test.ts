@@ -47,6 +47,17 @@ test("page views keep no identifier, no query and no internal traffic", () => {
   assert.equal(referrerHost("https://extravertyai.com/tarifs", "www.extravertyai.com"), null);
   assert.equal(referrerHost("android-app://com.whatsapp", null), null);
   assert.equal(referrerHost("pas une url", null), null);
+  // Retours de paiement, de connexion Google ou d'accès aux préversions : déjà nos utilisateurs.
+  for (const flow of [
+    "https://checkout.stripe.com/c/pay/cs_test_a1",
+    "https://billing.stripe.com/p/session/x",
+    "https://sandbox.polar.sh/checkout/x",
+    "https://polar.sh/extraverty",
+    "https://accounts.google.com/o/oauth2/v2/auth",
+    "https://vercel.com/sso-api",
+  ])
+    assert.equal(referrerHost(flow, "extravertyai.com"), null, flow);
+  assert.equal(referrerHost("https://notstripe.com/", "extravertyai.com"), "notstripe.com");
 
   assert.equal(isBot("Googlebot/2.1 (+http://www.google.com/bot.html)"), true);
   assert.equal(isBot(""), true);
@@ -187,6 +198,11 @@ test(
       // Pages de l'application : comptées dans l'audience, jamais dans « Top pages ».
       await view("v1", "/projects/:id/chat");
       await view("v2", "/sign-in", { country: "CM", browser: "Safari", device: "desktop" });
+      // Vues enregistrées avant le filtre, au retour d'un paiement ou d'une connexion : pas des sources.
+      await view("v1", "/projects/:id/settings", { referrerHost: "checkout.stripe.com" });
+      await view("v1", "/projects/:id/settings", { referrerHost: "sandbox.polar.sh" });
+      await view("v1", "/projects", { referrerHost: "accounts.google.com" });
+      await view("v1", "/projects", { referrerHost: "notpolar.sh" });
 
       const data = await loadDashboard(prisma, "30d", now);
       assert.equal(data.users.total, 2);
@@ -195,7 +211,7 @@ test(
       assert.equal(data.users.series.at(-1)!.value, 1);
       assert.equal(data.visitors.current, 3);
       assert.equal(data.visitors.online, 3);
-      assert.equal(data.visitors.views.at(-1)!.value, 6);
+      assert.equal(data.visitors.views.at(-1)!.value, 10);
       // Pays : visiteurs uniques (v1 vu deux fois ne compte qu’une fois).
       assert.deepEqual(data.countries.map((row) => [row.label, row.value]), [["CM", 1], ["FR", 1], ["GA", 1]]);
       // Site vitrine seulement : les parts se calculent sans les pages de l'application.
@@ -204,7 +220,11 @@ test(
         [["/", 2, 0.5], ["/tarifs", 2, 0.5]],
       );
       assert.deepEqual(data.browsers.map((row) => row.label), ["Chrome", "Safari"]);
-      assert.deepEqual(data.referrers, [{ label: "google.com", value: 1, share: 1 }]);
+      // Seuls les sous-domaines sont écartés : notpolar.sh reste un vrai site.
+      assert.deepEqual(data.referrers, [
+        { label: "google.com", value: 1, share: 0.5 },
+        { label: "notpolar.sh", value: 1, share: 0.5 },
+      ]);
       assert.equal(data.conversion.at(-1)!.rate, 1 / 3);
       // Deux messages, un projet Pro actif : moyenne de 2.
       assert.equal(data.messages.at(-1)!.pro, 2);
