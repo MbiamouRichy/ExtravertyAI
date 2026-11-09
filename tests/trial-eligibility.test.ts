@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFile, readdir } from "node:fs/promises";
-import { PGlite } from "@electric-sql/pglite";
+import { createTestPGlite } from "./helpers/pglite";
 import { PGLiteSocketServer } from "@electric-sql/pglite-socket";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../src/generated/prisma/client";
@@ -41,7 +41,7 @@ test("pendant l'essai, seul le numéro déclaré peut être relié à WhatsApp",
 
 // Base PostgreSQL WASM isolée : aucun appel à un fournisseur.
 test("un seul essai par numéro, réservé pendant le paiement puis consommé", { timeout: 120000 }, async () => {
-  const db = await PGlite.create();
+  const db = await createTestPGlite();
   const server = new PGLiteSocketServer({ db, host: "127.0.0.1", port: 0 });
   let prisma: PrismaClient | undefined;
   try {

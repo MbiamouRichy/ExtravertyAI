@@ -5,7 +5,7 @@ import { readFileSync } from "node:fs";
 import { runInNewContext } from "node:vm";
 import ts from "typescript";
 import { z } from "zod";
-import { PGlite } from "@electric-sql/pglite";
+import { createTestPGlite } from "./helpers/pglite";
 import { PGLiteSocketServer } from "@electric-sql/pglite-socket";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../src/generated/prisma/client";
@@ -36,7 +36,7 @@ test(
   "conversation resolution, tags and internal notes",
   { timeout: 120000 },
   async (t) => {
-    const db = await PGlite.create();
+    const db = await createTestPGlite();
     const server = new PGLiteSocketServer({ db, host: "127.0.0.1", port: 0 });
     let prisma: PrismaClient | undefined;
     try {

@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import { PGlite } from "@electric-sql/pglite";
+import { createTestPGlite } from "./helpers/pglite";
 import type { PrismaClient } from "../src/generated/prisma/client";
 import { heartbeat, projectPresence } from "../lib/presence";
 import {
@@ -10,7 +10,7 @@ import {
   readNotifications,
 } from "../lib/notifications";
 test("presence and notifications respect members, tabs, expiry and read versions", async () => {
-  const db = await PGlite.create();
+  const db = await createTestPGlite();
   try {
     await db.exec(`
       CREATE TABLE "user" (id TEXT PRIMARY KEY, name TEXT);
