@@ -44,7 +44,12 @@ export function ProjectSwitcher({ identity }: { identity: ProjectIdentity | null
   return (
     <SidebarMenu>
       <SidebarMenuItem>
-        <DropdownMenu>
+        {/*
+          Sur mobile, le menu s’ouvre dans le panneau, déjà modal. Deux calques
+          modaux fermés ensemble laissaient `pointer-events: none` sur le body
+          et figeaient l’app : seul le panneau bloque donc les clics extérieurs.
+        */}
+        <DropdownMenu modal={!isMobile}>
           <DropdownMenuTrigger asChild>
             <SidebarMenuButton
               size="lg"

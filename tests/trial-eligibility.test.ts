@@ -21,6 +21,8 @@ test("l'empreinte ne dépend que des chiffres du numéro et ne le contient pas",
   const hash = hashTrialNumber("+241 66 00 00 01");
   assert.equal(hash, hashTrialNumber("24166000001"));
   assert.notEqual(hash, hashTrialNumber("+24166000002"));
+  // Ancienne numérotation gabonaise : même numéro, même essai.
+  assert.equal(hash, hashTrialNumber("+241 06 00 00 01"));
   assert.ok(!hash.includes("24166000001"));
   assert.throws(() => hashTrialNumber("12"), /TRIAL_NUMBER_INVALID/);
 });
@@ -31,6 +33,8 @@ test("pendant l'essai, seul le numéro déclaré peut être relié à WhatsApp",
   assert.equal(ownerNumberOf("123456@lid"), null);
   assert.equal(isForeignTrialNumber(project, "24166000001@s.whatsapp.net"), false);
   assert.equal(isForeignTrialNumber(project, "24166000009@s.whatsapp.net"), true);
+  // Compte WhatsApp resté à l'ancienne écriture du même numéro : le sien.
+  assert.equal(isForeignTrialNumber(project, "24106000001:4@s.whatsapp.net"), false);
   // Numéro inconnu : rien n'est bloqué ; abonnement payé : libre.
   assert.equal(isForeignTrialNumber(project, null), false);
   assert.equal(

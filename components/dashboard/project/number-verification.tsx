@@ -1,12 +1,19 @@
 "use client";
 
-import { useEffect, useEffectEvent, useId, useRef, useState } from "react";
+import {
+  useEffect,
+  useEffectEvent,
+  useId,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
 import { QRCodeSVG } from "qrcode.react";
-import { CircleAlert, CircleCheck, Info, Loader2 } from "lucide-react";
+import { Check, CircleAlert, CircleCheck, Copy, Info, Loader2 } from "lucide-react";
 
 import {
   checkNumberMessage,
@@ -27,6 +34,7 @@ import { Input } from "@/components/ui/input";
 import { safeCheckoutUrl } from "@/lib/checkout-url";
 import type { VerificationTarget } from "@/lib/phone-verification";
 import { cn } from "@/lib/utils";
+import { androidWhatsAppLink } from "@/lib/whatsapp-number";
 
 /** Issue d’une ouverture du paiement, à la création comme à la reprise. */
 export type CheckoutAttempt =
@@ -63,15 +71,39 @@ type Method = "message" | "code";
 type PendingMessage = {
   verificationId: string;
   code: string;
+  /** Message prêt à envoyer, tel que le serveur l’attend. */
+  text: string;
   link: string;
+  /** Numéro d’ExtravertyAI, pour envoyer le message à la main. */
+  to: string;
 };
+
+/**
+ * Où s’ouvre WhatsApp : Android laisse choisir l’application (WhatsApp ou
+ * WhatsApp Business), un ordinateur passe par le téléphone (QR code).
+ */
+type Platform = "android" | "mobile" | "desktop";
+const noSubscription = () => () => {};
+function readPlatform(): Platform {
+  const agent = navigator.userAgent;
+  if (/android/i.test(agent)) return "android";
+  if (
+    /iphone|ipad|ipod|mobi/i.test(agent) ||
+    (/macintosh/i.test(agent) && navigator.maxTouchPoints > 1)
+  )
+    return "mobile";
+  return "desktop";
+}
+/** Rendu serveur : version mobile simple, précisée dès l’hydratation. */
+const serverPlatform = (): Platform => "mobile";
 
 /**
  * Preuve que le numéro appartient à l’utilisateur, avant d’enregistrer le
  * projet ou d’ouvrir le paiement.
  *
  * Par défaut, il envoie lui-même un code depuis son WhatsApp au numéro
- * d’ExtravertyAI (un appui sur « Envoyer ») ; la page avance seule dès que le
+ * d’ExtravertyAI (un appui sur « Envoyer », ou un copier-coller depuis le bon
+ * compte quand le téléphone en a plusieurs) ; la page avance seule dès que le
  * message arrive. En secours, il reçoit un code et le recopie.
  * Chaque état ne propose qu’une action principale. Le serveur revérifie tout ;
  * ce composant ne fait que guider.
@@ -111,6 +143,8 @@ export function NumberVerification({
   // Preuve obtenue, par l’une ou l’autre voie.
   const [verified, setVerified] = useState(false);
   const [proofId, setProofId] = useState<string | undefined>(undefined);
+  const [copied, setCopied] = useState(false);
+  const platform = useSyncExternalStore(noSubscription, readPlatform, serverPlatform);
   const [sending, setSending] = useState(false);
   const [continuing, setContinuing] = useState(false);
   const [leaving, setLeaving] = useState(false);
@@ -137,6 +171,13 @@ export function NumberVerification({
     const timer = window.setInterval(() => setNow(Date.now()), 1000);
     return () => window.clearInterval(timer);
   }, [resendAt]);
+
+  // « Copié » reste affiché deux secondes.
+  useEffect(() => {
+    if (!copied) return;
+    const timer = window.setTimeout(() => setCopied(false), 2000);
+    return () => window.clearTimeout(timer);
+  }, [copied]);
 
   // Le champ n’apparaît qu’avec un code envoyé : il prend alors le focus.
   useEffect(() => {
@@ -208,8 +249,11 @@ export function NumberVerification({
         setMessage({
           verificationId: result.verificationId,
           code: result.code,
+          text: result.text,
           link: result.link,
+          to: result.to,
         });
+        setCopied(false);
         setMessageExpired(false);
         setNumberProblem(false);
       } else if ("code" in result && result.code === "ALREADY_VERIFIED") {
@@ -309,6 +353,17 @@ export function NumberVerification({
     };
   }, [waitingId]);
 
+  /** Copie le message entier : collé dans le bon WhatsApp, il suffit de l’envoyer. */
+  async function copyMessage(pending: PendingMessage) {
+    try {
+      await navigator.clipboard.writeText(pending.text);
+      setCopied(true);
+      toast.success("Message copié. Collez-le dans WhatsApp.");
+    } catch {
+      toast.error(`Copie impossible. Envoyez ce code : ${pending.code}`);
+    }
+  }
+
   async function onSubmit(values: CodeValues) {
     if (!codeId) return;
     setNotice(null);
@@ -354,7 +409,7 @@ export function NumberVerification({
   const waitingLine = (label: string) => (
     <p
       role="status"
-      className="flex min-h-11 items-center justify-center gap-2 text-sm text-muted-foreground"
+      className="flex min-h-10 items-center justify-center gap-2 text-sm text-muted-foreground"
     >
       <Loader2 aria-hidden className="size-4 animate-spin motion-reduce:animate-none" />
       {label}
@@ -391,19 +446,96 @@ export function NumberVerification({
     );
 
   const otherWay = (label: string, onClick: () => void) => (
-    <Button
-      type="button"
-      variant="link"
-      className={quietLink}
-      disabled={busy || sending}
-      onClick={onClick}
-    >
-      {label}
-    </Button>
+    <div className="flex justify-center border-t pt-3">
+      <Button
+        type="button"
+        variant="link"
+        className={quietLink}
+        disabled={busy || sending}
+        onClick={onClick}
+      >
+        {label}
+      </Button>
+    </div>
+  );
+
+  /** Ouvre WhatsApp avec le message prêt : l’application choisie sur Android. */
+  const openButtons = (pending: PendingMessage) =>
+    platform === "android" ? (
+      <div className="grid grid-cols-2 gap-2">
+        {(["whatsapp", "business"] as const).map((app) => (
+          <Button key={app} asChild size="lg" variant="outline" className="h-11">
+            <a href={androidWhatsAppLink(pending.link, app)}>
+              <WhatsAppIcon aria-hidden className="size-4" />
+              {app === "business" ? "WA Business" : "WhatsApp"}
+              <span className="sr-only">
+                {app === "business" ? " (WhatsApp Business)" : ""} : ouvrir avec le message prêt
+              </span>
+            </a>
+          </Button>
+        ))}
+      </div>
+    ) : (
+      <Button
+        asChild
+        size="lg"
+        variant={platform === "desktop" ? "outline" : "default"}
+        className={mainButton}
+      >
+        <a href={pending.link} target="_blank" rel="noopener noreferrer">
+          <WhatsAppIcon aria-hidden className="size-4" />
+          {platform === "desktop" ? "Ouvrir WhatsApp sur cet ordinateur" : "Ouvrir WhatsApp"}
+        </a>
+      </Button>
+    );
+
+  /** Code à envoyer, le QR qui ouvre WhatsApp (ordinateur) et la copie du message. */
+  const messageCard = (pending: PendingMessage) => (
+    <div className="flex items-center gap-4 rounded-xl border bg-muted/40 p-4">
+      {platform === "desktop" && (
+        // Fond clair dans les deux thèmes : les appareils photo lisent mieux le code.
+        <div className="shrink-0 rounded-lg bg-background p-1.5 text-foreground dark:bg-foreground dark:text-background">
+          <QRCodeSVG
+            value={pending.link}
+            level="M"
+            bgColor="transparent"
+            fgColor="currentColor"
+            role="img"
+            aria-label="QR code : ouvre WhatsApp sur votre téléphone, message prêt"
+            className="size-28"
+          />
+        </div>
+      )}
+      <div className="min-w-0 flex-1 space-y-2">
+        <p className="text-sm leading-5 text-muted-foreground">
+          {platform === "desktop"
+            ? "Scannez avec le téléphone de ce numéro, puis envoyez le message."
+            : "Envoyez ce code depuis le WhatsApp de ce numéro."}
+        </p>
+        <div className="flex items-center justify-between gap-2">
+          <span className="font-mono text-2xl font-semibold tracking-[0.2em] tabular-nums">
+            {pending.code.slice(0, 3)}
+            <span aria-hidden className="inline-block w-2" />
+            {pending.code.slice(3)}
+          </span>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-10 shrink-0"
+            aria-label={copied ? "Message copié" : "Copier le message à envoyer"}
+            onClick={() => void copyMessage(pending)}
+          >
+            {copied ? <Check aria-hidden /> : <Copy aria-hidden />}
+            {copied ? "Copié" : "Copier"}
+          </Button>
+        </div>
+      </div>
+    </div>
   );
 
   return (
-    <section aria-labelledby={titleId} className={cn("space-y-6", className)}>
+    <section aria-labelledby={titleId} className={cn("space-y-5", className)}>
       <div className="space-y-1">
         <Heading
           id={titleId}
@@ -414,8 +546,8 @@ export function NumberVerification({
         >
           Vérifiez votre numéro
         </Heading>
-        <div className="flex min-h-10 flex-wrap items-center gap-x-2">
-          <span className="font-medium whitespace-nowrap tabular-nums">{number}</span>
+        <div className="flex min-h-10 flex-wrap items-center gap-x-1 text-muted-foreground">
+          <span className="font-medium whitespace-nowrap text-foreground tabular-nums">{number}</span>
           {onEditNumber && !verified && (
             <Button
               type="button"
@@ -473,38 +605,13 @@ export function NumberVerification({
         <div className="space-y-4">
           {message && !messageExpired ? (
             <>
-              <p className="text-sm leading-6 text-muted-foreground">
-                Envoyez le code{" "}
-                <strong className="font-mono font-semibold tracking-wider text-foreground tabular-nums">
-                  {message.code}
-                </strong>{" "}
-                depuis ce numéro. La page avancera toute seule.
-              </p>
-              {/* Sur ordinateur : le téléphone du numéro scanne, WhatsApp s’ouvre avec le message prêt. */}
-              <figure className="hidden flex-col items-center gap-3 rounded-xl border p-5 sm:flex">
-                {/* Fond clair dans les deux thèmes : les appareils photo lisent mieux le code. */}
-                <div className="rounded-lg bg-background p-2 text-foreground dark:bg-foreground dark:text-background">
-                  <QRCodeSVG
-                    value={message.link}
-                    level="M"
-                    bgColor="transparent"
-                    fgColor="currentColor"
-                    role="img"
-                    aria-label="QR code ouvrant WhatsApp avec le message de vérification"
-                    className="size-36"
-                  />
-                </div>
-                <figcaption className="text-xs text-muted-foreground">
-                  Scannez avec votre téléphone
-                </figcaption>
-              </figure>
-              <Button asChild size="lg" className={mainButton}>
-                <a href={message.link} target="_blank" rel="noopener noreferrer">
-                  <WhatsAppIcon aria-hidden className="size-4" />
-                  Envoyer sur WhatsApp
-                </a>
-              </Button>
+              {messageCard(message)}
+              {openButtons(message)}
               {waitingLine("En attente de votre message…")}
+              <p className="text-center text-xs leading-5 text-muted-foreground">
+                Mauvais compte WhatsApp ? Copiez le message et envoyez-le au{" "}
+                <span className="whitespace-nowrap tabular-nums">{message.to}</span> depuis le bon.
+              </p>
             </>
           ) : notice ? (
             <>
@@ -529,9 +636,7 @@ export function NumberVerification({
           ) : (
             waitingLine("Préparation du code…")
           )}
-          <div className="flex justify-center">
-            {otherWay("Recevoir un code à la place", chooseCode)}
-          </div>
+          {otherWay("Recevoir un code par WhatsApp à la place", chooseCode)}
         </div>
       ) : codeId ? (
         <form noValidate onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -562,7 +667,7 @@ export function NumberVerification({
                   className="h-12 text-center font-mono text-xl tracking-[0.5em] tabular-nums placeholder:tracking-[0.5em]"
                 />
                 <FieldDescription id={`${titleId}-help`}>
-                  Ne le communiquez à personne.
+                  Envoyé par ExtravertyAI. Ne le communiquez à personne.
                 </FieldDescription>
                 {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
               </Field>
@@ -576,7 +681,7 @@ export function NumberVerification({
             {busy ? "Vérification…" : "Vérifier"}
           </Button>
 
-          <div className="flex flex-wrap items-center justify-center gap-x-4">
+          <div className="flex justify-center">
             <Button
               type="button"
               variant="link"
@@ -587,8 +692,8 @@ export function NumberVerification({
               {sending && spinner}
               {wait > 0 ? `Renvoyer dans ${wait} s` : "Renvoyer le code"}
             </Button>
-            {messageAvailable && otherWay("Envoyer un message à la place", chooseMessage)}
           </div>
+          {messageAvailable && otherWay("Envoyer un message à la place", chooseMessage)}
         </form>
       ) : (
         <div className="space-y-4">
@@ -600,11 +705,7 @@ export function NumberVerification({
           ) : (
             waitingLine("Envoi du code…")
           )}
-          {messageAvailable && (
-            <div className="flex justify-center">
-              {otherWay("Envoyer un message à la place", chooseMessage)}
-            </div>
-          )}
+          {messageAvailable && otherWay("Envoyer un message à la place", chooseMessage)}
         </div>
       )}
     </section>

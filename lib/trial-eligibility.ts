@@ -1,5 +1,6 @@
 import { createHmac } from "node:crypto";
 import type { Prisma, PrismaClient } from "../src/generated/prisma/client";
+import { currentNumberDigits } from "./whatsapp-number";
 
 /**
  * Un seul essai gratuit par numéro WhatsApp professionnel.
@@ -27,9 +28,13 @@ export function trialNumberDigits(numero: string) {
   return digits;
 }
 
+/**
+ * Empreinte du numéro dans son écriture actuelle : un compte WhatsApp resté à
+ * l’ancienne numérotation gabonaise (+241 06…) est le même numéro (+241 66…).
+ */
 export function hashTrialNumber(numero: string) {
   return createHmac("sha256", secret())
-    .update(`trial-number:${trialNumberDigits(numero)}`)
+    .update(`trial-number:${currentNumberDigits(trialNumberDigits(numero))}`)
     .digest("hex");
 }
 

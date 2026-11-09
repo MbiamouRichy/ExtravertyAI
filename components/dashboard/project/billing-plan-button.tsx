@@ -131,7 +131,7 @@ export function BillingPlanButton({
             {/* Titre lu par les lecteurs d’écran ; le composant affiche le sien. */}
             <DialogTitle className="sr-only">Vérification du numéro WhatsApp</DialogTitle>
             <DialogDescription className="sr-only">
-              Saisissez le code reçu pour ouvrir le paiement.
+              Prouvez que ce numéro WhatsApp est le vôtre pour ouvrir le paiement.
             </DialogDescription>
             {verify && (
               <NumberVerification

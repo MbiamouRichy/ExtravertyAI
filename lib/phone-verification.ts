@@ -5,6 +5,7 @@ import type { Prisma, PrismaClient } from "../src/generated/prisma/client";
 import { needsInitialCheckout } from "./billing-display";
 import { can } from "./project-permissions";
 import { hashTrialNumber, trialNumberDigits } from "./trial-eligibility";
+import { alternateWhatsAppDigits } from "./whatsapp-number";
 
 /**
  * Preuve qu’un numéro WhatsApp appartient à l’utilisateur, avant que le projet
@@ -219,6 +220,26 @@ function digitsOf(numero: string) {
 }
 
 /**
+ * Envoi au compte WhatsApp du numéro. Un compte resté à l’ancienne numérotation
+ * gabonaise (+241 06…) n’existe pas sous la nouvelle (+241 66…) : on lui écrit
+ * alors sous l’ancienne, qui est le même numéro.
+ */
+async function sendToAccount(send: OtpSender, digits: string, text: string) {
+  try {
+    await send(digits, text);
+  } catch (error) {
+    const alternate = alternateWhatsAppDigits(digits);
+    if (
+      !alternate ||
+      !(error instanceof PhoneVerificationError) ||
+      error.code !== "NOT_ON_WHATSAPP"
+    )
+      throw error;
+    await send(alternate, text);
+  }
+}
+
+/**
  * Envoie un nouveau code. Le code envoyé précédemment au compte est annulé,
  * quel que soit son numéro : un seul code reçu valable à la fois.
  */
@@ -302,7 +323,7 @@ export async function sendVerificationCode(
     });
   });
   try {
-    await send(digits, verificationMessage(code));
+    await sendToAccount(send, digits, verificationMessage(code));
   } catch (error) {
     // Rien n’est parti : ce code n’existe pas et ne compte pas dans les limites.
     await db.phoneVerification.delete({ where: { id: verification.id } }).catch(() => undefined);

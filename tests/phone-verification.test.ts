@@ -269,6 +269,18 @@ test("a failed send leaves no code behind and limits hold across accounts", { ti
     await send(user.id, "+24166000009", device.send);
     assert.equal(await count(user.id), 1);
 
+    // Compte resté à l’ancienne numérotation gabonaise : le code part sous
+    // « 241 06… », le même numéro que celui saisi.
+    const legacyUser = await createUser(prisma, "Legacy");
+    const legacy = phone();
+    await send(legacyUser.id, "+241 66 00 00 12", async (digits, text) => {
+      if (digits !== "24106000012")
+        throw new PhoneVerificationError("Ce numéro n’a pas de compte WhatsApp.", "NOT_ON_WHATSAPP");
+      await legacy.send(digits, text);
+    });
+    assert.deepEqual(legacy.inbox.map((message) => message.digits), ["24106000012"]);
+    assert.equal(await count(legacyUser.id), 1);
+
     const seed = (data: { userId: string; numberHash: string }, ageHours = 1) =>
       prisma.phoneVerification.create({
         data: {
@@ -422,6 +434,25 @@ test("the customer proves the number by sending the code from it", { timeout: 18
       incoming(second.text, "24166000021@s.whatsapp.net"),
     );
     assert.equal(expired?.reply, INBOUND_REPLIES.unknown);
+
+    // Numéro saisi « +241 77… », WhatsApp écrit depuis l’ancienne écriture
+    // « 241 07… » : c’est le même numéro, il est prouvé.
+    const modern = await start("+241 77 00 00 22", other.id);
+    assert.deepEqual(
+      await receiveVerificationMessage(
+        prisma,
+        incoming(modern.text, "123456789012399@lid", { remoteJidAlt: "24107000022@s.whatsapp.net" }),
+      ),
+      { digits: "24107000022", reply: INBOUND_REPLIES.verified },
+    );
+    assert.equal(await status(modern.verificationId, other.id), "verified");
+    assert.ok(
+      await usableNumberProof(prisma, {
+        verificationId: modern.verificationId,
+        userId: other.id,
+        numero: "+24177000022",
+      }),
+    );
   });
 });
 
