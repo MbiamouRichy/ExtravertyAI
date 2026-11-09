@@ -72,7 +72,7 @@ const Schema = z.object({
   message: z
     .string()
     .trim()
-    .min(10, "Décrivez votre retour en quelques mots (10 caractères minimum).")
+    .min(10, "Écrivez au moins 10 caractères.")
     .max(
       FEEDBACK_MESSAGE_MAX,
       `${FEEDBACK_MESSAGE_MAX} caractères au maximum.`,
@@ -216,7 +216,8 @@ export function FeedbackDialog() {
                           <RadioGroupItem
                             id={`${id}-${value}`}
                             value={value}
-                            className="sr-only"
+                            // « absolute » remplace le « relative » du composant : hors du flux.
+                            className="absolute sr-only"
                           />
                         </FieldLabel>
                       ))}
