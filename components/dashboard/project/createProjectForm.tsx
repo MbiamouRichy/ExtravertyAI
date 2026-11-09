@@ -125,33 +125,46 @@ export default function CreateProjectForm({
 
   return (
     <div className="mx-auto w-full max-w-xl px-4 pt-6 pb-16 sm:px-6 sm:pt-10">
-      <Link
-        href="/projects"
-        className="-ml-1 inline-flex min-h-11 items-center gap-2 rounded-md px-1 text-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-      >
-        <ArrowLeft aria-hidden className="size-4" />
-        Mes projets
-      </Link>
+      {step === "verify" ? (
+        // Le projet n’est pas encore enregistré : on revient au formulaire, pas à la liste.
+        <Button
+          type="button"
+          variant="link"
+          className="-ml-1 h-auto min-h-11 gap-2 px-1 text-muted-foreground hover:text-foreground hover:no-underline"
+          onClick={() => setStep("details")}
+        >
+          <ArrowLeft aria-hidden className="size-4" />
+          Retour
+        </Button>
+      ) : (
+        <Link
+          href="/projects"
+          className="-ml-1 inline-flex min-h-11 items-center gap-2 rounded-md px-1 text-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <ArrowLeft aria-hidden className="size-4" />
+          Mes projets
+        </Link>
+      )}
 
-      <header className="mt-4 mb-8">
+      <header hidden={step !== "details"} className="mt-4 mb-8">
         <h1 className="text-2xl! font-semibold! leading-tight! tracking-tight! sm:text-3xl!">
           Créer un projet
         </h1>
         <p className="mt-2 text-muted-foreground">
-          {step === "verify"
-            ? `Dernière étape avant le paiement : le projet ${selectedPlan.name} sera enregistré une fois votre numéro vérifié.`
-            : `${TRIAL_DAYS} jours offerts, sans engagement. Un essai par numéro WhatsApp.`}
+          {`${TRIAL_DAYS} jours offerts, sans engagement. Un essai par numéro WhatsApp.`}
         </p>
       </header>
 
       {verifyFor && (
-        <div hidden={step !== "verify"}>
+        // Gardé monté quand on revient au formulaire : le même numéro conserve son code.
+        <div hidden={step !== "verify"} className="mt-4">
           <NumberVerification
             key={verifyFor.numero}
             target={{ numero: verifyFor.numero }}
             number={verifyFor.display}
             onContinue={saveAndCheckout}
             onEditNumber={editNumber}
+            headingLevel="h1"
           />
         </div>
       )}
@@ -303,7 +316,7 @@ export default function CreateProjectForm({
                       />
                     </InputGroup>
                     <FieldDescription id="project-phone-help">
-                      Un code de vérification vous sera envoyé sur WhatsApp.
+                      Vous le vérifierez à l’étape suivante, avec WhatsApp.
                     </FieldDescription>
                     {fieldState.invalid && (
                       <FieldError errors={[fieldState.error]} />
