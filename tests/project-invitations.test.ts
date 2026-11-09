@@ -12,6 +12,7 @@ import {
   declineInvitation,
   hashInvitationToken,
 } from "../lib/project-invitations";
+import { teamSeats } from "../lib/plan-features";
 
 test(
   "an invitation only opens a project to its recipient, once and with consent",
@@ -98,6 +99,85 @@ test(
         where: { projectId: project.id, userId: guest.id },
       });
       assert.equal(row.role, "SUPERVISOR");
+    });
+  },
+);
+
+test(
+  "a team never grows past the users included in its plan",
+  { timeout: 600000 },
+  async () => {
+    await withTestDatabase(async (prisma) => {
+      // Starter : 2 utilisateurs, propriétaire compris.
+      assert.equal(teamSeats("starter"), 2);
+      assert.equal(teamSeats("pro"), 4);
+      assert.equal(teamSeats("business"), 10);
+      assert.equal(teamSeats("inconnue"), 2);
+
+      const project = await createProject(prisma, { plan: "starter" });
+      const owner = await createUser(prisma, "Propriétaire");
+      const agent = await createUser(prisma, "Agent");
+      const guests = await Promise.all(
+        ["Invité A", "Invité B", "Invité C"].map((name) => createUser(prisma, name)),
+      );
+      await addMember(prisma, project.id, owner.id, "OWNER");
+      await addMember(prisma, project.id, agent.id, "AGENT");
+
+      const invite = async (email: string) => {
+        const token = randomBytes(32).toString("hex");
+        await prisma.invitation.create({
+          data: {
+            email,
+            projectId: project.id,
+            role: "AGENT",
+            token: hashInvitationToken(token),
+            inviterId: owner.id,
+            expiresAt: new Date(Date.now() + 60_000),
+          },
+        });
+        return token;
+      };
+      const reason = async (user: { id: string; email: string }, token: string) => {
+        const result = await acceptInvitation(prisma, user, token);
+        return result.ok ? "OK" : result.reason;
+      };
+      const members = () => prisma.projectMembership.count({ where: { projectId: project.id } });
+
+      // Équipe complète : personne n’entre, et l’invitation reste utilisable.
+      const waiting = await invite(guests[0].email);
+      assert.equal(await reason(guests[0], waiting), "TEAM_FULL");
+      assert.equal(await members(), 2);
+      assert.equal(await prisma.invitation.count({ where: { email: guests[0].email } }), 1);
+
+      // Un membre déjà présent n’occupe pas de seconde place.
+      assert.equal(await reason(agent, await invite(agent.email)), "OK");
+      assert.equal(await members(), 2);
+
+      // Passage à Pro (4 places) : la même invitation fonctionne désormais.
+      await prisma.project.update({ where: { id: project.id }, data: { plan: "pro" } });
+      assert.equal(await reason(guests[0], waiting), "OK");
+      assert.equal(await members(), 3);
+
+      // Dernière place disputée par deux invités en même temps : un seul entre.
+      const [first, second] = await Promise.all([
+        invite(guests[1].email),
+        invite(guests[2].email),
+      ]);
+      const outcomes = await Promise.all([
+        reason(guests[1], first),
+        reason(guests[2], second),
+      ]);
+      assert.deepEqual([...outcomes].sort(), ["OK", "TEAM_FULL"]);
+      assert.equal(await members(), 4);
+
+      // Retour à Starter : les membres restent, aucune nouvelle entrée.
+      await prisma.project.update({ where: { id: project.id }, data: { plan: "starter" } });
+      const loser =
+        outcomes[0] === "OK"
+          ? { user: guests[2], token: second }
+          : { user: guests[1], token: first };
+      assert.equal(await reason(loser.user, loser.token), "TEAM_FULL");
+      assert.equal(await members(), 4);
     });
   },
 );

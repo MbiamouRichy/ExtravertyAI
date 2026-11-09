@@ -1,4 +1,4 @@
-import { PRICING_PLANS, resolvePlanId, type PlanId } from "./pricing";
+import { PRICING_PLANS, pricingPlan, resolvePlanId, type PlanId } from "./pricing";
 
 /** Limits and gated capabilities per plan. Always enforced on the server. */
 export type PlanFeatures = {
@@ -25,6 +25,8 @@ export type PlanFeatures = {
   images: boolean;
   /** Instinct IA : chaque conversation est analysée pour repérer les prospects. */
   instinct: boolean;
+  /** Résumé IA d’une conversation, généré à la demande. */
+  summary: boolean;
   pipeline: boolean;
   csat: boolean;
   /** Page Intégrations et Google Sheets. */
@@ -43,6 +45,14 @@ export type PlanFeatures = {
   followUps: boolean;
   /** Relances au plus sur 24 heures glissantes : rythme sûr pour le numéro. */
   followUpDaily: number;
+  /**
+   * Répartition automatique des nouvelles conversations. Appliquée par le
+   * déclencheur SQL `contact_auto_assign_single_member`, qui doit lister les
+   * mêmes offres (vérifié par les tests).
+   */
+  autoAssign: boolean;
+  /** Rapports hebdomadaires programmés, envoyés par e-mail. */
+  reports: boolean;
 };
 
 export const PLAN_FEATURES: Record<PlanId, PlanFeatures> = {
@@ -58,6 +68,7 @@ export const PLAN_FEATURES: Record<PlanId, PlanFeatures> = {
     audio: false,
     images: false,
     instinct: false,
+    summary: false,
     pipeline: false,
     csat: false,
     integrations: true,
@@ -68,6 +79,8 @@ export const PLAN_FEATURES: Record<PlanId, PlanFeatures> = {
     broadcastDaily: 0,
     followUps: false,
     followUpDaily: 0,
+    autoAssign: false,
+    reports: false,
   },
   pro: {
     knowledgeWords: 150_000,
@@ -81,6 +94,7 @@ export const PLAN_FEATURES: Record<PlanId, PlanFeatures> = {
     audio: true,
     images: false,
     instinct: true,
+    summary: true,
     // Pipeline de ventes : Business seulement. Instinct IA continue de classer
     // les prospects ; ils sont déjà dans le pipeline au passage à Business.
     pipeline: false,
@@ -93,6 +107,8 @@ export const PLAN_FEATURES: Record<PlanId, PlanFeatures> = {
     broadcastDaily: 300,
     followUps: false,
     followUpDaily: 0,
+    autoAssign: false,
+    reports: false,
   },
   business: {
     knowledgeWords: 600_000,
@@ -106,6 +122,7 @@ export const PLAN_FEATURES: Record<PlanId, PlanFeatures> = {
     audio: true,
     images: true,
     instinct: true,
+    summary: true,
     pipeline: true,
     csat: true,
     integrations: true,
@@ -116,6 +133,8 @@ export const PLAN_FEATURES: Record<PlanId, PlanFeatures> = {
     broadcastDaily: 1000,
     followUps: true,
     followUpDaily: 150,
+    autoAssign: true,
+    reports: true,
   },
 };
 
@@ -123,23 +142,29 @@ export type GatedFeature =
   | "audio"
   | "images"
   | "instinct"
+  | "summary"
   | "pipeline"
   | "csat"
   | "integrations"
   | "webhooks"
   | "followUps"
-  | "broadcast";
+  | "broadcast"
+  | "autoAssign"
+  | "reports";
 
 const FEATURE_LABEL: Record<GatedFeature, string> = {
   audio: "La compréhension des notes vocales",
   images: "La compréhension des images",
   instinct: "Instinct IA",
+  summary: "Le résumé IA des conversations",
   pipeline: "Le pipeline de prospects",
   csat: "Le questionnaire de satisfaction",
   integrations: "Les intégrations",
   webhooks: "Les webhooks",
   broadcast: "La diffusion de messages",
   followUps: "Les relances automatiques",
+  autoAssign: "La répartition automatique des conversations",
+  reports: "Les rapports hebdomadaires",
 };
 
 // Safe to show as is to the user.
@@ -185,4 +210,14 @@ export function requirePlanFeature(plan: unknown, feature: GatedFeature) {
   if (!planAllows(plan, feature)) {
     throw new PlanFeatureError(planUpgradeMessage(feature));
   }
+}
+
+/** Utilisateurs inclus dans l’offre, propriétaire compris : lu dans `PRICING_PLANS`. */
+export function teamSeats(plan: unknown): number {
+  return pricingPlan(plan).users;
+}
+
+export function teamFullMessage(plan: unknown): string {
+  const { name, users } = pricingPlan(plan);
+  return `L’offre ${name} comprend ${users} utilisateurs et l’équipe est complète. Retirez un membre ou changez d’offre pour inviter quelqu’un.`;
 }

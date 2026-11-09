@@ -166,6 +166,10 @@ type WorkspaceProps = {
   canCopyPhone?: boolean;
   /** Offre Business : étape et montant dans la fiche contact. */
   pipeline?: { enabled: boolean; currency: string };
+  /** Instinct IA tourne pour ce projet (offre et réglage, vérifiés côté serveur). */
+  instinctEnabled?: boolean;
+  /** Résumé IA inclus dans l’offre (vérifié à nouveau côté serveur). */
+  summaryEnabled?: boolean;
 };
 
 type Filter = ChatFilter;
@@ -747,6 +751,8 @@ export default function WhatsappWorkspace({
   canPublishCorrection = false,
   canCopyPhone = false,
   pipeline,
+  instinctEnabled = false,
+  summaryEnabled = false,
   initialClient,
 }: WorkspaceProps) {
   const { dateFormatter, previewDateFormatter, timeZone } = useChatDates();
@@ -1207,10 +1213,11 @@ export default function WhatsappWorkspace({
       requestAnimationFrame(() => textareaRef.current?.focus());
   }
 
-  const summaryOpen = !!activeClient && summaryFor === activeClient.id;
+  const summaryOpen =
+    summaryEnabled && !!activeClient && summaryFor === activeClient.id;
   // Résumé IA : sans fiche contact visible (mobile, écran réduit, fiche fermée),
-  // placé juste après « Note interne ».
-  const summaryButton = activeClient ? (
+  // placé juste après « Note interne ». Absent hors de l’offre.
+  const summaryButton = summaryEnabled && activeClient ? (
     <Button
       type="button"
       size="xs"
@@ -2519,6 +2526,8 @@ export default function WhatsappWorkspace({
               canCopyPhone={canCopyPhone}
               currentUserId={user.id}
               pipeline={pipeline}
+              instinctEnabled={instinctEnabled}
+              summaryEnabled={summaryEnabled}
               onContactChanged={() => void contactsQuery.mutate()}
               projectTags={contactsQuery.projectTags}
             />
@@ -2535,7 +2544,7 @@ export default function WhatsappWorkspace({
             <SheetHeader className="sr-only">
               <SheetTitle>Fiche de {activeClient.name}</SheetTitle>
               <SheetDescription>
-                Statut, Instinct IA, résumé et étiquettes du contact
+                Statut, responsable et étiquettes du contact
               </SheetDescription>
             </SheetHeader>
             <ChatContactPanel
@@ -2551,6 +2560,8 @@ export default function WhatsappWorkspace({
               canCopyPhone={canCopyPhone}
               currentUserId={user.id}
               pipeline={pipeline}
+              instinctEnabled={instinctEnabled}
+              summaryEnabled={summaryEnabled}
               onContactChanged={() => void contactsQuery.mutate()}
               projectTags={contactsQuery.projectTags}
             />

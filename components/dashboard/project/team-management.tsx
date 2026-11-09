@@ -122,12 +122,15 @@ interface TeamManagementProps {
   projectId: string;
   currentUserId?: string;
   data: TeamMember[];
+  /** Utilisateurs inclus dans l’offre ; le serveur refuse toute entrée au-delà. */
+  seats: { limit: number; planName: string };
 }
 
 export default function TeamManagement({
   projectId,
   currentUserId,
   data,
+  seats,
 }: TeamManagementProps) {
   const presence = useProjectPresence(projectId);
   const router = useRouter(); // <-- Initialisation du router
@@ -169,6 +172,9 @@ export default function TeamManagement({
   const currentUserMembership = members.find((m) => m.userId === currentUserId);
   const currentUserRole: string = currentUserMembership?.role ?? "AGENT";
   const inviteRoles = assignableRoles(currentUserRole);
+  // Indication seulement : le serveur refait le compte, sous verrou, à l’envoi
+  // de l’invitation puis à son acceptation.
+  const teamFull = members.length >= seats.limit;
 
   // Filtrage dynamique
   const filteredMembers = members.filter(
@@ -271,106 +277,118 @@ export default function TeamManagement({
           </p>
         </div>
 
-        <Dialog open={isInviteOpen} onOpenChange={handleInviteModalChange}>
-          <DialogTrigger asChild>
-            <Button className="w-full sm:w-auto">
+        {teamFull ? (
+          <div className="flex w-full flex-col gap-1.5 sm:w-auto sm:items-end">
+            <Button className="w-full sm:w-auto" disabled aria-describedby="team-full-note">
               <Plus data-icon="inline-start" />
               Inviter un membre
             </Button>
-          </DialogTrigger>
-          <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>Inviter un collaborateur</DialogTitle>
-              <DialogDescription>
-                Un e-mail d&apos;invitation lui permettra de rejoindre le projet.
-              </DialogDescription>
-            </DialogHeader>
+            <p id="team-full-note" className="max-w-64 text-xs text-muted-foreground sm:text-right">
+              Équipe complète : l’offre {seats.planName} comprend {seats.limit} utilisateurs.
+            </p>
+          </div>
+        ) : (
+          <Dialog open={isInviteOpen} onOpenChange={handleInviteModalChange}>
+            <DialogTrigger asChild>
+              <Button className="w-full sm:w-auto">
+                <Plus data-icon="inline-start" />
+                Inviter un membre
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>Inviter un collaborateur</DialogTitle>
+                <DialogDescription>
+                  Un e-mail d&apos;invitation lui permettra de rejoindre le projet.
+                </DialogDescription>
+              </DialogHeader>
 
-            <form
-              id="invite-member-form"
-              noValidate
-              onSubmit={form.handleSubmit(onSubmitInvite)}
-              className="pt-2"
-            >
-              <FieldGroup>
-                <Controller
-                  name="email"
-                  control={form.control}
-                  render={({ field, fieldState }) => (
-                    <Field data-invalid={fieldState.invalid}>
-                      <FieldLabel htmlFor="invite-email">Adresse e-mail</FieldLabel>
-                      <InputGroup>
-                        <InputGroupInput
-                          {...field}
-                          id="invite-email"
-                          type="email"
-                          inputMode="email"
-                          placeholder="agent@entreprise.com"
-                          aria-invalid={fieldState.invalid}
+              <form
+                id="invite-member-form"
+                noValidate
+                onSubmit={form.handleSubmit(onSubmitInvite)}
+                className="pt-2"
+              >
+                <FieldGroup>
+                  <Controller
+                    name="email"
+                    control={form.control}
+                    render={({ field, fieldState }) => (
+                      <Field data-invalid={fieldState.invalid}>
+                        <FieldLabel htmlFor="invite-email">Adresse e-mail</FieldLabel>
+                        <InputGroup>
+                          <InputGroupInput
+                            {...field}
+                            id="invite-email"
+                            type="email"
+                            inputMode="email"
+                            placeholder="agent@entreprise.com"
+                            aria-invalid={fieldState.invalid}
+                            disabled={isInviting}
+                            autoComplete="off"
+                          />
+                          <InputGroupAddon align="inline-start">
+                            <Mail />
+                          </InputGroupAddon>
+                        </InputGroup>
+                        {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                      </Field>
+                    )}
+                  />
+
+                  <Controller
+                    name="role"
+                    control={form.control}
+                    render={({ field, fieldState }) => (
+                      <FieldSet data-invalid={fieldState.invalid}>
+                        <FieldLegend variant="label">Rôle</FieldLegend>
+                        <RadioGroup
+                          name={field.name}
+                          value={field.value}
+                          onValueChange={field.onChange}
                           disabled={isInviting}
-                          autoComplete="off"
-                        />
-                        <InputGroupAddon align="inline-start">
-                          <Mail />
-                        </InputGroupAddon>
-                      </InputGroup>
-                      {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
-                    </Field>
-                  )}
-                />
+                          className="gap-2"
+                        >
+                          {inviteRoles.map((value) => (
+                            <FieldLabel
+                              key={value}
+                              htmlFor={`invite-role-${value}`}
+                              className="cursor-pointer rounded-xl border px-3 py-2.5 font-normal has-data-[state=checked]:border-primary has-data-[state=checked]:bg-muted/50"
+                            >
+                              <Field orientation="horizontal">
+                                <RadioGroupItem id={`invite-role-${value}`} value={value} />
+                                <span className="flex flex-col">
+                                  <span className="text-sm font-medium">{ROLE_LABELS[value]}</span>
+                                  <span className="text-xs text-muted-foreground">{ROLE_DESCRIPTIONS[value]}</span>
+                                </span>
+                              </Field>
+                            </FieldLabel>
+                          ))}
+                        </RadioGroup>
+                        {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                      </FieldSet>
+                    )}
+                  />
+                </FieldGroup>
 
-                <Controller
-                  name="role"
-                  control={form.control}
-                  render={({ field, fieldState }) => (
-                    <FieldSet data-invalid={fieldState.invalid}>
-                      <FieldLegend variant="label">Rôle</FieldLegend>
-                      <RadioGroup
-                        name={field.name}
-                        value={field.value}
-                        onValueChange={field.onChange}
-                        disabled={isInviting}
-                        className="gap-2"
-                      >
-                        {inviteRoles.map((value) => (
-                          <FieldLabel
-                            key={value}
-                            htmlFor={`invite-role-${value}`}
-                            className="cursor-pointer rounded-xl border px-3 py-2.5 font-normal has-data-[state=checked]:border-primary has-data-[state=checked]:bg-muted/50"
-                          >
-                            <Field orientation="horizontal">
-                              <RadioGroupItem id={`invite-role-${value}`} value={value} />
-                              <span className="flex flex-col">
-                                <span className="text-sm font-medium">{ROLE_LABELS[value]}</span>
-                                <span className="text-xs text-muted-foreground">{ROLE_DESCRIPTIONS[value]}</span>
-                              </span>
-                            </Field>
-                          </FieldLabel>
-                        ))}
-                      </RadioGroup>
-                      {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
-                    </FieldSet>
-                  )}
-                />
-              </FieldGroup>
-
-              <DialogFooter className="pt-6">
-                <Button
-                  variant="outline"
-                  type="button"
-                  onClick={() => handleInviteModalChange(false)}
-                  disabled={isInviting}
-                >
-                  Annuler
-                </Button>
-                <Button type="submit" form="invite-member-form" disabled={isInviting}>
-                  {isInviting && <Loader2 className="animate-spin" aria-hidden="true" />}
-                  Envoyer l&apos;invitation
-                </Button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
+                <DialogFooter className="pt-6">
+                  <Button
+                    variant="outline"
+                    type="button"
+                    onClick={() => handleInviteModalChange(false)}
+                    disabled={isInviting}
+                  >
+                    Annuler
+                  </Button>
+                  <Button type="submit" form="invite-member-form" disabled={isInviting}>
+                    {isInviting && <Loader2 className="animate-spin" aria-hidden="true" />}
+                    Envoyer l&apos;invitation
+                  </Button>
+                </DialogFooter>
+              </form>
+            </DialogContent>
+          </Dialog>
+        )}
       </header>
 
       <section aria-label="Rôles" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -397,7 +415,8 @@ export default function TeamManagement({
               Membres
             </h2>
             <p className="text-xs text-muted-foreground">
-              {members.length} personne{members.length > 1 ? "s" : ""} ont accès à ce projet
+              {members.length} sur {seats.limit} utilisateurs inclus dans l’offre{" "}
+              {seats.planName}
             </p>
           </div>
           <InputGroup className="sm:max-w-64">

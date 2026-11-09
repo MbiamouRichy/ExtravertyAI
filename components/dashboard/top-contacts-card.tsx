@@ -118,6 +118,8 @@ interface TopContactsCardProps {
   projectId: string;
   contacts: TopContactRow[];
   rangeLabel: string;
+  /** Instinct IA tourne pour ce projet ; sinon ni colonne ni « En attente ». */
+  instinct: boolean;
 }
 
 /**
@@ -128,6 +130,7 @@ export function TopContactsCard({
   projectId,
   contacts,
   rangeLabel,
+  instinct,
 }: TopContactsCardProps) {
   const data = useMemo<Row[]>(
     () => contacts.map((contact, index) => ({ ...contact, rank: index + 1 })),
@@ -213,14 +216,18 @@ export function TopContactsCard({
           </span>
         ),
       },
-      {
-        accessorKey: "instinct",
-        header: "Instinct IA",
-        enableSorting: false,
-        cell: ({ row }) => (
-          <InstinctCell classification={row.original.instinct} />
-        ),
-      },
+      ...(instinct
+        ? [
+            {
+              accessorKey: "instinct",
+              header: "Instinct IA",
+              enableSorting: false,
+              cell: ({ row }) => (
+                <InstinctCell classification={row.original.instinct} />
+              ),
+            } satisfies ColumnDef<Row>,
+          ]
+        : []),
       {
         accessorKey: "aiActive",
         header: "Réglage IA",
@@ -248,7 +255,7 @@ export function TopContactsCard({
         ),
       },
     ],
-    [projectId],
+    [projectId, instinct],
   );
 
   const table = useReactTable({
@@ -398,7 +405,7 @@ export function TopContactsCard({
                         ))}
                       </dl>
                       <div className="flex flex-wrap items-center gap-2">
-                        <InstinctCell classification={contact.instinct} />
+                        {instinct && <InstinctCell classification={contact.instinct} />}
                         <AiBadge active={contact.aiActive} />
                         <span className="ml-auto whitespace-nowrap text-[11px] text-muted-foreground">
                           {contact.lastActivityLabel}

@@ -16,6 +16,7 @@ import { ChatRefreshButton } from "@/components/dashboard/project/chat-refresh-b
 
 import prisma from "@/lib/prisma";
 import { planAllows } from "@/lib/plan-features";
+import { instinctEnabled } from "@/lib/instinct-classification";
 
 export const dynamic = "force-dynamic";
 
@@ -187,6 +188,8 @@ export default async function ChatPage({ params, searchParams }: PageProps) {
           enabled: planAllows(project.plan, "pipeline"),
           currency: project.currency,
         }}
+        instinctEnabled={instinctEnabled(project)}
+        summaryEnabled={planAllows(project.plan, "summary")}
       />
     </>
   );

@@ -302,6 +302,8 @@ export default async function AnalyticsPage({
               projectId={projectId}
               contacts={overview.topContacts}
               rangeLabel={overview.rangeLabel}
+              // null exactement quand Instinct ne tourne pas (offre ou réglage).
+              instinct={overview.instinct !== null}
             />
           </div>
         </AnalyticsSection>

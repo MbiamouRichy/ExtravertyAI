@@ -2,7 +2,7 @@ import { createHmac, randomBytes, randomUUID, timingSafeEqual } from "node:crypt
 import type { PrismaClient } from "../src/generated/prisma/client";
 import { INTEGRATION_EVENTS, defaultIntegrationEvents } from "./integration-events";
 import { IntegrationError, MAX_ENDPOINTS, type DeliveryJob } from "./integrations";
-import { requirePlanFeature } from "./plan-features";
+import { planAllows, requirePlanFeature } from "./plan-features";
 import { requireProjectAdmin } from "./project-settings";
 import { openSecret, sealSecret } from "./secret-box";
 
@@ -16,17 +16,40 @@ const SCOPES = ["openid", "email", "https://www.googleapis.com/auth/drive.file"]
 export const GOOGLE_NONCE_COOKIE = "eai_google_sheets_nonce";
 const STATE_TTL_MS = 10 * 60_000;
 export const SHEET_NAME = "Événements";
-const HEADER = [
+/** Colonnes communes à toutes les offres, dans un ordre qui ne change jamais. */
+const BASE_HEADER = [
   "Date",
   "Événement",
   "Prospect",
   "Téléphone",
   "Première interaction",
   "Dernière interaction",
-  "Instinct IA",
   "Sources des messages",
   "Détail",
-];
+] as const;
+const INSTINCT_HEADER = "Instinct IA";
+
+/**
+ * En-tête de la feuille. La colonne Instinct IA n’existe que sur les offres qui
+ * l’incluent, en dernier : changer d’offre ne décale jamais les autres colonnes.
+ */
+export function sheetHeader(instinct: boolean): string[] {
+  return instinct ? [...BASE_HEADER, INSTINCT_HEADER] : [...BASE_HEADER];
+}
+
+/** Ancienne disposition (Instinct IA avant les sources), encore reconnue. */
+const PREVIOUS_HEADER = [...BASE_HEADER.slice(0, 6), INSTINCT_HEADER, ...BASE_HEADER.slice(6)];
+
+/** En-tête écrit par ExtravertyAI : seul celui-là est remis à jour, jamais une ligne du client. */
+function isOwnHeader(row: unknown[]): boolean {
+  const text = row.join("\u0000");
+  return (
+    row[0] === "Date (UTC)" ||
+    [sheetHeader(true), sheetHeader(false), PREVIOUS_HEADER].some(
+      (header) => header.join("\u0000") === text,
+    )
+  );
+}
 
 function appOrigin() {
   const origin = process.env.BETTER_AUTH_URL || process.env.NEXT_PUBLIC_APP_URL;
@@ -164,6 +187,11 @@ function range(sheetName: string) {
   return encodeURIComponent(`'${sheetName.replace(/'/g, "''")}'!A1`);
 }
 
+/** Toute la première ligne : l’en-tête complet, pas seulement sa première cellule. */
+function headerRange(sheetName: string) {
+  return encodeURIComponent(`'${sheetName.replace(/'/g, "''")}'!1:1`);
+}
+
 async function appendValues(accessToken: string, spreadsheetId: string, sheetName: string, values: string[][]) {
   // RAW: cells are stored as typed, a value starting with « = » never becomes a formula.
   const { status } = await googleJson(
@@ -224,8 +252,15 @@ function localDateTime(iso: unknown, timeZone: string): string {
   return format.format(date);
 }
 
-/** One spreadsheet row per event, readable without any formula. */
-export function sheetRow(job: Pick<DeliveryJob, "event" | "payload">, timeZone = "UTC"): string[] {
+/**
+ * One spreadsheet row per event, readable without any formula, aligned on
+ * `sheetHeader(instinct)`: without Instinct IA in the plan, no Instinct cell.
+ */
+export function sheetRow(
+  job: Pick<DeliveryJob, "event" | "payload">,
+  timeZone = "UTC",
+  instinct = false,
+): string[] {
   const payload = (job.payload ?? {}) as { occurredAt?: string; data?: Record<string, unknown> };
   const data = payload.data ?? {};
   const contact = (data.contact ?? {}) as {
@@ -258,11 +293,14 @@ export function sheetRow(job: Pick<DeliveryJob, "event" | "payload">, timeZone =
     contact.phone ?? "",
     localDateTime(contact.firstInteractionAt, timeZone),
     localDateTime(contact.lastInteractionAt, timeZone),
-    contact.instinct ? (INSTINCT_LABELS[contact.instinct] ?? contact.instinct) : "",
     Array.isArray(contact.sources)
       ? contact.sources.map((source) => SOURCE_LABELS[source] ?? source).join(", ")
       : "",
     detail,
+    // Libellé connu seulement : une valeur inattendue n’est jamais recopiée.
+    ...(instinct
+      ? [contact.instinct ? (INSTINCT_LABELS[contact.instinct] ?? "") : ""]
+      : []),
   ];
 }
 
@@ -270,52 +308,81 @@ const sheetSettings = new Map<string, { timeZone: string; checkedAt: number }>()
 const SETTINGS_TTL_MS = 60 * 60_000;
 
 /**
+ * Header row to write when ours is outdated (older layout, or Instinct IA
+ * added or removed by a plan change), or null. Cells left over from a longer
+ * header are blanked; a header the customer wrote is never touched.
+ */
+export function headerUpdate(firstRow: unknown, instinct: boolean): string[] | null {
+  if (!Array.isArray(firstRow) || !isOwnHeader(firstRow)) return null;
+  const expected = sheetHeader(instinct);
+  if (firstRow.join("\u0000") === expected.join("\u0000")) return null;
+  return [...expected, ...Array<string>(Math.max(0, firstRow.length - expected.length)).fill("")];
+}
+
+/**
  * Reads the spreadsheet's time zone (File › Settings, initially the Google
- * account's) and brings an older header row up to date. Cached for an hour.
+ * account's) and keeps our header row in line with the plan. Cached for an
+ * hour per layout, so a plan change is applied at the next row.
  */
 async function sheetTimeZone(
   endpointId: string,
   accessToken: string,
   spreadsheetId: string,
   sheetName: string,
+  instinct: boolean,
 ) {
-  const cached = sheetSettings.get(endpointId);
+  const key = `${endpointId}:${instinct ? "instinct" : "base"}`;
+  const cached = sheetSettings.get(key);
   if (cached && Date.now() - cached.checkedAt < SETTINGS_TTL_MS) return cached.timeZone;
   const id = encodeURIComponent(spreadsheetId);
   const [{ payload: meta }, { payload: header }] = await Promise.all([
     googleJson(`https://sheets.googleapis.com/v4/spreadsheets/${id}?fields=properties.timeZone`, {
       headers: { authorization: `Bearer ${accessToken}` },
     }),
-    googleJson(`https://sheets.googleapis.com/v4/spreadsheets/${id}/values/${range(sheetName)}`, {
+    googleJson(`https://sheets.googleapis.com/v4/spreadsheets/${id}/values/${headerRange(sheetName)}`, {
       headers: { authorization: `Bearer ${accessToken}` },
     }),
   ]);
   const properties = meta.properties as { timeZone?: unknown } | undefined;
   const timeZone = typeof properties?.timeZone === "string" ? properties.timeZone : "UTC";
-  const firstRow = (header.values as unknown[][] | undefined)?.[0];
-  if (Array.isArray(firstRow) && firstRow[0] === "Date (UTC)") {
+  const update = headerUpdate((header.values as unknown[][] | undefined)?.[0], instinct);
+  if (update) {
     await googleJson(
       `https://sheets.googleapis.com/v4/spreadsheets/${id}/values/${range(sheetName)}?valueInputOption=RAW`,
       {
         method: "PUT",
         headers: { authorization: `Bearer ${accessToken}`, "content-type": "application/json" },
-        body: JSON.stringify({ values: [HEADER] }),
+        body: JSON.stringify({ values: [update] }),
       },
     );
   }
-  sheetSettings.set(endpointId, { timeZone, checkedAt: Date.now() });
+  sheetSettings.delete(`${endpointId}:${instinct ? "base" : "instinct"}`);
+  sheetSettings.set(key, { timeZone, checkedAt: Date.now() });
   return timeZone;
 }
 
 export async function appendEventRow(
-  endpoint: { id: string; spreadsheetId: string; sheetName: string; refreshTokenCiphertext: string },
+  endpoint: {
+    id: string;
+    spreadsheetId: string;
+    sheetName: string;
+    refreshTokenCiphertext: string;
+    /** L’offre du projet inclut Instinct IA (relu à chaque envoi). */
+    instinct: boolean;
+  },
   job: DeliveryJob,
 ) {
   const access = await accessTokenFor(endpoint.id, endpoint.refreshTokenCiphertext);
   if (!access.token) return { status: access.status };
-  const timeZone = await sheetTimeZone(endpoint.id, access.token, endpoint.spreadsheetId, endpoint.sheetName);
+  const timeZone = await sheetTimeZone(
+    endpoint.id,
+    access.token,
+    endpoint.spreadsheetId,
+    endpoint.sheetName,
+    endpoint.instinct,
+  );
   const status = await appendValues(access.token, endpoint.spreadsheetId, endpoint.sheetName, [
-    sheetRow(job, timeZone),
+    sheetRow(job, timeZone, endpoint.instinct),
   ]);
   if (status === 401) accessTokens.delete(endpoint.id);
   return { status };
@@ -343,7 +410,11 @@ export async function connectGoogleSheets(
     return project;
   });
   const tokens = await google.exchangeCode(input.code);
-  const sheet = await google.createSpreadsheet(tokens.accessToken, `ExtravertyAI · ${project.name}`);
+  const sheet = await google.createSpreadsheet(
+    tokens.accessToken,
+    `ExtravertyAI · ${project.name}`,
+    planAllows(project.plan, "instinct"),
+  );
   return db.$transaction(async (tx) => {
     await tx.$queryRaw`SELECT id FROM project WHERE id = ${input.projectId} FOR UPDATE`;
     const { project: locked } = await requireProjectAdmin(tx, input.projectId, input.userId);
@@ -371,7 +442,7 @@ export async function connectGoogleSheets(
   });
 }
 
-export async function createSpreadsheet(accessToken: string, title: string) {
+export async function createSpreadsheet(accessToken: string, title: string, instinct: boolean) {
   const { status, payload } = await googleJson("https://sheets.googleapis.com/v4/spreadsheets", {
     method: "POST",
     headers: { authorization: `Bearer ${accessToken}`, "content-type": "application/json" },
@@ -385,6 +456,6 @@ export async function createSpreadsheet(accessToken: string, title: string) {
   if (status !== 200 || !spreadsheetId || !spreadsheetUrl?.startsWith("https://docs.google.com/")) {
     throw new IntegrationError("Impossible de créer la feuille Google. Réessayez.");
   }
-  await appendValues(accessToken, spreadsheetId, SHEET_NAME, [HEADER]);
+  await appendValues(accessToken, spreadsheetId, SHEET_NAME, [sheetHeader(instinct)]);
   return { spreadsheetId, spreadsheetUrl, sheetName: SHEET_NAME };
 }

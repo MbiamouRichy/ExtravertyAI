@@ -4,7 +4,10 @@ import { can, homePath } from "@/lib/project-permissions";
 import { z } from "zod";
 import { getSession } from "@/lib/auth-server";
 import prisma from "@/lib/prisma";
-import { currentProspectClassification } from "@/lib/instinct-classification";
+import {
+  currentProspectClassification,
+  instinctEnabled,
+} from "@/lib/instinct-classification";
 import { contactAvatarUrl } from "@/lib/contact-avatar";
 import { ContactsWorkspace } from "@/components/dashboard/project/contacts-workspace";
 export const dynamic = "force-dynamic";
@@ -111,6 +114,7 @@ export default async function ContactsPage({
       query={values.q}
       filter={values.filter}
       sort={values.sort}
+      instinct={instinctEnabled(membership.project)}
       contacts={contacts.map((c) => ({
         id: c.id,
         name: c.name,

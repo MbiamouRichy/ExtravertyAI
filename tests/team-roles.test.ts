@@ -22,6 +22,7 @@ import * as permissions from "../lib/project-permissions";
 import * as rateLimit from "../lib/rate-limit";
 import { hashInvitationToken } from "../lib/project-invitations";
 import * as recentSession from "../lib/recent-session";
+import * as planFeatures from "../lib/plan-features";
 import {
   ConversationWorkflowError,
   assignConversation,
@@ -346,6 +347,7 @@ function loadTeamActions(prisma: PrismaClient, userId: string, emailFails = fals
     "@/lib/recent-session": recentSession,
     "@/lib/rate-limit": rateLimit,
     "@/lib/project-permissions": permissions,
+    "@/lib/plan-features": planFeatures,
   };
   const exports: Record<string, (...args: never[]) => Promise<{ success: boolean; error?: string }>> = {};
   const source = ts.transpileModule(readFileSync("app/actions/team.ts", "utf8"), {
@@ -384,7 +386,8 @@ test(
   { timeout: 600000 },
   async () => {
     await withTestDatabase(async (prisma) => {
-      const project = await createProject(prisma);
+      // Business : 10 places, assez pour un membre de chaque rôle et les invités.
+      const project = await createProject(prisma, { plan: "business" });
       const users: Record<string, string> = {};
       const memberships: Record<string, string> = {};
       for (const role of PROJECT_ROLES) {
@@ -459,6 +462,22 @@ test(
       const pending = await failing.inviteTeamMember("absent@example.test", "AGENT", project.id);
       assert.equal(pending.success, false);
       assert.equal(await prisma.invitation.count({ where: { email: "absent@example.test" } }), 0);
+
+      // Offre Starter (2 utilisateurs) avec six membres : aucune invitation,
+      // aucun e-mail, et le message dit pourquoi.
+      await prisma.project.update({ where: { id: project.id }, data: { plan: "starter" } });
+      const sentBefore = owner.sent.length;
+      const full = await owner.inviteTeamMember("place@example.test", "AGENT", project.id);
+      assert.equal(full.success, false);
+      assert.equal(full.error, planFeatures.teamFullMessage("starter"));
+      assert.equal(owner.sent.length, sentBefore);
+      assert.equal(await prisma.invitation.count({ where: { email: "place@example.test" } }), 0);
+      // L’invitation déjà en attente n’est ni remplacée ni supprimée par ce refus.
+      assert.equal(
+        (await owner.inviteTeamMember(outsider.email, "AGENT", project.id)).success,
+        false,
+      );
+      assert.equal(await prisma.invitation.count({ where: { email: outsider.email } }), 1);
     });
   },
 );

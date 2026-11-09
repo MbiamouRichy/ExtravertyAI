@@ -83,6 +83,8 @@ type Props = {
   onDelete: (contact: ContactTableType) => void;
   onToggleAi: (contact: ContactTableType) => void;
   renderStatus: (contact: ContactTableType) => ReactNode;
+  /** Instinct IA tourne pour ce projet (offre et réglage, vérifiés côté serveur). */
+  instinct: boolean;
 };
 
 export function ContactsTable(p: Props) {
@@ -103,9 +105,11 @@ export function ContactsTable(p: Props) {
   const columnVisibility = visibility[tier];
   // Les cartes n'existent que sur mobile : elles suivent toujours ces choix-là,
   // y compris au premier rendu serveur (pas de saut de mise en page).
-  const showOnMobile = (column: string) => visibility.mobile[column] !== false;
+  const showOnMobile = (column: string) =>
+    (column !== "instinct" || p.instinct) && visibility.mobile[column] !== false;
   const columns = ContactsTableColumns({
     phoneUnderName: columnVisibility.phone === false,
+    instinct: p.instinct,
     renderStatus: p.renderStatus,
     renderActions: (contact) => (
       <div className="flex items-center justify-end gap-1">

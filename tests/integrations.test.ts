@@ -20,7 +20,14 @@ import {
   verifySignature,
   type DeliveryTransport,
 } from "../lib/integrations";
-import { connectGoogleSheets, sheetRow, signState, verifyState } from "../lib/google-sheets";
+import {
+  connectGoogleSheets,
+  headerUpdate,
+  sheetHeader,
+  sheetRow,
+  signState,
+  verifyState,
+} from "../lib/google-sheets";
 import { PlanFeatureError } from "../lib/plan-features";
 import { assignConversation, setConversationResolved } from "../lib/conversation-workflow";
 import { movePipelineStage } from "../lib/pipeline";
@@ -49,39 +56,73 @@ test("OAuth state is signed, bound and short-lived", () => {
 });
 
 test("spreadsheet rows are plain readable values", () => {
-  assert.deepEqual(
-    sheetRow({
-      event: "pipeline.stage_changed",
-      payload: {
-        occurredAt: "2026-10-19T14:05:00.000Z",
-        data: {
-          contact: {
-            name: "=HYPERLINK(\"x\")",
-            phone: "24101000001",
-            firstInteractionAt: "2026-10-01T08:30:00.000Z",
-            lastInteractionAt: "2026-10-19T13:59:00.000Z",
-            instinct: "interesting",
-            sources: ["android", "whatsapp"],
-          },
-          fromLabel: "Devis envoyé",
-          toLabel: "Gagné",
-          dealValue: 45000,
-          dealValueLabel: "45 000 FCFA",
+  const job = {
+    event: "pipeline.stage_changed",
+    payload: {
+      occurredAt: "2026-10-19T14:05:00.000Z",
+      data: {
+        contact: {
+          name: "=HYPERLINK(\"x\")",
+          phone: "24101000001",
+          firstInteractionAt: "2026-10-01T08:30:00.000Z",
+          lastInteractionAt: "2026-10-19T13:59:00.000Z",
+          instinct: "interesting",
+          sources: ["android", "whatsapp"],
         },
+        fromLabel: "Devis envoyé",
+        toLabel: "Gagné",
+        dealValue: 45000,
+        dealValueLabel: "45 000 FCFA",
       },
-    }, "Africa/Libreville"),
-    [
-      "2026-10-19 15:05",
-      "Étape du pipeline modifiée",
-      "=HYPERLINK(\"x\")",
-      "24101000001",
-      "2026-10-01 09:30",
-      "2026-10-19 14:59",
-      "Prospect intéressant",
-      "Android, WhatsApp",
-      "Devis envoyé → Gagné · 45 000 FCFA",
-    ],
-  );
+    },
+  };
+  const common = [
+    "2026-10-19 15:05",
+    "Étape du pipeline modifiée",
+    "=HYPERLINK(\"x\")",
+    "24101000001",
+    "2026-10-01 09:30",
+    "2026-10-19 14:59",
+    "Android, WhatsApp",
+    "Devis envoyé → Gagné · 45 000 FCFA",
+  ];
+  // Instinct IA inclus : dernière colonne, alignée sur l’en-tête.
+  assert.deepEqual(sheetRow(job, "Africa/Libreville", true), [...common, "Prospect intéressant"]);
+  assert.equal(sheetHeader(true).at(-1), "Instinct IA");
+  assert.equal(sheetHeader(true).length, sheetRow(job, "UTC", true).length);
+  // Sans Instinct IA dans l’offre : aucune cellule, même si l’envoi en file en contenait une.
+  assert.deepEqual(sheetRow(job, "Africa/Libreville"), common);
+  assert.ok(!sheetHeader(false).includes("Instinct IA"));
+  assert.equal(sheetHeader(false).length, sheetRow(job).length);
+  // Une valeur inattendue n’est jamais recopiée dans la feuille.
+  const odd = { ...job, payload: { ...job.payload, data: { ...job.payload.data, contact: { instinct: "=CMD()" } } } };
+  assert.equal(sheetRow(odd, "UTC", true).at(-1), "");
+});
+
+test("our spreadsheet header follows the plan, never the customer's own header", () => {
+  const previous = [
+    "Date", "Événement", "Prospect", "Téléphone", "Première interaction",
+    "Dernière interaction", "Instinct IA", "Sources des messages", "Détail",
+  ];
+  // Ancienne disposition vers Starter : une cellule de trop est vidée.
+  assert.deepEqual(headerUpdate(previous, false), [...sheetHeader(false), ""]);
+  assert.deepEqual(headerUpdate(previous, true), sheetHeader(true));
+  // Changement d’offre dans les deux sens.
+  assert.deepEqual(headerUpdate(sheetHeader(false), true), sheetHeader(true));
+  assert.deepEqual(headerUpdate(sheetHeader(true), false), [...sheetHeader(false), ""]);
+  assert.deepEqual(headerUpdate(["Date (UTC)", "Événement"], true), sheetHeader(true));
+  // Déjà à jour, absent, ou écrit par le client : rien n’est réécrit.
+  assert.equal(headerUpdate(sheetHeader(true), true), null);
+  assert.equal(headerUpdate(sheetHeader(false), false), null);
+  assert.equal(headerUpdate(undefined, true), null);
+  assert.equal(headerUpdate(["Client", "Montant"], false), null);
+});
+
+test("the qualified prospect event exists only where Instinct IA runs", () => {
+  const ids = (plan: string) => defaultIntegrationEvents(plan).map((event) => event.id);
+  assert.ok(!ids("starter").includes("contact.qualified"));
+  assert.ok(ids("pro").includes("contact.qualified"));
+  assert.ok(ids("business").includes("contact.qualified"));
 });
 
 test("integrations", { timeout: 180000 }, async (t) => {
@@ -271,16 +312,20 @@ test("integrations", { timeout: 180000 }, async (t) => {
     });
 
     await t.test("Google Sheets connects and is disabled when access is revoked", async () => {
+      const instinctColumn: boolean[] = [];
       const connected = await connectGoogleSheets(
         prisma,
         { ...admin, code: "code" },
         {
           exchangeCode: async () => ({ refreshToken: "1//refresh", accessToken: "ya29", email: "clara@example.test" }),
-          createSpreadsheet: async () => ({
-            spreadsheetId: "sheet-1",
-            spreadsheetUrl: "https://docs.google.com/spreadsheets/d/sheet-1",
-            sheetName: "Événements",
-          }),
+          createSpreadsheet: async (_token, _title, instinct) => {
+            instinctColumn.push(instinct);
+            return {
+              spreadsheetId: "sheet-1",
+              spreadsheetUrl: "https://docs.google.com/spreadsheets/d/sheet-1",
+              sheetName: "Événements",
+            };
+          },
         },
       );
       const endpoint = await prisma.integrationEndpoint.findUniqueOrThrow({ where: { id: connected.id } });
@@ -291,7 +336,15 @@ test("integrations", { timeout: 180000 }, async (t) => {
       await prisma.$transaction((tx) => emitIntegrationEvent(tx, project.id, "csat.received", { score: 5 }));
       const job = await claimDelivery(prisma);
       assert.ok(job);
-      await runDelivery(prisma, job, { webhook: async () => ({ status: 200 }), sheets: async () => ({ status: 401 }) });
+      await runDelivery(prisma, job, {
+        webhook: async () => ({ status: 200 }),
+        sheets: async (target) => {
+          instinctColumn.push(target.instinct);
+          return { status: 401 };
+        },
+      });
+      // Projet Business : la colonne Instinct IA existe à la création et à chaque envoi.
+      assert.deepEqual(instinctColumn, [true, true]);
       const revoked = await prisma.integrationEndpoint.findUniqueOrThrow({ where: { id: connected.id } });
       assert.equal(revoked.enabled, false);
       assert.match(revoked.disabledReason ?? "", /Reconnectez Google Sheets/);

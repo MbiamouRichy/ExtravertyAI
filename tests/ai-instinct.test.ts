@@ -11,6 +11,7 @@ import {
   lastProspectClassification,
 } from "../lib/instinct-classification";
 import { runInstinctCycle } from "../lib/ai-instinct";
+import { integrationContact } from "../lib/integration-events";
 import { planAllows, requiredPlanLabel } from "../lib/plan-features";
 import {
   activateBilling,
@@ -271,6 +272,17 @@ test("the Instinct worker analyses Pro projects and never Starter ones", async (
     const untouched = await contact(starter.contactId);
     assert.equal(untouched.instinctClassification, null);
     assert.equal(untouched.instinctLeaseToken, null);
+
+    // Outils externes (Google Sheets, webhooks) : une ancienne analyse d’un
+    // projet Starter ne sort jamais ; celle d’un projet Pro, oui.
+    await prisma.contact.update({
+      where: { id: starter.contactId },
+      data: { instinctClassification: "interesting" },
+    });
+    const exported = (contactId: string) =>
+      prisma.$transaction((tx) => integrationContact(tx, contactId));
+    assert.equal((await exported(starter.contactId))?.instinct, null);
+    assert.equal((await exported(pro.contactId))?.instinct, "interesting");
 
     // Passage à Starter pendant l’analyse : le résultat n’est pas enregistré.
     await ingestText(prisma, pro.id, "Finalement, je préfère réfléchir.");

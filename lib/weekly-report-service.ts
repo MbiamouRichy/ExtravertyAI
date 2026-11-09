@@ -5,6 +5,7 @@ import type {
   ReportEmail,
 } from "../src/generated/prisma/client";
 import { getBillingAccess } from "./billing-access";
+import { planAllows } from "./plan-features";
 import { collectWeekAggregate } from "./report-aggregates";
 import { buildFindings, buildVerdict } from "./report-findings";
 import { readIndicators } from "./report-indicators";
@@ -21,6 +22,17 @@ import {
 
 /** Semaines comparées : 8 pour la plage normale, plus 12 pour les courbes. */
 const SERIES_WEEKS = 20;
+
+/**
+ * Les fenêtres sont des intervalles UTC et les colonnes `timestamp` stockent
+ * l'heure UTC. L'adaptateur pg remplace le décalage d'un `timestamptz` par
+ * `+00:00` : dans une session hors UTC, `clock_timestamp()` arriverait décalé
+ * d'autant, et le rapport du lundi 00 h serait bâti la veille au soir sur la
+ * semaine en cours. La transaction lit donc et compare l'horloge en UTC.
+ */
+async function useUtcClock(tx: Prisma.TransactionClient) {
+  await tx.$executeRaw`SET LOCAL TimeZone TO 'UTC'`;
+}
 
 export async function collectReportMetrics(
   db: Prisma.TransactionClient,
@@ -57,6 +69,7 @@ export async function queueNextWeeklyReport(
 ) {
   return db.$transaction(
     async (tx) => {
+      await useUtcClock(tx);
       const [candidate] = await tx.$queryRaw<{ id: string; now: Date }[]>`
       SELECT id, clock_timestamp() AS now FROM project
       WHERE "reportsCheckAt" <= clock_timestamp()
@@ -72,7 +85,7 @@ export async function queueNextWeeklyReport(
         data: { reportsCheckAt: new Date(now.getTime() + 86400000) },
       });
       if (
-        project.plan !== "business" ||
+        !planAllows(project.plan, "reports") ||
         !project.reportsEnabled ||
         project.deletionPending ||
         !(await getBillingAccess(tx, project.id)).allowed
@@ -182,6 +195,7 @@ export async function deliverNextReportEmail(
 ) {
   const token = randomUUID();
   const email = await db.$transaction(async (tx) => {
+    await useUtcClock(tx);
     // Provider idempotency lasts 24h. An uncertain send must never be retried outside it.
     const review =
       await tx.$executeRaw`UPDATE report_email SET state = 'REVIEW_REQUIRED', "leaseToken" = NULL, "leaseUntil" = NULL
@@ -210,7 +224,7 @@ export async function deliverNextReportEmail(
       can(member.role, "stats.view") &&
       member.user.emailVerified &&
       member.user.email === record.recipient &&
-      project.plan === "business" &&
+      planAllows(project.plan, "reports") &&
       project.reportsEnabled &&
       !project.deletionPending &&
       record.report.weekEnd.getTime() > candidate.now.getTime() - WEEK_MS &&
@@ -249,7 +263,7 @@ export async function deliverNextReportEmail(
     });
   } catch {
     await db.$executeRaw`UPDATE report_email SET state = 'PENDING', "leaseToken" = NULL, "leaseUntil" = NULL,
-      "availableAt" = clock_timestamp() + (${Math.min(3600, 30 * 2 ** Math.min(email.attempts, 7))} * interval '1 second')
+      "availableAt" = (clock_timestamp() AT TIME ZONE 'UTC') + (${Math.min(3600, 30 * 2 ** Math.min(email.attempts, 7))} * interval '1 second')
       WHERE id = ${email.id} AND state = 'SENDING' AND "leaseToken" = ${token}`;
     console.error("[reports-worker] Envoi à réessayer.", { emailId: email.id });
   }

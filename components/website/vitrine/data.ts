@@ -542,7 +542,10 @@ export interface MatrixGroup {
 }
 
 const all = { starter: true, pro: true, business: true } as const;
-const fromPro = { starter: false, pro: true, business: true } as const;
+/** « 30 jours », « 12 mois » : profondeur d’historique lue dans PLAN_FEATURES. */
+function historyLabel(days: number) {
+  return days % 365 === 0 ? `${(days / 365) * 12} mois` : `${days} jours`;
+}
 const count = (value: number) => new Intl.NumberFormat("fr-FR").format(value);
 
 /** Reads a value from every plan so capacity rows stay in sync with lib/pricing. */
@@ -601,7 +604,7 @@ export const MATRIX_GROUPS: readonly MatrixGroup[] = [
     title: "Ventes",
     rows: [
       { label: "Instinct IA : prospects repérés", values: gated("instinct") },
-      { label: "Résumé IA des conversations", values: fromPro },
+      { label: "Résumé IA des conversations", values: gated("summary") },
       { label: "Questionnaire de satisfaction", values: gated("csat") },
       { label: "Pipeline de prospects", values: gated("pipeline") },
       { label: "Relances automatiques des prospects", values: gated("followUps") },
@@ -618,15 +621,18 @@ export const MATRIX_GROUPS: readonly MatrixGroup[] = [
   {
     title: "Équipe et outils",
     rows: [
-      { label: "Répartition automatique des conversations", values: { starter: false, pro: false, business: true } },
+      { label: "Répartition automatique des conversations", values: gated("autoAssign") },
       { label: "Connexion à vos outils (Make, Zapier, CRM)", values: gated("webhooks") },
     ],
   },
   {
     title: "Pilotage et support",
     rows: [
-      { label: "Rapports hebdomadaires programmés", values: { starter: false, pro: false, business: true } },
-      { label: "Historique des statistiques", values: { starter: "30 jours", pro: "90 jours", business: "12 mois" } },
+      { label: "Rapports hebdomadaires programmés", values: gated("reports") },
+      {
+        label: "Historique des statistiques",
+        values: byPlan((plan) => historyLabel(PLAN_FEATURES[plan.id].analyticsDays)),
+      },
       {
         label: "Accompagnement",
         values: { starter: "Standard", pro: "Prioritaire", business: "Prioritaire" },

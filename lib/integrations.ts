@@ -290,6 +290,8 @@ export type DeliveryTransport = {
     spreadsheetId: string;
     sheetName: string;
     refreshTokenCiphertext: string;
+    /** Colonne Instinct IA : seulement si l’offre du projet l’inclut. */
+    instinct: boolean;
   }, job: DeliveryJob) => Promise<{ status: number }>;
 };
 
@@ -374,12 +376,18 @@ export async function runDelivery(
       if (!endpoint.spreadsheetId || !endpoint.sheetName || !endpoint.refreshTokenCiphertext) {
         throw new IntegrationError("Connexion Google incomplète.");
       }
+      // Offre relue à l’envoi : un envoi en file avant un changement d’offre suit l’offre actuelle.
+      const project = await prisma.project.findUnique({
+        where: { id: endpoint.projectId },
+        select: { plan: true },
+      });
       const result = await transport.sheets(
         {
           id: endpoint.id,
           spreadsheetId: endpoint.spreadsheetId,
           sheetName: endpoint.sheetName,
           refreshTokenCiphertext: endpoint.refreshTokenCiphertext,
+          instinct: planAllows(project?.plan, "instinct"),
         },
         job,
       );

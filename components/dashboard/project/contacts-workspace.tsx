@@ -40,6 +40,8 @@ type Props = {
   filter: "all" | "ai" | "human";
   sort: "activity" | "newest" | "name";
   contacts: Contact[];
+  /** Instinct IA tourne pour ce projet ; sinon aucune colonne ni « En attente ». */
+  instinct: boolean;
 };
 export function ContactsWorkspace(p: Props) {
   const router = useRouter();
@@ -310,6 +312,7 @@ export function ContactsWorkspace(p: Props) {
             total={p.filtered}
             pending={navigationPending}
             busy={!!busy}
+            instinct={p.instinct}
             renderStatus={status}
             onToggleAi={(contact) => {
               if (!busy && !navigationPending) void handling(contact);

@@ -24,10 +24,12 @@ export type ContactTableType = {
 export function ContactsTableColumns(options: {
   /** Colonne « Numéro » masquée : le numéro s'affiche sous le nom. */
   phoneUnderName: boolean;
+  /** Instinct IA tourne pour ce projet ; sinon la colonne n’existe pas. */
+  instinct: boolean;
   renderActions: (contact: ContactTableType) => ReactNode;
   renderStatus: (contact: ContactTableType) => ReactNode;
 }): ColumnDef<ContactTableType>[] {
-  return [
+  const columns: ColumnDef<ContactTableType>[] = [
     {
       accessorKey: "name",
       header: "Identité",
@@ -98,4 +100,7 @@ export function ContactsTableColumns(options: {
       cell: ({ row }) => options.renderActions(row.original),
     },
   ];
+  return options.instinct
+    ? columns
+    : columns.filter((column) => !("accessorKey" in column) || column.accessorKey !== "instinct");
 }

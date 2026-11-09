@@ -13,6 +13,7 @@ import { LocalDate } from "@/components/local-date";
 import { getSession } from "@/lib/auth-server";
 import prisma from "@/lib/prisma";
 import { getBillingAccess } from "@/lib/billing-access";
+import { planAllows } from "@/lib/plan-features";
 import { readIndicators } from "@/lib/report-indicators";
 import { BASELINE_WEEKS, BAND_K } from "@/lib/report-signal";
 import {
@@ -79,9 +80,9 @@ export default async function ReportsPage({
   const canManageReports = can(member.role, "reports.manage");
   const project = member.project;
   const access = await getBillingAccess(prisma, projectId);
-  const eligible = project.plan === "business" && access.allowed;
+  const eligible = planAllows(project.plan, "reports") && access.allowed;
 
-  if (project.plan !== "business")
+  if (!planAllows(project.plan, "reports"))
     return (
       <main className="mx-auto grid w-full max-w-5xl items-center gap-12 px-4 py-10 sm:px-6 lg:grid-cols-[1fr_1.1fr] lg:py-16">
         <div>

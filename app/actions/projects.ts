@@ -138,6 +138,7 @@ export async function getProjectById(projectId: string) {
             status: true,
             automationPaused: true,
             agentSetupCompletedAt: true,
+            agentQualifyLeads: true,
             plan: true,
             currency: true,
             messageCount: true,

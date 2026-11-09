@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import type Stripe from "stripe";
 import { matchesCheckoutPrice } from "../lib/checkout-price";
@@ -65,6 +66,47 @@ test("every pricing list follows the plan gates enforced on the server", () => {
       assert.equal(matrix(label)[plan.id], allowed, `${plan.id} : ${feature} dans la matrice`);
     }
 
+    // Résumé IA, répartition automatique et rapports : annoncés là où le serveur les autorise.
+    for (const [feature, cardPattern, fullPattern, label] of [
+      ["summary", /Résumé IA/, /Résumé IA/, "Résumé IA des conversations"],
+      [
+        "autoAssign",
+        /Répartition automatique/,
+        /Répartition automatique/,
+        "Répartition automatique des conversations",
+      ],
+      ["reports", /rapports/i, /Rapports hebdomadaires/, "Rapports hebdomadaires programmés"],
+    ] as const) {
+      const allowed = planAllows(plan.id, feature);
+      assert.equal(
+        plan.features.some((line) => cardPattern.test(line)),
+        allowed,
+        `${plan.id} : ${feature} sur la carte`,
+      );
+      assert.equal(
+        PLAN_CAPABILITIES[plan.id].some((line) => fullPattern.test(line)),
+        allowed,
+        `${plan.id} : ${feature} dans la liste complète`,
+      );
+      assert.equal(matrix(label)[plan.id], allowed, `${plan.id} : ${feature} dans la matrice`);
+    }
+
+    // Utilisateurs et historique : la carte et la matrice disent ce que le serveur applique.
+    assert.ok(
+      plan.features[0].startsWith(`${plan.users} utilisateurs`),
+      `${plan.id} : utilisateurs sur la carte`,
+    );
+    assert.equal(matrix("Utilisateurs")[plan.id], String(plan.users));
+    const history = matrix("Historique des statistiques")[plan.id];
+    assert.equal(
+      history,
+      { 30: "30 jours", 90: "90 jours", 365: "12 mois" }[PLAN_FEATURES[plan.id].analyticsDays],
+    );
+    assert.ok(
+      (plan.features as readonly string[]).includes(`Statistiques sur ${history}`),
+      `${plan.id} : historique sur la carte`,
+    );
+
     assert.equal(matrix("Questionnaire de satisfaction")[plan.id], planAllows(plan.id, "csat"));
     assert.equal(
       matrix("Connexion à vos outils (Make, Zapier, CRM)")[plan.id],
@@ -86,6 +128,15 @@ test("every pricing list follows the plan gates enforced on the server", () => {
         assert.ok(digits(full).includes(String(value)), `${plan.id} : ${value} dans la liste`);
       }
     }
+  }
+
+  // Quota mensuel : appliqué depuis MESSAGE_LIMIT_<OFFRE>, dont l’exemple suit les tarifs.
+  const example = readFileSync(new URL("../.env.example", import.meta.url), "utf8");
+  for (const plan of PRICING_PLANS) {
+    const configured = example.match(
+      new RegExp(`^MESSAGE_LIMIT_${plan.id.toUpperCase()}=(\\d+)\\s*$`, "m"),
+    );
+    assert.equal(Number(configured?.[1]), plan.messageLimit, `${plan.id} : quota de messages`);
   }
 
   // La carte de l'accueil n'affiche que quatre lignes : celle de Business montre le pipeline.

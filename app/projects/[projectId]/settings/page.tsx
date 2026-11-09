@@ -92,7 +92,7 @@ export default async function SettingsPage({
     aiQuietEnabled: p.aiQuietEnabled,
     timeZone: projectTimeZone(p.timeZone),
     timeZoneGroups: timeZoneGroups(new Date(), projectTimeZone(p.timeZone)),
-    autoAssign: { enabled: p.autoAssignTeam, available: p.plan === "business" },
+    autoAssign: { enabled: p.autoAssignTeam, available: planAllows(p.plan, "autoAssign") },
     csat: {
       enabled: p.csatEnabled,
       message: p.csatMessage,

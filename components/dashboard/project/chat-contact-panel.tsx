@@ -118,6 +118,8 @@ export function ChatContactPanel({
   canCopyPhone,
   currentUserId,
   pipeline,
+  instinctEnabled = false,
+  summaryEnabled = false,
   onContactChanged,
   projectTags = [],
 }: {
@@ -135,6 +137,10 @@ export function ChatContactPanel({
   canCopyPhone: boolean;
   currentUserId: string;
   pipeline?: { enabled: boolean; currency: string };
+  /** Instinct IA tourne pour ce projet ; sinon la ligne « Intérêt » n’existe pas. */
+  instinctEnabled?: boolean;
+  /** Résumé IA inclus dans l’offre ; sinon la section n’existe pas. */
+  summaryEnabled?: boolean;
   /** Rafraîchit la liste après une modification (étiquettes, assignation). */
   onContactChanged: () => void;
   /** Étiquettes du projet, proposées à l’ajout. */
@@ -258,23 +264,25 @@ export function ChatContactPanel({
               {status.label}
             </span>
           </Row>
-          <Row label="Intérêt">
-            {instinct === "interesting" ? (
-              <span className="inline-flex min-w-0 items-center gap-1.5 rounded-md bg-primary px-2 py-1 font-medium text-primary-foreground">
-                <Sparkles aria-hidden="true" className="size-3.5 shrink-0" />
-                <span className="truncate">Prospect intéressant</span>
-              </span>
-            ) : instinct === "follow_up" ? (
-              <span className="inline-flex min-w-0 items-center gap-1.5 rounded-md border px-2 py-1 font-medium">
-                <Clock3 aria-hidden="true" className="size-3.5 shrink-0" />
-                <span className="truncate">À suivre</span>
-              </span>
-            ) : (
-              <span className="truncate text-muted-foreground">
-                {instinct === "none" ? "Aucun détecté" : "En attente"}
-              </span>
-            )}
-          </Row>
+          {instinctEnabled && (
+            <Row label="Intérêt">
+              {instinct === "interesting" ? (
+                <span className="inline-flex min-w-0 items-center gap-1.5 rounded-md bg-primary px-2 py-1 font-medium text-primary-foreground">
+                  <Sparkles aria-hidden="true" className="size-3.5 shrink-0" />
+                  <span className="truncate">Prospect intéressant</span>
+                </span>
+              ) : instinct === "follow_up" ? (
+                <span className="inline-flex min-w-0 items-center gap-1.5 rounded-md border px-2 py-1 font-medium">
+                  <Clock3 aria-hidden="true" className="size-3.5 shrink-0" />
+                  <span className="truncate">À suivre</span>
+                </span>
+              ) : (
+                <span className="truncate text-muted-foreground">
+                  {instinct === "none" ? "Aucun détecté" : "En attente"}
+                </span>
+              )}
+            </Row>
+          )}
           <Row label="Suivie par">
             {agents.length > 0 && (
               <AvatarGroup className="shrink-0 *:data-[slot=avatar]:size-5">
@@ -344,12 +352,14 @@ export function ChatContactPanel({
         />
       )}
 
-      <ConversationSummaryCard
-        key={`summary-${client.id}`}
-        projectId={projectId}
-        contactId={client.id}
-        enabled={hasClientMessage}
-      />
+      {summaryEnabled && (
+        <ConversationSummaryCard
+          key={`summary-${client.id}`}
+          projectId={projectId}
+          contactId={client.id}
+          enabled={hasClientMessage}
+        />
+      )}
 
       <ContactTagsEditor
         key={`tags-${client.id}`}

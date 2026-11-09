@@ -7,6 +7,7 @@ import {
   ingestText,
   withTestDatabase,
 } from "./helpers/database";
+import { planAllows } from "../lib/plan-features";
 
 test(
   "a one-member Business team gets every new conversation assigned to itself",
@@ -109,6 +110,29 @@ test(
       });
       await prisma.$executeRaw`DELETE FROM user_presence`;
       assert.equal(await assigneeOf("24155555555", "Hello"), null);
+    });
+  },
+);
+
+test(
+  "the SQL auto-assignment follows the plans listed in PLAN_FEATURES",
+  { timeout: 600000 },
+  async () => {
+    await withTestDatabase(async (prisma) => {
+      // Le déclencheur contact_auto_assign_single_member liste ses offres en SQL :
+      // une offre ajoutée à `autoAssign` sans migration ferait échouer ce test.
+      for (const plan of ["starter", "pro", "business"] as const) {
+        const project = await createProject(prisma, { plan });
+        const owner = await createUser(prisma, `Seul ${plan}`);
+        await addMember(prisma, project.id, owner.id, "OWNER");
+        const contact = await ingestText(prisma, project.id, "Bonjour");
+        const saved = await prisma.contact.findUniqueOrThrow({ where: { id: contact.id } });
+        assert.equal(
+          saved.assigneeId === owner.id,
+          planAllows(plan, "autoAssign"),
+          `${plan} : attribution automatique`,
+        );
+      }
     });
   },
 );

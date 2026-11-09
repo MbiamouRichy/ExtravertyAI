@@ -1,12 +1,14 @@
 import { createHash } from "node:crypto";
 import type { PrismaClient } from "../src/generated/prisma/client";
 import { assignableRoles, can } from "./project-permissions";
+import { teamSeats } from "./plan-features";
 
 export type InvitationFailure =
   | "NOT_FOUND"
   | "EXPIRED"
   | "WRONG_ACCOUNT"
-  | "REVOKED";
+  | "REVOKED"
+  | "TEAM_FULL";
 
 type Db = Pick<PrismaClient, "invitation" | "projectMembership" | "$transaction">;
 
@@ -41,7 +43,7 @@ export async function acceptInvitation(
   return db.$transaction(async (tx) => {
     const invitation = await tx.invitation.findUnique({
       where: { token: hashInvitationToken(token) },
-      include: { project: { select: { name: true, deletionPending: true } } },
+      select: { id: true, email: true, expiresAt: true, projectId: true, inviterId: true, role: true },
     });
     if (!invitation) return { ok: false, reason: "NOT_FOUND" };
     if (invitation.expiresAt < new Date())
@@ -50,20 +52,35 @@ export async function acceptInvitation(
       return { ok: false, reason: "WRONG_ACCOUNT" };
 
     const { projectId, inviterId, role } = invitation;
+    // Verrou du projet : deux acceptations simultanées ne dépassent pas l’offre,
+    // et l’offre lue est celle en vigueur au moment de l’entrée.
+    await tx.$queryRaw`SELECT id FROM project WHERE id = ${projectId} FOR UPDATE`;
+    const project = await tx.project.findUniqueOrThrow({
+      where: { id: projectId },
+      select: { name: true, plan: true, deletionPending: true },
+    });
     const inviter = await tx.projectMembership.findUnique({
       where: { userId_projectId: { userId: inviterId, projectId } },
       select: { role: true },
     });
+    const revoked =
+      project.deletionPending ||
+      !can(inviter?.role, "team.manage") ||
+      !assignableRoles(inviter?.role).includes(role);
+    if (!revoked) {
+      const [alreadyMember, members] = await Promise.all([
+        tx.projectMembership.count({ where: { projectId, userId: user.id } }),
+        tx.projectMembership.count({ where: { projectId } }),
+      ]);
+      // Équipe complète : l’invitation reste valable, pour une place libérée.
+      if (!alreadyMember && members >= teamSeats(project.plan))
+        return { ok: false, reason: "TEAM_FULL" };
+    }
     const consumed = await tx.invitation.deleteMany({
       where: { id: invitation.id },
     });
     if (consumed.count === 0) return { ok: false, reason: "NOT_FOUND" };
-    if (
-      invitation.project.deletionPending ||
-      !can(inviter?.role, "team.manage") ||
-      !assignableRoles(inviter?.role).includes(role)
-    )
-      return { ok: false, reason: "REVOKED" };
+    if (revoked) return { ok: false, reason: "REVOKED" };
 
     // Déjà membre : l’invitation est consommée, le rôle actuel ne change pas.
     await tx.projectMembership.upsert({
@@ -71,7 +88,7 @@ export async function acceptInvitation(
       create: { userId: user.id, projectId, role },
       update: {},
     });
-    return { ok: true, projectId, projectName: invitation.project.name };
+    return { ok: true, projectId, projectName: project.name };
   });
 }
 
