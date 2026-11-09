@@ -417,7 +417,9 @@ export function NumberVerification({
     <Loader2 aria-hidden className="animate-spin motion-reduce:animate-none" />
   );
   const mainButton = "h-11 w-full";
-  const quietLink = "h-auto min-h-10 px-1 text-muted-foreground hover:text-foreground";
+  // Liens secondaires : ils passent à la ligne plutôt que de déborder.
+  const quietLink =
+    "h-auto min-h-10 max-w-full px-1 text-center whitespace-normal text-muted-foreground hover:text-foreground";
 
   const noticeAlert = notice && (
     <Alert variant="destructive">
@@ -480,18 +482,19 @@ export function NumberVerification({
     </div>
   );
 
-  /** Ouvre WhatsApp avec le message prêt : l’application choisie sur Android. */
+  /**
+   * Ouvre WhatsApp avec le message prêt : l’application choisie sur Android.
+   * Les deux choix s’empilent sur un écran étroit, côte à côte au-delà.
+   */
   const openButtons = (pending: PendingMessage) =>
     platform === "android" ? (
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-1 gap-2 @sm:grid-cols-2">
         {(["whatsapp", "business"] as const).map((app) => (
-          <Button key={app} asChild size="lg" variant="outline" className="h-11">
+          <Button key={app} asChild size="lg" variant="outline" className={mainButton}>
             <a href={androidWhatsAppLink(pending.link, app)}>
               <WhatsAppIcon aria-hidden className="size-4" />
-              {app === "business" ? "WA Business" : "WhatsApp"}
-              <span className="sr-only">
-                {app === "business" ? " (WhatsApp Business)" : ""} : ouvrir avec le message prêt
-              </span>
+              {app === "business" ? "WhatsApp Business" : "WhatsApp"}
+              <span className="sr-only"> : ouvrir avec le message prêt</span>
             </a>
           </Button>
         ))}
@@ -512,7 +515,7 @@ export function NumberVerification({
 
   /** Code à envoyer, le QR qui ouvre WhatsApp (ordinateur) et la copie du message. */
   const messageCard = (pending: PendingMessage) => (
-    <div className="flex items-center gap-4 rounded-xl border bg-muted/40 p-4">
+    <div className="flex flex-col items-start gap-3 rounded-xl border bg-muted/40 p-3 @2xs:p-4 @sm:flex-row @sm:items-center @sm:gap-4">
       {platform === "desktop" && (
         // Fond clair dans les deux thèmes : les appareils photo lisent mieux le code.
         <div className="shrink-0 rounded-lg bg-background p-1.5 text-foreground dark:bg-foreground dark:text-background">
@@ -527,14 +530,14 @@ export function NumberVerification({
           />
         </div>
       )}
-      <div className="min-w-0 flex-1 space-y-2">
+      <div className="w-full min-w-0 flex-1 space-y-2">
         <p className="text-sm leading-5 text-muted-foreground">
           {platform === "desktop"
             ? "Scannez avec le téléphone de ce numéro, puis envoyez le message."
             : "Envoyez ce code depuis le WhatsApp de ce numéro."}
         </p>
         <div className="flex items-center justify-between gap-2">
-          <span className="font-mono text-2xl font-semibold tracking-[0.2em] tabular-nums">
+          <span className="font-mono text-xl font-semibold tracking-[0.2em] whitespace-nowrap tabular-nums @2xs:text-2xl">
             {pending.code.slice(0, 3)}
             <span aria-hidden className="inline-block w-2" />
             {pending.code.slice(3)}
@@ -548,7 +551,8 @@ export function NumberVerification({
             onClick={() => void copyMessage(pending)}
           >
             {copied ? <Check aria-hidden /> : <Copy aria-hidden />}
-            {copied ? "Copié" : "Copier"}
+            {/* Très petit écran : l’icône seule, nommée par aria-label. */}
+            <span className="sr-only @2xs:not-sr-only">{copied ? "Copié" : "Copier"}</span>
           </Button>
         </div>
       </div>
@@ -559,7 +563,8 @@ export function NumberVerification({
     <section
       ref={sectionRef}
       aria-labelledby={titleId}
-      className={cn("space-y-5", className)}
+      // Points de rupture sur la largeur du bloc : page ou fenêtre de paiement.
+      className={cn("@container space-y-5", className)}
     >
       <div className="space-y-1">
         <Heading
@@ -661,7 +666,7 @@ export function NumberVerification({
           ) : (
             waitingLine("Préparation du code…")
           )}
-          {otherWay("Recevoir un code par WhatsApp à la place", chooseCode)}
+          {otherWay("Recevoir un code à la place", chooseCode)}
         </div>
       ) : codeId ? (
         <form noValidate onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
