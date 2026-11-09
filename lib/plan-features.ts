@@ -45,7 +45,7 @@ export const PLAN_FEATURES: Record<PlanId, PlanFeatures> = {
   starter: {
     knowledgeWords: 20_000,
     knowledgeEntries: 500,
-    knowledgeSources: 3,
+    knowledgeSources: 5,
     pdfMaxMb: 5,
     storageMb: 500,
     contextMessages: 20,
@@ -66,7 +66,7 @@ export const PLAN_FEATURES: Record<PlanId, PlanFeatures> = {
   pro: {
     knowledgeWords: 150_000,
     knowledgeEntries: 3000,
-    knowledgeSources: 20,
+    knowledgeSources: 10,
     pdfMaxMb: 10,
     storageMb: 1200,
     contextMessages: 30,
@@ -89,7 +89,7 @@ export const PLAN_FEATURES: Record<PlanId, PlanFeatures> = {
   business: {
     knowledgeWords: 600_000,
     knowledgeEntries: 10000,
-    knowledgeSources: 100,
+    knowledgeSources: 20,
     pdfMaxMb: 10,
     storageMb: 3000,
     contextMessages: 50,

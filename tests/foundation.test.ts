@@ -12,6 +12,8 @@ import {
   requirePlanFeature,
   requiredPlanLabel,
 } from "../lib/plan-features";
+import { wordsToPages } from "../lib/knowledge-shared";
+import { PLAN_CAPABILITIES } from "../lib/pricing";
 import { openSecret, sealSecret } from "../lib/secret-box";
 import {
   SafeFetchError,
@@ -45,6 +47,22 @@ test("plan features gate pipeline, satisfaction and integrations", () => {
     ["starter", "pro", "business"].map((plan) => planFeatures(plan).knowledgeWords),
     [20_000, 150_000, 600_000],
   );
+  // Documents importés (PDF et pages web) : 5, 10 puis 20.
+  assert.deepEqual(
+    ["starter", "pro", "business"].map((plan) => planFeatures(plan).knowledgeSources),
+    [5, 10, 20],
+  );
+  // La liste « Inclus dans … » de la création de projet suit ces limites.
+  for (const plan of ["starter", "pro", "business"] as const) {
+    const { knowledgeWords, knowledgeSources } = planFeatures(plan);
+    const pages = wordsToPages(knowledgeWords).toLocaleString("fr-FR");
+    assert.ok(
+      PLAN_CAPABILITIES[plan].includes(
+        `Base de connaissances : ≈ ${pages} pages, ${knowledgeSources} documents PDF ou pages web`,
+      ),
+      plan,
+    );
+  }
   assert.throws(() => requirePlanFeature("starter", "csat"), PlanFeatureError);
   assert.doesNotThrow(() => requirePlanFeature("business", "csat"));
 });

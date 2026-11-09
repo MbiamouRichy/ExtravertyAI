@@ -304,7 +304,10 @@ test("knowledge base", { timeout: 180000 }, async (t) => {
       await assert.rejects(addUrlSource(prisma, { ...admin, url: "https://example.com/livraison" }), /déjà importée/);
       await addUrlSource(prisma, { ...admin, url: "https://example.com/retours" });
       await addUrlSource(prisma, { ...admin, url: "https://example.com/faq" });
-      await assert.rejects(addUrlSource(prisma, { ...admin, url: "https://example.com/plus" }), /Limite de 3 documents/);
+      await addUrlSource(prisma, { ...admin, url: "https://example.com/contact" });
+      await addUrlSource(prisma, { ...admin, url: "https://example.com/cgv" });
+      // Starter : 5 documents (PDF et pages web confondus), comptés sous verrou du projet.
+      await assert.rejects(addUrlSource(prisma, { ...admin, url: "https://example.com/plus" }), /Limite de 5 documents/);
     });
 
     await t.test("PDF uploads validate the file and roll back storage", async () => {
@@ -323,10 +326,10 @@ test("knowledge base", { timeout: 180000 }, async (t) => {
         addPdfSource(prisma, { ...admin, fileName: "gros.pdf", bytes: sixMb }, storage),
         /5 Mo au maximum/,
       );
-      // The source limit (3) is already reached by the URL test.
+      // The source limit (5) is already reached by the URL test.
       await assert.rejects(
         addPdfSource(prisma, { ...admin, fileName: "x.pdf", bytes: Buffer.from("%PDF-1.4") }, storage),
-        /Limite de 3 documents/,
+        /Limite de 5 documents/,
       );
       assert.deepEqual(stored, []);
     });
