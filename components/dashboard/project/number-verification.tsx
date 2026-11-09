@@ -432,9 +432,9 @@ export function NumberVerification({
   const waitingLine = (label: string) => (
     <p
       role="status"
-      className="flex min-h-10 items-center justify-center gap-2 text-sm text-muted-foreground"
+      className="flex min-h-10 items-center justify-center gap-2 text-center text-sm text-balance text-muted-foreground"
     >
-      <Loader2 aria-hidden className="size-4 animate-spin motion-reduce:animate-none" />
+      <Loader2 aria-hidden className="size-4 shrink-0 animate-spin motion-reduce:animate-none" />
       {label}
     </p>
   );
@@ -637,7 +637,7 @@ export function NumberVerification({
             <>
               {messageCard(message)}
               {openButtons(message)}
-              {waitingLine("En attente de votre message…")}
+              {waitingLine("En attente du message…")}
               <p className="text-center text-xs leading-5 text-muted-foreground">
                 Mauvais compte WhatsApp ? Copiez le message et envoyez-le au{" "}
                 <span className="whitespace-nowrap tabular-nums">{message.to}</span> depuis le bon.
