@@ -9,8 +9,10 @@ import { getSession } from "@/lib/auth-server";
 import { minimumPlanFor, planAllows, planUpgradeMessage } from "@/lib/plan-features";
 import { formatPlanPrice, pricingPlan } from "@/lib/pricing";
 import { keptPipelineCount, pipelineBoard } from "@/lib/pipeline";
+import { followUpSettings, followUpStats } from "@/lib/follow-ups";
 import { Button } from "@/components/ui/button";
 import { PipelineBoard } from "@/components/dashboard/project/pipeline-board";
+import { FollowUpPanel } from "@/components/dashboard/project/follow-up-panel";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
@@ -34,7 +36,18 @@ export default async function PipelinePage({
     where: { userId_projectId: { userId: session.user.id, projectId } },
     select: {
       role: true,
-      project: { select: { name: true, plan: true, deletionPending: true } },
+      project: {
+        select: {
+          name: true,
+          plan: true,
+          deletionPending: true,
+          followUpEnabled: true,
+          followUpInterestedDays: true,
+          followUpQuoteDays: true,
+          followUpMax: true,
+          followUpTemplate: true,
+        },
+      },
     },
   });
   if (!membership || membership.project.deletionPending) notFound();
@@ -88,6 +101,7 @@ export default async function PipelinePage({
               "Un tableau de Nouveau à Gagné, rempli par Instinct IA",
               "La valeur de chaque affaire et le chiffre gagné",
               "Des diffusions ciblées par étape du pipeline",
+              "Des relances automatiques des prospects silencieux",
               "Chaque changement d’étape envoyé à vos outils",
             ].map((item) => (
               <li key={item} className="flex items-start gap-2">
@@ -124,12 +138,25 @@ export default async function PipelinePage({
     );
   }
 
-  const board = await pipelineBoard(prisma, projectId, session.user.id);
+  const [board, stats] = await Promise.all([
+    pipelineBoard(prisma, projectId, session.user.id),
+    followUpStats(prisma, projectId),
+  ]);
   if (!board) notFound();
+  const followUp = followUpSettings(membership.project);
 
   return (
     <main className="mx-auto w-full max-w-400 space-y-6 p-4 sm:p-6 xl:p-8">
       {header}
+      <FollowUpPanel
+        // Réglages changés ailleurs (autre administrateur) : le panneau repart des valeurs enregistrées.
+        key={JSON.stringify(followUp)}
+        projectId={projectId}
+        initial={followUp}
+        stats={stats}
+        currency={board.currency}
+        canManage={canManage}
+      />
       <PipelineBoard
         projectId={projectId}
         currency={board.currency}

@@ -4,6 +4,7 @@ import { workerDatabase, notifyProject } from "./shared";
 import { claimAiJob, runAiJob } from "../lib/ai-jobs";
 import { reconcileProviderReceipts } from "../lib/provider-reconciliation";
 import { runInstinctCycle } from "../lib/ai-instinct";
+import { runFollowUpTick } from "../lib/follow-ups";
 import { claimKnowledgeSource, runKnowledgeSource } from "../lib/knowledge";
 import { knowledgeExtractors } from "../lib/knowledge-extract";
 import {
@@ -80,7 +81,24 @@ async function knowledgeLoop() {
     }
   }
 }
-Promise.all([main(), instinctLoop(), extractionLoop(), knowledgeLoop()])
+// Relances automatiques (Business) : rien d’urgent à la seconde. On enchaîne
+// après une relance, sinon on revérifie toutes les 30 secondes.
+async function followUpLoop() {
+  while (!stopping) {
+    let busy = false;
+    try {
+      const tick = await runFollowUpTick(prisma);
+      busy = !!tick;
+      if (tick?.outcome === "sent") await notifyProject(tick.projectId);
+    } catch {
+      console.error("[follow-ups] Cycle interrompu.");
+    }
+    // Attente découpée : l’arrêt du worker n’attend pas la fin du délai.
+    for (let waited = 0; waited < (busy ? 1000 : 30000) && !stopping; waited += 1000)
+      await sleep(1000);
+  }
+}
+Promise.all([main(), instinctLoop(), extractionLoop(), knowledgeLoop(), followUpLoop()])
   .catch(() => {
     stopping = true;
     console.error("[ai-worker] Arrêt sur erreur.");

@@ -197,6 +197,15 @@ model Project {
   aiQuietEnabled Boolean @default(true)
   // Offre Business : nouvelles conversations réparties entre les membres en ligne (réglable).
   autoAssignTeam Boolean @default(true)
+  // Offre Business : relance des prospects restés silencieux (désactivée par défaut).
+  followUpEnabled Boolean @default(false)
+  // Jours sans échange avant une relance, par étape du pipeline ; 0 : jamais.
+  followUpInterestedDays Int @default(1)
+  followUpQuoteDays Int @default(2)
+  // Relances au plus tant que le client ne répond pas.
+  followUpMax Int @default(2)
+  // Message type ({prénom}) ; vide : l'IA rédige chaque relance.
+  followUpTemplate String @default("") @db.Text
   csatMessage String @default("Merci pour votre échange avec nous ! Comment évaluez-vous notre service ? Répondez par un chiffre de 1 (pas satisfait) à 5 (très satisfait).") @db.Text
   agentName String @default("Assistant")
   agentSystemMessage String @default("") @db.Text
@@ -350,6 +359,11 @@ lastMessageAt DateTime?
   instinctConfigVersion Int @default(-1)
   instinctLeaseToken String?
   instinctLeaseUntil DateTime?
+  // Relances automatiques : bail du worker qui prépare la relance (sert aussi de délai après un échec).
+  followUpLeaseToken String?
+  followUpLeaseUntil DateTime?
+  // Dernière activité pour laquelle l'IA a jugé une relance déplacée : pas de nouvel essai avant un nouvel échange.
+  followUpDeclinedAt DateTime?
 
   @@index([projectId, lastMessageAt, id])
   // SÉCURITÉ & PERF: Un contact (JID) est unique par projet. Indexé pour recherche rapide.

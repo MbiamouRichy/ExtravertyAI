@@ -39,6 +39,10 @@ export type PlanFeatures = {
   broadcastMonthly: number;
   /** Messages de diffusion par jour : rythme sûr pour le numéro WhatsApp. */
   broadcastDaily: number;
+  /** Relances automatiques des prospects silencieux du pipeline. */
+  followUps: boolean;
+  /** Relances au plus sur 24 heures glissantes : rythme sûr pour le numéro. */
+  followUpDaily: number;
 };
 
 export const PLAN_FEATURES: Record<PlanId, PlanFeatures> = {
@@ -62,6 +66,8 @@ export const PLAN_FEATURES: Record<PlanId, PlanFeatures> = {
     broadcastRecipients: 0,
     broadcastMonthly: 0,
     broadcastDaily: 0,
+    followUps: false,
+    followUpDaily: 0,
   },
   pro: {
     knowledgeWords: 150_000,
@@ -85,6 +91,8 @@ export const PLAN_FEATURES: Record<PlanId, PlanFeatures> = {
     broadcastRecipients: 500,
     broadcastMonthly: 2000,
     broadcastDaily: 300,
+    followUps: false,
+    followUpDaily: 0,
   },
   business: {
     knowledgeWords: 600_000,
@@ -106,6 +114,8 @@ export const PLAN_FEATURES: Record<PlanId, PlanFeatures> = {
     broadcastRecipients: 2000,
     broadcastMonthly: 10000,
     broadcastDaily: 1000,
+    followUps: true,
+    followUpDaily: 150,
   },
 };
 
@@ -117,6 +127,7 @@ export type GatedFeature =
   | "csat"
   | "integrations"
   | "webhooks"
+  | "followUps"
   | "broadcast";
 
 const FEATURE_LABEL: Record<GatedFeature, string> = {
@@ -128,6 +139,7 @@ const FEATURE_LABEL: Record<GatedFeature, string> = {
   integrations: "Les intégrations",
   webhooks: "Les webhooks",
   broadcast: "La diffusion de messages",
+  followUps: "Les relances automatiques",
 };
 
 // Safe to show as is to the user.

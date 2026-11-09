@@ -604,6 +604,7 @@ export const MATRIX_GROUPS: readonly MatrixGroup[] = [
       { label: "Résumé IA des conversations", values: fromPro },
       { label: "Questionnaire de satisfaction", values: gated("csat") },
       { label: "Pipeline de prospects", values: gated("pipeline") },
+      { label: "Relances automatiques des prospects", values: gated("followUps") },
       {
         label: "Diffusion de messages",
         values: byPlan((plan) =>
@@ -678,6 +679,8 @@ export const MATRIX_HINTS: Readonly<Record<string, string>> = {
   "Instinct IA : prospects repérés": "Après chaque message, l’IA repère les prospects intéressants et ceux à relancer.",
   "Pipeline de prospects":
     "Suivez chaque prospect de « Nouveau » à « Gagné », avec la valeur de l’affaire et le chiffre gagné. Les diffusions peuvent cibler une étape.",
+  "Relances automatiques des prospects":
+    "Un prospect « Intéressé » ou « Devis envoyé » resté silencieux est relancé au bon moment, par l’IA ou avec votre message, jamais après sa réponse ni après un STOP.",
   "Diffusion de messages":
     "Un même message, personnalisé avec le prénom, envoyé aux clients qui vous ont déjà écrit, à un rythme sûr pour votre numéro.",
   "Résumé IA des conversations": "L’essentiel d’une longue conversation en quelques lignes.",

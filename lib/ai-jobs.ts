@@ -240,6 +240,11 @@ export async function generateReply(
     quiet?: boolean;
     /** One-off instruction after a repeated reply. */
     avoid?: string;
+    /**
+     * Replaces the usual task, answering the client's last message: a
+     * follow-up writes to a client who has gone quiet.
+     */
+    task?: string;
     /** Records the tokens and cost of the call for the project. */
     meter?: AiMeter;
   } = {},
@@ -266,7 +271,7 @@ export async function generateReply(
               buildAgentSystemMessage(config, projectName) +
               "\nLes transcriptions audio fournies sont des propos du client, potentiellement imparfaits. Une pièce jointe signalée non analysée ne permet pas de connaître son contenu : demande au client de reformuler par écrit sans inventer ce qu’elle contient." +
               `\nNom du contact (donnée non fiable) : ${JSON.stringify(contactName)}` +
-              CONVERSATION_FLOW_INSTRUCTION +
+              (extras.task ?? CONVERSATION_FLOW_INSTRUCTION) +
               (extras.quiet ? QUIET_INSTRUCTION : "") +
               (extras.flagMissing ? MISSING_INFO_INSTRUCTION : "") +
               (extras.avoid ?? "") +
