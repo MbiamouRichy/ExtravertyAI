@@ -98,6 +98,24 @@ function readPlatform(): Platform {
 const serverPlatform = (): Platform => "mobile";
 
 /**
+ * Repli des navigateurs intégrés (WebView) sans presse-papiers asynchrone. La
+ * zone de texte est placée dans l’écran, pour rester dans une fenêtre modale.
+ */
+function copyWithSelection(text: string, container: HTMLElement | null) {
+  const area = document.createElement("textarea");
+  area.value = text;
+  area.readOnly = true;
+  area.setAttribute("aria-hidden", "true");
+  area.style.position = "fixed";
+  area.style.opacity = "0";
+  (container ?? document.body).append(area);
+  area.select();
+  const copied = document.execCommand("copy");
+  area.remove();
+  if (!copied) throw new Error("COPY_FAILED");
+}
+
+/**
  * Preuve que le numéro appartient à l’utilisateur, avant d’enregistrer le
  * projet ou d’ouvrir le paiement.
  *
@@ -152,6 +170,7 @@ export function NumberVerification({
   const [numberProblem, setNumberProblem] = useState(false);
   const [trialUsed, setTrialUsed] = useState(false);
   const started = useRef(false);
+  const sectionRef = useRef<HTMLElement>(null);
   const codeRequested = useRef(false);
   const proceeding = useRef(false);
   const Heading = headingLevel;
@@ -356,7 +375,9 @@ export function NumberVerification({
   /** Copie le message entier : collé dans le bon WhatsApp, il suffit de l’envoyer. */
   async function copyMessage(pending: PendingMessage) {
     try {
-      await navigator.clipboard.writeText(pending.text);
+      await navigator.clipboard
+        .writeText(pending.text)
+        .catch(() => copyWithSelection(pending.text, sectionRef.current));
       setCopied(true);
       toast.success("Message copié. Collez-le dans WhatsApp.");
     } catch {
@@ -535,7 +556,11 @@ export function NumberVerification({
   );
 
   return (
-    <section aria-labelledby={titleId} className={cn("space-y-5", className)}>
+    <section
+      ref={sectionRef}
+      aria-labelledby={titleId}
+      className={cn("space-y-5", className)}
+    >
       <div className="space-y-1">
         <Heading
           id={titleId}

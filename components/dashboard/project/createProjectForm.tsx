@@ -5,7 +5,11 @@ import Link from "next/link";
 import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { getCountries, getCountryCallingCode } from "libphonenumber-js/max";
+import {
+  getCountries,
+  getCountryCallingCode,
+  isSupportedCountry,
+} from "libphonenumber-js/max";
 import { ArrowLeft, ArrowRight, Check, ChevronDown } from "lucide-react";
 
 import { createProjectAndCheckout } from "@/app/actions/checkout-actions";
@@ -40,6 +44,7 @@ import {
 import {
   ProjectCreationFormSchema,
   parseProjectPhone,
+  type ProjectCreationFormInput,
   type ProjectCreationFormValues,
 } from "@/lib/project-creation-schema";
 import {
@@ -82,14 +87,19 @@ export default function CreateProjectForm({
   } | null>(null);
 
   const { control, trigger, setValue, setFocus, watch, getValues, handleSubmit } =
-    useForm<ProjectCreationFormValues>({
+    useForm<ProjectCreationFormInput, unknown, ProjectCreationFormValues>({
       resolver: zodResolver(ProjectCreationFormSchema),
       mode: "onTouched",
       reValidateMode: "onChange",
-      defaultValues: { name: "", numero: "", country: "FR", plan: initialPlan },
+      // Aucun pays présélectionné : l’utilisateur le choisit, ou le numéro
+      // saisi avec son indicatif le sélectionne.
+      defaultValues: { name: "", numero: "", country: "", plan: initialPlan },
     });
 
   const selectedCountry = watch("country");
+  const callingCode = isSupportedCountry(selectedCountry)
+    ? getCountryCallingCode(selectedCountry)
+    : null;
   const selectedPlan =
     PLANS.find((plan) => plan.id === watch("plan")) ?? PLANS[0];
 
@@ -229,10 +239,14 @@ export default function CreateProjectForm({
                       >
                         {/* L’indicatif figure déjà dans le champ du numéro. */}
                         <SelectValue placeholder="Choisir un pays">
-                          <CountryFlag code={field.value} />
-                          <span className="truncate">
-                            {countryNames.of(field.value) ?? field.value}
-                          </span>
+                          {isSupportedCountry(field.value) && (
+                            <>
+                              <CountryFlag code={field.value} />
+                              <span className="truncate">
+                                {countryNames.of(field.value) ?? field.value}
+                              </span>
+                            </>
+                          )}
                         </SelectValue>
                       </SelectTrigger>
                       <SelectContent
@@ -276,11 +290,13 @@ export default function CreateProjectForm({
                       Numéro WhatsApp
                     </FieldLabel>
                     <InputGroup className="h-11">
-                      <InputGroupAddon>
-                        <InputGroupText className="tabular-nums">
-                          +{getCountryCallingCode(selectedCountry)}
-                        </InputGroupText>
-                      </InputGroupAddon>
+                      {callingCode && (
+                        <InputGroupAddon>
+                          <InputGroupText className="tabular-nums">
+                            +{callingCode}
+                          </InputGroupText>
+                        </InputGroupAddon>
+                      )}
                       <InputGroupInput
                         {...field}
                         onChange={(event) => {
@@ -308,7 +324,9 @@ export default function CreateProjectForm({
                         placeholder={
                           selectedCountry === "FR"
                             ? "06 12 34 56 78"
-                            : "Votre numéro"
+                            : callingCode
+                              ? "Votre numéro"
+                              : "Numéro avec indicatif (+…)"
                         }
                         aria-invalid={fieldState.invalid}
                         aria-describedby="project-phone-help"
@@ -316,7 +334,9 @@ export default function CreateProjectForm({
                       />
                     </InputGroup>
                     <FieldDescription id="project-phone-help">
-                      Vous le vérifierez à l’étape suivante, avec WhatsApp.
+                      {callingCode
+                        ? "Vous le vérifierez à l’étape suivante, avec WhatsApp."
+                        : "Choisissez le pays, ou commencez par l’indicatif : il le sélectionne."}
                     </FieldDescription>
                     {fieldState.invalid && (
                       <FieldError errors={[fieldState.error]} />
