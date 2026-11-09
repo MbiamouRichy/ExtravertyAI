@@ -1,5 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { existsSync, readdirSync } from "node:fs";
+import { join } from "node:path";
 import {
   addMember,
   createProject,
@@ -8,6 +10,7 @@ import {
   withTestDatabase,
 } from "./helpers/database";
 import {
+  SITE_PAGES,
   classifyUserAgent,
   countryFromHeader,
   isBot,
@@ -60,6 +63,22 @@ test("page views keep no identifier, no query and no internal traffic", () => {
   assert.equal(hash, visitorHash("secret", "41.158.0.1", CHROME, new Date("2026-10-26T23:00:00Z")));
   assert.notEqual(hash, visitorHash("secret", "41.158.0.1", CHROME, new Date("2026-10-27T01:00:00Z")));
   assert.ok(!hash.includes("41.158"));
+});
+
+test("the site pages ranked in Top pages are real public pages, outside the app", () => {
+  const routes = new Map(
+    readdirSync(join(process.cwd(), "app"), { withFileTypes: true })
+      .filter((entry) => entry.isDirectory() && existsSync(join(process.cwd(), "app", entry.name, "page.tsx")))
+      .map((entry) => [`/${entry.name.toLowerCase()}`, entry.name]),
+  );
+  routes.set("/", "");
+  for (const page of SITE_PAGES) {
+    assert.ok(routes.has(page), `${page} n’existe pas dans app/`);
+    // Chemin tel que normalisé à l’enregistrement d’une vue.
+    assert.equal(normalizePath(`/${routes.get(page)}`), page);
+  }
+  for (const app of ["/projects", "/sign-in", "/sign-up", "/invite", "/maquettes"])
+    assert.ok(!(SITE_PAGES as readonly string[]).includes(app), app);
 });
 
 const NOW = new Date("2026-10-26T12:00:00Z");
@@ -165,6 +184,9 @@ test(
       await view("v1", "/tarifs");
       await view("v2", "/", { country: "CM", browser: "Safari", device: "desktop" });
       await view("v3", "/tarifs", { country: "FR" });
+      // Pages de l'application : comptées dans l'audience, jamais dans « Top pages ».
+      await view("v1", "/projects/:id/chat");
+      await view("v2", "/sign-in", { country: "CM", browser: "Safari", device: "desktop" });
 
       const data = await loadDashboard(prisma, "30d", now);
       assert.equal(data.users.total, 2);
@@ -173,10 +195,14 @@ test(
       assert.equal(data.users.series.at(-1)!.value, 1);
       assert.equal(data.visitors.current, 3);
       assert.equal(data.visitors.online, 3);
-      assert.equal(data.visitors.views.at(-1)!.value, 4);
+      assert.equal(data.visitors.views.at(-1)!.value, 6);
       // Pays : visiteurs uniques (v1 vu deux fois ne compte qu’une fois).
       assert.deepEqual(data.countries.map((row) => [row.label, row.value]), [["CM", 1], ["FR", 1], ["GA", 1]]);
-      assert.deepEqual(data.pages.map((row) => [row.label, row.value]), [["/", 2], ["/tarifs", 2]]);
+      // Site vitrine seulement : les parts se calculent sans les pages de l'application.
+      assert.deepEqual(
+        data.pages.map((row) => [row.label, row.value, row.share]),
+        [["/", 2, 0.5], ["/tarifs", 2, 0.5]],
+      );
       assert.deepEqual(data.browsers.map((row) => row.label), ["Chrome", "Safari"]);
       assert.deepEqual(data.referrers, [{ label: "google.com", value: 1, share: 1 }]);
       assert.equal(data.conversion.at(-1)!.rate, 1 / 3);

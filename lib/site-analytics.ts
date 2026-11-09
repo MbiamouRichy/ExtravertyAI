@@ -33,6 +33,21 @@ export function normalizePath(raw: string): string | null {
   return normalized;
 }
 
+/**
+ * Pages du site vitrine, sous leur chemin normalisé (minuscules) : seules
+ * classées dans « Top pages ». L'application (projets, connexion…) n'y figure
+ * pas. Une nouvelle page publique s'ajoute ici (les tests vérifient qu'elle existe).
+ */
+export const SITE_PAGES = [
+  "/",
+  "/tarifs",
+  "/apropos",
+  "/contact",
+  "/conditions",
+  "/remboursement",
+  "/donneesetconfidentialite",
+] as const;
+
 /** Site d'origine seul (jamais l'URL complète), hors navigation interne. */
 export function referrerHost(referrer: string | undefined, ownHost: string | null) {
   if (!referrer) return null;

@@ -265,7 +265,7 @@ export default async function AdminDashboardPage({
             formatLabel={(code) => (/^[A-Z]{2}$/.test(code) ? (countryName.of(code) ?? code) : code)}
           />
         </Panel>
-        <Panel title="Top pages" description="Part des pages vues">
+        <Panel title="Top pages" description="Site vitrine, part des pages vues">
           <BarList rows={data.pages} valueLabel="Pages vues" mono />
         </Panel>
         <Panel title="Navigateurs" description="Part des visiteurs">

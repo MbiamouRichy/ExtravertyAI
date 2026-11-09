@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { Prisma, type PrismaClient } from "../src/generated/prisma/client";
 import { PRICING_PLANS, type PlanId } from "./pricing";
+import { SITE_PAGES } from "./site-analytics";
 
 /** Périodes du tableau de bord : du jour près (30, 90 jours) au mois près (1 ou 2 ans). */
 export const DASHBOARD_RANGES = {
@@ -131,7 +132,7 @@ async function topBy(
   limit = 6,
 ): Promise<ShareRow[]> {
   const col = Prisma.raw(TOP_COLUMNS[column]);
-  // Pages : vues ; le reste : visiteurs uniques par jour.
+  // Pages : vues du site vitrine seulement ; le reste : visiteurs uniques par jour.
   const measure =
     column === "path"
       ? Prisma.sql`count(*)::int`
@@ -141,6 +142,7 @@ async function topBy(
     FROM "page_view"
     WHERE "createdAt" >= ${period.start}
       ${column === "referrerHost" ? Prisma.sql`AND "referrerHost" IS NOT NULL` : Prisma.empty}
+      ${column === "path" ? Prisma.sql`AND "path" IN (${Prisma.join([...SITE_PAGES])})` : Prisma.empty}
     GROUP BY 1
     ORDER BY 2 DESC, 1 ASC`;
   const total = rows.reduce((sum, row) => sum + row.value, 0);
