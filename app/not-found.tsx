@@ -1,18 +1,21 @@
+import Link from "next/link";
+import { House } from "lucide-react";
+
 import { NotFoundPage } from "@/components/not-found";
 import { Button } from "@/components/ui/button";
-import { HomeIcon } from "lucide-react";
-import Link from "next/link";
-
 
 export default function NotFound() {
   return (
-    <NotFoundPage personalButton={
-      <Button asChild>
-        <Link title="page d'accueil" href="/">
-          <HomeIcon data-icon="inline-start" />
-          Accueil
-        </Link>
-      </Button>}
+    <NotFoundPage
+      fallbackHref="/"
+      action={
+        <Button asChild size="lg">
+          <Link href="/">
+            <House aria-hidden="true" data-icon="inline-start" />
+            Accueil
+          </Link>
+        </Button>
+      }
     />
-  )
+  );
 }
