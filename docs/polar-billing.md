@@ -1,22 +1,22 @@
 # Facturation Polar
 
-Polar encaisse les nouveaux abonnements quand `BILLING_PROVIDER=polar`. Sans cette variable, l'application reste sur Stripe. Un abonnement existant garde le fournisseur enregistré dans `billingProvider`.
+Polar est le seul fournisseur de paiement : abonnements, essais, portail client et factures. Stripe a été retiré de l'application ; aucune clé Stripe n'est lue.
+
+Les colonnes `stripeCustomerId`, `stripeSubscriptionId`, `stripePriceId`, `stripeStatus` et `stripeCurrentPeriodEnd` gardent leur nom historique et contiennent les identifiants Polar. La colonne `billingProvider` vaut toujours `polar` (migration `202611090010_polar_only_billing`).
 
 ## Ordre de mise en service
 
-1. Appliquer la migration `202611020001_polar_billing` avec `npm run db:deploy`, avant de déployer le code : il lit la nouvelle colonne `billingProvider`.
+1. Appliquer les migrations avec `npm run db:deploy` (fait automatiquement par le build Vercel en production et en préversion).
 2. Créer le jeton, les produits et le webhook du bon environnement.
 3. Renseigner les variables dans Vercel, puis redéployer.
 4. Renseigner les mêmes variables sur le serveur du worker de facturation, puis le redémarrer.
-5. Passer `BILLING_PROVIDER=polar` en dernier.
 
-Pour revenir en arrière, remettre `BILLING_PROVIDER=stripe`. Les abonnements Polar déjà créés restent gérés par Polar.
+Les anciennes variables `BILLING_PROVIDER` et `STRIPE_*` ne servent plus et peuvent être supprimées.
 
 ## Variables
 
 | Variable | Valeur |
 | --- | --- |
-| `BILLING_PROVIDER` | `polar` |
 | `POLAR_SERVER` | `sandbox` en préversion, vide en production |
 | `POLAR_ACCESS_TOKEN` | Jeton d'organisation |
 | `POLAR_WEBHOOK_SECRET` | Secret de l'endpoint |
@@ -48,11 +48,11 @@ Chaque forfait est un abonnement mensuel en USD, au prix de `lib/pricing.ts`. Un
 
 URL de production : `https://www.extravertyai.com/api/webhooks/polar`. Elle doit viser `www` : Polar considère une redirection comme un échec et désactive l'endpoint après 10 échecs consécutifs.
 
-Format `Raw`. Événements : `subscription.created`, `subscription.active`, `subscription.updated`, `subscription.canceled`, `subscription.uncanceled`, `subscription.past_due`, `subscription.revoked`, `order.paid`, `order.refunded`.
+Format `Raw`. Événements : tous les `subscription.*` et tous les `order.*`. Au minimum `subscription.created`, `subscription.active`, `subscription.updated`, `subscription.canceled`, `subscription.uncanceled`, `subscription.past_due`, `subscription.revoked`, `order.paid`, `order.refunded`.
 
 L'application relit toujours l'abonnement chez Polar avant de l'appliquer. Les doublons et le désordre sont donc sans effet.
 
-## Différences avec Stripe
+## Fonctionnement
 
 | Fonction | Avec Polar |
 | --- | --- |
@@ -62,8 +62,6 @@ L'application relit toujours l'abonnement chez Polar avant de l'appliquer. Les d
 | Abonnement terminé | « Renouveler le plan » ouvre un nouveau paiement, sans nouvel essai |
 | Carte enregistrée | Non affichée dans l'application : le jeton d'organisation n'y a pas accès. Elle reste visible dans le portail |
 | Factures | Le PDF est généré à la première demande ; le client peut réessayer quelques instants après |
-
-Le code Stripe reste en place pour un retour en arrière : garder `STRIPE_SECRET_KEY` dans Vercel et sur le worker.
 
 ## Tests
 

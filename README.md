@@ -33,7 +33,7 @@ Chaque entreprise crée un **projet** (un numéro WhatsApp). Elle y configure so
 | **Médias** | Transcription des notes vocales et analyse des images, pour que l'IA en tienne compte. |
 | **Boîte de réception** | Contacts, conversations en temps réel (Pusher), résumés IA des échanges, suivi des messages lus, envoi de notes vocales. |
 | **Équipe** | Comptes (email ou Google), invitations, rôles, présence en ligne et notifications. |
-| **Facturation** | Abonnements Stripe avec essai gratuit, quotas de messages par période et emails de facturation. |
+| **Facturation** | Abonnements Polar avec essai gratuit, quotas de messages par période et emails de facturation. |
 | **Statistiques et rapports** | Tableau de bord, rapports hebdomadaires par email (Business), exports CSV, Excel, PDF et Word. |
 
 ## Fonctionnement
@@ -80,7 +80,7 @@ Les offres sont définies dans [`lib/pricing.ts`](./lib/pricing.ts). Les plafond
 - **WhatsApp** : Evolution API
 - **IA** : [OpenRouter](https://openrouter.ai/) (réponses, vision, transcription audio, classement Instinct)
 - **Temps réel** : Pusher
-- **Paiement** : Stripe
+- **Paiement** : Polar
 - **Emails** : Resend
 - **Stockage de fichiers** : MinIO / S3
 - **Tests** : `node:test` via `tsx`, Playwright
@@ -91,7 +91,7 @@ Les offres sont définies dans [`lib/pricing.ts`](./lib/pricing.ts). Les plafond
 
 - Node.js 22 et npm
 - Une base PostgreSQL
-- Des comptes ou clés de test pour Evolution API, OpenRouter, Pusher, Stripe, Resend et un stockage S3/MinIO
+- Des comptes ou clés de test pour Evolution API, OpenRouter, Pusher, Polar (sandbox), Resend et un stockage S3/MinIO
 
 ### Installation
 
@@ -151,7 +151,7 @@ En production, utilisez `prisma migrate deploy` uniquement, jamais `migrate dev`
 
 ```
 ├── app/                 # Routes Next.js : site public, authentification, espace projets, API
-│   ├── api/             # Webhooks (Evolution, Stripe), temps réel, notifications…
+│   ├── api/             # Webhooks (Evolution, Polar), temps réel, notifications…
 │   └── projects/        # Espace client : chat, contacts, équipe, réglages, facturation
 ├── components/          # Composants React (ui/ = shadcn/ui, dashboard/, website/, auth/)
 ├── hooks/               # Hooks React (chat, enregistrement audio, autosave…)

@@ -5,15 +5,15 @@ import { DeltaBadge, Panel, StatTile } from "./panel";
 import { TrendChart } from "./trend-chart";
 import { formatValue } from "./format";
 
-function sourceNote(source: "stripe" | "estimate", others: string[]) {
+function sourceNote(source: "payments" | "estimate", others: string[]) {
   const base =
-    source === "stripe"
+    source === "payments"
       ? "Paiements encaissés"
       : "Estimé : mois payés × prix catalogue (prestataire injoignable)";
   return others.length ? `${base} · hors ${others.join(", ")}` : base;
 }
 
-/** Tuile et graphique du revenu : chargés à part, Stripe peut être lent. */
+/** Tuile et graphique du revenu : chargés à part, Polar peut être lent. */
 export async function RevenueTile({ range }: { range: DashboardRange }) {
   const revenue = await loadRevenue(range);
   return (
@@ -22,7 +22,7 @@ export async function RevenueTile({ range }: { range: DashboardRange }) {
       value={revenue.current}
       format="currency"
       currency={revenue.currency}
-      hint={revenue.source === "stripe" ? "Paiements encaissés" : "Estimation"}
+      hint={revenue.source === "payments" ? "Paiements encaissés" : "Estimation"}
     >
       <DeltaBadge value={delta(revenue.current, revenue.previous)} label={DASHBOARD_RANGES[range].previous} />
     </StatTile>

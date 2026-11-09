@@ -264,7 +264,7 @@ const PRICE_BY_LIMIT = new Map<number, number>(
   PRICING_PLANS.map((plan) => [plan.messageLimit, plan.priceCents]),
 );
 
-/** Revenu estimé quand Stripe est injoignable : mois payés × prix catalogue (USD). */
+/** Revenu estimé quand Polar est injoignable : mois payés × prix catalogue (USD). */
 export function estimateRevenue(periods: BillingPeriodRow[], period: DashboardPeriod) {
   const values = new Map<string, number>();
   let current = 0;
@@ -290,13 +290,13 @@ export function estimateRevenue(periods: BillingPeriodRow[], period: DashboardPe
   };
 }
 
-// Devises sans centimes chez Stripe (montants déjà en unités).
+// Devises sans centimes (montants déjà en unités).
 const ZERO_DECIMAL = new Set(
   "bif clp djf gnf jpy kmf krw mga pyg rwf ugx vnd vuv xaf xof xpf".split(" "),
 );
 export type PaidInvoice = { amount: number; currency: string; paidAt: Date };
 
-/** Revenu encaissé (factures Stripe payées), dans la devise principale. */
+/** Revenu encaissé (commandes Polar payées), dans la devise principale. */
 export function bucketRevenue(invoices: PaidInvoice[], period: DashboardPeriod) {
   const byCurrency = new Map<string, number>();
   for (const invoice of invoices)
@@ -322,7 +322,7 @@ export function bucketRevenue(invoices: PaidInvoice[], period: DashboardPeriod) 
     values.set(key, (values.get(key) ?? 0) + amount);
   }
   return {
-    source: "stripe" as const,
+    source: "payments" as const,
     currency: currency.toUpperCase(),
     current,
     previous,

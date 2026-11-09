@@ -1,16 +1,9 @@
 import type { Metadata } from "next";
-import type Stripe from "stripe";
 import { needsInitialCheckout } from "@/lib/billing-display";
 import { can, homePath } from "@/lib/project-permissions";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import {
-  ArrowDownToLine,
-  ArrowUpRight,
-  CircleAlert,
-  CreditCard,
-  FileText,
-} from "lucide-react";
+import { CircleAlert, FileText } from "lucide-react";
 import { getSession } from "@/lib/auth-server";
 import prisma from "@/lib/prisma";
 import {
@@ -20,13 +13,8 @@ import {
   type PolarOrder,
   type PolarSubscription,
 } from "@/lib/polar";
-import { stripe } from "@/lib/stripe";
 import { LocalBillingDate } from "@/components/dashboard/project/local-billing-date";
-import {
-  billingStatusLabel,
-  formatStripeAmount,
-  stripeDocumentUrl,
-} from "@/lib/billing-display";
+import { billingStatusLabel, formatBillingAmount } from "@/lib/billing-display";
 import {
   BillingActions,
   BillingCancelSection,
@@ -40,8 +28,6 @@ export const metadata: Metadata = {
   title: "Facturation | ExtravertyAI",
   robots: { index: false, follow: false },
 };
-const idOf = (value: string | { id: string } | null) =>
-  typeof value === "string" ? value : value?.id;
 export default async function BillingPage({
   params,
   searchParams,
@@ -64,7 +50,6 @@ export default async function BillingPage({
           name: true,
           plan: true,
           status: true,
-          billingProvider: true,
           stripeCustomerId: true,
           stripeSubscriptionId: true,
           stripeCurrentPeriodEnd: true,
@@ -79,24 +64,16 @@ export default async function BillingPage({
   const quota = await prisma.quotaPeriod.findFirst({
     where: { projectId, isCurrent: true },
   });
-  const cursor =
-    typeof query.after === "string" &&
-    /^in_[A-Za-z0-9]{1,180}$/.test(query.after)
-      ? query.after
-      : undefined;
   const ordersPage =
     typeof query.page === "string" && /^[1-9]\d{0,3}$/.test(query.page)
       ? Number(query.page)
       : 1;
-  let subscription: Stripe.Subscription | null = null;
-  let customer: Stripe.Customer | null = null;
-  let invoices: Stripe.Invoice[] = [];
-  let polarSubscription: PolarSubscription | null = null;
+  let subscription: PolarSubscription | null = null;
   let orders: PolarOrder[] = [];
   let hasMore = false;
   let unavailable = false;
   const configured = !!p.stripeCustomerId && !!p.stripeSubscriptionId;
-  if (configured && p.billingProvider === "polar") {
+  if (configured) {
     try {
       const [sub, history] = await Promise.all([
         getPolarSubscription(p.stripeSubscriptionId!),
@@ -107,84 +84,23 @@ export default async function BillingPage({
         history.orders.some((order) => order.subscription_id !== sub.id)
       )
         throw new Error("BILLING_SCOPE_INVALID");
-      polarSubscription = sub;
+      subscription = sub;
       // L'essai crée une commande à 0 : ce n'est pas un paiement à afficher.
       orders = history.orders.filter((order) => order.total_amount > 0);
       hasMore = ordersPage < history.maxPage;
     } catch {
       unavailable = true;
     }
-  } else if (configured) {
-    try {
-      const options = { timeout: 10000, maxNetworkRetries: 0 };
-      const [sub, account, history] = await Promise.all([
-        stripe.subscriptions.retrieve(
-          p.stripeSubscriptionId!,
-          { expand: ["default_payment_method"] },
-          options,
-        ),
-        stripe.customers.retrieve(
-          p.stripeCustomerId!,
-          { expand: ["invoice_settings.default_payment_method"] },
-          options,
-        ),
-        stripe.invoices.list(
-          {
-            customer: p.stripeCustomerId!,
-            subscription: p.stripeSubscriptionId!,
-            limit: 10,
-            ...(cursor ? { starting_after: cursor } : {}),
-          },
-          options,
-        ),
-      ]);
-      if (idOf(sub.customer) !== p.stripeCustomerId || account.deleted)
-        throw new Error("BILLING_SCOPE_INVALID");
-      if (
-        history.data.some(
-          (invoice) =>
-            idOf(invoice.customer) !== p.stripeCustomerId ||
-            idOf(invoice.parent?.subscription_details?.subscription || null) !==
-              p.stripeSubscriptionId,
-        )
-      )
-        throw new Error("BILLING_SCOPE_INVALID");
-      subscription = sub;
-      customer = account;
-      invoices = history.data;
-      hasMore = history.has_more;
-    } catch {
-      unavailable = true;
-    }
   }
-  const item = subscription?.items.data[0];
-  const paymentMethod =
-    subscription?.default_payment_method ||
-    customer?.invoice_settings.default_payment_method;
-  const card =
-    typeof paymentMethod === "object" && paymentMethod?.type === "card"
-      ? paymentMethod.card
-      : null;
-  const polarEnd =
-    polarSubscription?.status === "trialing"
-      ? polarSubscription.trial_end
-      : polarSubscription?.current_period_end;
-  const end =
+  const periodEnd =
     subscription?.status === "trialing"
       ? subscription.trial_end
-      : item?.current_period_end;
-  const endsAt =
-    (polarEnd ? new Date(polarEnd) : end) || p.stripeCurrentPeriodEnd;
-  const cancelling =
-    polarSubscription?.cancel_at_period_end ||
-    subscription?.cancel_at_period_end ||
-    !!subscription?.cancel_at;
-  const status = polarSubscription?.status || subscription?.status || p.status;
-  const nextCursor = invoices.at(-1)?.id;
-  const synced = !!subscription || !!polarSubscription;
-  const ended = polarSubscription
-    ? isEndedPolarSubscription(polarSubscription)
-    : ["canceled", "incomplete_expired"].includes(status);
+      : subscription?.current_period_end;
+  const endsAt = periodEnd ? new Date(periodEnd) : p.stripeCurrentPeriodEnd;
+  const cancelling = !!subscription?.cancel_at_period_end;
+  const status = subscription?.status || p.status;
+  const synced = !!subscription;
+  const ended = !!subscription && isEndedPolarSubscription(subscription);
   const cancellation =
     synced && !ended && !cancelling
       ? {
@@ -213,28 +129,21 @@ export default async function BillingPage({
         : ["active", "trialing"].includes(status)
           ? { intent: "upgrade" as const, label: "Changer d’offre" }
           : { intent: "renew" as const, label: "Régulariser le paiement" };
-  const price = polarSubscription
-    ? formatStripeAmount(polarSubscription.amount, polarSubscription.currency)
-    : item?.price.unit_amount != null && subscription?.items.data.length === 1
-      ? formatStripeAmount(item.price.unit_amount * (item.quantity ?? 1), item.price.currency)
-      : null;
+  const price = subscription
+    ? formatBillingAmount(subscription.amount, subscription.currency)
+    : null;
   const intervalLabels: Record<string, string> = {
     day: "jour",
     week: "semaine",
     month: "mois",
     year: "an",
   };
-  const interval = polarSubscription
-    ? intervalLabels[polarSubscription.recurring_interval]
-    : item?.price.recurring
-      ? `${item.price.recurring.interval_count > 1 ? `${item.price.recurring.interval_count} ` : ""}${
-          intervalLabels[item.price.recurring.interval]
-        }`
-      : null;
-  const billingName = polarSubscription?.customer?.name || customer?.name;
-  const billingEmail = polarSubscription?.customer?.email || customer?.email;
-  const billingAddress =
-    polarSubscription?.customer?.billing_address || customer?.address;
+  const interval = subscription
+    ? intervalLabels[subscription.recurring_interval]
+    : null;
+  const billingName = subscription?.customer?.name;
+  const billingEmail = subscription?.customer?.email;
+  const billingAddress = subscription?.customer?.billing_address;
   const usedRatio = quota ? Math.min(1, quota.used / Math.max(1, quota.limit)) : 0;
   const endLabel =
     status === "trialing" && !cancelling
@@ -242,54 +151,22 @@ export default async function BillingPage({
       : cancelling || ended
         ? "Fin de l’abonnement"
         : "Prochain renouvellement";
-  const rows = orders.length
-    ? orders.map((order) => ({
-        id: order.id,
-        number: order.invoice_number,
-        date: new Date(order.created_at) as Date | number,
-        amount: formatStripeAmount(order.total_amount, order.currency),
-        status: order.status,
-        document: (
-          <BillingInvoiceButton
-            projectId={projectId}
-            orderId={order.id}
-            label={`Télécharger la facture ${order.invoice_number || ""} en PDF`}
-          />
-        ),
-      }))
-    : invoices.map((invoice) => {
-        const pdf = stripeDocumentUrl(invoice.invoice_pdf);
-        const hosted = stripeDocumentUrl(invoice.hosted_invoice_url);
-        const href = pdf || hosted;
-        return {
-          id: invoice.id,
-          number: invoice.number,
-          date: invoice.created as Date | number,
-          amount: formatStripeAmount(invoice.total, invoice.currency),
-          status: invoice.status || "draft",
-          document: href ? (
-            <Button variant="ghost" size="sm" asChild>
-              <a
-                href={href}
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label={`${pdf ? "Télécharger" : "Consulter"} la facture ${invoice.number || ""}`}
-              >
-                {pdf ? <ArrowDownToLine data-icon="inline-start" /> : <ArrowUpRight data-icon="inline-start" />}
-                {pdf ? "PDF" : "Voir"}
-              </a>
-            </Button>
-          ) : (
-            <span className="text-xs text-muted-foreground">En préparation</span>
-          ),
-        };
-      });
-  const firstPage = orders.length ? ordersPage === 1 : !cursor;
-  const nextHref = orders.length
-    ? `/projects/${projectId}/billing?page=${ordersPage + 1}`
-    : nextCursor
-      ? `/projects/${projectId}/billing?after=${encodeURIComponent(nextCursor)}`
-      : null;
+  const rows = orders.map((order) => ({
+    id: order.id,
+    number: order.invoice_number,
+    date: new Date(order.created_at),
+    amount: formatBillingAmount(order.total_amount, order.currency),
+    status: order.status,
+    document: (
+      <BillingInvoiceButton
+        projectId={projectId}
+        orderId={order.id}
+        label={`Télécharger la facture ${order.invoice_number || ""} en PDF`}
+      />
+    ),
+  }));
+  const firstPage = ordersPage === 1;
+  const nextHref = `/projects/${projectId}/billing?page=${ordersPage + 1}`;
 
   return (
     // wrap-break-word plutôt que « anywhere » : les longues valeurs passent à
@@ -347,7 +224,7 @@ export default async function BillingPage({
           <div className="px-4 py-3.5 sm:p-6">
             <dt className="text-xs text-muted-foreground">{endLabel}</dt>
             <dd className="mt-1 text-sm font-medium">
-              <LocalBillingDate value={subscription?.cancel_at || endsAt} dateOnly />
+              <LocalBillingDate value={endsAt} dateOnly />
             </dd>
           </div>
           <div className="px-4 py-3.5 sm:p-6">
@@ -405,21 +282,9 @@ export default async function BillingPage({
           <div className="flex flex-col gap-1 px-4 py-3.5 sm:flex-row sm:gap-6 sm:p-5">
             <dt className="text-muted-foreground sm:w-40 sm:shrink-0">Moyen de paiement</dt>
             <dd className="min-w-0">
-              {card ? (
-                <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                  <CreditCard aria-hidden="true" className="size-4 text-muted-foreground" />
-                  <span className="font-mono tabular-nums">
-                    <span className="capitalize">{card.brand}</span> •••• {card.last4}
-                  </span>
-                  <span className="text-xs text-muted-foreground">
-                    Expire {String(card.exp_month).padStart(2, "0")}/{card.exp_year}
-                  </span>
-                </span>
-              ) : (
-                <span className="text-muted-foreground">
-                  Consultable et modifiable dans « Gérer le paiement ».
-                </span>
-              )}
+              <span className="text-muted-foreground">
+                Consultable et modifiable dans « Gérer le paiement ».
+              </span>
             </dd>
           </div>
           <div className="flex flex-col gap-1 px-4 py-3.5 sm:flex-row sm:gap-6 sm:p-5">
@@ -519,14 +384,14 @@ export default async function BillingPage({
                 </tbody>
               </table>
             </div>
-            {(!firstPage || (hasMore && nextHref)) && (
+            {(!firstPage || hasMore) && (
               <div className="flex flex-wrap justify-end gap-2 border-t p-2 sm:p-3">
                 {!firstPage && (
                   <Button variant="ghost" size="sm" asChild>
                     <Link href={`/projects/${projectId}/billing`}>Plus récentes</Link>
                   </Button>
                 )}
-                {hasMore && nextHref && (
+                {hasMore && (
                   <Button variant="ghost" size="sm" asChild>
                     <Link href={nextHref}>Plus anciennes</Link>
                   </Button>

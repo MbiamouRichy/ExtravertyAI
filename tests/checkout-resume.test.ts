@@ -22,7 +22,7 @@ test("only a project whose first payment never went through needs a new checkout
   assert.equal(needsInitialCheckout(unpaid), true);
   assert.equal(needsInitialCheckout({ ...unpaid, stripeCustomerId: "cus_1" }), false);
   assert.equal(needsInitialCheckout({ ...unpaid, stripeSubscriptionId: "sub_1" }), false);
-  // Projet actif sans Stripe (ajouté à la main) : jamais refacturé.
+  // Projet actif sans abonnement (ajouté à la main) : jamais refacturé.
   assert.equal(needsInitialCheckout({ ...unpaid, status: "active" }), false);
   assert.equal(needsInitialCheckout({ ...unpaid, status: "trialing" }), false);
 });
@@ -111,28 +111,26 @@ function loadResume(
         },
       }),
     },
-    "@/lib/stripe": {
-      stripe: {
-        prices: {
-          retrieve: async () => ({
-            active: true,
-            currency: "usd",
-            unit_amount: plan.priceCents,
-            billing_scheme: "per_unit",
-            type: "recurring",
-            recurring: { interval: "month", interval_count: 1, usage_type: "licensed" },
-            transform_quantity: null,
-          }),
-        },
-        checkout: {
-          sessions: {
-            create: async (params: Record<string, unknown>) => {
-              if (options.checkoutFails) throw new Error("stripe down");
-              sessions.push(params);
-              return { url: "https://checkout.stripe.com/c/pay/test" };
-            },
+    "@/lib/polar": {
+      polarProductId: (id: string) => (id === "pro" ? "prod_pro" : undefined),
+      getPolarProduct: async () => ({
+        is_archived: false,
+        is_recurring: true,
+        recurring_interval: "month",
+        recurring_interval_count: 1,
+        prices: [
+          {
+            is_archived: false,
+            amount_type: "fixed",
+            price_currency: "usd",
+            price_amount: plan.priceCents,
           },
-        },
+        ],
+      }),
+      createPolarCheckout: async (params: Record<string, unknown>) => {
+        if (options.checkoutFails) throw new Error("polar down");
+        sessions.push(params);
+        return "https://sandbox.polar.sh/checkout/test";
       },
     },
     "@/lib/checkout-price": checkoutPrice,
@@ -142,8 +140,6 @@ function loadResume(
     "@/lib/project-permissions": permissions,
     "@/lib/pricing": pricing,
     "@/lib/billing-display": billingDisplay,
-    "@/lib/billing-provider": { checkoutProvider: () => "stripe" },
-    "@/lib/polar": {},
     "./evolutionAPI": {
       createEvolutionInstance: async (name: string) => void instances.push(name),
       deleteEvolutionInstance: async (name: string) => void deletedInstances.push(name),
@@ -174,17 +170,14 @@ function loadResume(
     string,
     (input: unknown, options?: unknown) => Promise<{ success: boolean; url?: string; error?: string; code?: string }>
   > = {};
-  const source = ts.transpileModule(readFileSync("app/actions/stripe-actions.ts", "utf8"), {
+  const source = ts.transpileModule(readFileSync("app/actions/checkout-actions.ts", "utf8"), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
   }).outputText;
   runInNewContext(source, {
     exports,
     console: { error: () => {} },
     process: {
-      env: {
-        NEXT_PUBLIC_APP_URL: "https://app.example.test/",
-        STRIPE_PRO_PLAN_ID: "price_pro",
-      },
+      env: { NEXT_PUBLIC_APP_URL: "https://app.example.test/" },
     },
     require: (name: string) => {
       assert.ok(name in modules, name);
@@ -214,21 +207,19 @@ test("the owner and billing role resume an abandoned checkout for the same proje
     assert.equal(result.success, true, role);
     // L'essai est réservé pour ce projet le temps du paiement.
     assert.deepEqual(reservations, [["+24166000001", PROJECT_ID]]);
-    assert.equal(result.url, "https://checkout.stripe.com/c/pay/test");
-    const [params] = sessions as Array<{
-      metadata: { projectId: string };
-      subscription_data: { metadata: { projectId: string }; trial_period_days: number };
-      line_items: Array<{ price: string }>;
-      success_url: string;
-      cancel_url: string;
-    }>;
+    assert.equal(result.url, "https://sandbox.polar.sh/checkout/test");
     // Le webhook rattache l'abonnement au projet existant, sans en créer un autre.
-    assert.equal(params.metadata.projectId, PROJECT_ID);
-    assert.equal(params.subscription_data.metadata.projectId, PROJECT_ID);
-    assert.equal(params.subscription_data.trial_period_days, 10);
-    assert.equal(params.line_items[0].price, "price_pro");
-    assert.equal(params.success_url, `https://app.example.test/projects/${PROJECT_ID}?success=true`);
-    assert.equal(params.cancel_url, `https://app.example.test/projects/${PROJECT_ID}/billing?canceled=true`);
+    assert.deepEqual(plain(sessions), [
+      {
+        productId: "prod_pro",
+        projectId: PROJECT_ID,
+        plan: "pro",
+        email: "owner@example.test",
+        successUrl: `https://app.example.test/projects/${PROJECT_ID}?success=true`,
+        returnUrl: `https://app.example.test/projects/${PROJECT_ID}/billing?canceled=true`,
+        trial: true,
+      },
+    ]);
   }
 });
 
@@ -261,12 +252,8 @@ test("a number whose trial was used resumes only after an explicit paid confirma
 
   const paid = await resume({ projectId: PROJECT_ID, withoutTrial: true });
   assert.equal(paid.success, true);
-  const [params] = sessions as Array<{
-    subscription_data: Record<string, unknown>;
-    expires_at?: number;
-  }>;
-  assert.equal("trial_period_days" in params.subscription_data, false);
-  assert.equal(params.expires_at, undefined);
+  const [params] = sessions as Array<{ trial: boolean }>;
+  assert.equal(params.trial, false);
 });
 
 test("an unverified email address cannot start a trial", async () => {
@@ -358,7 +345,7 @@ test("a proved number saves the project, spends the proof and opens the checkout
   const ok = loadResume("OWNER");
   const result = await ok.create(input, { verificationId: VERIFICATION_ID });
   assert.equal(result.success, true);
-  assert.equal(result.url, "https://checkout.stripe.com/c/pay/test");
+  assert.equal(result.url, "https://sandbox.polar.sh/checkout/test");
   assert.equal(ok.instances.length, 1);
   assert.equal(ok.created[0].data.status, "inactive");
   assert.deepEqual(ok.created[0].data.numeroVerifiedAt, VERIFIED_AT);

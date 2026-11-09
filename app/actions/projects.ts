@@ -85,7 +85,7 @@ export async function getProjects() {
         logoUrl: projectLogoUrl(project.id, logoKey),
         canManageBilling: can(role, "billing.manage"),
         deletionPending,
-        // Seul l’indicateur quitte le serveur, jamais les identifiants Stripe.
+        // Seul l’indicateur quitte le serveur, jamais les identifiants de facturation.
         needsCheckout: needsInitialCheckout({
           status: project.status,
           stripeCustomerId,

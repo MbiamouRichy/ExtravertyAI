@@ -89,7 +89,6 @@ test("un seul essai par numéro, réservé pendant le paiement puis consommé", 
     await applySubscriptionState(
       client,
       {
-        provider: "polar",
         id: "sub_trial",
         customerId: "cus_1",
         providerStatus: "trialing",
@@ -101,7 +100,6 @@ test("un seul essai par numéro, réservé pendant le paiement puis consommé", 
         endsAt: now + 10 * 86400,
         cycle: { start: now, end: now + 10 * 86400 },
         paidCycle: false,
-        renewalPending: false,
       },
       1,
     );

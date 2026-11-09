@@ -95,7 +95,7 @@ export const SETUP_LIMITS = {
   urlMaxLength: 2048,
 } as const;
 
-// Trial terms enforced server-side (stripe-actions trial_period_days).
+// Trial terms enforced server-side (lib/polar trial_interval_count).
 export const TRIAL_DAYS = 10;
 
 export const DESCRIPTION_EXAMPLES = [

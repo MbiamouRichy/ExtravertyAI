@@ -4,12 +4,7 @@ import crypto from "crypto";
 import { revalidatePath } from "next/cache";
 import prisma from "@/lib/prisma";
 import { getSession } from "@/lib/auth-server";
-import { stripe } from "@/lib/stripe";
-import { checkoutProvider } from "@/lib/billing-provider";
-import {
-  matchesCheckoutPrice,
-  matchesPolarProduct,
-} from "@/lib/checkout-price";
+import { matchesPolarProduct } from "@/lib/checkout-price";
 import {
   createPolarCheckout,
   getPolarProduct,
@@ -37,15 +32,6 @@ import {
   createEvolutionInstance,
   deleteEvolutionInstance,
 } from "./evolutionAPI";
-
-const STRIPE_PRICE_MAPPING: Record<
-  "starter" | "business" | "pro",
-  string | undefined
-> = {
-  starter: process.env.STRIPE_STARTER_PLAN_ID,
-  business: process.env.STRIPE_BUSINESS_PLAN_ID,
-  pro: process.env.STRIPE_PRO_PLAN_ID,
-};
 
 const EMAIL_NOT_VERIFIED_ERROR =
   "Confirmez votre adresse e-mail avant de créer un projet.";
@@ -135,9 +121,9 @@ export async function createProjectAndCheckout(
     };
   const verifiedAt = proof.verifiedAt;
 
-  if (!checkoutReference(data.plan)) {
+  if (!polarProductId(data.plan)) {
     // Variable d'environnement absente : à corriger côté hébergement, pas par le client.
-    console.error("CHECKOUT_REFERENCE_MISSING", checkoutProvider(), data.plan);
+    console.error("CHECKOUT_REFERENCE_MISSING", data.plan);
     return {
       success: false,
       error:
@@ -283,18 +269,9 @@ export async function createProjectAndCheckout(
   }
 }
 
-/** Prix Stripe ou produit Polar du forfait, selon le fournisseur actif. */
-function checkoutReference(plan: PlanId) {
-  return checkoutProvider() === "polar"
-    ? polarProductId(plan)
-    : STRIPE_PRICE_MAPPING[plan];
-}
-
+/** Le produit Polar du forfait est-il toujours au tarif affiché ? */
 async function isCheckoutPriceCurrent(plan: PlanId) {
-  const reference = checkoutReference(plan)!;
-  return checkoutProvider() === "polar"
-    ? matchesPolarProduct(await getPolarProduct(reference), plan)
-    : matchesCheckoutPrice(await stripe.prices.retrieve(reference), plan);
+  return matchesPolarProduct(await getPolarProduct(polarProductId(plan)!), plan);
 }
 
 /** Paiement d'abonnement, avec ou sans essai de 10 jours, pour un projet existant. */
@@ -308,38 +285,17 @@ async function createCheckoutUrl(input: {
 }) {
   const origin = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "");
   if (!origin) throw new Error("NEXT_PUBLIC_APP_URL manquant");
-  const reference = checkoutReference(input.plan);
-  if (!reference) throw new Error("Forfait non configuré");
-  if (checkoutProvider() === "polar")
-    return createPolarCheckout({
-      productId: reference,
-      projectId: input.projectId,
-      plan: input.plan,
-      email: input.email,
-      successUrl: `${origin}/projects/${input.projectId}?success=true`,
-      returnUrl: `${origin}${input.cancelPath}`,
-      trial: input.trial,
-    });
-  const checkoutSession = await stripe.checkout.sessions.create({
-    payment_method_types: ["card"],
-    mode: "subscription",
-    customer_email: input.email,
-    line_items: [{ price: reference, quantity: 1 }],
-    payment_method_collection: "always",
-    metadata: { projectId: input.projectId },
-    subscription_data: {
-      metadata: { projectId: input.projectId },
-      ...(input.trial ? { trial_period_days: 10 } : {}),
-    },
-    // La session ne doit pas survivre à la réservation de l'essai.
-    ...(input.trial
-      ? { expires_at: Math.floor(Date.now() / 1000) + 60 * 60 }
-      : {}),
-    success_url: `${origin}/projects/${input.projectId}?success=true`,
-    cancel_url: `${origin}${input.cancelPath}`,
+  const productId = polarProductId(input.plan);
+  if (!productId) throw new Error("Forfait non configuré");
+  return createPolarCheckout({
+    productId,
+    projectId: input.projectId,
+    plan: input.plan,
+    email: input.email,
+    successUrl: `${origin}/projects/${input.projectId}?success=true`,
+    returnUrl: `${origin}${input.cancelPath}`,
+    trial: input.trial,
   });
-  if (!checkoutSession.url) throw new Error("URL Stripe non générée");
-  return checkoutSession.url;
 }
 
 const ResumeSchema = z.object({
@@ -352,7 +308,7 @@ const ResumeSchema = z.object({
 /**
  * Reprend le paiement d'un projet dont le Checkout n'a pas abouti (onglet
  * fermé, carte refusée). Réservé au propriétaire et au rôle Facturation, tant
- * qu'aucun client ni abonnement Stripe n'est rattaché au projet.
+ * qu'aucun client ni abonnement n'est rattaché au projet.
  */
 export async function resumeProjectCheckout(
   input: z.input<typeof ResumeSchema>,
@@ -440,7 +396,7 @@ export async function resumeProjectCheckout(
       error: "Trop de tentatives. Réessayez dans quelques minutes.",
     };
   const plan = resolvePlanId(project.plan);
-  if (!checkoutReference(plan))
+  if (!polarProductId(plan))
     return {
       success: false as const,
       error: "Ce forfait est temporairement indisponible.",

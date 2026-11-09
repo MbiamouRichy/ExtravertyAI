@@ -1,18 +1,16 @@
 import { createHash, randomUUID } from "node:crypto";
-import type Stripe from "stripe";
 import type {
   BillingEmail,
   PrismaClient,
 } from "../src/generated/prisma/client";
 import { getBillingAccess, formatBillingDate } from "./billing-access";
 import { syncPolarSubscription } from "./billing-polar";
-import { syncSubscription } from "./billing-quota";
 import { getPolarSubscription, type PolarSubscription } from "./polar";
 import { BillingEmailTemplate } from "../components/emailTemplate/billingEmailTemplate";
 
 export type BillingEmailConfig = { from: string; origin: string };
 export type BillingSender = (email: BillingEmail) => Promise<string>;
-type RetrieveSubscription = (id: string) => Promise<Stripe.Subscription>;
+type RetrieveSubscription = (id: string) => Promise<PolarSubscription>;
 const DAY = 86400000;
 
 export function billingEmailConfig(): BillingEmailConfig {
@@ -144,9 +142,8 @@ export async function queueBillingEmails(
 // Claims are durable, bounded and fair, even with multiple billing workers.
 export async function reconcileNextBillingProject(
   prisma: PrismaClient,
-  retrieve: RetrieveSubscription,
   config: BillingEmailConfig,
-  retrievePolar: (id: string) => Promise<PolarSubscription> = getPolarSubscription,
+  retrieve: RetrieveSubscription = getPolarSubscription,
 ) {
   const [candidate] = await prisma.$queryRaw<Array<{ id: string }>>`
     WITH candidate AS (
@@ -171,20 +168,13 @@ export async function reconcileNextBillingProject(
         project.id,
         project.billingRevision,
       ] as const;
-      const apply =
-        project.billingProvider === "polar"
-          ? await retrievePolar(project.stripeSubscriptionId).then(
-              (sub) => () => syncPolarSubscription(prisma, sub, ...args),
-            )
-          : await retrieve(project.stripeSubscriptionId).then(
-              (sub) => () => syncSubscription(prisma, sub, ...args),
-            );
+      const sub = await retrieve(project.stripeSubscriptionId);
       try {
-        await apply();
+        await syncPolarSubscription(prisma, sub, ...args);
       } catch {
-        // Stripe answered: do not email from stale state if applying it failed.
+        // Polar answered: do not email from stale state if applying it failed.
         console.error(
-          "[billing-worker] État Stripe non appliqué ; notification différée.",
+          "[billing-worker] État Polar non appliqué ; notification différée.",
           {
             projectId: project.id,
           },
@@ -192,7 +182,7 @@ export async function reconcileNextBillingProject(
         return candidate.id;
       }
     } catch {
-      // Local expiry remains enforceable during a Stripe outage.
+      // Local expiry remains enforceable during a Polar outage.
       console.error("[billing-worker] Synchronisation à réessayer.", {
         projectId: project.id,
       });

@@ -8,7 +8,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { getCountries, getCountryCallingCode } from "libphonenumber-js/max";
 import { ArrowLeft, ArrowRight, Check, ChevronDown } from "lucide-react";
 
-import { createProjectAndCheckout } from "@/app/actions/stripe-actions";
+import { createProjectAndCheckout } from "@/app/actions/checkout-actions";
 import {
   NumberVerification,
   toCheckoutAttempt,
@@ -51,7 +51,7 @@ import {
 } from "@/lib/pricing";
 import { cn } from "@/lib/utils";
 
-// Trial terms enforced server-side (stripe-actions trial_period_days, billing-quota,
+// Trial terms enforced server-side (lib/polar trial_interval_count, billing-quota,
 // trial-eligibility: one trial per WhatsApp number).
 const TRIAL_DAYS = 10;
 const TRIAL_MESSAGES = 150;

@@ -110,7 +110,7 @@ model QuotaPeriod {
   project    Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   // Identité stable de la période :
-  // bootstrap:<projectId>, trial:<id>, invoice:<stripeInvoiceId>...
+  // bootstrap:<projectId>, trial:<subscriptionId>, cycle:<subscriptionId>:<début>...
   key        String
   kind       ProjectStatus
 
@@ -183,7 +183,7 @@ model Project {
   allMessagesCount     Int            @default(0)
 
   pairingCodeRequestedAt  DateTime?
-  // --- 💳 FACTURATION STRIPE ---
+  // --- 💳 FACTURATION (POLAR) ---
   currency String @default("XAF")
   // Fuseau IANA de l'activité (celui de ses clients) : plage d'envoi des diffusions.
   // Détecté à la création depuis le navigateur, modifiable par les admins.
@@ -234,9 +234,10 @@ model Project {
   billingRevision Int @default(0)
   stripeStatus String?
   billingNextCheckAt DateTime @default(now())
-  // Fournisseur des identifiants ci-dessous : les colonnes stripe* servent aussi à Polar,
-  // où un même client (une adresse e-mail) peut payer plusieurs projets.
-  billingProvider      String         @default("stripe")
+  // Les colonnes stripe* gardent leur nom historique et contiennent les identifiants
+  // Polar, où un même client (une adresse e-mail) peut payer plusieurs projets.
+  // billingProvider vaut toujours « polar » ; conservée pour les versions déjà déployées.
+  billingProvider      String         @default("polar")
   stripeCustomerId     String?
   stripeSubscriptionId String?        @unique
   stripePriceId        String?

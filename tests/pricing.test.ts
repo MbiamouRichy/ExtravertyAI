@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
-import type Stripe from "stripe";
-import { matchesCheckoutPrice } from "../lib/checkout-price";
+import { matchesPolarProduct } from "../lib/checkout-price";
+import type { PolarProduct } from "../lib/polar";
 import { PLAN_FEATURES, planAllows } from "../lib/plan-features";
 import {
   PLAN_CAPABILITIES,
@@ -160,20 +160,30 @@ test("pricing links preserve each selected plan through the sign-in callback", (
 test("checkout rejects stale prices, wrong currencies and billing intervals", () => {
   for (const plan of PRICING_PLANS) {
     const price = {
-      active: true, currency: "usd", unit_amount: plan.priceCents,
-      billing_scheme: "per_unit", type: "recurring", transform_quantity: null,
-      recurring: { interval: "month", interval_count: 1, usage_type: "licensed" },
-    } as Stripe.Price;
-    assert.equal(matchesCheckoutPrice(price, plan.id), true);
+      is_archived: false,
+      amount_type: "fixed",
+      price_currency: "usd",
+      price_amount: plan.priceCents,
+    };
+    const product: PolarProduct = {
+      is_archived: false,
+      is_recurring: true,
+      recurring_interval: "month",
+      recurring_interval_count: 1,
+      prices: [price],
+    };
+    assert.equal(matchesPolarProduct(product, plan.id), true);
     for (const override of [
-      { active: false }, { currency: "eur" }, { unit_amount: 2900 },
-      { billing_scheme: "tiered" }, { recurring: null }, { type: "one_time" },
-      { recurring: { ...price.recurring, interval: "year" } },
-      { recurring: { ...price.recurring, interval_count: 3 } },
-      { recurring: { ...price.recurring, usage_type: "metered" } },
-      { transform_quantity: { divide_by: 10, round: "up" } },
+      { is_archived: true },
+      { is_recurring: false },
+      { recurring_interval: "year" },
+      { recurring_interval_count: 3 },
+      { prices: [{ ...price, is_archived: true }] },
+      { prices: [{ ...price, price_currency: "eur" }] },
+      { prices: [{ ...price, price_amount: plan.priceCents + 100 }] },
+      { prices: [{ ...price, amount_type: "custom" }] },
     ]) {
-      assert.equal(matchesCheckoutPrice({ ...price, ...override } as Stripe.Price, plan.id), false);
+      assert.equal(matchesPolarProduct({ ...product, ...override }, plan.id), false);
     }
   }
 });

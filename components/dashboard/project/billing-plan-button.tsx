@@ -25,7 +25,7 @@ import {
 } from "@/components/dashboard/project/number-verification";
 import { cn } from "@/lib/utils";
 import { openProjectBillingPortal } from "@/app/actions/project-settings";
-import { resumeProjectCheckout } from "@/app/actions/stripe-actions";
+import { resumeProjectCheckout } from "@/app/actions/checkout-actions";
 export function BillingPlanButton({
   projectId,
   intent,
@@ -38,7 +38,7 @@ export function BillingPlanButton({
 }: {
   projectId: string;
   intent: "renew" | "upgrade";
-  /** Paiement initial jamais abouti : on repart sur un Checkout Stripe. */
+  /** Paiement initial jamais abouti : on repart sur un paiement Polar. */
   needsCheckout?: boolean;
   disabled?: boolean;
   size?: "default" | "sm" | "lg";

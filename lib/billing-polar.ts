@@ -16,8 +16,7 @@ export function planForPolarProduct(productId: string) {
   return plan.id;
 }
 
-// Polar passe en past_due dès l'échec du prélèvement : contrairement à Stripe,
-// il n'expose pas de facture en cours d'encaissement à attendre.
+// Polar passe en past_due dès l'échec du prélèvement : un cycle actif est payé.
 export function polarSubscriptionState(
   sub: PolarSubscription,
 ): SubscriptionState {
@@ -29,7 +28,6 @@ export function polarSubscriptionState(
   };
   const projectId = sub.metadata.projectId;
   return {
-    provider: "polar",
     id: sub.id,
     customerId: sub.customer_id,
     providerStatus: sub.status,
@@ -41,7 +39,6 @@ export function polarSubscriptionState(
     endsAt: trial ? seconds(sub.trial_end) : cycle.end,
     cycle,
     paidCycle: status === "active",
-    renewalPending: false,
   };
 }
 

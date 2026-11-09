@@ -1,6 +1,6 @@
 # Tests de paiement Polar et Dodo
 
-Ces tests comparent Polar et Dodo Payments avant toute migration. Ils tournent en local dans les environnements de test des deux fournisseurs. Ils ne touchent ni à Stripe, ni à la base de données, ni à l'application déployée.
+Ces tests comparent Polar et Dodo Payments avant toute migration. Ils tournent en local dans les environnements de test des deux fournisseurs. Ils ne touchent ni à la base de données, ni à l'application déployée.
 
 Le sandbox valide l'abonnement et les webhooks, pas ton éligibilité au Gabon. Seuls une vérification d'identité complète et un premier versement réel le prouvent.
 
@@ -91,7 +91,7 @@ Ouvre l'URL affichée et paie avec `4242 4242 4242 4242`, une date future et n'i
 
 ## 4. Scénarios à valider
 
-Chaque événement s'affiche en JSON. `missing` liste les champs attendus par `syncSubscription` et absents de l'événement.
+Chaque événement s'affiche en JSON. `missing` liste les champs attendus par la synchronisation et absents de l'événement.
 
 Pour atteindre le premier prélèvement sans attendre 10 jours, ajoute `PAYMENT_SANDBOX_TRIAL_DAYS=1` à `.env`, puis crée un nouveau paiement. Garde le tunnel et l'écouteur actifs jusqu'à la fin de l'essai.
 
