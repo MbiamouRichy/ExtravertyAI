@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
-import { formatDelta, formatValue, type ValueFormat } from "./format";
+import { formatDelta } from "./format";
 
 /** Carte de graphique : titre, description, chiffre clé optionnel, contenu. */
 export function Panel({
@@ -59,37 +59,5 @@ export function DeltaBadge({
       </span>
       {label && <span className="min-w-0 truncate">{label}</span>}
     </span>
-  );
-}
-
-export function StatTile({
-  label,
-  value,
-  format = "number",
-  currency,
-  hint,
-  children,
-}: {
-  label: string;
-  value: number | null;
-  format?: ValueFormat;
-  currency?: string;
-  hint?: string;
-  children?: ReactNode;
-}) {
-  return (
-    <div className="flex min-w-0 flex-col rounded-2xl border bg-card">
-      <div className="px-4 pt-4 pb-3">
-        <p className="truncate text-xs text-muted-foreground">{label}</p>
-        <p
-          className="mt-2 truncate font-mono text-2xl font-medium tabular-nums sm:text-3xl"
-          title={formatValue(value, format, currency)}
-        >
-          {formatValue(value, format, currency, format === "currency")}
-        </p>
-        {hint && <p className="mt-1 truncate text-xs text-muted-foreground">{hint}</p>}
-      </div>
-      {children && <div className="mt-auto border-t bg-muted/30 px-4 py-2.5">{children}</div>}
-    </div>
   );
 }

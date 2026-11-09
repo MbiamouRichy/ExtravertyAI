@@ -1,77 +1,68 @@
 import { loadRevenue } from "@/lib/admin-revenue";
-import { delta, type DashboardPeriod, type DashboardRange, DASHBOARD_RANGES } from "@/lib/admin-dashboard";
+import { delta, type DashboardPeriod, type DashboardRange } from "@/lib/admin-dashboard";
 import { Skeleton } from "@/components/ui/skeleton";
-import { DeltaBadge, Panel, StatTile } from "./panel";
+import { DashboardCard, MetricFigure } from "./card";
+import { DeltaBadge } from "./panel";
 import { TrendChart } from "./trend-chart";
 import { formatValue } from "./format";
 
 function sourceNote(source: "payments" | "estimate", others: string[]) {
-  const base =
-    source === "payments"
-      ? "Paiements encaissés"
-      : "Estimé : mois payés × prix catalogue (prestataire injoignable)";
+  const base = source === "payments" ? "Paiements encaissés" : "Estimation, prestataire injoignable";
   return others.length ? `${base} · hors ${others.join(", ")}` : base;
 }
 
-/** Tuile et graphique du revenu : chargés à part, Polar peut être lent. */
-export async function RevenueTile({ range }: { range: DashboardRange }) {
+/** Revenu : chargé à part, le prestataire de paiement peut être lent. */
+export async function RevenueCard({
+  range,
+  period,
+}: {
+  range: DashboardRange;
+  period: DashboardPeriod;
+}) {
   const revenue = await loadRevenue(range);
   return (
-    <StatTile
-      label="Revenu encaissé"
-      value={revenue.current}
-      format="currency"
-      currency={revenue.currency}
-      hint={revenue.source === "payments" ? "Paiements encaissés" : "Estimation"}
-    >
-      <DeltaBadge value={delta(revenue.current, revenue.previous)} label={DASHBOARD_RANGES[range].previous} />
-    </StatTile>
+    <DashboardCard id="revenue" title="Revenu" note={sourceNote(revenue.source, revenue.otherCurrencies)}>
+      {/* Même gabarit qu’une tuile d’onglet, pour aligner les cartes voisines. */}
+      <div className="border-y px-4 py-3 sm:px-5">
+        <MetricFigure
+          label={revenue.source === "payments" ? "Encaissé" : "Estimé"}
+          value={formatValue(revenue.current, "currency", revenue.currency)}
+          footer={<DeltaBadge value={delta(revenue.current, revenue.previous)} label="" />}
+        />
+      </div>
+      <div className="flex-1 p-4 sm:p-5">
+        <p className="mb-3 text-xs text-muted-foreground">Montant par période, en {revenue.currency}</p>
+        <TrendChart
+          data={revenue.series.map((point) => ({ key: point.key, revenue: point.value }))}
+          series={[{ key: "revenue", label: "Revenu", color: "var(--chart-1)" }]}
+          unit={period.unit}
+          kind="area"
+          format="currency"
+          currency={revenue.currency}
+          height={200}
+        />
+      </div>
+    </DashboardCard>
   );
 }
 
-export async function RevenuePanel({ range, period }: { range: DashboardRange; period: DashboardPeriod }) {
-  const revenue = await loadRevenue(range);
+export function RevenueCardSkeleton() {
   return (
-    <Panel
-      title="Revenu"
-      description={sourceNote(revenue.source, revenue.otherCurrencies)}
-      className="lg:col-span-2"
-      headline={
-        <p className="mt-2 font-mono text-2xl font-medium tabular-nums">
-          {formatValue(revenue.current, "currency", revenue.currency)}
-        </p>
-      }
-      aside={<DeltaBadge value={delta(revenue.current, revenue.previous)} label="" />}
-    >
-      <TrendChart
-        data={revenue.series.map((point) => ({ key: point.key, revenue: point.value }))}
-        series={[{ key: "revenue", label: "Revenu", color: "var(--chart-1)" }]}
-        unit={period.unit}
-        kind="area"
-        format="currency"
-        currency={revenue.currency}
-      />
-    </Panel>
-  );
-}
-
-export function RevenueTileSkeleton() {
-  return (
-    <div className="rounded-2xl border bg-card p-4" aria-busy="true">
-      <Skeleton className="h-3 w-24" />
-      <Skeleton className="mt-3 h-8 w-32" />
-      <Skeleton className="mt-4 h-4 w-40" />
-    </div>
-  );
-}
-
-export function RevenuePanelSkeleton() {
-  return (
-    <div className="rounded-2xl border bg-card p-5 lg:col-span-2" aria-busy="true">
+    <div className="overflow-hidden rounded-2xl border bg-card" aria-busy="true">
       <p className="sr-only" role="status">Chargement du revenu…</p>
-      <Skeleton className="h-4 w-20" />
-      <Skeleton className="mt-3 h-7 w-36" />
-      <Skeleton className="mt-6 h-56 w-full" />
+      <div className="flex min-h-12 items-center justify-between gap-3 px-4 py-3 sm:px-5">
+        <Skeleton className="h-4 w-16" />
+        <Skeleton className="h-3 w-28" />
+      </div>
+      <div className="border-y px-4 py-3 sm:px-5">
+        <Skeleton className="h-3 w-16" />
+        <Skeleton className="mt-2 h-7 w-28" />
+        <Skeleton className="mt-2 h-5 w-14 rounded-full" />
+      </div>
+      <div className="p-4 sm:p-5">
+        <Skeleton className="h-3 w-40 max-w-full" />
+        <Skeleton className="mt-3 h-[200px] w-full" />
+      </div>
     </div>
   );
 }
