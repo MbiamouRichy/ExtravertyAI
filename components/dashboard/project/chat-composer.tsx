@@ -39,9 +39,15 @@ import { SendChatMessageSchema } from "@/lib/message-schema";
 import {
   type ChatAttachment,
   MEDIA_TYPES,
+  isChatImageType,
+  isGenericPastedName,
   mediaFileError,
   mediaMimeForFile,
+  pastedImageName,
 } from "@/lib/chat-media";
+import { clipboardFiles, clipboardPrefersText } from "@/lib/chat-paste";
+// Même détection d’après les octets que pour les icônes (JPEG, PNG, WebP).
+import { sniffLogoType as sniffImageType } from "@/lib/project-logo";
 import { Input } from "@/components/ui/input";
 import {
   Tooltip,
@@ -55,6 +61,79 @@ import { ChatEmojiPicker } from "./chat-emoji-picker";
 
 const ComposerSchema = SendChatMessageSchema;
 type ComposerValues = z.infer<typeof ComposerSchema>;
+
+/** Pièce jointe en attente : importée dès l’ajout, envoyée avec le message. */
+type PendingAttachment = {
+  id: string;
+  file: File;
+  /** URL locale (image ou audio), révoquée dès que la pièce jointe disparaît. */
+  preview: string | null;
+  /** Ticket signé par le serveur ; absent tant que l’import est en cours. */
+  attachment?: ChatAttachment;
+};
+type FileSource = "paste" | "picker" | "recorder";
+
+const MAX_PENDING_ATTACHMENTS = 10;
+const UploadResponse = z.object({
+  token: z.string(),
+  type: z.enum(["IMAGE", "AUDIO", "VIDEO", "DOCUMENT"]),
+  requestId: z.string().uuid(),
+});
+/** Message renvoyé par le serveur : sûr à afficher tel quel. */
+class UploadRefusedError extends Error {}
+
+const pluralize = (count: number, one: string, many: string) =>
+  count === 1 ? one : `${count} ${many}`;
+
+async function sniffFile(file: File) {
+  try {
+    return sniffImageType(new Uint8Array(await file.slice(0, 16).arrayBuffer()));
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Contrôles du navigateur (confort seulement, le serveur revérifie tout) :
+ * type réel des images lu dans les octets, formats et taille de l’envoi,
+ * nom sûr pour les images collées. Renvoie le fichier prêt ou un refus.
+ */
+async function prepareFile(
+  file: File,
+  source: FileSource,
+  pastedAt: Date,
+  rank: number,
+): Promise<File | string> {
+  const declared = mediaMimeForFile(file);
+  const imageLike = declared.startsWith("image/");
+  const label =
+    source === "paste" || !file.name ? "L’image collée" : `« ${file.name} »`;
+  if (source === "paste" && !imageLike)
+    return "Seules les images JPEG, PNG ou WebP se collent. Utilisez le trombone pour les autres fichiers.";
+  let mime = declared;
+  if (imageLike) {
+    const real = await sniffFile(file);
+    if (!real || !isChatImageType(real))
+      return isChatImageType(declared)
+        ? `${label} n’est pas une image valide.`
+        : "Format d’image non pris en charge : utilisez JPEG, PNG ou WebP.";
+    mime = real;
+  }
+  const error = mediaFileError({ size: file.size, type: mime });
+  if (error)
+    return file.size > 0 && Object.hasOwn(MEDIA_TYPES, mime)
+      ? `${label} dépasse 4 Mo.`
+      : error;
+  const name =
+    source === "paste" && isGenericPastedName(file.name)
+      ? pastedImageName(mime, pastedAt, rank)
+      : file.name;
+  return new File([file], name, { type: mime, lastModified: file.lastModified });
+}
+
+function releasePreview(item: PendingAttachment) {
+  if (item.preview) URL.revokeObjectURL(item.preview);
+}
 
 export function ChatComposer({
   draft,
@@ -87,43 +166,45 @@ export function ChatComposer({
     attachment?: ChatAttachment,
   ) => Promise<"accepted" | "uncertain" | void>;
 }) {
-  const [attachment, setAttachment] = useState<ChatAttachment | undefined>();
-  const [file, setFile] = useState<File | null>(null);
-  const [preview, setPreview] = useState<string | null>(null);
-  const [uploading, setUploading] = useState(false);
-  const uploadController = useRef<AbortController | null>(null);
+  // `pendingRef` est la source de vérité (lue pendant les imports et l’envoi) ;
+  // l’état ne sert qu’à l’affichage. Toute modification passe par updatePending.
+  const [pending, setPending] = useState<PendingAttachment[]>([]);
+  const pendingRef = useRef<PendingAttachment[]>([]);
+  const uploads = useRef(new Map<string, AbortController>());
   const fileRef = useRef<HTMLInputElement | null>(null);
+  const [announcement, setAnnouncement] = useState("");
 
-  useEffect(() => () => uploadController.current?.abort(), []);
+  function updatePending(
+    change: (list: PendingAttachment[]) => PendingAttachment[],
+  ) {
+    pendingRef.current = change(pendingRef.current);
+    setPending(pendingRef.current);
+  }
+  function discard(id: string) {
+    uploads.current.get(id)?.abort();
+    uploads.current.delete(id);
+    pendingRef.current.filter((item) => item.id === id).forEach(releasePreview);
+    updatePending((list) => list.filter((item) => item.id !== id));
+  }
+  function discardAll() {
+    for (const controller of uploads.current.values()) controller.abort();
+    uploads.current.clear();
+    pendingRef.current.forEach(releasePreview);
+    updatePending(() => []);
+  }
+
   useEffect(() => {
-    if (!file) {
-      setPreview(null);
-      return;
-    }
-    const url = URL.createObjectURL(file);
-    setPreview(url);
-    return () => URL.revokeObjectURL(url);
-  }, [file]);
-  async function uploadFile(selected: File | undefined) {
-    if (!selected) return;
-    const error = mediaFileError(selected);
-    if (error) {
-      setAttachment(undefined);
-      setFile(null);
-      form.setError("attachment", { message: error });
-      if (fileRef.current) fileRef.current.value = "";
-      return;
-    }
-    selected = new File([selected], selected.name, {
-      type: mediaMimeForFile(selected),
-    });
-    uploadController.current?.abort();
+    const controllers = uploads.current;
+    const latest = pendingRef;
+    return () => {
+      for (const controller of controllers.values()) controller.abort();
+      latest.current.forEach(releasePreview);
+    };
+  }, []);
+
+  async function upload(item: PendingAttachment) {
     const controller = new AbortController();
-    uploadController.current = controller;
-    setAttachment(undefined);
-    setFile(selected);
-    setUploading(true);
-    form.clearErrors("attachment");
+    uploads.current.set(item.id, controller);
     try {
       const response = await fetch(
         "/api/projects/" +
@@ -133,52 +214,130 @@ export function ChatComposer({
         {
           method: "POST",
           headers: {
-            "Content-Type": mediaMimeForFile(selected),
-            "X-File-Name": encodeURIComponent(selected.name),
+            "Content-Type": item.file.type,
+            "X-File-Name": encodeURIComponent(item.file.name),
           },
-          body: selected,
+          body: item.file,
           signal: controller.signal,
         },
       );
-      const data = await response.json();
-      if (!response.ok)
-        throw new Error(
-          typeof data.error === "string"
+      const data: unknown = await response.json().catch(() => null);
+      if (!response.ok) {
+        const error =
+          data && typeof data === "object" && "error" in data
             ? data.error
-            : "Import du fichier impossible.",
+            : null;
+        throw new UploadRefusedError(
+          typeof error === "string" ? error : "Import du fichier impossible.",
         );
-      const parsed = z
-        .object({
-          token: z.string(),
-          type: z.enum(["IMAGE", "AUDIO", "VIDEO", "DOCUMENT"]),
-          requestId: z.string().uuid(),
-        })
-        .parse(data);
-      if (!controller.signal.aborted) setAttachment(parsed);
-    } catch (error) {
-      if (!controller.signal.aborted) {
-        const message =
-          error instanceof Error
-            ? error.message
-            : "Import du fichier impossible.";
-        form.setError("attachment", { message });
-        toast.error(message);
-        setFile(null);
-        if (fileRef.current) fileRef.current.value = "";
       }
+      const attachment = UploadResponse.parse(data);
+      if (controller.signal.aborted) return;
+      updatePending((list) =>
+        list.map((entry) =>
+          entry.id === item.id ? { ...entry, attachment } : entry,
+        ),
+      );
+      if (pendingRef.current.every((entry) => entry.attachment))
+        setAnnouncement(
+          pendingRef.current.length === 1
+            ? "Pièce jointe prête à l’envoi."
+            : "Pièces jointes prêtes à l’envoi.",
+        );
+    } catch (error) {
+      if (controller.signal.aborted) return;
+      const message =
+        error instanceof UploadRefusedError
+          ? error.message
+          : "Import du fichier impossible. Vérifiez votre connexion et réessayez.";
+      discard(item.id);
+      form.setError("attachment", { message });
+      toast.error(message);
     } finally {
-      if (!controller.signal.aborted) setUploading(false);
+      if (uploads.current.get(item.id) === controller)
+        uploads.current.delete(item.id);
     }
   }
+
+  /** Trombone, collage ou micro : mêmes contrôles, puis import immédiat. */
+  async function addFiles(files: File[], source: FileSource) {
+    if (!files.length) return;
+    const pastedAt = new Date();
+    const prepared = await Promise.all(
+      files.map((file, rank) => prepareFile(file, source, pastedAt, rank)),
+    );
+    const refusals = prepared.filter(
+      (entry): entry is string => typeof entry === "string",
+    );
+    const accepted: File[] = [];
+    const current = pendingRef.current;
+    for (const file of prepared) {
+      if (typeof file === "string") continue;
+      const audio = file.type.startsWith("audio/");
+      if (
+        (audio && (current.length || accepted.length)) ||
+        current.some((entry) => entry.file.type.startsWith("audio/"))
+      ) {
+        refusals.push(
+          "Un fichier audio s’envoie seul : retirez les autres pièces jointes d’abord.",
+        );
+        continue;
+      }
+      if (current.length + accepted.length >= MAX_PENDING_ATTACHMENTS) {
+        refusals.push(
+          `${MAX_PENDING_ATTACHMENTS} pièces jointes maximum par envoi.`,
+        );
+        break;
+      }
+      accepted.push(file);
+      if (audio) break;
+    }
+    if (refusals.length)
+      toast.error(refusals[0], {
+        description:
+          refusals.length > 1
+            ? pluralize(
+                refusals.length - 1,
+                "1 autre fichier refusé.",
+                "autres fichiers refusés.",
+              )
+            : undefined,
+      });
+    if (!accepted.length) return;
+    const items: PendingAttachment[] = accepted.map((file) => ({
+      id: crypto.randomUUID(),
+      file,
+      preview: /^(image|audio)\//.test(file.type)
+        ? URL.createObjectURL(file)
+        : null,
+    }));
+    updatePending((list) => [...list, ...items]);
+    form.clearErrors("attachment");
+    setAnnouncement(
+      items.length === 1
+        ? `Pièce jointe ajoutée : ${items[0].file.name}. Import en cours.`
+        : `${items.length} pièces jointes ajoutées. Import en cours.`,
+    );
+    for (const item of items) void upload(item);
+  }
+
+  function removeAttachment(item: PendingAttachment) {
+    discard(item.id);
+    form.clearErrors("attachment");
+    setAnnouncement(`${item.file.name} supprimé de l’envoi.`);
+    // La vignette et son bouton disparaissent : le focus revient à la saisie.
+    requestAnimationFrame(() => textareaRef.current?.focus());
+  }
+
   const audioRecorder = useAudioRecorder(
-    (recorded) => void uploadFile(recorded),
+    (recorded) => void addFiles([recorded], "recorder"),
     contactId,
   );
+  const uploading = pending.some((item) => !item.attachment);
+  const audioItem = pending.find((item) => item.file.type.startsWith("audio/"));
+  const audioPreview = audioItem?.preview ?? null;
   const audioMode =
-    audioRecorder.recording ||
-    audioRecorder.preparing ||
-    !!file?.type.startsWith("audio/") ||
-    attachment?.type === "AUDIO";
+    audioRecorder.recording || audioRecorder.preparing || !!audioItem;
   const recordingMode = audioRecorder.recording || audioRecorder.preparing;
   const [scrollEdges, setScrollEdges] = useState({ top: false, bottom: false });
   useEffect(() => {
@@ -207,14 +366,16 @@ export function ChatComposer({
   const form = useForm<ComposerValues>({
     resolver: zodResolver(ComposerSchema),
     defaultValues: { content: "", attachment: undefined },
-    values: { content: audioMode ? "" : draft, attachment },
+    // La légende accompagne la première pièce jointe : c’est elle qui est validée.
+    values: {
+      content: audioMode ? "" : draft,
+      attachment: pending.find((item) => item.attachment)?.attachment,
+    },
   });
   useEffect(() => {
-    uploadController.current?.abort();
-    setAttachment(undefined);
-    setFile(null);
-    setUploading(false);
+    discardAll();
     if (fileRef.current) fileRef.current.value = "";
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- seulement au changement de contact
   }, [contactId]);
   const [busy, setBusy] = useState<"suggest" | "rewrite" | null>(null);
   const [proposal, setProposal] = useState<{
@@ -233,15 +394,6 @@ export function ChatComposer({
       requestId.current += 1;
     };
   }, [contactId, assistanceEnabled, contextVersion, isSending, audioMode]);
-
-  function removeAttachment() {
-    uploadController.current?.abort();
-    setUploading(false);
-    setAttachment(undefined);
-    setFile(null);
-    form.clearErrors("attachment");
-    if (fileRef.current) fileRef.current.value = "";
-  }
 
   // Les suggestions IA ne sont générées qu’à la demande (« Proposer des réponses »).
   async function requestAssistance(mode: "suggest" | "rewrite") {
@@ -277,7 +429,7 @@ export function ChatComposer({
   return (
     <form
       className="relative min-w-0"
-      onSubmit={form.handleSubmit(async ({ content, attachment: media }) => {
+      onSubmit={form.handleSubmit(async ({ content }) => {
         if (
           uploading ||
           isSending ||
@@ -285,21 +437,35 @@ export function ChatComposer({
           audioRecorder.preparing
         )
           return;
-        const preservedDraft = draft;
-        const result = await onSend(
-          media?.type === "AUDIO" ? "" : content,
-          media,
-        );
-        if (
-          media?.type === "AUDIO" &&
-          (result === "accepted" || result === "uncertain")
-        )
-          onDraftChange(preservedDraft);
-        if (result === "accepted" || result === "uncertain") {
-          setAttachment(undefined);
-          setFile(null);
-          if (fileRef.current) fileRef.current.value = "";
+        const queue = pendingRef.current.filter((item) => item.attachment);
+        if (!queue.length) {
+          await onSend(content);
+          return;
         }
+        // Un message WhatsApp par pièce jointe, dans l’ordre des vignettes ;
+        // la légende part avec la première. Un échec ou une confirmation
+        // incertaine arrête la suite, qui reste prête dans le compositeur.
+        const preservedDraft = draft;
+        const audio = queue[0].attachment?.type === "AUDIO";
+        let sent = 0;
+        for (const [index, item] of queue.entries()) {
+          const result = await onSend(
+            index === 0 && !audio ? content : "",
+            item.attachment,
+          );
+          if (result !== "accepted" && result !== "uncertain") break;
+          discard(item.id);
+          sent += 1;
+          if (result === "uncertain") break;
+        }
+        if (audio && sent) onDraftChange(preservedDraft);
+        const left = queue.length - sent;
+        if (sent && left)
+          toast.warning(
+            left === 1
+              ? "1 pièce jointe n’a pas été envoyée : elle reste dans le compositeur."
+              : `${left} pièces jointes n’ont pas été envoyées : elles restent dans le compositeur.`,
+          );
       })}
       noValidate
     >
@@ -447,30 +613,49 @@ export function ChatComposer({
                       ...Object.keys(MEDIA_TYPES),
                       ...Object.values(MEDIA_TYPES).map((ext) => "." + ext),
                     ].join(",")}
-                    disabled={isSending || uploading || recordingMode}
+                    multiple
+                    disabled={
+                      isSending ||
+                      recordingMode ||
+                      pending.length >= MAX_PENDING_ATTACHMENTS
+                    }
                     aria-invalid={fieldState.invalid}
                     aria-describedby="chat-attachment-help chat-attachment-error"
                     onBlur={field.onBlur}
-                    onChange={(event) =>
-                      void uploadFile(event.target.files?.[0])
-                    }
+                    onChange={(event) => {
+                      const files = Array.from(event.target.files ?? []);
+                      // Permet de rechoisir le même fichier après l’avoir retiré.
+                      event.target.value = "";
+                      void addFiles(files, "picker");
+                    }}
                   />
                   <p id="chat-attachment-help" className="sr-only">
-                    Images, vidéos, audio et documents, 4 Mo maximum. Légende :
-                    1 024 caractères. L’audio est envoyé seul.
+                    Images, vidéos, audio et documents, 4 Mo maximum par
+                    fichier, {MAX_PENDING_ATTACHMENTS} fichiers par envoi. Vous
+                    pouvez aussi coller une image dans le message. Légende :
+                    1 024 caractères, envoyée avec la première pièce jointe.
+                    L’audio est envoyé seul.
                   </p>
-                  {file && !audioMode && (
-                    <div className="px-2 pt-2">
-                      <AttachmentChip
-                        file={file}
-                        preview={preview}
-                        uploading={uploading}
-                        disabled={isSending}
-                        onRemove={removeAttachment}
-                      />
-                    </div>
+                  {pending.length > 0 && !audioMode && (
+                    <ul
+                      aria-label={pluralize(
+                        pending.length,
+                        "1 pièce jointe",
+                        "pièces jointes",
+                      )}
+                      className="flex flex-wrap gap-2.5 px-2.5 pt-2.5"
+                    >
+                      {pending.map((item) => (
+                        <AttachmentThumbnail
+                          key={item.id}
+                          item={item}
+                          disabled={isSending}
+                          onRemove={() => removeAttachment(item)}
+                        />
+                      ))}
+                    </ul>
                   )}
-                  {file && audioMode && (
+                  {audioItem && audioMode && (
                     <div className="flex min-w-0 items-center gap-1.5 p-1.5">
                       <Button
                         type="button"
@@ -479,7 +664,7 @@ export function ChatComposer({
                         className="shrink-0 text-muted-foreground hover:text-foreground"
                         aria-label="Supprimer le message vocal"
                         disabled={isSending}
-                        onClick={removeAttachment}
+                        onClick={() => removeAttachment(audioItem)}
                       >
                         <X aria-hidden="true" />
                       </Button>
@@ -496,10 +681,10 @@ export function ChatComposer({
                             Préparation de l’audio…
                           </p>
                         ) : (
-                          preview && (
+                          audioPreview && (
                             <AudioPlayer
-                              key={preview}
-                              src={preview}
+                              key={audioPreview}
+                              src={audioPreview}
                               className="w-full rounded-none border-0 bg-transparent p-0 shadow-none"
                             />
                           )
@@ -508,7 +693,9 @@ export function ChatComposer({
                       <SendButton
                         label="Envoyer le message vocal"
                         sending={isSending}
-                        disabled={!attachment || uploading || isSending}
+                        disabled={
+                          !audioItem.attachment || uploading || isSending
+                        }
                       />
                     </div>
                   )}
@@ -567,10 +754,23 @@ export function ChatComposer({
                               !window.matchMedia("(pointer: coarse)").matches);
                           if (!send) return;
                           event.preventDefault();
+                          // Import en cours : on attend, sans message d’erreur.
+                          if (uploading) return;
                           event.currentTarget.form?.requestSubmit();
                         }}
+                        onPaste={(event) => {
+                          const data = event.clipboardData;
+                          const files = clipboardFiles(data);
+                          // Texte seul, ou texte riche (Word, Excel) : collage normal.
+                          if (!files.length || clipboardPrefersText(data))
+                            return;
+                          event.preventDefault();
+                          void addFiles(files, "paste");
+                        }}
                         placeholder={
-                          file ? "Ajouter une légende…" : "Écrire un message…"
+                          pending.length
+                            ? "Ajouter une légende…"
+                            : "Écrire un message…"
                         }
                         className="max-h-40 min-h-11 w-full min-w-0 resize-none rounded-none border-0 bg-transparent px-3 py-2.5 shadow-none focus-visible:ring-0 aria-invalid:ring-0 dark:bg-transparent"
                       />
@@ -593,14 +793,19 @@ export function ChatComposer({
                             className={toolClass}
                             aria-label="Joindre un fichier"
                             aria-controls="chat-attachment"
-                            disabled={isSending || uploading}
+                            disabled={
+                              isSending ||
+                              pending.length >= MAX_PENDING_ATTACHMENTS
+                            }
                             onClick={() => fileRef.current?.click()}
                           >
                             <Paperclip aria-hidden="true" />
                           </Button>
                         </TooltipTrigger>
                         <TooltipContent>
-                          Images, vidéos, audio et documents · 4 Mo maximum
+                          {pending.length >= MAX_PENDING_ATTACHMENTS
+                            ? `${MAX_PENDING_ATTACHMENTS} pièces jointes maximum par envoi`
+                            : "Images, vidéos, audio et documents · 4 Mo maximum · ou collez une image"}
                         </TooltipContent>
                       </Tooltip>
                       <ChatEmojiPicker
@@ -620,15 +825,15 @@ export function ChatComposer({
                             size="icon-sm"
                             className={toolClass}
                             aria-label="Enregistrer un message vocal"
-                            disabled={isSending || uploading || !!file}
+                            disabled={isSending || pending.length > 0}
                             onClick={() => void audioRecorder.start()}
                           >
                             <Mic aria-hidden="true" />
                           </Button>
                         </TooltipTrigger>
                         <TooltipContent>
-                          {file
-                            ? "Retirez la pièce jointe pour enregistrer un audio"
+                          {pending.length
+                            ? "Retirez les pièces jointes pour enregistrer un audio"
                             : "Enregistrer un audio · 2 minutes maximum"}
                         </TooltipContent>
                       </Tooltip>
@@ -678,7 +883,7 @@ export function ChatComposer({
                         label={isSending ? "Envoi en cours" : "Envoyer le message"}
                         sending={isSending}
                         disabled={
-                          (!draft.trim() && !attachment) ||
+                          (!draft.trim() && !pending.length) ||
                           isSending ||
                           uploading
                         }
@@ -686,7 +891,8 @@ export function ChatComposer({
                     </div>
                     <p id="chat-composer-help" className="sr-only">
                       Entrée pour envoyer, Maj et Entrée pour une nouvelle
-                      ligne. Sur mobile, utilisez le bouton Envoyer.
+                      ligne. Sur mobile, utilisez le bouton Envoyer. Collez une
+                      image pour la joindre au message.
                     </p>
                     {fieldState.invalid && (
                       <FieldError
@@ -702,6 +908,10 @@ export function ChatComposer({
           </FieldGroup>
         )}
       </div>
+      {/* Ajouts, imports terminés et retraits annoncés au lecteur d’écran. */}
+      <p role="status" className="sr-only">
+        {announcement}
+      </p>
     </form>
   );
 }
@@ -746,70 +956,79 @@ function formatFileSize(bytes: number) {
   return `${(bytes / 1024 / 1024).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} Mo`;
 }
 
-/** Pièce jointe en attente d’envoi : vignette compacte, nom, poids, retrait. */
-function AttachmentChip({
-  file,
-  preview,
-  uploading,
+/**
+ * Pièce jointe en attente : vignette carrée sans nom (aperçu pour les images,
+ * icône et extension sinon), bouton de retrait en haut à droite. Le nom et le
+ * poids restent lus par le lecteur d’écran.
+ */
+function AttachmentThumbnail({
+  item,
   disabled,
   onRemove,
 }: {
-  file: File;
-  preview: string | null;
-  uploading: boolean;
+  item: PendingAttachment;
   disabled: boolean;
   onRemove: () => void;
 }) {
+  const { file, preview } = item;
+  const uploading = !item.attachment;
   const image = file.type.startsWith("image/");
-  const Icon = file.type.startsWith("video/") ? Film : FileText;
-  const kind = image
-    ? "Image"
-    : file.type.startsWith("video/")
-      ? "Vidéo"
-      : "Document";
+  const video = file.type.startsWith("video/");
+  const Icon = video ? Film : FileText;
+  const kind = image ? "Image" : video ? "Vidéo" : "Document";
+  const dot = file.name.lastIndexOf(".");
+  const extension = dot > 0 ? file.name.slice(dot + 1, dot + 5) : "";
 
   return (
-    <div className="flex min-w-0 items-center gap-2.5 rounded-lg border bg-muted/40 p-1.5">
-      <span className="relative flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-md border bg-background text-muted-foreground">
+    <li className="relative">
+      <span
+        aria-hidden="true"
+        className="relative flex size-16 items-center justify-center overflow-hidden rounded-lg border bg-muted text-muted-foreground"
+      >
         {image && preview ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={preview}
             alt=""
+            draggable={false}
             className="size-full object-cover"
           />
         ) : (
-          <Icon aria-hidden="true" className="size-4" />
+          <span className="flex flex-col items-center gap-1">
+            <Icon className="size-5" />
+            {extension && (
+              <span className="text-[10px] leading-none font-medium uppercase">
+                {extension}
+              </span>
+            )}
+          </span>
         )}
         {uploading && (
           <span className="absolute inset-0 flex items-center justify-center bg-background/70">
-            <Loader2
-              aria-hidden="true"
-              className="size-4 animate-spin text-foreground motion-reduce:animate-none"
-            />
+            <Loader2 className="size-4 animate-spin text-foreground motion-reduce:animate-none" />
           </span>
         )}
       </span>
-      <span className="min-w-0 flex-1">
-        <span className="block truncate text-sm font-medium">{file.name}</span>
-        <span
-          role={uploading ? "status" : undefined}
-          className="block truncate text-xs text-muted-foreground"
-        >
-          {uploading ? "Import en cours…" : `${kind} · ${formatFileSize(file.size)}`}
-        </span>
+      <span className="sr-only">
+        {kind} {file.name}, {formatFileSize(file.size)}
+        {uploading ? ", import en cours" : ""}
       </span>
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon-sm"
-        className="size-9 shrink-0 text-muted-foreground hover:text-foreground sm:size-8"
-        aria-label={`Retirer ${file.name}`}
-        disabled={disabled}
-        onClick={onRemove}
-      >
-        <X aria-hidden="true" />
-      </Button>
-    </div>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            type="button"
+            variant="outline"
+            size="icon-xs"
+            className="absolute -top-2 -right-2 rounded-full text-muted-foreground shadow-xs hover:text-foreground"
+            aria-label={`Supprimer ${file.name}`}
+            disabled={disabled}
+            onClick={onRemove}
+          >
+            <X aria-hidden="true" />
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>Supprimer {file.name}</TooltipContent>
+      </Tooltip>
+    </li>
   );
 }
