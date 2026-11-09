@@ -20,10 +20,12 @@ for (const signal of ["SIGTERM", "SIGINT"])
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 async function main() {
-  if (!process.env.RESEND_API_KEY || !process.env.STRIPE_SECRET_KEY)
-    throw new Error("BILLING_CONFIG_MISSING");
   const polar = checkoutProvider() === "polar";
-  if (polar && !process.env.POLAR_ACCESS_TOKEN)
+  // Seule la clé du fournisseur qui encaisse est exigée : avec Polar, Stripe peut manquer.
+  if (
+    !process.env.RESEND_API_KEY ||
+    (polar ? !process.env.POLAR_ACCESS_TOKEN : !process.env.STRIPE_SECRET_KEY)
+  )
     throw new Error("BILLING_CONFIG_MISSING");
   for (const plan of ["starter", "pro", "business"]) {
     const name = plan.toUpperCase();
