@@ -1,6 +1,7 @@
 import { syncWhatsAppSettings } from "../lib/whatsapp-settings-sync";
 import "dotenv/config";
 import { workerDatabase, notifyProject } from "./shared";
+import { flushWorkerMonitoring, initWorkerMonitoring, reportWorkerError } from "./monitoring";
 import { claimAiJob, runAiJob } from "../lib/ai-jobs";
 import { reconcileProviderReceipts } from "../lib/provider-reconciliation";
 import { runInstinctCycle } from "../lib/ai-instinct";
@@ -12,6 +13,7 @@ import {
   runMessageExtraction,
 } from "../lib/message-extraction";
 
+initWorkerMonitoring("ai-worker");
 const prisma = workerDatabase();
 let stopping = false;
 process.on("SIGTERM", () => {
@@ -35,8 +37,8 @@ async function main() {
         await runAiJob(prisma, job);
         await notifyProject(job.projectId);
       } else await sleep(500);
-    } catch {
-      console.error("[ai-worker] Cycle interrompu.");
+    } catch (error) {
+      reportWorkerError("[ai-worker] Cycle interrompu.", error);
       await sleep(2000);
     }
   }
@@ -46,8 +48,8 @@ async function instinctLoop() {
     try {
       const projectId = await runInstinctCycle(prisma);
       if (projectId) await notifyProject(projectId);
-    } catch {
-      console.error("[ai-instinct] Cycle interrompu.");
+    } catch (error) {
+      reportWorkerError("[ai-instinct] Cycle interrompu.", error);
     }
     await sleep(2000);
   }
@@ -60,8 +62,8 @@ async function extractionLoop() {
         await runMessageExtraction(prisma, job);
         await notifyProject(job.projectId);
       } else await sleep(1000);
-    } catch {
-      console.error("[media-extraction] Cycle interrompu.");
+    } catch (error) {
+      reportWorkerError("[media-extraction] Cycle interrompu.", error);
       await sleep(2000);
     }
   }
@@ -75,8 +77,8 @@ async function knowledgeLoop() {
         await runKnowledgeSource(prisma, job, knowledgeExtractors);
         await notifyProject(job.projectId);
       } else await sleep(2000);
-    } catch {
-      console.error("[knowledge] Cycle interrompu.");
+    } catch (error) {
+      reportWorkerError("[knowledge] Cycle interrompu.", error);
       await sleep(5000);
     }
   }
@@ -90,8 +92,8 @@ async function followUpLoop() {
       const tick = await runFollowUpTick(prisma);
       busy = !!tick;
       if (tick?.outcome === "sent") await notifyProject(tick.projectId);
-    } catch {
-      console.error("[follow-ups] Cycle interrompu.");
+    } catch (error) {
+      reportWorkerError("[follow-ups] Cycle interrompu.", error);
     }
     // Attente découpée : l’arrêt du worker n’attend pas la fin du délai.
     for (let waited = 0; waited < (busy ? 1000 : 30000) && !stopping; waited += 1000)
@@ -99,11 +101,12 @@ async function followUpLoop() {
   }
 }
 Promise.all([main(), instinctLoop(), extractionLoop(), knowledgeLoop(), followUpLoop()])
-  .catch(() => {
+  .catch((error) => {
     stopping = true;
-    console.error("[ai-worker] Arrêt sur erreur.");
+    reportWorkerError("[ai-worker] Arrêt sur erreur.", error);
     process.exitCode = 1;
   })
   .finally(async () => {
+    await flushWorkerMonitoring();
     await prisma.$disconnect();
   });

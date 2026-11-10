@@ -2,13 +2,16 @@
 
 import { CircleAlert, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useReportError } from "@/hooks/use-report-error";
 
 export default function ChatError({
+    error,
     reset,
 }: {
     error: Error & { digest?: string };
     reset: () => void;
 }) {
+    useReportError(error);
     return (
         <div className="flex min-h-[60dvh] items-center justify-center p-6">
             <div

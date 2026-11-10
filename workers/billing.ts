@@ -1,12 +1,14 @@
 import "dotenv/config";
 import { paidMessageLimit } from "../lib/billing-quota";
 import { workerDatabase, notifyProject } from "./shared";
+import { flushWorkerMonitoring, initWorkerMonitoring, reportWorkerError } from "./monitoring";
 import {
   billingEmailConfig,
   reconcileNextBillingProject,
   deliverNextBillingEmail,
 } from "../lib/billing-lifecycle";
 
+initWorkerMonitoring("billing-worker");
 const prisma = workerDatabase();
 let stopping = false;
 const controller = new AbortController();
@@ -34,10 +36,8 @@ async function main() {
         worked = true;
         await notifyProject(projectId);
       }
-    } catch {
-      console.error(
-        "[billing-worker] Vérification de facturation interrompue.",
-      );
+    } catch (error) {
+      reportWorkerError("[billing-worker] Vérification de facturation interrompue.", error);
     }
     try {
       worked =
@@ -66,16 +66,19 @@ async function main() {
             throw new Error("BILLING_EMAIL_UNCONFIRMED");
           return result.id;
         })) || worked;
-    } catch {
-      console.error("[billing-worker] Envoi interrompu.");
+    } catch (error) {
+      reportWorkerError("[billing-worker] Envoi interrompu.", error);
     }
     await sleep(worked ? 600 : 5000);
   }
 }
 main()
-  .catch(() => {
+  .catch((error) => {
     stopping = true;
-    console.error("[billing-worker] Arrêt : vérifier la configuration.");
+    reportWorkerError("[billing-worker] Arrêt : vérifier la configuration.", error);
     process.exitCode = 1;
   })
-  .finally(() => prisma.$disconnect());
+  .finally(async () => {
+    await flushWorkerMonitoring();
+    await prisma.$disconnect();
+  });
