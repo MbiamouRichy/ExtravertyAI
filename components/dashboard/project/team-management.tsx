@@ -1,8 +1,7 @@
 "use client";
 
 import * as React from "react";
-// 1. Ajout de useEffect
-import { useState, useTransition, useEffect } from "react";
+import { useState, useTransition } from "react";
 // 2. Ajout de useRouter pour rafraîchir les données serveur
 import { useRouter } from "next/navigation";
 import { useForm, Controller } from "react-hook-form";
@@ -139,10 +138,13 @@ export default function TeamManagement({
   const [members, setMembers] = useState<TeamMember[]>(data);
   const [searchQuery, setSearchQuery] = useState("");
 
-  // 3. SYNCHRONISATION : Met à jour l'état local si les données serveur (props 'data') changent
-  useEffect(() => {
+  // 3. SYNCHRONISATION : Met à jour l'état local si les données serveur (props 'data') changent.
+  // Ajusté pendant le rendu : pas de rendu intermédiaire avec l’ancienne liste.
+  const [syncedData, setSyncedData] = useState(data);
+  if (syncedData !== data) {
+    setSyncedData(data);
     setMembers(data);
-  }, [data]);
+  }
 
   // Modal Inviter
   const [isInviteOpen, setIsInviteOpen] = useState(false);
@@ -213,7 +215,7 @@ export default function TeamManagement({
         setIsInviteOpen(false);
         form.reset();
 
-        // 4. RAFRAÎCHISSEMENT : Demande à Next.js de recharger les données (ce qui déclenchera le useEffect plus haut)
+        // 4. RAFRAÎCHISSEMENT : Demande à Next.js de recharger les données (la synchronisation plus haut reprend la nouvelle liste)
         router.refresh();
       } else {
         playHaptic("error");

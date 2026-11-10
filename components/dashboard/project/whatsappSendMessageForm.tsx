@@ -875,8 +875,12 @@ export default function WhatsappWorkspace({
 
   const [announcement, setAnnouncement] = useState("");
 
-  // Retire les substitutions IA dès que le serveur les a confirmées.
-  useEffect(() => {
+  // Nouvelles données serveur : l’état local est ajusté pendant le rendu,
+  // sans rendu intermédiaire ni effet en cascade.
+  const [syncedClients, setSyncedClients] = useState(clients);
+  if (syncedClients !== clients) {
+    setSyncedClients(clients);
+    // Retire les substitutions IA dès que le serveur les a confirmées.
     setAiOverrides((previous) => {
       const next = { ...previous };
       let changed = false;
@@ -909,10 +913,19 @@ export default function WhatsappWorkspace({
 
       return changed ? next : previous;
     });
-  }, [clients]);
+    // Aucune conversation n’est ouverte d’office : seul un lien
+    // (?contactId=…) ou un clic dans la liste en ouvre une. Celle qui est
+    // ouverte suit la version serveur du contact.
+    const updated = activeId
+      ? clients.find((client) => client.id === activeId)
+      : undefined;
+    if (updated) setSelectedClient(updated);
+  }
 
   // Retire les messages locaux dès que leur ID apparaît côté serveur.
-  useEffect(() => {
+  const [syncedMessages, setSyncedMessages] = useState(messages);
+  if (syncedMessages !== messages) {
+    setSyncedMessages(messages);
     setLocalMessages((previous) => {
       let changed = false;
       const next = { ...previous };
@@ -944,19 +957,7 @@ export default function WhatsappWorkspace({
 
       return changed ? next : previous;
     });
-  }, [messages]);
-
-  // Aucune conversation n’est ouverte d’office : seul un lien
-  // (?contactId=…) ou un clic dans la liste en ouvre une.
-  useEffect(() => {
-    if (!activeId) return;
-
-    const updated = clients.find((client) => client.id === activeId);
-
-    if (updated) {
-      setSelectedClient(updated);
-    }
-  }, [activeId, clients]);
+  }
   const visibleClients = useMemo(() => {
     const textQuery = normalizeSearch(search);
 

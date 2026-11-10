@@ -105,10 +105,15 @@ function ConnectionPanel({ projectId }: { projectId: string }) {
     };
   }, []);
 
+  // Numéro connecté : le code d’association n’a plus d’usage (ajusté pendant le rendu).
+  const [wasConnected, setWasConnected] = useState(connected);
+  if (wasConnected !== connected) {
+    setWasConnected(connected);
+    if (connected) setPairingCode(null);
+  }
+
   useEffect(() => {
     if (!connected) return;
-
-    setPairingCode(null);
 
     const timer = setTimeout(() => {
       setOpening(true);

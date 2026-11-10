@@ -439,8 +439,11 @@ export function NumberVerification({
     </p>
   );
 
-  /** Après un échec, une seule issue : corriger le numéro, ou réessayer. */
-  const recovery = (retry: () => void) =>
+  /**
+   * Après un échec, une seule issue : corriger le numéro, ou réessayer.
+   * La voie est désignée par son nom : l’action reste dans le gestionnaire de clic.
+   */
+  const recovery = (retry: Method) =>
     numberProblem ? (
       onEditNumber && (
         <Button
@@ -461,23 +464,24 @@ export function NumberVerification({
         size="lg"
         className={mainButton}
         disabled={sending || busy || wait > 0}
-        onClick={retry}
+        onClick={() => void (retry === "message" ? startMessage() : sendCode())}
       >
         {sending && spinner}
         {wait > 0 ? `Réessayer dans ${wait} s` : "Réessayer"}
       </Button>
     );
 
-  const otherWay = (label: string, onClick: () => void) => (
+  /** Passage à l’autre voie de vérification. */
+  const otherWay = (to: Method) => (
     <div className="flex justify-center border-t pt-3">
       <Button
         type="button"
         variant="link"
         className={quietLink}
         disabled={busy || sending}
-        onClick={onClick}
+        onClick={to === "code" ? chooseCode : chooseMessage}
       >
-        {label}
+        {to === "code" ? "Recevoir un code à la place" : "Envoyer un message à la place"}
       </Button>
     </div>
   );
@@ -646,7 +650,7 @@ export function NumberVerification({
           ) : notice ? (
             <>
               {noticeAlert}
-              {recovery(() => void startMessage())}
+              {recovery("message")}
             </>
           ) : messageExpired ? (
             <>
@@ -666,10 +670,10 @@ export function NumberVerification({
           ) : (
             waitingLine("Préparation du code…")
           )}
-          {otherWay("Recevoir un code à la place", chooseCode)}
+          {otherWay("code")}
         </div>
       ) : codeId ? (
-        <form noValidate onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        <form noValidate onSubmit={(event) => void form.handleSubmit(onSubmit)(event)} className="space-y-4">
           <Controller
             name="code"
             control={form.control}
@@ -723,19 +727,19 @@ export function NumberVerification({
               {wait > 0 ? `Renvoyer dans ${wait} s` : "Renvoyer le code"}
             </Button>
           </div>
-          {messageAvailable && otherWay("Envoyer un message à la place", chooseMessage)}
+          {messageAvailable && otherWay("message")}
         </form>
       ) : (
         <div className="space-y-4">
           {notice ? (
             <>
               {noticeAlert}
-              {recovery(() => void sendCode())}
+              {recovery("code")}
             </>
           ) : (
             waitingLine("Envoi du code…")
           )}
-          {messageAvailable && otherWay("Envoyer un message à la place", chooseMessage)}
+          {messageAvailable && otherWay("message")}
         </div>
       )}
     </section>

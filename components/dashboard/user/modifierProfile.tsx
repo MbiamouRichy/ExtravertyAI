@@ -189,7 +189,7 @@ function ProfileForm({
     <form
       className={className}
       id="profile-Form"
-      onSubmit={form.handleSubmit(onSubmit)}
+      onSubmit={(event) => void form.handleSubmit(onSubmit)(event)}
     >
       <FieldGroup className="gap-4">
         <Controller

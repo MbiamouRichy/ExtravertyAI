@@ -329,12 +329,23 @@ export function ChatComposer({
     requestAnimationFrame(() => textareaRef.current?.focus());
   }
 
+  const uploading = pending.some((item) => !item.attachment);
+  const audioItem = pending.find((item) => item.file.type.startsWith("audio/"));
+  // Déclaré avant l’enregistreur, dont le rappel (addFiles, upload) utilise le formulaire.
+  const form = useForm<ComposerValues>({
+    resolver: zodResolver(ComposerSchema),
+    defaultValues: { content: "", attachment: undefined },
+    // La légende accompagne la première pièce jointe : c’est elle qui est validée.
+    // Un audio part sans texte ; pendant l’enregistrement, l’envoi est bloqué.
+    values: {
+      content: audioItem ? "" : draft,
+      attachment: pending.find((item) => item.attachment)?.attachment,
+    },
+  });
   const audioRecorder = useAudioRecorder(
     (recorded) => void addFiles([recorded], "recorder"),
     contactId,
   );
-  const uploading = pending.some((item) => !item.attachment);
-  const audioItem = pending.find((item) => item.file.type.startsWith("audio/"));
   const audioPreview = audioItem?.preview ?? null;
   const audioMode =
     audioRecorder.recording || audioRecorder.preparing || !!audioItem;
@@ -363,15 +374,6 @@ export function ChatComposer({
       textarea.removeEventListener("scroll", updateEdges);
     };
   }, [draft, contactId, textareaRef, audioMode]);
-  const form = useForm<ComposerValues>({
-    resolver: zodResolver(ComposerSchema),
-    defaultValues: { content: "", attachment: undefined },
-    // La légende accompagne la première pièce jointe : c’est elle qui est validée.
-    values: {
-      content: audioMode ? "" : draft,
-      attachment: pending.find((item) => item.attachment)?.attachment,
-    },
-  });
   useEffect(() => {
     discardAll();
     if (fileRef.current) fileRef.current.value = "";
@@ -383,13 +385,27 @@ export function ChatComposer({
     replies: string[];
     draft: string;
   } | null>(null);
+  // Changement de contact, de contexte ou de mode : la proposition en cours
+  // n’a plus lieu d’être. L’état est ajusté pendant le rendu, pas dans un effet.
+  const assistanceScope = [
+    contactId,
+    assistanceEnabled,
+    contextVersion,
+    isSending,
+    audioMode,
+  ].join("\u0000");
+  const [shownScope, setShownScope] = useState(assistanceScope);
+  if (shownScope !== assistanceScope) {
+    setShownScope(assistanceScope);
+    setBusy(null);
+    setProposal(null);
+  }
   const requestId = useRef(0);
   const requestLock = useRef(false);
+  // La requête en vol est abandonnée : sa réponse ne s’affichera pas.
   useEffect(() => {
     requestId.current += 1;
     requestLock.current = false;
-    setBusy(null);
-    setProposal(null);
     return () => {
       requestId.current += 1;
     };
@@ -429,7 +445,7 @@ export function ChatComposer({
   return (
     <form
       className="relative min-w-0"
-      onSubmit={form.handleSubmit(async ({ content }) => {
+      onSubmit={(event) => void form.handleSubmit(async ({ content }) => {
         if (
           uploading ||
           isSending ||
@@ -466,7 +482,7 @@ export function ChatComposer({
               ? "1 pièce jointe n’a pas été envoyée : elle reste dans le compositeur."
               : `${left} pièces jointes n’ont pas été envoyées : elles restent dans le compositeur.`,
           );
-      })}
+      })(event)}
       noValidate
     >
       {assistanceEnabled && !audioMode && (

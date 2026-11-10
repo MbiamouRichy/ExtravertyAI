@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
 import {
   Check,
   CircleAlert,
@@ -125,8 +125,8 @@ export function SystemMessageDialog({
         : { top, bottom },
     );
   }
-  const measureRef = useRef(measureEdges);
-  measureRef.current = measureEdges;
+  // Appelée depuis l’observateur : toujours la dernière version, sans relancer l’effet.
+  const measureFromEffect = useEffectEvent(measureEdges);
 
   useEffect(() => {
     if (!open) return;
@@ -135,9 +135,9 @@ export function SystemMessageDialog({
     const frame = requestAnimationFrame(() => {
       const element = editor.current;
       if (!element) return;
-      observer = new ResizeObserver(() => measureRef.current());
+      observer = new ResizeObserver(() => measureFromEffect());
       observer.observe(element);
-      measureRef.current();
+      measureFromEffect();
     });
     return () => {
       cancelAnimationFrame(frame);

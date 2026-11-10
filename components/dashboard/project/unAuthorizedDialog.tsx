@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { ShieldAlert, ArrowLeft, LayoutDashboard } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 
 interface UnauthorizedDialogProps {
     open: boolean;
@@ -26,10 +26,12 @@ export default function UnauthorizedDialog({
     const router = useRouter();
     const [isOpen, setIsOpen] = useState(open);
 
-    // Synchronisation avec la prop externe
-    useEffect(() => {
+    // Synchronisation avec la prop externe, pendant le rendu plutôt que dans un effet.
+    const [syncedOpen, setSyncedOpen] = useState(open);
+    if (syncedOpen !== open) {
+        setSyncedOpen(open);
         setIsOpen(open);
-    }, [open]);
+    }
 
     // UX : On ne permet pas de simplement fermer la modale si l'utilisateur est sur une page interdite.
     // Il faut le rediriger vers un endroit sûr (Retour ou Dashboard).
