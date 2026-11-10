@@ -269,13 +269,15 @@ function ConversationParticipants({
   active,
   agents,
   loading,
+  className,
 }: {
   active: boolean;
   agents: ChatAgent[];
   loading: boolean;
+  className?: string;
 }) {
   return (
-    <span className="inline-flex shrink-0 items-center gap-1">
+    <span className={cn("inline-flex shrink-0 items-center gap-1", className)}>
       {active && (
         <Hint label="Assistant IA actif : il répond automatiquement à ce contact.">
           <span className="relative flex size-6 shrink-0 items-center justify-center text-info">
@@ -1902,6 +1904,9 @@ export default function WhatsappWorkspace({
                                 active={client.aiActive}
                                 agents={client.agents ?? []}
                                 loading={false}
+                                // Le retrait vertical des avatars (place de leur anneau)
+                                // ne doit pas éloigner l’aperçu du nom.
+                                className="-my-1"
                               />
                             </span>
                             <time
