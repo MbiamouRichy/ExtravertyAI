@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useId, useRef, useState } from "react";
 import { ChevronDown, Lock } from "lucide-react";
 
 import { getInitials } from "@/components/getInitials";
@@ -11,7 +12,66 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import type { ChatNotes } from "@/lib/chat";
+import { cn } from "@/lib/utils";
 import { ScrollFadeArea } from "./scroll-fade-area";
+
+/**
+ * Texte d’une note, replié sur quatre lignes. « Afficher plus » n’apparaît
+ * que si le texte dépasse réellement, et chaque note se déplie à part.
+ */
+function NoteContent({ content }: { content: string }) {
+  const id = useId();
+  const ref = useRef<HTMLParagraphElement>(null);
+  const [expanded, setExpanded] = useState(false);
+  const [overflows, setOverflows] = useState(false);
+
+  useEffect(() => {
+    const element = ref.current;
+    // Déplié, le texte ne déborde plus : on garde la dernière mesure repliée.
+    if (!element || expanded) return;
+    const observer = new ResizeObserver(() =>
+      setOverflows(element.scrollHeight - element.clientHeight > 1),
+    );
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [expanded, content]);
+
+  return (
+    <>
+      <p
+        ref={ref}
+        id={id}
+        dir="auto"
+        className={cn(
+          "mt-0.5 text-sm whitespace-pre-wrap wrap-anywhere",
+          !expanded && "line-clamp-4",
+        )}
+      >
+        {content}
+      </p>
+      {(overflows || expanded) && (
+        <Button
+          type="button"
+          variant="link"
+          size="xs"
+          aria-expanded={expanded}
+          aria-controls={id}
+          onClick={() => setExpanded((value) => !value)}
+          className="mt-1 h-auto px-0 py-0.5 text-muted-foreground hover:text-foreground"
+        >
+          {expanded ? "Réduire" : "Afficher plus"}
+          <ChevronDown
+            aria-hidden="true"
+            className={cn(
+              "transition-transform motion-reduce:transition-none",
+              expanded && "rotate-180",
+            )}
+          />
+        </Button>
+      )}
+    </>
+  );
+}
 
 const countLabel = (total: number) =>
   `${total} note${total > 1 ? "s" : ""} interne${total > 1 ? "s" : ""}`;
@@ -84,9 +144,7 @@ export function InternalNotesStrip({
                       {formatDate(note.timestamp)}
                     </time>
                   </p>
-                  <p dir="auto" className="mt-0.5 text-sm whitespace-pre-wrap wrap-anywhere">
-                    {note.content}
-                  </p>
+                  <NoteContent content={note.content} />
                 </div>
               </li>
             ))}
