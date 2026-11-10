@@ -243,14 +243,9 @@ function AgentAvatar({
   const name = agent?.name?.trim() || "Agent";
   const xs = size === "xs";
   return (
-    <Avatar
-      size={size === "default" ? "default" : "sm"}
-      title={name}
-      aria-label={name}
-      className={cn(xs && "size-5")}
-    >
+    <Avatar size={size} title={name} aria-label={name}>
       <AvatarImage src={agent?.image || undefined} alt="" />
-      <AvatarFallback className={xs ? "text-[10px]" : "text-xs"}>
+      <AvatarFallback className={xs ? undefined : "text-xs"}>
         {agent?.name?.trim() ? (
           getInitials(name)
         ) : (
