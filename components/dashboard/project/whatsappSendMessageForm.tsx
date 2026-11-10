@@ -140,6 +140,8 @@ import { InternalNotesStrip } from "./chat-internal-notes";
 import { downloadConversation } from "./export-conversation";
 import { ConversationSummaryView } from "./conversation-summary";
 import { useConversationRead } from "@/hooks/use-conversation-read";
+import { useChatDrafts } from "@/hooks/use-chat-drafts";
+import { draftKey as chatDraftKey } from "@/lib/chat-drafts";
 import { createChatDateFormatters } from "@/lib/chat-dates";
 import { SendChatMessageSchema } from "@/lib/message-schema";
 import { type ChatAttachment, messageMediaPath } from "@/lib/chat-media";
@@ -850,7 +852,17 @@ export default function WhatsappWorkspace({
 
   const refreshing = contactsQuery.isValidating || historyQuery.isValidating;
 
-  const [drafts, setDrafts] = useState<Record<string, string>>({});
+  // Brouillons (réponse, note interne) gardés sur l’appareil : une fermeture
+  // de page, voulue ou non, ne les perd pas.
+  const {
+    drafts,
+    setDrafts,
+    noteDrafts,
+    setNoteDrafts,
+    noteModes,
+    setNoteMode,
+    restored: draftsRestored,
+  } = useChatDrafts(user.id, project.id);
   const [localMessages, setLocalMessages] = useState<
     Record<string, LocalMessage[]>
   >({});
@@ -864,7 +876,13 @@ export default function WhatsappWorkspace({
   const [resolveBusyId, setResolveBusyId] = useState<string | null>(null);
   const resolveLock = useRef(false);
   const [composerMode, setComposerMode] = useState<ComposerMode>("reply");
-  const [noteDrafts, setNoteDrafts] = useState<Record<string, string>>({});
+  // Page rouverte sur un contact quitté en pleine note : la note est rouverte.
+  const [draftModeRestored, setDraftModeRestored] = useState(false);
+  if (draftsRestored && !draftModeRestored) {
+    setDraftModeRestored(true);
+    if (activeId && noteModes[activeId] && noteDrafts[activeId]?.trim())
+      setComposerMode("note");
+  }
   const [showWelcome, setShowWelcome] = useState(isSuccess);
 
   const sendLocks = useRef(new Set<string>());
@@ -1183,7 +1201,9 @@ export default function WhatsappWorkspace({
   }, [visibleClients, activeId]);
 
   function selectClient(id: string) {
-    setComposerMode("reply");
+    setComposerMode(
+      noteModes[id] && noteDrafts[id]?.trim() ? "note" : "reply",
+    );
     // Changer de conversation referme le résumé IA.
     setSummaryFor(null);
     const client = clients.find((item) => item.id === id);
@@ -1207,6 +1227,7 @@ export default function WhatsappWorkspace({
   // « Répondre » signifie reprendre la main : l’IA se met en pause pour ce contact.
   function changeComposerMode(mode: ComposerMode) {
     setComposerMode(mode);
+    if (activeId) setNoteMode(activeId, mode === "note");
     if (mode === "reply" && aiActive && canManageAi && aiBusyId === null) {
       void toggleAi();
     }
@@ -1244,6 +1265,7 @@ export default function WhatsappWorkspace({
       onNoteClose={() => {
         // Refermer une note revient à la saisie sans toucher à l’IA.
         setComposerMode("reply");
+        if (activeId) setNoteMode(activeId, false);
         requestAnimationFrame(() => textareaRef.current?.focus());
       }}
       hint={
@@ -2465,6 +2487,7 @@ export default function WhatsappWorkspace({
                       key={activeClient.id}
                       projectId={project.id}
                       contactId={activeClient.id}
+                      draftKey={chatDraftKey(user.id, project.id, activeClient.id)}
                       assistanceEnabled={!aiActive || project.automationPaused}
                       contextVersion={
                         lastConversationMessage(activeMessages)?.id ?? ""

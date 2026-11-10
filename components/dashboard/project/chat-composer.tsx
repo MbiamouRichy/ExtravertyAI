@@ -23,6 +23,7 @@ import {
   X,
 } from "lucide-react";
 import { useAudioRecorder } from "@/hooks/use-audio-recorder";
+import { loadDraftFiles, saveDraftFiles } from "@/lib/chat-drafts";
 import { toast } from "sonner";
 import { assistWriting } from "@/app/actions/assistWriting";
 import { cn } from "@/lib/utils";
@@ -148,9 +149,12 @@ export function ChatComposer({
   contextVersion,
   hasClientMessage,
   header,
+  draftKey,
 }: {
   projectId: string;
   contactId: string;
+  /** Clé des brouillons de ce contact : les pièces jointes non envoyées y sont gardées. */
+  draftKey: string;
   assistanceEnabled: boolean;
   contextVersion: string;
   hasClientMessage: boolean;
@@ -174,11 +178,23 @@ export function ChatComposer({
   const fileRef = useRef<HTMLInputElement | null>(null);
   const [announcement, setAnnouncement] = useState("");
 
+  // Fichiers déjà recopiés sur l’appareil : la fin d’un import ne les réécrit pas.
+  const persistedIds = useRef("");
   function updatePending(
     change: (list: PendingAttachment[]) => PendingAttachment[],
+    persist = true,
   ) {
     pendingRef.current = change(pendingRef.current);
     setPending(pendingRef.current);
+    const ids = pendingRef.current.map((item) => item.id).join(",");
+    if (!persist || ids === persistedIds.current) return;
+    persistedIds.current = ids;
+    // Gardés hors ligne jusqu’à l’envoi ou au retrait : une fermeture de
+    // page ne les perd pas, ils sont réimportés à la réouverture.
+    void saveDraftFiles(
+      draftKey,
+      pendingRef.current.map((item) => item.file),
+    );
   }
   function discard(id: string) {
     uploads.current.get(id)?.abort();
@@ -186,11 +202,11 @@ export function ChatComposer({
     pendingRef.current.filter((item) => item.id === id).forEach(releasePreview);
     updatePending((list) => list.filter((item) => item.id !== id));
   }
-  function discardAll() {
+  function discardAll(persist = true) {
     for (const controller of uploads.current.values()) controller.abort();
     uploads.current.clear();
     pendingRef.current.forEach(releasePreview);
-    updatePending(() => []);
+    updatePending(() => [], persist);
   }
 
   useEffect(() => {
@@ -375,8 +391,17 @@ export function ChatComposer({
     };
   }, [draft, contactId, textareaRef, audioMode]);
   useEffect(() => {
-    discardAll();
+    // Changement de contact : les fichiers du précédent restent gardés pour lui.
+    discardAll(false);
     if (fileRef.current) fileRef.current.value = "";
+    let cancelled = false;
+    void loadDraftFiles(draftKey).then((files) => {
+      if (cancelled || !files.length || pendingRef.current.length) return;
+      void addFiles(files, "picker");
+    });
+    return () => {
+      cancelled = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- seulement au changement de contact
   }, [contactId]);
   const [busy, setBusy] = useState<"suggest" | "rewrite" | null>(null);
