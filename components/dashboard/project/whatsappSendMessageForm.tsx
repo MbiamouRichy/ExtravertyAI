@@ -234,20 +234,27 @@ function parseSendResult(value: unknown): SendResult {
 
 function AgentAvatar({
   agent,
-  small = false,
+  size = "default",
 }: {
   agent?: ChatAgent | null;
-  small?: boolean;
+  /** `xs` : 20 px, pour la liste des conversations. */
+  size?: "default" | "sm" | "xs";
 }) {
   const name = agent?.name?.trim() || "Agent";
+  const xs = size === "xs";
   return (
-    <Avatar size={small ? "sm" : "default"} title={name} aria-label={name}>
+    <Avatar
+      size={size === "default" ? "default" : "sm"}
+      title={name}
+      aria-label={name}
+      className={cn(xs && "size-5")}
+    >
       <AvatarImage src={agent?.image || undefined} alt="" />
-      <AvatarFallback className="text-xs">
+      <AvatarFallback className={xs ? "text-[10px]" : "text-xs"}>
         {agent?.name?.trim() ? (
           getInitials(name)
         ) : (
-          <UserRound aria-hidden="true" className="size-4" />
+          <UserRound aria-hidden="true" className={xs ? "size-3" : "size-4"} />
         )}
       </AvatarFallback>
     </Avatar>
@@ -268,10 +275,13 @@ function ConversationParticipants({
   active,
   agents,
   loading,
+  compact = false,
 }: {
   active: boolean;
   agents: ChatAgent[];
   loading: boolean;
+  /** Liste des conversations : avatars de 20 px. */
+  compact?: boolean;
 }) {
   return (
     <span className="inline-flex shrink-0 items-center gap-1">
@@ -292,7 +302,7 @@ function ConversationParticipants({
       )}
       {loading && !agents.length && (
         <Skeleton
-          className="size-6 rounded-full"
+          className={cn("rounded-full", compact ? "size-5" : "size-6")}
           aria-label="Chargement des agents"
         />
       )}
@@ -308,7 +318,7 @@ function ConversationParticipants({
               label={`${agent.name?.trim() || "Un membre"} a répondu dans cette conversation.`}
             >
               <span className="inline-flex">
-                <AgentAvatar agent={agent} small />
+                <AgentAvatar agent={agent} size={compact ? "xs" : "sm"} />
               </span>
             </Hint>
           ))}
@@ -710,7 +720,7 @@ function ChatBubble({
           className={cn("mb-0.5 shrink-0", grouped && "invisible")}
           aria-hidden={grouped || undefined}
         >
-          <AgentAvatar agent={message.agent} small />
+          <AgentAvatar agent={message.agent} size="sm" />
         </span>
       )}
     </article>
@@ -1891,6 +1901,7 @@ export default function WhatsappWorkspace({
                                 active={client.aiActive}
                                 agents={client.agents ?? []}
                                 loading={false}
+                                compact
                               />
                             </span>
                             <time
