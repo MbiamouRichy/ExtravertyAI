@@ -4,6 +4,9 @@ import { safeAuthCallback } from "@/lib/auth-redirects";
 
 export const metadata: Metadata = {
   title: "Se connecter | ExtravertyAI",
+  description:
+    "Connectez-vous à votre espace ExtravertyAI pour suivre vos conversations WhatsApp et piloter votre assistant IA.",
+  alternates: { canonical: "/sign-in" },
 };
 
 type SignInPageProps = {
