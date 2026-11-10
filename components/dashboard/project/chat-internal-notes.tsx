@@ -56,7 +56,17 @@ function NoteContent({ content }: { content: string }) {
           size="xs"
           aria-expanded={expanded}
           aria-controls={id}
-          onClick={() => setExpanded((value) => !value)}
+          onClick={() => {
+            setExpanded(!expanded);
+            // Replié après lecture : la note revient à l’écran au lieu de
+            // laisser la liste plus bas, sur la note suivante.
+            if (expanded)
+              requestAnimationFrame(() =>
+                ref.current
+                  ?.closest("li")
+                  ?.scrollIntoView({ block: "nearest" }),
+              );
+          }}
           className="mt-1 h-auto px-0 py-0.5 text-muted-foreground hover:text-foreground"
         >
           {expanded ? "Réduire" : "Afficher plus"}
@@ -112,6 +122,7 @@ export function InternalNotesStrip({
       </PopoverTrigger>
       <PopoverContent
         align="start"
+        collisionPadding={16}
         aria-label="Notes internes de l’équipe"
         className="w-[min(24rem,calc(100vw-2rem))] p-0"
       >
