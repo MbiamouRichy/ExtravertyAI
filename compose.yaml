@@ -6,6 +6,9 @@ services:
     command: ["./node_modules/.bin/tsx", "workers/reports.ts"]
     env_file:
       - ${WORKER_ENV_FILE:-.env.production}
+    environment:
+      # Version déployée, affichée par GlitchTip (exportée par le script de déploiement).
+      GIT_COMMIT_SHA: ${GIT_COMMIT_SHA:-}
     restart: unless-stopped
     init: true
     stop_grace_period: 60s
@@ -18,6 +21,9 @@ services:
       dockerfile: Dockerfile.worker
     env_file:
       - ${WORKER_ENV_FILE:-.env.production}
+    environment:
+      # Version déployée, affichée par GlitchTip (exportée par le script de déploiement).
+      GIT_COMMIT_SHA: ${GIT_COMMIT_SHA:-}
     restart: unless-stopped
     init: true
     stop_grace_period: 60s
@@ -31,6 +37,9 @@ services:
     command: ["./node_modules/.bin/tsx", "workers/ai.ts"]
     env_file:
       - ${WORKER_ENV_FILE:-.env.production}
+    environment:
+      # Version déployée, affichée par GlitchTip (exportée par le script de déploiement).
+      GIT_COMMIT_SHA: ${GIT_COMMIT_SHA:-}
     restart: unless-stopped
     init: true
     stop_grace_period: 60s
@@ -44,6 +53,9 @@ services:
     command: ["./node_modules/.bin/tsx", "workers/billing.ts"]
     env_file:
       - ${WORKER_ENV_FILE:-.env.production}
+    environment:
+      # Version déployée, affichée par GlitchTip (exportée par le script de déploiement).
+      GIT_COMMIT_SHA: ${GIT_COMMIT_SHA:-}
     restart: unless-stopped
     init: true
     stop_grace_period: 60s

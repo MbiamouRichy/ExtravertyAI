@@ -11,12 +11,12 @@ La décision peut passer à **GO sous 1 à 3 jours**, une fois les 3 points bloq
 |---|---|---|---|
 | 1 | Isolation entre projets | ✅ Rempli (code) | Revue des 123 fonctions serveur exportées et test d'accès croisé (§3, §4) |
 | 2 | Offres impossibles à contourner | ✅ Rempli pour les 7 fonctions testées | Matrice testée et preuve « rouge si on retire le contrôle » (§4) |
-| 3 | Paiement Polar | ❌ **Bloquant** | Signature vérifiée dans le code, mais aucun paiement réel ni versement vers le Gabon constaté (§7) |
+| 3 | Paiement Polar | ❌ **Bloquant**, outillé le 10 novembre | Signature vérifiée dans le code. Le contrôle de configuration `scripts/check-polar-production.ts` et la procédure de paiement réel (`docs/production.md` §5) sont prêts. Reste à faire : un paiement réel et un versement vers le Gabon constatés (§7) |
 | 4 | Webhook WhatsApp | ✅ Rempli (code), ⚠️ un risque à décider | Secret obligatoire et comparé à temps constant ; l'API WhatsApp n'est pas officielle (§8) |
-| 5 | Pas de perte de données | ❌ **Bloquant** | Base partagée préversion/production, aucune restauration testée (§7) |
+| 5 | Pas de perte de données | ❌ **Bloquant**, outillé le 10 novembre | Scripts prêts dans `ops/production/` : création de la base séparée, sauvegarde chiffrée quotidienne vers R2, test de restauration mensuel. Reste à faire : les lancer sur le VPS et obtenir `RÉUSSI` au test de restauration (`docs/production.md` §2 à §4) |
 | 6 | Version figée et au vert | ⚠️ Presque | Build ✅, typage ✅, 441 tests sur 442 ✅, linter : 0 erreur dans le code (§1) |
 | 7 | Sécurité minimale | ✅ Rempli le 10 novembre | `next` passé en 16.4.6 et `better-auth` en 1.7.19. Build, typage et 445 tests sur 445 verts. Plus aucune faille critique atteignable en production (§6) |
-| 8 | Retour arrière et suivi des erreurs | ❌ **Bloquant** | Aucun outil de suivi des erreurs ; migrations en masse vers la production (§7) |
+| 8 | Retour arrière et suivi des erreurs | ❌ **Bloquant**, codé le 10 novembre | GlitchTip est branché dans le code sur l'app (serveur, navigateur, pages d'erreur) et sur les workers, avec un filtre des données personnelles testé. Le retour arrière est écrit (`docs/production.md` §6), et chaque déploiement de production fait une sauvegarde avant de migrer. Reste à faire : installer GlitchTip sur le VPS et renseigner les DSN (§1) |
 
 ---
 
@@ -260,10 +260,12 @@ Elles passent à « moyennes » si les hypothèses H1 à H4 tiennent dans les 30
 
 ## Pour passer à GO (1 à 3 jours)
 1. ~~Mettre à jour `next` et `better-auth`~~ : **fait le 10 novembre** (16.4.6 et 1.7.19). Build, typage et tests verts. *(critère 7)*
-2. **Séparer la base de production**, appliquer les migrations, sauvegarder hors du VPS, **tester une restauration**. *(critère 5)*
-3. **Faire un paiement réel de bout en bout** sur Polar production et voir les fonds arriver au Gabon. *(critère 3)*
-4. **Brancher un outil de suivi des erreurs** et écrire la procédure de retour arrière. *(critère 8)*
-5. Petites corrections : mettre à jour le test du proxy, exclure `.claude/` et `.scratch/` du linter, commiter `tests/plan-access-matrix.test.ts`. *(critère 6)*
+Le 10 novembre, les points 2 à 4 ont été préparés dans le code et dans [le guide de mise en service](production.md). Il reste à les exécuter sur le VPS, sur Vercel, sur Cloudflare et chez Polar.
+
+2. **Séparer la base de production**, appliquer les migrations, sauvegarder hors du VPS, **tester une restauration** : `ops/production/`, guide §2 à §4. *(critère 5)*
+3. **Faire un paiement réel de bout en bout** sur Polar production et voir les fonds arriver au Gabon : guide §5. *(critère 3)*
+4. ~~Brancher un outil de suivi des erreurs~~ : fait dans le code (GlitchTip). Reste à l'installer sur le VPS (guide §1). Le retour arrière est écrit (guide §6). *(critère 8)*
+5. Petites corrections : ~~test du proxy~~ et ~~commit de `tests/plan-access-matrix.test.ts`~~ faits. Reste à exclure `.claude/` et `.scratch/` du linter. *(critère 6)*
 6. **Décision écrite sur l'API non officielle**, et une mention claire du risque de blocage dans les conditions d'utilisation. *(risque n°1)*
 
 ## Top 10 des corrections

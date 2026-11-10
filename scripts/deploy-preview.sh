@@ -30,6 +30,7 @@ if len(values) != 1 or urlsplit(values[0]).path != '/extravertyai_preview':
 PY
 
 git merge --ff-only "$revision"
+export GIT_COMMIT_SHA="$revision"
 docker compose config --quiet
 # Build and typecheck before stopping the running workers.
 docker compose build ai-worker outbound-worker billing-worker reports-worker

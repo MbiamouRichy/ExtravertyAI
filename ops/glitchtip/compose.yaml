@@ -1,0 +1,85 @@
+# GlitchTip : suivi des erreurs de l’app (Vercel) et des workers (VPS).
+# Installation : docs/production.md, section « Suivi des erreurs ».
+#
+# Un seul processus (web + tâches) et PostgreSQL pour la file d’attente : pas
+# de Valkey, environ 512 Mo de mémoire. L’interface n’écoute que sur
+# 127.0.0.1:8000 ; le domaine public passe par le proxy HTTPS du VPS (ou par
+# le service `caddy` ci-dessous, profil `caddy`, si aucun proxy n’existe).
+# Les secrets sont dans `.env`, à côté de ce fichier, jamais dans Git.
+
+name: glitchtip
+
+x-glitchtip-env: &glitchtip-env
+  DATABASE_URL: postgres://glitchtip:${GLITCHTIP_DB_PASSWORD:?}@postgres:5432/glitchtip
+  VALKEY_URL: ""
+  SECRET_KEY: ${GLITCHTIP_SECRET_KEY:?}
+  GLITCHTIP_DOMAIN: https://${GLITCHTIP_HOST:?}
+  DEFAULT_FROM_EMAIL: ${GLITCHTIP_FROM_EMAIL:?}
+  EMAIL_URL: ${GLITCHTIP_EMAIL_URL:-consolemail://}
+  PORT: "8000"
+  # Comptes créés par invitation seulement, après le premier administrateur.
+  ENABLE_USER_REGISTRATION: ${GLITCHTIP_OPEN_REGISTRATION:-false}
+  ENABLE_ORGANIZATION_CREATION: "false"
+  # Les événements contiennent du contexte technique : 30 jours suffisent.
+  GLITCHTIP_MAX_EVENT_LIFE_DAYS: "30"
+  LOG_LEVEL: WARNING
+
+services:
+  postgres:
+    image: postgres:18
+    command: ["postgres", "-c", "max_locks_per_transaction=512"]
+    environment:
+      POSTGRES_USER: glitchtip
+      POSTGRES_DB: glitchtip
+      POSTGRES_PASSWORD: ${GLITCHTIP_DB_PASSWORD:?}
+    volumes:
+      - pg-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U glitchtip -d glitchtip"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+    mem_limit: 384m
+
+  glitchtip:
+    image: glitchtip/glitchtip:6.2.6
+    command: ./bin/run-all-in-one.sh
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment: *glitchtip-env
+    ports:
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - uploads:/code/uploads
+    healthcheck:
+      test: ["CMD-SHELL", "python3 /code/healthcheck.py || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    restart: unless-stopped
+    mem_limit: 768m
+    cpus: 1.0
+
+  # Seulement si aucun proxy HTTPS ne tourne déjà sur le VPS (ports 80 et 443
+  # libres) : `docker compose --profile caddy up -d`.
+  caddy:
+    profiles: ["caddy"]
+    image: caddy:2.10
+    command: ["caddy", "reverse-proxy", "--from", "${GLITCHTIP_HOST:?}", "--to", "glitchtip:8000"]
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - caddy-data:/data
+    depends_on:
+      - glitchtip
+    restart: unless-stopped
+    mem_limit: 128m
+
+volumes:
+  pg-data:
+  uploads:
+  caddy-data:
