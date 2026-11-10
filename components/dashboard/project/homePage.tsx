@@ -217,18 +217,37 @@ export default function HomeProjectsPage({ projects }: CustomProjectProps) {
                       )}
                     </span>
                     <div className="relative z-10 flex shrink-0 items-center justify-end gap-1">
-                      {/* Renouvellement visible : réservé au propriétaire (vérifié par le serveur). */}
-                      {project.canManageBilling && (
-                        <BillingPlanButton
-                          projectId={project.id}
-                          intent="renew"
-                          size="sm"
-                          variant="outline"
-                          label={project.needsCheckout ? "Payer" : "Renouveler"}
-                          needsCheckout={project.needsCheckout}
-                          className="mr-1 min-h-8 flex-1 whitespace-nowrap text-xs @md/card:flex-none"
-                        />
-                      )}
+                      {/*
+                        Réservé au propriétaire (vérifié par le serveur). Paiement en attente :
+                        le paiement directement. Sinon la facturation de ce projet seul ; le
+                        portail Polar, partagé par les projets d’un même client, n’y est pas ouvert.
+                      */}
+                      {project.canManageBilling &&
+                        (project.needsCheckout ? (
+                          <BillingPlanButton
+                            projectId={project.id}
+                            intent="renew"
+                            size="sm"
+                            variant="outline"
+                            label="Payer"
+                            needsCheckout
+                            className="mr-1 min-h-8 flex-1 whitespace-nowrap text-xs @md/card:flex-none"
+                          />
+                        ) : (
+                          <Button
+                            asChild
+                            size="sm"
+                            variant="outline"
+                            className="mr-1 min-h-8 flex-1 whitespace-nowrap text-xs @md/card:flex-none"
+                          >
+                            <Link
+                              href={`/projects/${project.id}/billing`}
+                              aria-label={`Facturation de ${project.name}`}
+                            >
+                              Facturation
+                            </Link>
+                          </Button>
+                        ))}
                       <Button asChild variant="ghost" size="icon-sm">
                         <Link href={`/projects/${project.id}/chat`} aria-label={`Messagerie de ${project.name}`}>
                           <MessagesSquare />
