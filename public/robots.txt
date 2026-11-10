@@ -1,5 +1,0 @@
-user-agent: *
-disallow:
-
-user-agent: magicsearchbot
-disallow:

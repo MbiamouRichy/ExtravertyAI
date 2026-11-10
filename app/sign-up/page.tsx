@@ -4,6 +4,9 @@ import { checkoutCallback } from "@/lib/auth-redirects";
 
 export const metadata: Metadata = {
   title: "S'inscrire | ExtravertyAI",
+  description:
+    "Créez votre compte ExtravertyAI et lancez votre assistant IA WhatsApp en quelques minutes, avec un essai gratuit.",
+  alternates: { canonical: "/sign-up" },
 };
 export default async function SignUpPage({
   searchParams,
