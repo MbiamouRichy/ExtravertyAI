@@ -135,6 +135,7 @@ import {
 import { cn } from "@/lib/utils";
 import { AiResponseText, AiThinking, useLiveAiResponses } from "./ai-response";
 import { ChatComposer } from "./chat-composer";
+import { ExpandableText } from "./expandable-text";
 import { ChatContactPanel } from "./chat-contact-panel";
 import { InternalNotesStrip } from "./chat-internal-notes";
 import { downloadConversation } from "./export-conversation";
@@ -684,9 +685,19 @@ function ChatBubble({
                 "rounded-br-md border border-dashed border-foreground/30 bg-muted/60",
             )}
           >
-            <p dir="auto" className="whitespace-pre-wrap wrap-anywhere">
-              {message.content}
-            </p>
+            {isNote ? (
+              // Note longue : six lignes, puis « Afficher plus ».
+              <ExpandableText
+                content={message.content}
+                lines={6}
+                scrollTarget="article"
+                toggleClassName="mt-0.5"
+              />
+            ) : (
+              <p dir="auto" className="whitespace-pre-wrap wrap-anywhere">
+                {message.content}
+              </p>
+            )}
             <div className="mt-0.5">{meta}</div>
           </div>
         )}
@@ -2391,6 +2402,8 @@ export default function WhatsappWorkspace({
                               !!previousMessage &&
                               message.senderType !== "bot" &&
                               message.senderType !== "system" &&
+                              // Chaque note est un écrit à part : auteur et avatar toujours affichés.
+                              message.senderType !== "note" &&
                               !message.mediaUrl &&
                               !previousMessage.mediaUrl &&
                               previousMessage.senderType ===
