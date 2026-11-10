@@ -499,9 +499,16 @@ export function InternalNoteComposer({
     const textarea = textareaRef.current;
     if (!textarea) return;
     const updateEdges = () => {
-      const top = textarea.scrollTop > 1;
+      // La marge intérieure n'est pas du texte : en écrivant, le navigateur
+      // s'arrête au curseur et laisse une partie de la marge du bas à défiler.
+      const style = getComputedStyle(textarea);
+      const top = textarea.scrollTop - parseFloat(style.paddingTop) > 4;
       const bottom =
-        textarea.scrollHeight - textarea.clientHeight - textarea.scrollTop > 1;
+        textarea.scrollHeight -
+          textarea.clientHeight -
+          textarea.scrollTop -
+          parseFloat(style.paddingBottom) >
+        4;
       setScrollEdges((previous) =>
         previous.top === top && previous.bottom === bottom
           ? previous
