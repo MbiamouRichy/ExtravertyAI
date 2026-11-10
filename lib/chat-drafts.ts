@@ -261,11 +261,10 @@ let fileWrites: Promise<unknown> = Promise.resolve();
 export function saveDraftFiles(key: string, files: File[]) {
   fileWrites = fileWrites
     .then(() =>
-      withStore("readwrite", (store) =>
-        files.length
-          ? store.put({ key, at: Date.now(), files } satisfies StoredFiles)
-          : store.delete(key),
-      ),
+      withStore("readwrite", (store) => {
+        if (files.length) store.put({ key, at: Date.now(), files } satisfies StoredFiles);
+        else store.delete(key);
+      }),
     )
     .catch(() => undefined);
   return fileWrites;
