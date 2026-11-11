@@ -33,7 +33,7 @@ cleanup() {
 trap cleanup EXIT
 
 rclone() {
-  docker run --rm --env-file "$ENV_FILE" -v "$work:/data" "$RCLONE_IMAGE" "$@"
+  docker run --rm --env-file "$ENV_FILE" -v "$work:/data" "$RCLONE_IMAGE" -q "$@"
 }
 latest="$(rclone lsf "r2:$R2_BUCKET/production/" --include '*.dump.enc' | sort | tail -1)"
 [[ -n "$latest" ]] || { echo "Aucune sauvegarde sur R2." >&2; exit 1; }

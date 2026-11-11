@@ -60,13 +60,7 @@ Suivre les étapes dans l'ordre. Compter une demi-journée, plus 10 jours d'atte
 
    L'interface n'écoute que sur `127.0.0.1:8000`.
 
-5. Publier `errors.extravertyai.com` en HTTPS :
-   - **si un proxy HTTPS sert déjà Evolution ou MinIO** (Traefik, Nginx Proxy Manager, Caddy, ou le panneau Hostinger), y ajouter l'hôte `errors.extravertyai.com` vers `127.0.0.1:8000` ;
-   - **sinon**, si les ports 80 et 443 sont libres, lancer le Caddy fourni, qui obtient le certificat tout seul :
-
-     ```bash
-     docker compose --profile caddy up -d
-     ```
+5. Le Traefik du VPS publie `errors.extravertyai.com` en HTTPS grâce aux étiquettes du service `glitchtip`, comme il le fait pour Evolution et n8n. Le certificat Let's Encrypt est obtenu au premier accès, une fois que l'enregistrement DNS `errors` pointe vers le VPS.
 
 6. Ouvrir `https://errors.extravertyai.com`, créer votre compte, puis remettre `GLITCHTIP_OPEN_REGISTRATION=false` et relancer :
 
@@ -244,9 +238,9 @@ Ne jamais restaurer par-dessus la base en service.
 2. Appliquer les réglages d'organisation de [Facturation Polar](polar-billing.md) :
    - plusieurs abonnements autorisés ;
    - changement d'offre dans le portail ;
-   - proration réglée sur `prorate`.
+   - proration réglée sur « Prorate & charge now ».
 3. Créer les trois produits mensuels en USD, aux prix de `lib/pricing.ts` : 15,99 $, 39,99 $ et 99 $.
-4. Créer un jeton d'organisation avec les droits listés dans `polar-billing.md`.
+4. Créer un jeton d'organisation (**Settings → Access Tokens → Create token**) avec les droits listés dans `polar-billing.md`, plus `webhooks:read` pour le contrôle automatique.
 5. Créer le webhook `https://www.extravertyai.com/api/webhooks/polar` :
    - format Raw, avec `www` ;
    - tous les événements `subscription.*` et `order.*`.

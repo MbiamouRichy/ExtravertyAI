@@ -32,7 +32,7 @@ Ne jamais mélanger un jeton sandbox et un jeton de production : ils ne voient p
 
 - **Organization Settings → Subscriptions → Allow multiple subscriptions : activé.** Polar limite sinon un client à un abonnement actif, donc une adresse e-mail à un seul projet payant.
 - **Settings → Customer Portal : autoriser le changement d'offre.** Le bouton « Changer d'offre » ouvre ce portail.
-- **Organization Settings → Subscriptions : proration par défaut sur `prorate`.** Un changement d'offre s'applique tout de suite, et la différence va sur la prochaine facture.
+- **Organization Settings → Subscriptions : proration sur « Prorate & charge now ».** Un changement d'offre s'applique tout de suite, et la différence est prélevée immédiatement. Sans ce réglage, un client pourrait monter en Business, consommer le quota, puis résilier avant la facture suivante sans payer la différence. Un prélèvement refusé fait passer l'abonnement en retard de paiement, et l'application suspend les envois.
 
 ## Droits du jeton
 

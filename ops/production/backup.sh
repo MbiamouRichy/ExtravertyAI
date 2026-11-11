@@ -46,12 +46,12 @@ openssl enc -aes-256-cbc -pbkdf2 -iter 200000 -salt -pass "file:$KEY_FILE" -in "
 sha256sum "$encrypted" | awk '{print $1}' > "$encrypted.sha256"
 
 rclone() {
-  docker run --rm --env-file "$ENV_FILE" -v "$LOCAL_DIR:/data" "$RCLONE_IMAGE" "$@"
+  docker run --rm --env-file "$ENV_FILE" -v "$LOCAL_DIR:/data" "$RCLONE_IMAGE" -q "$@"
 }
 rclone copy "/data/$(basename "$encrypted")" "r2:$R2_BUCKET/production/" --s3-no-check-bucket
 rclone copy "/data/$(basename "$encrypted").sha256" "r2:$R2_BUCKET/production/" --s3-no-check-bucket
 # Vérifie que la copie distante est bien là, avec la même taille.
-rclone check "/data/$(basename "$encrypted")" "r2:$R2_BUCKET/production/" --size-only --one-way \
+rclone check /data/ "r2:$R2_BUCKET/production/" --size-only --one-way \
   --include "$(basename "$encrypted")"
 
 find "$LOCAL_DIR" -name '*.dump.enc*' -mtime +7 -delete

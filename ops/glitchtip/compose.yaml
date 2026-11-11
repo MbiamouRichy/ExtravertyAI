@@ -2,9 +2,9 @@
 # Installation : docs/production.md, section « Suivi des erreurs ».
 #
 # Un seul processus (web + tâches) et PostgreSQL pour la file d’attente : pas
-# de Valkey, environ 512 Mo de mémoire. L’interface n’écoute que sur
-# 127.0.0.1:8000 ; le domaine public passe par le proxy HTTPS du VPS (ou par
-# le service `caddy` ci-dessous, profil `caddy`, si aucun proxy n’existe).
+# de Valkey, environ 512 Mo de mémoire. Le domaine public passe par le
+# Traefik du VPS (fournisseur Docker, générateur de certificats `letsencrypt`),
+# comme Evolution et n8n ; 127.0.0.1:8000 reste ouvert pour le dépannage local.
 # Les secrets sont dans `.env`, à côté de ce fichier, jamais dans Git.
 
 name: glitchtip
@@ -51,6 +51,12 @@ services:
     environment: *glitchtip-env
     ports:
       - "127.0.0.1:8000:8000"
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.glitchtip.entrypoints: websecure
+      traefik.http.routers.glitchtip.rule: Host(`${GLITCHTIP_HOST:?}`)
+      traefik.http.routers.glitchtip.tls.certresolver: letsencrypt
+      traefik.http.services.glitchtip.loadbalancer.server.port: "8000"
     volumes:
       - uploads:/code/uploads
     healthcheck:
@@ -63,23 +69,6 @@ services:
     mem_limit: 768m
     cpus: 1.0
 
-  # Seulement si aucun proxy HTTPS ne tourne déjà sur le VPS (ports 80 et 443
-  # libres) : `docker compose --profile caddy up -d`.
-  caddy:
-    profiles: ["caddy"]
-    image: caddy:2.10
-    command: ["caddy", "reverse-proxy", "--from", "${GLITCHTIP_HOST:?}", "--to", "glitchtip:8000"]
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - caddy-data:/data
-    depends_on:
-      - glitchtip
-    restart: unless-stopped
-    mem_limit: 128m
-
 volumes:
   pg-data:
   uploads:
-  caddy-data:
