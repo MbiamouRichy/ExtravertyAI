@@ -20,7 +20,7 @@ export function AboutProcess() {
         <div className="px-4 pt-20 pb-10 sm:px-8 md:pt-28 lg:col-span-5 lg:px-12 lg:pb-28">
           <div className="lg:sticky lg:top-28">
             <Eyebrow>
-              <span className="text-foreground">03</span>
+              <span className="text-foreground">04</span>
               <span aria-hidden="true"> / </span>
               Avancer ensemble
             </Eyebrow>

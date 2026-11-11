@@ -12,6 +12,7 @@ import {
   RefreshCw,
   Scale,
   ServerCog,
+  ShieldAlert,
   UserCheck,
 } from "lucide-react";
 
@@ -28,7 +29,7 @@ export const dynamic = "force-static";
 const highlights = [
   { icon: CalendarClock, title: "10 jours d’essai", text: "Annulez avant la fin : aucun prélèvement." },
   { icon: RefreshCw, title: "Sans engagement", text: "Abonnement mensuel, résiliable à tout moment." },
-  { icon: UserCheck, title: "Pour les professionnels", text: "Vous restez responsable de vos messages." },
+  { icon: ShieldAlert, title: "WhatsApp non officiel", text: "Connexion via Evolution API : votre numéro peut être restreint par WhatsApp." },
 ];
 
 const sections: LegalSection[] = [
@@ -44,6 +45,54 @@ const sections: LegalSection[] = [
         une conversation à tout moment. En créant un compte ou en utilisant le
         service, vous acceptez ces conditions.
       </p>
+    ),
+  },
+  {
+    id: "whatsapp",
+    icon: ShieldAlert,
+    title: "Connexion à WhatsApp (non officielle)",
+    body: (
+      <>
+        <p>
+          ExtravertyAI ne passe pas par l’API WhatsApp Business officielle de
+          Meta. Votre numéro est relié à WhatsApp par Evolution API, un logiciel
+          libre qui utilise le protocole de WhatsApp Web : votre numéro devient
+          un appareil associé. ExtravertyAI n’est ni affilié à Meta ou à
+          WhatsApp, ni approuvé par eux.
+        </p>
+        <p>En connectant un numéro, vous reconnaissez et acceptez que :</p>
+        <ul>
+          <li>
+            ce mode de connexion n’est pas autorisé par les conditions de
+            WhatsApp, qui peut à tout moment restreindre, suspendre ou bloquer
+            définitivement un numéro, y compris lorsqu’il est utilisé de bonne
+            foi ;
+          </li>
+          <li>
+            nous ne pouvons ni empêcher une telle décision, ni la faire lever, ni
+            récupérer l’accès au numéro ou à ses conversations ;
+          </li>
+          <li>
+            une restriction décidée par WhatsApp ne constitue pas un manquement
+            d’ExtravertyAI et n’ouvre pas droit à un dédommagement ; vous
+            pouvez résilier votre abonnement à tout moment ;
+          </li>
+          <li>
+            il vous appartient de choisir le numéro à connecter : nous vous
+            recommandons un numéro dédié à votre activité plutôt que votre
+            numéro personnel.
+          </li>
+        </ul>
+        <p>
+          Pour réduire ce risque, n’écrivez qu’aux personnes qui vous ont
+          contacté ou qui ont donné leur accord, et gardez des diffusions
+          raisonnables (voir{" "}
+          <Link href="#usages" className="underline underline-offset-4">
+            Usages interdits
+          </Link>
+          ).
+        </p>
+      </>
     ),
   },
   {
@@ -194,8 +243,9 @@ const sections: LegalSection[] = [
         Nous faisons notre possible pour assurer un service fiable, sans garantir
         une disponibilité ininterrompue. Le service dépend de tiers, notamment
         WhatsApp, les hébergeurs et les fournisseurs de modèles d’IA. Leur
-        indisponibilité, ou la restriction d’un numéro par WhatsApp, peut
-        affecter le fonctionnement du service.
+        indisponibilité, ou la restriction d’un numéro par WhatsApp (voir
+        l’article « Connexion à WhatsApp »), peut affecter le fonctionnement du
+        service.
       </p>
     ),
   },
@@ -232,8 +282,8 @@ export default function TermsPage() {
       eyebrowIcon={FileText}
       title="Conditions d’utilisation"
       intro="Les règles qui encadrent votre utilisation d’ExtravertyAI, écrites le plus simplement possible."
-      updatedLabel="2 novembre 2026"
-      updatedDate="2026-11-02"
+      updatedLabel="12 novembre 2026"
+      updatedDate="2026-11-12"
       highlights={highlights}
       sections={sections}
       contactTitle="Une question sur ces conditions ?"
