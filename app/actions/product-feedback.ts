@@ -11,6 +11,7 @@ import {
   ProductFeedbackSchema,
   submitProductFeedback,
 } from "@/lib/product-feedback";
+import { NOREPLY_SENDER } from "@/lib/email-senders";
 
 export async function submitProductFeedbackAction(
   input: z.input<typeof ProductFeedbackSchema>,
@@ -40,7 +41,7 @@ export async function submitProductFeedbackAction(
       after(async () => {
         try {
           const { error } = await resend.emails.send({
-            from: "ExtravertyAI <notification@extravertyai.com>",
+            from: NOREPLY_SENDER,
             to: recipients,
             // Répondre à l’e-mail écrit directement à l’utilisateur, s’il l’accepte.
             ...(feedback.contactOk && feedback.authorEmail

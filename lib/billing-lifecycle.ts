@@ -7,6 +7,7 @@ import { getBillingAccess, formatBillingDate } from "./billing-access";
 import { syncPolarSubscription } from "./billing-polar";
 import { getPolarSubscription, type PolarSubscription } from "./polar";
 import { BillingEmailTemplate } from "../components/emailTemplate/billingEmailTemplate";
+import { SUPPORT_SENDER } from "./email-senders";
 
 export type BillingEmailConfig = { from: string; origin: string };
 export type BillingSender = (email: BillingEmail) => Promise<string>;
@@ -25,9 +26,8 @@ export function billingEmailConfig(): BillingEmailConfig {
       ))
   )
     throw new Error("BILLING_ORIGIN_INVALID");
-  const from =
-    process.env.BILLING_EMAIL_FROM ||
-    "ExtravertyAI <notification@extravertyai.com>";
+  // Un client répond souvent à un e-mail de facturation : support@.
+  const from = process.env.BILLING_EMAIL_FROM || SUPPORT_SENDER;
   if (!from.includes("@") || /[\r\n]/.test(from))
     throw new Error("BILLING_SENDER_INVALID");
   return { from, origin: origin.origin };

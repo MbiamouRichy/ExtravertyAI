@@ -30,7 +30,7 @@ Les emails sont en texte brut : les noms des projets ne sont jamais interprété
    - `MESSAGE_LIMIT_STARTER`, `MESSAGE_LIMIT_PRO`, `MESSAGE_LIMIT_BUSINESS`
    - `RESEND_API_KEY`
    - `NEXT_PUBLIC_APP_URL` : origine HTTPS publique de l’application
-   - `BILLING_EMAIL_FROM` facultatif : défaut `ExtravertyAI <notification@extravertyai.com>`, expéditeur à vérifier chez Resend
+   - `BILLING_EMAIL_FROM` facultatif : défaut `ExtravertyAI <support@extravertyai.com>`, pour que les réponses des clients arrivent au support, expéditeur à vérifier chez Resend
    - Variables Pusher facultatives pour la notification temps réel.
 4. Lancer le service persistant : `docker compose up -d --build billing-worker`, ou `npm run worker:billing` sous le superviseur habituel.
 5. Configurer le webhook Polar (voir [Facturation Polar](polar-billing.md)).

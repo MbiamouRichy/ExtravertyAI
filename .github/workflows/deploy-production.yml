@@ -37,8 +37,18 @@ jobs:
           fi
           umask 077
           mkdir -p "$HOME/.ssh"
-          printf '%s\n' "$DEPLOY_KEY" > "$HOME/.ssh/production_deploy"
-          printf '%s\n' "$KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
+          # Le secret peut contenir la clé telle quelle ou encodée en base64 sur
+          # une seule ligne (plus sûr à copier depuis un terminal web). Les
+          # retours chariot ajoutés par un copier-coller sont retirés.
+          key="$(printf '%s' "$DEPLOY_KEY" | tr -d '\r')"
+          if [[ "$key" != *"PRIVATE KEY-----"* ]]; then
+            key="$(printf '%s' "$key" | tr -d ' \n\t' | base64 -d 2>/dev/null)" \
+              || { echo "::error::PRODUCTION_VPS_SSH_KEY n’est ni une clé privée ni du base64 valide."; exit 1; }
+          fi
+          printf '%s\n' "$key" > "$HOME/.ssh/production_deploy"
+          ssh-keygen -y -f "$HOME/.ssh/production_deploy" > /dev/null 2>&1 \
+            || { echo "::error::PRODUCTION_VPS_SSH_KEY est illisible : la clé a été tronquée ou mal copiée (docs/production.md)."; exit 1; }
+          printf '%s\n' "$KNOWN_HOSTS" | tr -d '\r' > "$HOME/.ssh/known_hosts"
       - name: Build, back up, migrate and restart production workers
         if: env.SKIP_DEPLOY != '1'
         env:

@@ -7,6 +7,7 @@ import {
   queueNextWeeklyReport,
   deliverNextReportEmail,
 } from "../lib/weekly-report-service";
+import { NOREPLY_SENDER } from "../lib/email-senders";
 
 initWorkerMonitoring("reports-worker");
 const db = workerDatabase();
@@ -16,7 +17,7 @@ for (const signal of ["SIGTERM", "SIGINT"])
 async function main() {
   if (!process.env.RESEND_API_KEY) throw new Error("REPORTS_CONFIG_MISSING");
   const config = billingEmailConfig();
-  config.from = process.env.REPORTS_EMAIL_FROM || config.from;
+  config.from = process.env.REPORTS_EMAIL_FROM || NOREPLY_SENDER;
   if (!config.from.includes("@") || /[\r\n]/.test(config.from))
     throw new Error("REPORTS_SENDER_INVALID");
   while (!controller.signal.aborted) {

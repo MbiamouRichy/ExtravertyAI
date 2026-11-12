@@ -5,7 +5,7 @@ La page `/projects/[projectId]/reports` est réservée aux membres OWNER et ADMI
 ## Déploiement
 
 1. Appliquer les migrations avec `npm run db:deploy`, puis générer le client et construire l’application.
-2. Configurer `DATABASE_URL`, `RESEND_API_KEY`, `NEXT_PUBLIC_APP_URL` (origine HTTPS) et, facultativement, `REPORTS_EMAIL_FROM` (expéditeur vérifié chez Resend). L’expéditeur utilise sinon `BILLING_EMAIL_FROM`, puis l’adresse de notification habituelle.
+2. Configurer `DATABASE_URL`, `RESEND_API_KEY`, `NEXT_PUBLIC_APP_URL` (origine HTTPS) et, facultativement, `REPORTS_EMAIL_FROM` (expéditeur vérifié chez Resend). Par défaut : `ExtravertyAI <noreply@extravertyai.com>`.
 3. Démarrer le service permanent `npm run worker:reports`, ou `docker compose up -d --build reports-worker` avec le fichier d’environnement de production configuré.
 4. Vérifier la première génération et les états d’envoi dans la page Rapports. Aucun envoi réel n’est effectué par les tests.
 

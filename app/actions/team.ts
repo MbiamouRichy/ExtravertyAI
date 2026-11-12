@@ -17,6 +17,7 @@ import {
   can,
   canManageMember,
 } from "@/lib/project-permissions";
+import { NOREPLY_SENDER } from "@/lib/email-senders";
 
 /** Adresse publique de l'application, sans laquelle aucun lien d'e-mail n'est valide. */
 function appOrigin() {
@@ -310,7 +311,7 @@ export async function inviteTeamMember(
 
     // Sans e-mail, l'invité n'a pas le lien : l'invitation est retirée.
     const sent = await sendTeamEmail(() => ({
-      from: "ExtravertyAI <equipe@extravertyai.com>",
+      from: NOREPLY_SENDER,
       to: email,
       subject: `Invitation à rejoindre ${requester.project.name}`,
       html: ProjectInvitationEmail({

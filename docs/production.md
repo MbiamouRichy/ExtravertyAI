@@ -184,7 +184,7 @@ Pour l'app : dans GlitchTip, ouvrir **Settings → Alerts** et créer une alerte
    2. Ajouter dans `/root/.ssh/authorized_keys`, devant la clé publique : `restrict,command="/usr/local/sbin/extraverty-production-deploy" `.
    3. Sur GitHub, ouvrir **Settings → Environments → New environment `production`**. Ajouter vos propres validations (« Required reviewers »), puis les secrets :
       - `PRODUCTION_VPS_HOST` ;
-      - `PRODUCTION_VPS_SSH_KEY` (la clé privée générée) ;
+      - `PRODUCTION_VPS_SSH_KEY` : la clé privée, de préférence encodée sur une seule ligne avec `base64 -w0 /root/production_deploy`. Un terminal web casse souvent les retours à la ligne d'une clé copiée telle quelle (« error in libcrypto ») ;
       - `PRODUCTION_VPS_KNOWN_HOSTS` (résultat de `ssh-keyscan -t ed25519 <hôte>`, à vérifier).
    4. Supprimer `/root/production_deploy` du VPS une fois la clé enregistrée sur GitHub.
 

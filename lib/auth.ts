@@ -32,6 +32,7 @@ import {
   DELETION_FEEDBACK_TTL_SECONDS,
   recordAccountDeletion,
 } from "./account-deletion-records";
+import { NOREPLY_SENDER, SUPPORT_SENDER } from "./email-senders";
 
 // Filled by the user delete hook and read by afterDelete in the same request,
 // once the user row (and the data used to describe the deletion) is gone.
@@ -67,7 +68,7 @@ async function sendAuthEmail(message: Parameters<typeof resend.emails.send>[0]) 
   if (error) throw new Error(`Resend: ${error.message}`);
 }
 
-const AUTH_EMAIL_FROM = "ExtravertyAI <notification@extravertyai.com>";
+const AUTH_EMAIL_FROM = NOREPLY_SENDER;
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || EMAIL_SITE_URL;
 
 // One-time codes: short-lived, hashed at rest, a few tries each.
@@ -451,7 +452,8 @@ export const auth = betterAuth({
               projects: summary?.projects ?? [],
               leftProjects: summary?.left ?? 0,
             }),
-            from: AUTH_EMAIL_FROM,
+            // Un ancien client peut vouloir répondre : adresse du support.
+            from: SUPPORT_SENDER,
           });
         } catch (error) {
           console.error("ACCOUNT_DELETED_EMAIL_FAILED", error);
