@@ -13,9 +13,19 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  NumberVerification,
+  toCheckoutAttempt,
+} from "@/components/dashboard/project/number-verification";
 import { cn } from "@/lib/utils";
 import { openProjectBillingPortal } from "@/app/actions/project-settings";
-import { resumeProjectCheckout } from "@/app/actions/stripe-actions";
+import { resumeProjectCheckout } from "@/app/actions/checkout-actions";
 export function BillingPlanButton({
   projectId,
   intent,
@@ -28,7 +38,7 @@ export function BillingPlanButton({
 }: {
   projectId: string;
   intent: "renew" | "upgrade";
-  /** Paiement initial jamais abouti : on repart sur un Checkout Stripe. */
+  /** Paiement initial jamais abouti : on repart sur un paiement Polar. */
   needsCheckout?: boolean;
   disabled?: boolean;
   size?: "default" | "sm" | "lg";
@@ -40,19 +50,36 @@ export function BillingPlanButton({
   const [busy, setBusy] = useState(false);
   // Le numéro a déjà eu son essai : paiement immédiat, confirmé explicitement.
   const [confirmPaid, setConfirmPaid] = useState(false);
+  // Numéro jamais prouvé : le code est demandé avant d’ouvrir le paiement.
+  const [verify, setVerify] = useState<{
+    number: string;
+    withoutTrial: boolean;
+  } | null>(null);
   async function open(withoutTrial = false) {
     if (busy) return;
     setBusy(true);
     try {
-      const result = needsCheckout
-        ? await resumeProjectCheckout({ projectId, withoutTrial })
-        : await openProjectBillingPortal(projectId, intent);
-      if (result.success) {
-        window.location.assign(result.url);
+      if (needsCheckout) {
+        const result = await resumeProjectCheckout({ projectId, withoutTrial });
+        if (result.success) {
+          window.location.assign(result.url);
+          return;
+        }
+        if ("code" in result && result.code === "TRIAL_UNAVAILABLE") {
+          setConfirmPaid(true);
+          return;
+        }
+        if ("code" in result && result.code === "NUMBER_NOT_VERIFIED") {
+          setConfirmPaid(false);
+          setVerify({ number: result.number, withoutTrial });
+          return;
+        }
+        toast.error(result.error);
         return;
       }
-      if ("code" in result && result.code === "TRIAL_UNAVAILABLE") {
-        setConfirmPaid(true);
+      const result = await openProjectBillingPortal(projectId, intent);
+      if (result.success) {
+        window.location.assign(result.url);
         return;
       }
       toast.error(result.error);
@@ -98,6 +125,33 @@ export function BillingPlanButton({
               ? "Renouveler le plan"
               : "Changer d’offre")}
       </Button>
+      {needsCheckout && (
+        <Dialog open={!!verify} onOpenChange={(next) => !next && setVerify(null)}>
+          <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-md">
+            {/* Titre lu par les lecteurs d’écran ; le composant affiche le sien. */}
+            <DialogTitle className="sr-only">Vérification du numéro WhatsApp</DialogTitle>
+            <DialogDescription className="sr-only">
+              Prouvez que ce numéro WhatsApp est le vôtre pour ouvrir le paiement.
+            </DialogDescription>
+            {verify && (
+              <NumberVerification
+                target={{ projectId }}
+                number={verify.number}
+                withoutTrial={verify.withoutTrial}
+                onContinue={async (verificationId, paid) =>
+                  toCheckoutAttempt(
+                    await resumeProjectCheckout({
+                      projectId,
+                      withoutTrial: paid,
+                      verificationId,
+                    }),
+                  )
+                }
+              />
+            )}
+          </DialogContent>
+        </Dialog>
+      )}
       {needsCheckout && (
         <AlertDialog
           open={confirmPaid}

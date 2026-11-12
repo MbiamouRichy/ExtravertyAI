@@ -13,6 +13,8 @@ const failures: Record<InvitationFailure, string> = {
   EXPIRED: "Cette invitation a expiré.",
   WRONG_ACCOUNT: "L'email de votre compte ne correspond pas à l'invitation.",
   REVOKED: "Cette invitation n'est plus valable. Demandez-en une nouvelle.",
+  TEAM_FULL:
+    "L’équipe de ce projet est complète pour son offre. Votre invitation reste valable : réessayez quand une place se libère.",
 };
 
 // Appelée par un clic explicite de l'invité, jamais à l'ouverture du lien.

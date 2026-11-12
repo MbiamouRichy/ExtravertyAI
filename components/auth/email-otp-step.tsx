@@ -267,7 +267,7 @@ export function EmailOtpStep({
       <form
         noValidate
         aria-busy={verifying}
-        onSubmit={form.handleSubmit(onSubmit)}
+        onSubmit={(event) => void form.handleSubmit(onSubmit)(event)}
         className="mt-8"
       >
         <FieldGroup className="gap-5">

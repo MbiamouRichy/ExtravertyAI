@@ -12,7 +12,7 @@ Les messages sortants incertains ne sont **jamais** renvoyés automatiquement. L
 
 ## Variables
 
-Utiliser `.env.example` pour les variables du parcours de messagerie ; conserver également les variables existantes d'authentification, stockage, e-mail et Stripe de l'application. Le nom exact du modèle est `OPENROUTER_MODEL`. Les identifiants de prix Stripe doivent correspondre aux trois offres. Les plafonds proposés sont 1 000 / 3 000 / 10 000 messages sortants pour Starter / Pro / Business, essai de 150. Un plafond payé absent ou invalide bloque la création de période au lieu d'accorder un quota arbitraire.
+Utiliser `.env.example` pour les variables du parcours de messagerie ; conserver également les variables existantes d'authentification, stockage, e-mail et Polar de l'application. Le nom exact du modèle est `OPENROUTER_MODEL`. Les produits Polar doivent correspondre aux trois offres. Les plafonds proposés sont 1 000 / 3 000 / 10 000 messages sortants pour Starter / Pro / Business, essai de 150. Un plafond payé absent ou invalide bloque la création de période au lieu d'accorder un quota arbitraire.
 
 Une unité est réservée à l'admission d'un Message + OutboundJob. Une génération échouée ne consomme pas le quota d'envoi (elle peut cependant entraîner un coût fournisseur IA). Les réservations des jobs ensuite annulés/incertains ne sont pas remboursées automatiquement. Les changements de plafonds s'appliquent aux nouvelles périodes, pas rétroactivement.
 
@@ -31,7 +31,7 @@ Ne pas modifier les deux migrations historiques. Ne pas utiliser `migrate dev` o
 
 ## Reprise des quotas existants
 
-Arrêter tous les anciens producteurs et les workers pendant cette étape. Relever dans Stripe les bornes exactes du cycle courant et vérifier `project.messageCount` contre l'historique. Créer un manifeste JSON, par exemple :
+Arrêter tous les anciens producteurs et les workers pendant cette étape. Relever dans Polar les bornes exactes du cycle courant et vérifier `project.messageCount` contre l'historique. Créer un manifeste JSON, par exemple :
 
 ```json
 [
@@ -106,7 +106,7 @@ docker compose up -d outbound-worker ai-worker
 docker compose logs --tail=100 -f outbound-worker ai-worker
 ```
 
-Pour le staging : `WORKER_ENV_FILE=.env.staging docker compose ...`. Isoler sa base, son instance WhatsApp et ses clés Stripe.
+Pour le staging : `WORKER_ENV_FILE=.env.staging docker compose ...`. Isoler sa base, son instance WhatsApp et ses clés Polar (sandbox).
 
 `localhost` à l'intérieur d'un worker désigne ce worker. Les hôtes `postgres` et `evolution-api` de l'exemple doivent être remplacés par les noms réels et joignables. Pour rejoindre un autre Compose, ajouter aux deux services un réseau Docker externe existant :
 
@@ -130,7 +130,7 @@ Cette image n'est pas ajoutée au Compose des workers pour ne pas créer une deu
 5. Valider la configuration de l’agent dans chaque projet concerné. Démarrer les workers. Envoyer un message depuis l'instance de test et vérifier : un entrant, un AiJob, un BOT, un OutboundJob, une réservation.
 6. Vérifier un envoi agent, la reprise humaine, les doublons, la reconnexion, les accusés et les cas incertains, puis rouvrir les envois.
 
-Stripe : activer `checkout.session.completed`, `customer.subscription.created/updated/deleted`, `invoice.paid` et `invoice.payment_failed`. La version du SDK installée expose l'abonnement via `invoice.parent.subscription_details` et les périodes via les lignes d'abonnement. L'ouverture d'un cycle payé nécessite une facture payée couvrant la période courante ; les relectures gardent la consommation. Une mise à jour de souscription relit l'état actuel de Stripe. Aucun message ne déclenche la fin anticipée d'un essai.
+Polar : voir [Facturation Polar](polar-billing.md) pour le webhook (`subscription.*` et `order.*`). L'application relit toujours l'abonnement chez Polar avant de l'appliquer ; un cycle payé s'ouvre quand l'abonnement est actif, et les relectures gardent la consommation. Aucun message ne déclenche la fin anticipée d'un essai.
 
 ## Contrôles locaux et exploitation
 
@@ -155,7 +155,7 @@ Pour un résultat UNCERTAIN, rechercher la preuve fournisseur avant toute action
 
 ## Réglages et contacts
 
-Les mutations sont réservées aux OWNER/ADMIN ; portail Stripe et suppression du projet aux OWNER. Configurer le portail client Stripe avant utilisation. Les sauvegardes de l’agent et des paramètres utilisent une version pour détecter les modifications concurrentes. Le journal garde l’auteur, le type de changement et sa version, sans recopier les instructions.
+Les mutations sont réservées aux OWNER/ADMIN ; portail client Polar et suppression du projet aux OWNER. Autoriser le changement d’offre dans le portail client Polar avant utilisation. Les sauvegardes de l’agent et des paramètres utilisent une version pour détecter les modifications concurrentes. Le journal garde l’auteur, le type de changement et sa version, sans recopier les instructions.
 
 Les options WhatsApp sont enregistrées comme état souhaité, puis appliquées par les workers via `settings/find` et `settings/set`. L’interface affiche « en attente » jusqu’à confirmation ; les échecs sont retentés après une minute. Vérifier le contrat de ces routes sur l’image Evolution déployée. L’indicateur de saisie utilise le paramètre `delay` du sendText v2 ; ce n’est pas une animation pendant toute la génération.
 
@@ -167,7 +167,7 @@ Next.js et eslint-config-next ont été mis à jour vers 16.3.3, correctif offic
 
 La base de développement/test confirmée par l’utilisateur a été comparée au schéma cible le 15 septembre 2026. Les seules différences applicatives étaient celles des migrations durable_ai et agent_settings. Les trois migrations historiques ont été enregistrées comme référence avec `prisma migrate resolve`, puis les deux nouvelles migrations ont été appliquées avec `prisma migrate deploy`. Les compteurs des tables existantes sont restés identiques. Cette adoption du schéma ne doit pas être rejouée aveuglément sur une autre base.
 
-`/projects/[projectId]/billing` consulte l’abonnement, le client et les factures Stripe de ce projet après contrôle du rôle OWNER/ADMIN. La gestion via portail est réservée au propriétaire. L’ancien `/projects/billing` permet de choisir un projet au lieu d’afficher des exemples fictifs. La consultation peut rester partielle si Stripe est indisponible. Les montants suivent les [unités monétaires de Stripe](https://docs.stripe.com/currencies) ; l’historique est [filtré par abonnement](https://docs.stripe.com/api/invoices/list).
+`/projects/[projectId]/billing` consulte l’abonnement, le client et les commandes Polar de ce projet après contrôle du rôle. La gestion via portail est réservée au propriétaire et au rôle Facturation. L’ancien `/projects/billing` permet de choisir un projet au lieu d’afficher des exemples fictifs. La consultation peut rester partielle si Polar est indisponible. Les montants sont en unités mineures (centimes) ; l’historique est filtré par abonnement.
 
 Pour vérifier uniquement le modèle, avec une conversation fictive et sans envoi WhatsApp : `npx tsx scripts/check-ai.ts`. Ce test utilise la clé OpenRouter configurée et peut consommer quelques tokens. Le modèle initial configurable est [Gemini 2.5 Flash Lite](https://openrouter.ai/google/gemini-2.5-flash-lite). Le parcours complet à exécuter ensemble est décrit dans `docs/recette.md`.
 
@@ -199,4 +199,4 @@ Le résultat est conservé par dernière activité et version des objectifs ; un
 
 ## Fin d’essai et notifications de facturation
 
-Déployer également le service `billing-worker` et appliquer la migration de facturation. Voir [le guide de fin d’abonnement](billing-lifecycle.md) pour les variables, les rappels au propriétaire, le rattrapage Stripe et le suivi des emails.
+Déployer également le service `billing-worker` et appliquer la migration de facturation. Voir [le guide de fin d’abonnement](billing-lifecycle.md) pour les variables, les rappels au propriétaire, le rattrapage Polar et le suivi des emails.

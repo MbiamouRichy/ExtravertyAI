@@ -58,6 +58,21 @@ test("rejects country mismatch, invalid numbers, extensions and text extraction"
   );
 });
 
+test("no country is assumed: it must be chosen first", () => {
+  const result = ProjectCreationFormSchema.safeParse({
+    name: "Projet",
+    country: "",
+    numero: "06 12 34 56 78",
+    plan: "starter",
+  });
+  assert.equal(result.success, false);
+  // Une seule erreur, sur le pays : pas de « numéro invalide » en plus.
+  assert.deepEqual(
+    result.error?.issues.map((issue) => [issue.path.join("."), issue.message]),
+    [["country", "Choisissez un pays."]],
+  );
+});
+
 test("server schema revalidates and normalizes untrusted checkout data", () => {
   const data = {
     name: " Projet ",

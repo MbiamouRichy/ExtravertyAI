@@ -1,5 +1,6 @@
 import type { PrismaClient } from "../src/generated/prisma/client";
 import { SettingsError, requireProjectAdmin } from "./project-settings";
+import { planAllows } from "./plan-features";
 
 /**
  * Active ou coupe la répartition automatique des nouvelles conversations.
@@ -16,7 +17,7 @@ export async function setTeamAutoAssign(
       input.projectId,
       input.userId,
     );
-    if (project.plan !== "business")
+    if (!planAllows(project.plan, "autoAssign"))
       throw new SettingsError(
         "La répartition automatique est disponible avec l’offre Business.",
       );

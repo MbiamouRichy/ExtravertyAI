@@ -5,6 +5,8 @@ import ProjectNotFoundDialog from "@/components/dashboard/project/projectNotfoun
 import TeamManagement from "@/components/dashboard/project/team-management";
 import { getSession } from "@/lib/auth-server";
 import prisma from "@/lib/prisma";
+import { teamSeats } from "@/lib/plan-features";
+import { pricingPlan } from "@/lib/pricing";
 import { Metadata } from "next";
 import { redirect } from "next/navigation";
 
@@ -64,6 +66,11 @@ export default async function TeamPage({ params }: PageProps) {
 
 
     return (
-        <TeamManagement projectId={projectId} data={data} currentUserId={session.user.id} />
+        <TeamManagement
+            projectId={projectId}
+            data={data}
+            currentUserId={session.user.id}
+            seats={{ limit: teamSeats(project.plan), planName: pricingPlan(project.plan).name }}
+        />
     );
 }

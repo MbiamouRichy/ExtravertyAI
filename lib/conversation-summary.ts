@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { AiMeter } from "./ai-usage";
 import {
   messageAiContent,
   hasExtractedText,
@@ -46,7 +47,10 @@ export function prepareSummaryHistory(messages: SummaryMessage[]) {
   return { history: history.reverse(), partial };
 }
 
-export async function generateConversationSummary(history: SummaryMessage[]) {
+export async function generateConversationSummary(
+  history: SummaryMessage[],
+  meter?: AiMeter,
+) {
   const key = process.env.OPENROUTER_API_KEY;
   const model = process.env.OPENROUTER_MODEL;
   if (!key || !model) throw new Error("SUMMARY_CONFIG_MISSING");
@@ -101,6 +105,7 @@ export async function generateConversationSummary(history: SummaryMessage[]) {
   if (!response.ok)
     throw new Error(`SUMMARY_PROVIDER_ERROR_${response.status}`);
   const payload = await response.json();
+  await meter?.(payload, model);
   const text: unknown = payload?.choices?.[0]?.message?.content;
   if (typeof text !== "string" || text.length > 16000)
     throw new Error("SUMMARY_INVALID_RESPONSE");

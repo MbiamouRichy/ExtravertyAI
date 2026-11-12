@@ -8,6 +8,7 @@ import { needsInitialCheckout } from "@/lib/billing-display";
 import { BillingNotice } from "@/components/dashboard/project/billing-notice";
 import { ProjectIdentitySync } from "@/components/dashboard/project-identity";
 import { projectLogoUrl } from "@/lib/project-logo";
+import { listSwitcherProjects, switcherSubtitle } from "@/lib/project-switcher";
 import {
   upgradeWebhookEvents,
   webhookEventsVersion,
@@ -35,6 +36,8 @@ export default async function ProjectLayout({
           instanceStatus: true,
           webhookEventsVersion: true,
           status: true,
+          plan: true,
+          deletionPending: true,
           stripeCustomerId: true,
           stripeSubscriptionId: true,
         },
@@ -55,9 +58,10 @@ export default async function ProjectLayout({
       ),
     );
   const canViewBilling = can(member.role, "billing.view");
-  const [access, usage] = await Promise.all([
+  const [access, usage, projects] = await Promise.all([
     getBillingAccess(prisma, projectId),
     canViewBilling ? getBillingUsage(prisma, projectId) : null,
+    listSwitcherProjects(prisma, session.user.id),
   ]);
   return (
     <>
@@ -66,6 +70,8 @@ export default async function ProjectLayout({
         name={member.project.name}
         logoUrl={projectLogoUrl(projectId, member.project.logoKey)}
         role={member.role}
+        subtitle={switcherSubtitle(member.role, member.project)}
+        projects={projects}
       />
       <BillingNotice
         projectId={projectId}

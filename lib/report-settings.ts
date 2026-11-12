@@ -2,6 +2,7 @@ import type { Prisma } from "../src/generated/prisma/client";
 import { ReportSettingsSchema } from "./weekly-report";
 import { requireProjectAdmin, SettingsError } from "./project-settings";
 import { getBillingAccess } from "./billing-access";
+import { planAllows } from "./plan-features";
 
 export async function writeReportSettings(
   tx: Prisma.TransactionClient,
@@ -14,7 +15,7 @@ export async function writeReportSettings(
   await tx.$queryRaw`SELECT id FROM project WHERE id = ${projectId} FOR UPDATE`;
   const { project } = await requireProjectAdmin(tx, projectId, actorId);
   if (
-    project.plan !== "business" ||
+    !planAllows(project.plan, "reports") ||
     project.deletionPending ||
     !(await getBillingAccess(tx, project.id)).allowed
   )

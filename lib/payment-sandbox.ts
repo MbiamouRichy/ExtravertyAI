@@ -124,7 +124,7 @@ export type SandboxEventSummary = {
   /** Commandes Polar : distingue l'essai à 0 d'un encaissement réel. */
   amount: number | null;
   billingReason: string | null;
-  /** Champs dont `syncSubscription` a besoin et absents de l'événement. */
+  /** Champs dont la synchronisation a besoin et absents de l'événement. */
   missing: string[];
 };
 
@@ -134,7 +134,7 @@ function text(value: unknown) {
 
 /**
  * Réduit un événement aux champs utiles au billing, sans e-mail ni donnée
- * client, pour mesurer l'écart avec ce que `syncSubscription` attend de Stripe.
+ * client, pour mesurer l'écart avec ce qu'attend la synchronisation des abonnements.
  */
 export function summarizeEvent(
   provider: SandboxProvider,

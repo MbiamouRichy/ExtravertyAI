@@ -1,14 +1,14 @@
 import "dotenv/config";
-import { stripe } from "../lib/stripe";
 import { paidMessageLimit } from "../lib/billing-quota";
-import { checkoutProvider } from "../lib/billing-provider";
 import { workerDatabase, notifyProject } from "./shared";
+import { flushWorkerMonitoring, initWorkerMonitoring, reportWorkerError } from "./monitoring";
 import {
   billingEmailConfig,
   reconcileNextBillingProject,
   deliverNextBillingEmail,
 } from "../lib/billing-lifecycle";
 
+initWorkerMonitoring("billing-worker");
 const prisma = workerDatabase();
 let stopping = false;
 const controller = new AbortController();
@@ -20,16 +20,10 @@ for (const signal of ["SIGTERM", "SIGINT"])
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 async function main() {
-  const polar = checkoutProvider() === "polar";
-  // Seule la clé du fournisseur qui encaisse est exigée : avec Polar, Stripe peut manquer.
-  if (
-    !process.env.RESEND_API_KEY ||
-    (polar ? !process.env.POLAR_ACCESS_TOKEN : !process.env.STRIPE_SECRET_KEY)
-  )
+  if (!process.env.RESEND_API_KEY || !process.env.POLAR_ACCESS_TOKEN)
     throw new Error("BILLING_CONFIG_MISSING");
   for (const plan of ["starter", "pro", "business"]) {
-    const name = plan.toUpperCase();
-    if (!process.env[polar ? `POLAR_${name}_PRODUCT_ID` : `STRIPE_${name}_PLAN_ID`])
+    if (!process.env[`POLAR_${plan.toUpperCase()}_PRODUCT_ID`])
       throw new Error("BILLING_PLAN_CONFIG_MISSING");
     paidMessageLimit(plan);
   }
@@ -37,24 +31,13 @@ async function main() {
   while (!stopping) {
     let worked = false;
     try {
-      const projectId = await reconcileNextBillingProject(
-        prisma,
-        (id) =>
-          stripe.subscriptions.retrieve(
-            id,
-            { expand: ["latest_invoice"] },
-            { timeout: 10000, maxNetworkRetries: 1 },
-          ),
-        config,
-      );
+      const projectId = await reconcileNextBillingProject(prisma, config);
       if (projectId) {
         worked = true;
         await notifyProject(projectId);
       }
-    } catch {
-      console.error(
-        "[billing-worker] Vérification de facturation interrompue.",
-      );
+    } catch (error) {
+      reportWorkerError("[billing-worker] Vérification de facturation interrompue.", error);
     }
     try {
       worked =
@@ -83,16 +66,19 @@ async function main() {
             throw new Error("BILLING_EMAIL_UNCONFIRMED");
           return result.id;
         })) || worked;
-    } catch {
-      console.error("[billing-worker] Envoi interrompu.");
+    } catch (error) {
+      reportWorkerError("[billing-worker] Envoi interrompu.", error);
     }
     await sleep(worked ? 600 : 5000);
   }
 }
 main()
-  .catch(() => {
+  .catch((error) => {
     stopping = true;
-    console.error("[billing-worker] Arrêt : vérifier la configuration.");
+    reportWorkerError("[billing-worker] Arrêt : vérifier la configuration.", error);
     process.exitCode = 1;
   })
-  .finally(() => prisma.$disconnect());
+  .finally(async () => {
+    await flushWorkerMonitoring();
+    await prisma.$disconnect();
+  });

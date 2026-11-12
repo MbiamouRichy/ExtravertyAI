@@ -309,7 +309,7 @@ export function IntegrationsWorkspace({
   googleAvailable: boolean;
   /** Webhooks : offres Pro et Business (vérifié aussi côté serveur). */
   webhooksAvailable: boolean;
-  /** Événements que l’offre peut produire (pipeline et satisfaction dès Pro). */
+  /** Événements que l’offre peut produire (satisfaction dès Pro, pipeline avec Business). */
   availableEvents: EventId[];
   googleOutcome: string | null;
 }) {

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, MessageSquareHeart } from "lucide-react";
+import { Coins, LayoutDashboard, MessageSquareHeart } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 const LINKS = [
   { href: "/admin", label: "Vue d’ensemble", icon: LayoutDashboard, exact: true },
   { href: "/admin/feedback", label: "Retours", icon: MessageSquareHeart, exact: false },
+  { href: "/admin/ai-costs", label: "Coûts IA", icon: Coins, exact: false },
 ] as const;
 
 export function AdminNav() {

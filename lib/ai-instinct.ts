@@ -1,8 +1,10 @@
 import { randomUUID } from "node:crypto";
 import type { PrismaClient } from "../src/generated/prisma/client";
 import { assessProspect } from "./instinct-decision";
+import { aiMeter } from "./ai-usage";
 import { promoteInterestingProspect } from "./pipeline";
 import { emitIntegrationEvent, integrationContact } from "./integration-events";
+import { plansWith } from "./plan-features";
 export { assessProspect } from "./instinct-decision";
 // A database lease coordinates workers. No network request is held inside a transaction.
 export async function runInstinctCycle(
@@ -10,6 +12,8 @@ export async function runInstinctCycle(
   assess = assessProspect,
 ) {
   const token = randomUUID();
+  // Offres qui incluent Instinct IA : les autres projets ne sont jamais analysés.
+  const plans = plansWith("instinct");
   const [candidate] = await prisma.$queryRaw<
     Array<{
       id: string;
@@ -24,6 +28,7 @@ export async function runInstinctCycle(
       FROM contact c JOIN project p ON p.id = c."projectId"
       CROSS JOIN LATERAL (SELECT m.id FROM message m WHERE m."contactId" = c.id AND m."projectId" = p.id ORDER BY m."createdAt" DESC, m.id DESC LIMIT 1) latest
       WHERE NOT p."deletionPending" AND p."agentQualifyLeads" AND p."agentSetupCompletedAt" IS NOT NULL
+        AND p.plan::text = ANY(${plans}::text[])
         AND (p.status IN ('active', 'trialing') OR (p."automationPaused" AND p.status = 'paused' AND p."statusBeforePause" IN ('active', 'trialing')))
         AND EXISTS (SELECT 1 FROM quota_period q WHERE q."projectId" = p.id AND q."isCurrent"
           AND q.kind = CASE WHEN p."automationPaused" AND p.status = 'paused' THEN p."statusBeforePause" ELSE p.status END
@@ -71,7 +76,11 @@ export async function runInstinctCycle(
         extractionStatus: true,
       },
     });
-    const classification = await assess(candidate.goals, messages.reverse());
+    const classification = await assess(
+      candidate.goals,
+      messages.reverse(),
+      aiMeter(prisma, candidate.projectId, "instinct"),
+    );
     const saved = await prisma.$transaction(async (tx) => {
       const before = await tx.contact.findUnique({
         where: { id: candidate.id },
@@ -86,6 +95,8 @@ export async function runInstinctCycle(
             deletionPending: false,
             agentConfigVersion: candidate.version,
             agentQualifyLeads: true,
+            // Passage à une offre sans Instinct pendant l’analyse : rien n’est écrit.
+            plan: { in: plans },
           },
         },
         data: {

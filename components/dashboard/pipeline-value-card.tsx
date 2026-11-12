@@ -1,9 +1,49 @@
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, KanbanSquare } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { formatDealValue } from "@/lib/pipeline-shared";
 import { AnalyticsCard } from "./analytics-card";
+
+/** Même emplacement que la carte réelle, pour les offres sans pipeline. */
+export function PipelineValueLockedCard({
+  planName,
+  upgradeHref,
+}: {
+  planName: string;
+  /** Null quand le membre ne peut pas ouvrir la facturation. */
+  upgradeHref: string | null;
+}) {
+  return (
+    <AnalyticsCard
+      title="Valeur commerciale"
+      description={`Disponible avec l’offre ${planName}`}
+      footer="Les prospects repérés par Instinct IA sont conservés : ils sont déjà classés au passage à l’offre supérieure."
+    >
+      <div className="flex h-full flex-col items-start gap-3 rounded-xl border border-dashed p-4">
+        <span className="flex size-9 items-center justify-center rounded-lg border bg-muted/50">
+          <KanbanSquare aria-hidden="true" className="size-4" />
+        </span>
+        <p className="max-w-sm text-sm text-muted-foreground">
+          Chiffre gagné, panier moyen et affaires en cours, calculés depuis le pipeline de
+          ventes.
+        </p>
+        {upgradeHref ? (
+          <Button asChild variant="outline" size="sm">
+            <Link href={upgradeHref}>
+              Passer à {planName}
+              <ArrowRight data-icon="inline-end" />
+            </Link>
+          </Button>
+        ) : (
+          <p className="text-xs text-muted-foreground">
+            Le propriétaire du projet peut changer d’offre depuis la facturation.
+          </p>
+        )}
+      </div>
+    </AnalyticsCard>
+  );
+}
 
 export function PipelineValueCard({
   currency,

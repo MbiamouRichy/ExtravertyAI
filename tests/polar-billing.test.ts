@@ -50,11 +50,9 @@ const product = (overrides: Partial<PolarProduct> = {}): PolarProduct => ({
 
 test("un abonnement actif ouvre le cycle payé de Polar", () => {
   const state = polarSubscriptionState(subscription());
-  assert.equal(state.provider, "polar");
   assert.equal(state.status, "active");
   assert.equal(state.plan, "pro");
   assert.equal(state.paidCycle, true);
-  assert.equal(state.renewalPending, false);
   assert.equal(state.metadataProjectId, "project-1");
   assert.equal(state.startsAt, Date.UTC(2026, 10, 1) / 1000);
   assert.equal(state.endsAt, Date.UTC(2026, 11, 1) / 1000);

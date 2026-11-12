@@ -51,16 +51,25 @@ test("STOP and START are recognised only as a whole message", () => {
   }
 });
 
-test("sending happens during business hours in Libreville", () => {
-  const opening = tomorrowWindow(new Date());
-  assert.equal(opening.getUTCHours(), 7); // 8 h à Libreville (UTC+1)
+test("sending happens during business hours of the project's time zone", () => {
+  const zone = "Africa/Libreville"; // UTC+1, the default zone
+  const opening = tomorrowWindow(new Date(), zone);
+  assert.equal(opening.getUTCHours(), 7); // 8 h locales
   const ten = new Date(opening.getTime() + 2 * 3_600_000);
-  assert.equal(nextSendingWindow(ten).getTime(), ten.getTime());
+  assert.equal(nextSendingWindow(ten, zone).getTime(), ten.getTime());
   const late = new Date(opening.getTime() + 13 * 3_600_000); // 21 h
-  assert.equal(nextSendingWindow(late).getTime(), opening.getTime() + 86_400_000);
+  assert.equal(nextSendingWindow(late, zone).getTime(), opening.getTime() + 86_400_000);
   const early = new Date(opening.getTime() - 2 * 3_600_000); // 6 h
-  assert.equal(nextSendingWindow(early).getTime(), opening.getTime());
-  assert.equal(localDayStart(ten).getTime(), opening.getTime() - 8 * 3_600_000);
+  assert.equal(nextSendingWindow(early, zone).getTime(), opening.getTime());
+  assert.equal(localDayStart(ten, zone).getTime(), opening.getTime() - 8 * 3_600_000);
+
+  // UTC+0: the same 8 h on the local clock is one hour later in UTC.
+  assert.equal(tomorrowWindow(new Date(), "Africa/Lome").getUTCHours(), 8);
+  const sevenThirtyUtc = new Date(Date.UTC(2026, 10, 9, 7, 30));
+  assert.equal(nextSendingWindow(sevenThirtyUtc, zone).getTime(), sevenThirtyUtc.getTime()); // 8 h 30 à UTC+1
+  assert.equal(nextSendingWindow(sevenThirtyUtc, "Africa/Lome").getTime(), Date.UTC(2026, 10, 9, 8)); // 7 h 30 à UTC+0
+  // An unknown stored zone falls back to the default one instead of throwing.
+  assert.equal(tomorrowWindow(ten, "Mars/Olympus").getTime(), tomorrowWindow(ten, zone).getTime());
 });
 
 async function proProject(prisma: PrismaClient, plan: "starter" | "pro" | "business" = "pro") {
@@ -123,7 +132,7 @@ test("broadcasts end to end", { timeout: 240000 }, async (t) => {
       data: { projectId: project.id, remoteJid: "24166999999@s.whatsapp.net", phone: "24166999999" },
     });
 
-    const inWindow = new Date(tomorrowWindow(new Date()).getTime() + 2 * 3_600_000);
+    const inWindow = new Date(tomorrowWindow(new Date(), project.timeZone).getTime() + 2 * 3_600_000);
 
     await t.test("only admins of Pro and Business projects broadcast", async () => {
       const starter = await proProject(prisma, "starter");
@@ -151,16 +160,39 @@ test("broadcasts end to end", { timeout: 240000 }, async (t) => {
       const tagged = await estimateAudience(prisma, {
         projectId: project.id,
         userId: owner.id,
-        audience: { tagIds: [vip.id], stages: ["INTERESTED"] },
+        audience: { tagIds: [vip.id] },
       });
       assert.equal(tagged.count, 1);
+    });
+
+    await t.test("targeting a pipeline stage needs the Business plan", async () => {
+      // Pro : pas de pipeline, donc pas de ciblage par étape, même par un appel direct.
       await assert.rejects(
-        createBroadcast(prisma, {
-          ...draft(),
+        estimateAudience(prisma, {
           projectId: project.id,
           userId: owner.id,
-          audience: { stages: ["WON"] },
+          audience: { tagIds: [vip.id], stages: ["INTERESTED"] },
         }),
+        /étape du pipeline est disponible avec l’offre Business/,
+      );
+      await assert.rejects(
+        createBroadcast(prisma, { ...draft(), projectId: project.id, userId: owner.id, audience: { stages: ["INTERESTED"] } }),
+        /offre Business/,
+      );
+
+      const business = await proProject(prisma, "business");
+      await addMember(prisma, business.id, owner.id, "OWNER");
+      const lead = await customer(prisma, business.id, "Awa Ndiaye");
+      await prisma.contact.update({ where: { id: lead.id }, data: { pipelineStage: "INTERESTED" } });
+      await customer(prisma, business.id, "Yann Koffi");
+      const interested = await estimateAudience(prisma, {
+        projectId: business.id,
+        userId: owner.id,
+        audience: { stages: ["INTERESTED"] },
+      });
+      assert.deepEqual(interested, { count: 1, optedOut: 0, limit: 2000 });
+      await assert.rejects(
+        createBroadcast(prisma, { ...draft(), projectId: business.id, userId: owner.id, audience: { stages: ["WON"] } }),
         /Aucun contact/,
       );
     });
@@ -247,7 +279,7 @@ test("broadcasts end to end", { timeout: 240000 }, async (t) => {
       await runBroadcastTick(prisma, { now: night });
       let row = await prisma.broadcast.findUniqueOrThrow({ where: { id: broadcast.id } });
       assert.equal(row.pauseReason, "OUTSIDE_WINDOW");
-      assert.equal(row.nextSendAt.getTime(), tomorrowWindow(night).getTime());
+      assert.equal(row.nextSendAt.getTime(), tomorrowWindow(night, project.timeZone).getTime());
       assert.equal(await prisma.message.count({ where: { source: "broadcast", agentId: admin.id } }), 0);
 
       await prisma.project.update({ where: { id: project.id }, data: { instanceStatus: "disconnected" } });
@@ -312,7 +344,7 @@ test("broadcasts end to end", { timeout: 240000 }, async (t) => {
       await runBroadcastTick(prisma, { now: inWindow });
       const row = await prisma.broadcast.findUniqueOrThrow({ where: { id: broadcast.id } });
       assert.equal(row.pauseReason, "DAILY_LIMIT");
-      assert.equal(row.nextSendAt.getTime(), tomorrowWindow(inWindow).getTime());
+      assert.equal(row.nextSendAt.getTime(), tomorrowWindow(inWindow, project.timeZone).getTime());
       await cancelBroadcast(prisma, { projectId: project.id, broadcastId: broadcast.id, userId: owner.id });
     });
 

@@ -30,7 +30,6 @@ import {
   revokePolarSubscription,
 } from "@/lib/polar";
 import { resolvePlanId } from "@/lib/pricing";
-import { stripe } from "@/lib/stripe";
 import { syncWhatsAppSettings } from "@/lib/whatsapp-settings-sync";
 
 const Id = z.string().cuid();
@@ -235,150 +234,50 @@ export async function openProjectBillingPortal(
     const origin = process.env.NEXT_PUBLIC_APP_URL;
     if (!origin)
       throw new SettingsError("Le portail de facturation n’est pas configuré.");
-    if (project.billingProvider === "polar") {
-      if (project.stripeSubscriptionId) {
-        const current = await getPolarSubscription(project.stripeSubscriptionId);
-        if (current.customer_id !== project.stripeCustomerId)
-          throw new SettingsError("L’abonnement n’a pas pu être vérifié.");
-        const billingUrl = `${origin}/projects/${project.id}/billing`;
-        if (intent === "renew" && current.cancel_at_period_end) {
-          await resumePolarSubscription(current.id);
-          return { success: true as const, url: billingUrl };
-        }
-        if (intent === "renew" && isEndedPolarSubscription(current)) {
-          const plan = resolvePlanId(project.plan);
-          const productId = polarProductId(plan);
-          if (
-            !productId ||
-            !current.customer?.email ||
-            !matchesPolarProduct(await getPolarProduct(productId), plan)
-          )
-            throw new SettingsError("Ce forfait est temporairement indisponible.");
-          // Un abonnement impayé ne doit pas pouvoir repartir à côté du nouveau.
-          await revokePolarSubscription(current.id);
-          const url = await createPolarCheckout({
-            productId,
-            projectId: project.id,
-            plan,
-            email: current.customer.email,
-            successUrl: `${billingUrl}?success=true`,
-            returnUrl: billingUrl,
-            trial: false,
-          });
-          return { success: true as const, url };
-        }
-        if (
-          intent === "upgrade" &&
-          !["active", "trialing"].includes(current.status)
-        )
-          throw new SettingsError(
-            "Régularisez ou renouvelez l’abonnement avant de changer d’offre.",
-          );
+    if (project.stripeSubscriptionId) {
+      const current = await getPolarSubscription(project.stripeSubscriptionId);
+      if (current.customer_id !== project.stripeCustomerId)
+        throw new SettingsError("L’abonnement n’a pas pu être vérifié.");
+      const billingUrl = `${origin}/projects/${project.id}/billing`;
+      if (intent === "renew" && current.cancel_at_period_end) {
+        await resumePolarSubscription(current.id);
+        return { success: true as const, url: billingUrl };
       }
-      const url = await createPolarPortalUrl(
-        project.stripeCustomerId,
-        `${origin}/projects/${project.id}/billing`,
-      );
-      return { success: true as const, url };
-    }
-    const subscription = project.stripeSubscriptionId
-      ? await stripe.subscriptions.retrieve(
-          project.stripeSubscriptionId,
-          { expand: ["latest_invoice"] },
-          { timeout: 10000, maxNetworkRetries: 0 },
+      if (intent === "renew" && isEndedPolarSubscription(current)) {
+        const plan = resolvePlanId(project.plan);
+        const productId = polarProductId(plan);
+        if (
+          !productId ||
+          !current.customer?.email ||
+          !matchesPolarProduct(await getPolarProduct(productId), plan)
         )
-      : null;
-    if (
-      subscription &&
-      (typeof subscription.customer === "string"
-        ? subscription.customer
-        : subscription.customer.id) !== project.stripeCustomerId
-    )
-      throw new SettingsError("L’abonnement n’a pas pu être vérifié.");
-    if (
-      intent === "renew" &&
-      subscription &&
-      ["active", "trialing"].includes(subscription.status) &&
-      (subscription.cancel_at_period_end || subscription.cancel_at)
-    ) {
-      await stripe.subscriptions.update(
-        subscription.id,
-        subscription.cancel_at_period_end
-          ? { cancel_at_period_end: false }
-          : { cancel_at: "" },
-      );
-      invalidate(project.id);
-      return {
-        success: true as const,
-        url: `${origin}/projects/${project.id}/billing`,
-      };
-    }
-    const invoice = subscription?.latest_invoice;
-    if (
-      intent === "renew" &&
-      invoice &&
-      typeof invoice !== "string" &&
-      invoice.status === "open" &&
-      invoice.hosted_invoice_url
-    ) {
-      const url = new URL(invoice.hosted_invoice_url);
-      if (url.protocol === "https:" && url.hostname === "invoice.stripe.com")
-        return { success: true as const, url: url.href };
-    }
-    if (
-      intent === "upgrade" &&
-      (!subscription || !["active", "trialing"].includes(subscription.status))
-    )
-      throw new SettingsError(
-        "Régularisez ou renouvelez l’abonnement avant de changer d’offre.",
-      );
-    if (intent === "upgrade" && subscription) {
-      const priceIds = ["STARTER", "PRO", "BUSINESS"]
-        .map((plan) => process.env["STRIPE_" + plan + "_PLAN_ID"])
-        .filter((id): id is string => !!id);
-      const prices = await Promise.all(
-        priceIds.map((id) =>
-          stripe.prices.retrieve(
-            id,
-            {},
-            { timeout: 10000, maxNetworkRetries: 0 },
-          ),
-        ),
-      );
-      const current = subscription.items.data[0]?.price;
+          throw new SettingsError("Ce forfait est temporairement indisponible.");
+        // Un abonnement impayé ne doit pas pouvoir repartir à côté du nouveau.
+        await revokePolarSubscription(current.id);
+        const url = await createPolarCheckout({
+          productId,
+          projectId: project.id,
+          plan,
+          email: current.customer.email,
+          successUrl: `${billingUrl}?success=true`,
+          returnUrl: billingUrl,
+          trial: false,
+        });
+        return { success: true as const, url };
+      }
       if (
-        !current ||
-        !prices.some(
-          (price) =>
-            price.active &&
-            price.currency === current.currency &&
-            price.id !== current.id,
-        )
+        intent === "upgrade" &&
+        !["active", "trialing"].includes(current.status)
       )
         throw new SettingsError(
-          "Aucune autre offre n’est encore disponible dans la devise de cet abonnement. Contactez-nous pour préparer le changement de devise.",
+          "Régularisez ou renouvelez l’abonnement avant de changer d’offre.",
         );
     }
-    const portal = await stripe.billingPortal.sessions.create({
-      customer: project.stripeCustomerId,
-      locale: "fr",
-      ...(intent === "upgrade" && subscription
-        ? {
-            flow_data: {
-              type: "subscription_update" as const,
-              subscription_update: { subscription: subscription.id },
-              after_completion: {
-                type: "redirect" as const,
-                redirect: {
-                  return_url: origin + "/projects/" + project.id + "/billing",
-                },
-              },
-            },
-          }
-        : {}),
-      return_url: `${origin}/projects/${project.id}/billing`,
-    });
-    return { success: true as const, url: portal.url };
+    const url = await createPolarPortalUrl(
+      project.stripeCustomerId,
+      `${origin}/projects/${project.id}/billing`,
+    );
+    return { success: true as const, url };
   } catch (error) {
     return { success: false as const, error: publicError(error) };
   }
@@ -410,37 +309,15 @@ export async function cancelProjectSubscription(projectId: string) {
       throw new SettingsError("Ce projet est en cours de suppression.");
     if (!project.stripeCustomerId || !project.stripeSubscriptionId)
       throw new SettingsError("Aucun abonnement à résilier pour ce projet.");
-    const ended = new SettingsError("Cet abonnement est déjà terminé.");
-    if (project.billingProvider === "polar") {
-      const current = await getPolarSubscription(project.stripeSubscriptionId);
-      if (current.customer_id !== project.stripeCustomerId)
-        throw new SettingsError("L’abonnement n’a pas pu être vérifié.");
-      if (isEndedPolarSubscription(current)) throw ended;
-      if (["active", "trialing"].includes(current.status)) {
-        if (!current.cancel_at_period_end)
-          await cancelPolarSubscription(current.id);
-      } else await revokePolarSubscription(current.id);
-    } else {
-      const current = await stripe.subscriptions.retrieve(
-        project.stripeSubscriptionId,
-        {},
-        { timeout: 10000, maxNetworkRetries: 0 },
-      );
-      if (
-        (typeof current.customer === "string"
-          ? current.customer
-          : current.customer.id) !== project.stripeCustomerId
-      )
-        throw new SettingsError("L’abonnement n’a pas pu être vérifié.");
-      if (["canceled", "incomplete_expired"].includes(current.status))
-        throw ended;
-      if (["active", "trialing"].includes(current.status)) {
-        if (!current.cancel_at_period_end && !current.cancel_at)
-          await stripe.subscriptions.update(current.id, {
-            cancel_at_period_end: true,
-          });
-      } else await stripe.subscriptions.cancel(current.id);
-    }
+    const current = await getPolarSubscription(project.stripeSubscriptionId);
+    if (current.customer_id !== project.stripeCustomerId)
+      throw new SettingsError("L’abonnement n’a pas pu être vérifié.");
+    if (isEndedPolarSubscription(current))
+      throw new SettingsError("Cet abonnement est déjà terminé.");
+    if (["active", "trialing"].includes(current.status)) {
+      if (!current.cancel_at_period_end)
+        await cancelPolarSubscription(current.id);
+    } else await revokePolarSubscription(current.id);
     invalidate(project.id);
     return { success: true as const };
   } catch (error) {
@@ -448,7 +325,7 @@ export async function cancelProjectSubscription(projectId: string) {
   }
 }
 
-/** Facture PDF d'une commande Polar, limitée à l'abonnement du projet. */
+/** Facture PDF d'une commande, limitée à l'abonnement du projet. */
 export async function openProjectInvoice(projectId: string, orderId: string) {
   try {
     Id.parse(projectId);
@@ -457,7 +334,7 @@ export async function openProjectInvoice(projectId: string, orderId: string) {
     const { project } = await prisma.$transaction((tx) =>
       requireProjectPermission(tx, projectId, userId, "billing.view"),
     );
-    if (project.billingProvider !== "polar" || !project.stripeSubscriptionId)
+    if (!project.stripeSubscriptionId)
       throw new SettingsError("Cette facture n’est pas disponible.");
     const order = await getPolarOrder(orderId);
     if (order.subscription_id !== project.stripeSubscriptionId)

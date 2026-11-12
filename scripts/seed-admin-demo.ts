@@ -13,7 +13,7 @@ import { workerDatabase } from "../workers/shared";
  *
  * Réservé à la base extravertyai_preview (ou ALLOW_DEMO_SEED=1 en local).
  * Tout est marqué : e-mails @demo.extraverty.test, projets « [Démo] »,
- * visiteurs « demo: ». Aucun membre ni abonnement Stripe : aucun worker,
+ * visiteurs « demo: ». Aucun membre ni abonnement Polar : aucun worker,
  * e-mail ou facture n'est déclenché.
  */
 const DEMO_DOMAIN = "@demo.extraverty.test";

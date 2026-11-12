@@ -3,7 +3,6 @@ import prisma from "./prisma";
 import { deleteProjectMedia } from "./chat-media-cleanup";
 import { forgetProjectNotifications } from "./notifications";
 import { deletePolarCustomer, revokePolarSubscription } from "./polar";
-import { stripe } from "./stripe";
 import { markProjectForDeletion, SettingsError } from "./project-settings";
 import { deleteEvolutionInstance } from "@/app/actions/evolutionAPI";
 
@@ -44,72 +43,33 @@ export async function deleteProjectResources(
   const project = await prisma.$transaction((tx) =>
     markProjectForDeletion(tx, projectId, actorId),
   );
-  if (project.billingProvider === "polar") {
-    try {
-      if (project.stripeSubscriptionId)
-        await revokePolarSubscription(project.stripeSubscriptionId);
-    } catch {
-      throw new ProjectDeletionError(
-        "Annulation de la facturation impossible. Le projet est conservé en pause ; réessayez.",
-        "billing",
-      );
-    }
-    // Un client Polar peut payer d'autres projets : il part avec le dernier.
-    const shared =
-      !!project.stripeCustomerId &&
-      (await prisma.project.count({
-        where: {
-          stripeCustomerId: project.stripeCustomerId,
-          id: { not: projectId },
-        },
-      })) > 0;
-    if (project.stripeCustomerId && !shared) {
-      try {
-        await deletePolarCustomer(project.stripeCustomerId);
-      } catch {
-        throw new ProjectDeletionError(
-          "Suppression des données de facturation impossible. Le projet est conservé en pause ; réessayez.",
-          "billing",
-        );
-      }
-    }
-  } else if (project.stripeSubscriptionId) {
-    try {
-      const options = { timeout: 10000, maxNetworkRetries: 1 };
-      const subscription = await stripe.subscriptions.retrieve(
-        project.stripeSubscriptionId,
-        {},
-        options,
-      );
-      if (subscription.status !== "canceled")
-        await stripe.subscriptions.cancel(
-          project.stripeSubscriptionId,
-          {},
-          options,
-        );
-    } catch {
-      throw new ProjectDeletionError(
-        "Annulation de la facturation impossible. Le projet est conservé en pause ; réessayez.",
-        "billing",
-      );
-    }
+  try {
+    if (project.stripeSubscriptionId)
+      await revokePolarSubscription(project.stripeSubscriptionId);
+  } catch {
+    throw new ProjectDeletionError(
+      "Annulation de la facturation impossible. Le projet est conservé en pause ; réessayez.",
+      "billing",
+    );
   }
-  if (project.billingProvider === "stripe" && project.stripeCustomerId) {
-    // Erases the customer's personal data at Stripe (name, e-mail, payment
-    // methods). Invoices and payments remain in Stripe for legal retention.
+  // Un client Polar peut payer d'autres projets : il part avec le dernier.
+  // Ses factures restent chez Polar pour la conservation légale.
+  const shared =
+    !!project.stripeCustomerId &&
+    (await prisma.project.count({
+      where: {
+        stripeCustomerId: project.stripeCustomerId,
+        id: { not: projectId },
+      },
+    })) > 0;
+  if (project.stripeCustomerId && !shared) {
     try {
-      await stripe.customers.del(
-        project.stripeCustomerId,
-        {},
-        { timeout: 10000, maxNetworkRetries: 1 },
+      await deletePolarCustomer(project.stripeCustomerId);
+    } catch {
+      throw new ProjectDeletionError(
+        "Suppression des données de facturation impossible. Le projet est conservé en pause ; réessayez.",
+        "billing",
       );
-    } catch (error) {
-      // Already deleted on a previous attempt: nothing left to erase.
-      if ((error as { code?: string }).code !== "resource_missing")
-        throw new ProjectDeletionError(
-          "Suppression des données de facturation impossible. Le projet est conservé en pause ; réessayez.",
-          "billing",
-        );
     }
   }
   if (project.instanceName) {

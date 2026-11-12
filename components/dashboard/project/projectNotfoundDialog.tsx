@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { FolderSearch, LayoutDashboard, ArrowLeft } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 
 interface ProjectNotFoundDialogProps {
     open: boolean;
@@ -21,9 +21,12 @@ export default function ProjectNotFoundDialog({ open }: ProjectNotFoundDialogPro
     const router = useRouter();
     const [isOpen, setIsOpen] = useState(open);
 
-    useEffect(() => {
+    // Synchronisation avec la prop externe, pendant le rendu plutôt que dans un effet.
+    const [syncedOpen, setSyncedOpen] = useState(open);
+    if (syncedOpen !== open) {
+        setSyncedOpen(open);
         setIsOpen(open);
-    }, [open]);
+    }
 
     // L'utilisateur ne peut pas rester sur une page de projet qui n'existe pas.
     // On force la navigation pour sortir de cette impasse.

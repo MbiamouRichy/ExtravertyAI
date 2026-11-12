@@ -95,7 +95,7 @@ export const SETUP_LIMITS = {
   urlMaxLength: 2048,
 } as const;
 
-// Trial terms enforced server-side (stripe-actions trial_period_days).
+// Trial terms enforced server-side (lib/polar trial_interval_count).
 export const TRIAL_DAYS = 10;
 
 export const DESCRIPTION_EXAMPLES = [
@@ -105,7 +105,7 @@ export const DESCRIPTION_EXAMPLES = [
   },
   {
     label: "Restaurant",
-    text: "Restaurant bistronomique à Lyon, ouvert du mardi au samedi. Réservations, menu du jour et privatisations.",
+    text: "Restaurant bistronomique, ouvert du mardi au samedi. Réservations, menu du jour et privatisations.",
   },
   {
     label: "Immobilier",

@@ -13,9 +13,11 @@ import {
   buildSearchQuery,
   chunkPosition,
   chunkText,
+  countEntryWords,
   entrySearchText,
   formatKnowledgeBlock,
   parseProductsCsv,
+  wordsToPages,
   type RetrievedEntry,
 } from "./knowledge-shared";
 
@@ -71,6 +73,30 @@ function limitMessage(plan: string) {
   return `Limite de ${planFeatures(plan).knowledgeEntries.toLocaleString("fr-FR")} entrées atteinte pour votre offre. Supprimez des entrées ou changez d’offre.`;
 }
 
+/** Mots encore disponibles dans la base du projet (négatif si l’offre a baissé). */
+export async function remainingWords(
+  tx: Prisma.TransactionClient,
+  projectId: string,
+  plan: string,
+) {
+  const used = await tx.knowledgeEntry.aggregate({
+    where: { projectId },
+    _sum: { words: true },
+  });
+  return planFeatures(plan).knowledgeWords - (used._sum.words ?? 0);
+}
+
+/** Refus clair, avec les volumes en jeu : ce que l’on ajoute, ce qui reste. */
+export function wordLimitMessage(plan: string, needed: number, remaining: number) {
+  const limit = planFeatures(plan).knowledgeWords;
+  const words = (value: number) => Math.max(0, value).toLocaleString("fr-FR");
+  const total = `${words(limit)} mots (≈ ${wordsToPages(limit).toLocaleString("fr-FR")} pages)`;
+  if (remaining <= 0) {
+    return `Votre base de connaissances est pleine : ${total} avec votre offre. Supprimez des contenus ou changez d’offre.`;
+  }
+  return `Ce contenu fait environ ${words(needed)} mots, il en reste ${words(remaining)} dans votre base (${total} avec votre offre). Allégez-le, supprimez des contenus ou changez d’offre.`;
+}
+
 /* -------------------------------------------------------------------------- */
 /* Entries                                                                     */
 /* -------------------------------------------------------------------------- */
@@ -92,16 +118,28 @@ export async function saveEntry(
       stock: entry.kind === "PRODUCT" ? entry.stock : null,
       searchText: entrySearchText({ title: entry.title, content, price: entry.price }),
     };
+    const words = countEntryWords({ title: entry.title, content });
     if (input.id) {
       const existing = await tx.knowledgeEntry.findFirst({
         where: { id: input.id, projectId: input.projectId, kind: { not: "CHUNK" } },
-        select: { id: true },
+        select: { id: true, words: true },
       });
       if (!existing) throw new KnowledgeError("Entrée introuvable.");
+      // Raccourcir reste toujours possible, même au-delà de la limite.
+      if (words > existing.words) {
+        const remaining = await remainingWords(tx, input.projectId, project.plan);
+        if (words - existing.words > remaining) {
+          throw new KnowledgeError(wordLimitMessage(project.plan, words - existing.words, remaining));
+        }
+      }
       return tx.knowledgeEntry.update({ where: { id: input.id }, data, select: { id: true } });
     }
     if ((await remainingEntries(tx, input.projectId, project.plan)) < 1) {
       throw new KnowledgeError(limitMessage(project.plan));
+    }
+    const remaining = await remainingWords(tx, input.projectId, project.plan);
+    if (words > remaining) {
+      throw new KnowledgeError(wordLimitMessage(project.plan, words, remaining));
     }
     return tx.knowledgeEntry.create({
       data: { ...data, projectId: input.projectId, createdById: input.userId },
@@ -149,6 +187,9 @@ async function requireSourceCapacity(
       `Limite de ${limit} documents (PDF ou pages web) atteinte pour votre offre.`,
     );
   }
+  // Base pleine : inutile de télécharger et de découper un document de plus.
+  const remaining = await remainingWords(tx, projectId, plan);
+  if (remaining <= 0) throw new KnowledgeError(wordLimitMessage(plan, 0, remaining));
 }
 
 export function urlErrorMessage(error: unknown): string {
@@ -269,6 +310,20 @@ export async function importProductsCsv(
     const remaining = Math.max(0, await remainingEntries(tx, input.projectId, project.plan));
     if (!remaining) throw new KnowledgeError(limitMessage(project.plan));
     const kept = rows.slice(0, remaining);
+    // Un catalogue qui ne tient pas dans le volume de l’offre est refusé entier.
+    const words = kept.reduce(
+      (total, row) =>
+        total +
+        countEntryWords({
+          title: row.name,
+          content: (row.description || row.name).slice(0, KNOWLEDGE_LIMITS.contentMax),
+        }),
+      0,
+    );
+    const wordsLeft = await remainingWords(tx, input.projectId, project.plan);
+    if (words > wordsLeft) {
+      throw new KnowledgeError(wordLimitMessage(project.plan, words, wordsLeft));
+    }
     const source = await tx.knowledgeSource.create({
       data: {
         projectId: input.projectId,
@@ -402,14 +457,20 @@ export async function knowledgeOverview(db: PrismaClient, projectId: string, use
         createdAt: true,
       },
     }),
-    db.knowledgeEntry.count({ where: { projectId } }),
+    db.knowledgeEntry.aggregate({
+      where: { projectId },
+      _count: { _all: true },
+      _sum: { words: true },
+    }),
   ]);
   const limits = planFeatures(membership.project.plan);
   return {
     plan: membership.project.plan,
     currency: membership.project.currency,
     usage: {
-      entries: used,
+      words: used._sum.words ?? 0,
+      wordLimit: limits.knowledgeWords,
+      entries: used._count._all,
       entryLimit: limits.knowledgeEntries,
       documents: sources.filter((source) => source.type !== "CSV").length,
       documentLimit: limits.knowledgeSources,
@@ -504,6 +565,7 @@ const PERMANENT_CODES = new Set([
   "EMPTY_CONTENT",
   "PDF_INVALID",
   "PDF_TOO_MANY_PAGES",
+  "WORD_LIMIT",
 ]);
 
 export type KnowledgeJob = {
@@ -563,19 +625,25 @@ export async function runKnowledgeSource(
         : Math.max(0, await remainingEntries(tx, job.projectId, project.plan));
       const kept = chunks.slice(0, remaining);
       const label = (title || source.name).slice(0, 150);
-      await tx.knowledgeEntry.createMany({
-        data: kept.map((chunk, index) => {
-          const entryTitle = `${label} · ${index + 1}/${chunks.length}`.slice(0, KNOWLEDGE_LIMITS.titleMax);
-          return {
-            projectId: job.projectId,
-            sourceId: job.id,
-            kind: "CHUNK" as const,
-            title: entryTitle,
-            content: chunk,
-            searchText: entrySearchText({ title: entryTitle, content: chunk }),
-          };
-        }),
+      const rows = kept.map((chunk, index) => {
+        const entryTitle = `${label} · ${index + 1}/${chunks.length}`.slice(0, KNOWLEDGE_LIMITS.titleMax);
+        return {
+          projectId: job.projectId,
+          sourceId: job.id,
+          kind: "CHUNK" as const,
+          title: entryTitle,
+          content: chunk,
+          searchText: entrySearchText({ title: entryTitle, content: chunk }),
+        };
       });
+      // Un document qui dépasse le volume restant est refusé entier : une
+      // moitié de document ferait répondre l’IA à moitié informée. L’annulation
+      // garde l’extraction précédente de cette source, s’il y en avait une.
+      const words = rows.reduce((total, row) => total + countEntryWords(row), 0);
+      if (words > (await remainingWords(tx, job.projectId, project.plan))) {
+        throw new KnowledgeError("WORD_LIMIT");
+      }
+      await tx.knowledgeEntry.createMany({ data: rows });
       await tx.knowledgeSource.update({
         where: { id: job.id },
         data: {

@@ -1,4 +1,5 @@
 import type { Prisma } from "../src/generated/prisma/client";
+import { lastProspectClassification } from "./instinct-classification";
 import { planAllows, type GatedFeature } from "./plan-features";
 
 export const INTEGRATION_EVENTS = [
@@ -15,6 +16,7 @@ export const INTEGRATION_EVENTS = [
   },
   {
     id: "contact.qualified",
+    feature: "instinct",
     label: "Prospect qualifié",
     hint: "Instinct IA repère un prospect intéressant.",
   },
@@ -58,7 +60,7 @@ function eventFeature(event: IntegrationEvent): GatedFeature | null {
   return "feature" in event ? event.feature : null;
 }
 
-/** Events the plan can actually produce: no pipeline or CSAT event on Starter. */
+/** Events the plan can actually produce: CSAT and Instinct from Pro, pipeline on Business only. */
 export function integrationEventsForPlan(plan: unknown): IntegrationEvent[] {
   return INTEGRATION_EVENTS.filter((event) => {
     const feature = eventFeature(event);
@@ -82,7 +84,10 @@ export type IntegrationContact = {
   /** ISO dates of the first and latest message of the conversation. */
   firstInteractionAt: string | null;
   lastInteractionAt: string | null;
-  /** Instinct IA: "interesting", "follow_up", "none", or null before analysis. */
+  /**
+   * Instinct IA: "interesting", "follow_up", "none"; null before analysis and
+   * always null when Instinct does not run for the project (plan or setting).
+   */
   instinct: string | null;
   /** Devices or channels the prospect wrote from (android, ios, whatsapp…). */
   sources: string[];
@@ -103,6 +108,7 @@ export async function integrationContact(
       createdAt: true,
       lastMessageAt: true,
       instinctClassification: true,
+      project: { select: { plan: true, agentQualifyLeads: true } },
     },
   });
   if (!contact) return null;
@@ -125,7 +131,8 @@ export async function integrationContact(
     phone: contact.phone,
     firstInteractionAt: (first?.createdAt ?? contact.createdAt).toISOString(),
     lastInteractionAt: contact.lastMessageAt?.toISOString() ?? null,
-    instinct: contact.instinctClassification ?? null,
+    // Jamais d’ancienne analyse vers un outil externe quand Instinct ne tourne pas.
+    instinct: lastProspectClassification(contact),
     sources: sources
       .map((message) => message.source)
       .filter((source): source is string => !!source && source !== "unknown"),

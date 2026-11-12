@@ -18,6 +18,7 @@ import {
   getEvolutionOwnerJid,
   logoutEvolutionInstance,
   requestEvolutionPairingCode,
+  whatsAppAccountDigits,
 } from "./evolutionAPI";
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -253,13 +254,17 @@ export async function generatePairingCode(projectId: string) {
       await wait(1000);
     }
 
+    // Le code ne vaut que pour l’écriture du numéro connue de WhatsApp
+    // (ancienne numérotation gabonaise comprise).
+    const account = await whatsAppAccountDigits(number);
+
     // Le code est demandé à WhatsApp juste après l’ouverture : quelques
     // relectures courtes suffisent (la session reste alors « connecting »).
     let code: string | undefined;
     for (let attempt = 0; attempt < 4 && !code; attempt += 1) {
       if (attempt) await wait(1500);
       code = pairingCodeOf(
-        await requestEvolutionPairingCode(project.instanceName, number),
+        await requestEvolutionPairingCode(project.instanceName, account),
       );
     }
 

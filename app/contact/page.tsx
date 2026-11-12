@@ -6,7 +6,7 @@ import { SiteShell } from "@/components/website/site-shell";
 export const metadata: Metadata = {
   title: "Contact — Parlons de votre projet | ExtravertyAI",
   description:
-    "Discutons de votre activité et de votre service client WhatsApp. Contactez ExtravertyAI à distance par WhatsApp, téléphone ou e-mail.",
+    "Discutons de votre activité et de votre service client WhatsApp. Contactez ExtravertyAI à distance par WhatsApp ou par e-mail.",
   alternates: { canonical: "/contact" },
 };
 export const dynamic = "force-static";

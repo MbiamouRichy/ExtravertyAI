@@ -1,4 +1,5 @@
 import type { AgentConfig } from "./agent-config";
+import type { TimeZoneGroup } from "./time-zones";
 export type ProjectSettingsView = {
   id: string;
   name: string;
@@ -34,6 +35,9 @@ export type ProjectSettingsView = {
   csat: { enabled: boolean; message: string; available: boolean };
   showWaitingTime: boolean;
   aiQuietEnabled: boolean;
+  /** Fuseau IANA de l’activité (heures d’envoi des diffusions) et liste proposée. */
+  timeZone: string;
+  timeZoneGroups: TimeZoneGroup[];
   /** Répartition automatique des nouvelles conversations (offre Business). */
   autoAssign: { enabled: boolean; available: boolean };
   audit: Array<{ id: string; action: string; createdAt: string }>;

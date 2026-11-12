@@ -34,7 +34,7 @@ export function BeforeAfterThread() {
         <div
           role="group"
           aria-label="Comparer les deux scénarios"
-          className="flex rounded-lg border bg-background p-0.5"
+          className="grid w-full grid-cols-2 rounded-lg border bg-background p-0.5 sm:flex sm:w-auto"
         >
           {THREAD_MODES.map((option) => {
             const selected = option.id === mode;
@@ -62,7 +62,8 @@ export function BeforeAfterThread() {
                     className="absolute inset-0 rounded-[inherit] border bg-muted shadow-xs"
                   />
                 )}
-                <span className="relative">{option.label}</span>
+                <span className="relative min-[360px]:hidden">{option.shortLabel}</span>
+                <span className="relative max-[359px]:hidden">{option.label}</span>
               </Button>
             );
           })}

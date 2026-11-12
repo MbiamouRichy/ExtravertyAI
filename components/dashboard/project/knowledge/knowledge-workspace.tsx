@@ -6,6 +6,8 @@ import { useCallback, useState, useTransition } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useChatRealtime } from "@/hooks/use-chat-data";
 import type { AgentConfig } from "@/lib/agent-config";
+import { wordsToPages } from "@/lib/knowledge-shared";
+import { cn } from "@/lib/utils";
 import { AgentEditor } from "../agent-editor";
 import { AiQuietSettings } from "../ai-quiet-settings";
 import { AgentSandbox } from "./agent-sandbox";
@@ -24,6 +26,8 @@ export type AgentSettingsView = {
   config: AgentConfig;
   version: number;
   aiQuietEnabled: boolean;
+  /** L’offre inclut Instinct IA. */
+  instinctAvailable: boolean;
 };
 
 /** Onglets qui consomment le quota : l’utilisation n’apparaît que pour eux. */
@@ -90,10 +94,25 @@ export function KnowledgeWorkspace({
       </div>
       {DATA_TABS.has(tab) && (
         <p className="text-xs text-muted-foreground tabular-nums">
-          {usage.entries.toLocaleString("fr-FR")} /{" "}
-          {usage.entryLimit.toLocaleString("fr-FR")} entrées ·{" "}
-          {usage.documents.toLocaleString("fr-FR")} /{" "}
-          {usage.documentLimit.toLocaleString("fr-FR")} documents
+          {/* Chaque groupe reste d’un seul tenant quand la ligne se replie. */}
+          Base :{" "}
+          <span
+            className={cn(
+              "whitespace-nowrap",
+              usage.words >= usage.wordLimit && "font-medium text-destructive",
+            )}
+          >
+            {usage.words.toLocaleString("fr-FR")} mots sur{" "}
+            {usage.wordLimit.toLocaleString("fr-FR")}
+          </span>{" "}
+          <span className="whitespace-nowrap">
+            (≈ {wordsToPages(usage.wordLimit).toLocaleString("fr-FR")} pages)
+          </span>{" "}
+          ·{" "}
+          <span className="whitespace-nowrap">
+            {usage.documents.toLocaleString("fr-FR")} /{" "}
+            {usage.documentLimit.toLocaleString("fr-FR")} documents
+          </span>
         </p>
       )}
       {/* Toujours monté : un enregistrement auto en attente survit au changement d’onglet. */}
@@ -107,6 +126,7 @@ export function KnowledgeWorkspace({
           projectName={agent.projectName}
           initial={agent.config}
           version={agent.version}
+          instinctAvailable={agent.instinctAvailable}
         />
         <AiQuietSettings projectId={projectId} initial={agent.aiQuietEnabled} />
       </TabsContent>

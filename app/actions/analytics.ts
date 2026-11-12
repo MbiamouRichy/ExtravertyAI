@@ -2,7 +2,10 @@
 
 import { getUserTimeZone } from "@/lib/server-time-zone";
 import prisma from "@/lib/prisma";
-import { currentProspectClassification } from "@/lib/instinct-classification";
+import {
+  currentProspectClassification,
+  instinctEnabled,
+} from "@/lib/instinct-classification";
 import { getAnalyticsAccess } from "@/lib/analytics-access";
 import {
   HEATMAP_SLOTS,
@@ -156,12 +159,13 @@ export async function getAnalyticsOverview(
     }),
     prisma.project.findUnique({
       where: { id: projectId },
-      select: { agentQualifyLeads: true, agentConfigVersion: true },
+      select: { plan: true, agentQualifyLeads: true, agentConfigVersion: true },
     }),
   ]);
 
-  // Instinct IA : contacts actifs de la période, classés avec la configuration actuelle.
-  const instinct = project?.agentQualifyLeads
+  // Instinct IA : contacts actifs de la période, classés avec la configuration
+  // actuelle ; rien sur une offre qui ne l’inclut pas, même d’anciennes analyses.
+  const instinct = project && instinctEnabled(project)
     ? await Promise.all(
         (["follow_up", "interesting"] as const).map((classification) =>
           prisma.contact.count({
@@ -353,7 +357,7 @@ export async function getAnalyticsOverview(
           instinctSourceId: true,
           instinctConfigVersion: true,
           project: {
-            select: { agentQualifyLeads: true, agentConfigVersion: true },
+            select: { plan: true, agentQualifyLeads: true, agentConfigVersion: true },
           },
           messages: {
             where: { projectId },

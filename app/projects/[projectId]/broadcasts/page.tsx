@@ -8,7 +8,14 @@ import { z } from "zod";
 import prisma from "@/lib/prisma";
 import { getSession } from "@/lib/auth-server";
 import { broadcastUsage, listBroadcasts, listOptedOut } from "@/lib/broadcasts";
-import { planAllows, planUpgradeMessage } from "@/lib/plan-features";
+import {
+  PLAN_FEATURES,
+  minimumPlanFor,
+  planAllows,
+  planUpgradeMessage,
+  plansWith,
+} from "@/lib/plan-features";
+import { pricingPlan } from "@/lib/pricing";
 import { Button } from "@/components/ui/button";
 import { BroadcastsWorkspace } from "@/components/dashboard/project/broadcasts/broadcasts-workspace";
 import { OptedOutPanel } from "@/components/dashboard/project/broadcasts/opted-out-panel";
@@ -33,7 +40,7 @@ export default async function BroadcastsPage({ params }: { params: Promise<{ pro
     where: { userId_projectId: { userId, projectId } },
     select: {
       role: true,
-      project: { select: { name: true, plan: true, deletionPending: true, instanceStatus: true } },
+      project: { select: { name: true, plan: true, timeZone: true, deletionPending: true, instanceStatus: true } },
     },
   });
   if (!membership || membership.project.deletionPending) notFound();
@@ -43,7 +50,7 @@ export default async function BroadcastsPage({ params }: { params: Promise<{ pro
 
   const [broadcasts, usage, optedOut, optedOutTotal] = await Promise.all([
     listBroadcasts(prisma, projectId),
-    broadcastUsage(prisma, projectId, membership.project.plan),
+    broadcastUsage(prisma, { id: projectId, ...membership.project }),
     listOptedOut(prisma, { projectId, userId }),
     prisma.contact.count({ where: { projectId, broadcastOptOutAt: { not: null } } }),
   ]);
@@ -77,9 +84,18 @@ export default async function BroadcastsPage({ params }: { params: Promise<{ pro
     <section className="rounded-xl border bg-card p-4 sm:p-5">
       <h2 className="text-sm font-medium">{planUpgradeMessage("broadcast")}</h2>
       <ul className="mt-3 max-w-xl list-disc space-y-1.5 pl-5 text-sm text-muted-foreground">
-        <li>Pro : 500 contacts par diffusion et 2 000 messages de diffusion par mois.</li>
-        <li>Business : 2 000 contacts par diffusion et 10 000 messages de diffusion par mois.</li>
-        <li>Ciblage par étiquette, étape du pipeline et activité récente, envoi programmé.</li>
+        {/* Limites lues dans PLAN_FEATURES : elles ne peuvent pas diverger des contrôles serveur. */}
+        {plansWith("broadcast").map((plan) => (
+          <li key={plan}>
+            {pricingPlan(plan).name} : {PLAN_FEATURES[plan].broadcastRecipients.toLocaleString("fr-FR")}{" "}
+            contacts par diffusion et {PLAN_FEATURES[plan].broadcastMonthly.toLocaleString("fr-FR")} messages
+            de diffusion par mois.
+          </li>
+        ))}
+        <li>
+          Ciblage par étiquette et activité récente, envoi programmé. Ciblage par étape du pipeline avec
+          l’offre {pricingPlan(minimumPlanFor("pipeline")).name}.
+        </li>
         <li>Suivi des messages distribués, lus et des réponses.</li>
       </ul>
       {canManage ? (

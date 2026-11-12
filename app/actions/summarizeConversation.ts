@@ -9,6 +9,8 @@ import { can } from "@/lib/project-permissions";
 import { getSession } from "@/lib/auth-server";
 import prisma from "@/lib/prisma";
 import { getBillingAccess } from "@/lib/billing-access";
+import { aiMeter } from "@/lib/ai-usage";
+import { planAllows, planUpgradeMessage } from "@/lib/plan-features";
 import {
   generateConversationSummary,
   prepareSummaryHistory,
@@ -30,10 +32,13 @@ export async function summarizeConversation(input: unknown) {
     const { projectId, contactId } = parsed.data;
     const membership = await prisma.projectMembership.findUnique({
       where: { userId_projectId: { userId: session.user.id, projectId } },
-      select: { role: true },
+      select: { role: true, project: { select: { plan: true } } },
     });
     if (!can(membership?.role, "conversations.handle"))
       return { success: false as const, error: "Accès refusé." };
+    // Offre vérifiée avant tout appel payant, résumé en cache compris.
+    if (!planAllows(membership?.project.plan, "summary"))
+      return { success: false as const, error: planUpgradeMessage("summary") };
     const access = await getBillingAccess(prisma, projectId);
     if (!access.allowed)
       return { success: false as const, error: access.message };
@@ -92,15 +97,21 @@ export async function summarizeConversation(input: unknown) {
       contactId,
       summaryFingerprint(messages),
       partial || messages.length > 200,
-      () => generateConversationSummary(history),
+      () =>
+        generateConversationSummary(
+          history,
+          aiMeter(prisma, projectId, "summary"),
+        ),
     );
-    // Membership may have been revoked while the provider was responding.
+    // Membership or plan may have changed while the provider was responding.
     const stillMember = await prisma.projectMembership.findUnique({
       where: { userId_projectId: { userId: session.user.id, projectId } },
-      select: { role: true },
+      select: { role: true, project: { select: { plan: true } } },
     });
     if (!can(stillMember?.role, "conversations.handle"))
       return { success: false as const, error: "Accès refusé." };
+    if (!planAllows(stillMember?.project.plan, "summary"))
+      return { success: false as const, error: planUpgradeMessage("summary") };
     const currentAccess = await getBillingAccess(prisma, projectId);
     if (!currentAccess.allowed)
       return { success: false as const, error: currentAccess.message };

@@ -10,6 +10,16 @@ export function validTimeZone(value: unknown): string | null {
   }
 }
 
+/** « UTC+1 », « UTC+0 », « UTC−3:30 » : offset of a zone at a given instant. */
+export function utcOffsetLabel(timeZone: string, date = new Date()): string {
+  const name =
+    new Intl.DateTimeFormat("en-US", { timeZone, timeZoneName: "shortOffset" })
+      .formatToParts(date)
+      .find((part) => part.type === "timeZoneName")?.value ?? "GMT";
+  const offset = name.replace(/^GMT/, "");
+  return `UTC${offset ? offset.replace("-", "−") : "+0"}`;
+}
+
 // Calendar keys are local dates, not instants: never shift them a second time.
 const dayFormatters = new Map<string, Intl.DateTimeFormat>();
 export function localDayKey(date: Date, timeZone: string): string {

@@ -11,6 +11,8 @@ export type OutboundState =
 export type ChatClient = {
   id: string;
   name: string;
+  /** Photo de profil WhatsApp, servie par une route réservée aux membres. */
+  avatarUrl?: string | null;
   lastMessage: string;
   lastActivityAt: string;
   aiActive: boolean;

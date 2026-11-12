@@ -110,7 +110,7 @@ model QuotaPeriod {
   project    Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   // Identité stable de la période :
-  // bootstrap:<projectId>, trial:<id>, invoice:<stripeInvoiceId>...
+  // bootstrap:<projectId>, trial:<subscriptionId>, cycle:<subscriptionId>:<début>...
   key        String
   kind       ProjectStatus
 
@@ -183,8 +183,13 @@ model Project {
   allMessagesCount     Int            @default(0)
 
   pairingCodeRequestedAt  DateTime?
-  // --- 💳 FACTURATION STRIPE ---
+  // --- 💳 FACTURATION (POLAR) ---
   currency String @default("XAF")
+  // Fuseau IANA de l'activité (celui de ses clients) : plage d'envoi des diffusions.
+  // Détecté à la création depuis le navigateur, modifiable par les admins.
+  timeZone String @default("Africa/Libreville")
+  // Numéro WhatsApp prouvé par un code avant l'enregistrement : condition de l'essai.
+  numeroVerifiedAt DateTime?
   csatEnabled Boolean @default(false)
   // Badge « client en attente » dans la messagerie (réglable par les admins).
   showWaitingTime Boolean @default(true)
@@ -192,6 +197,15 @@ model Project {
   aiQuietEnabled Boolean @default(true)
   // Offre Business : nouvelles conversations réparties entre les membres en ligne (réglable).
   autoAssignTeam Boolean @default(true)
+  // Offre Business : relance des prospects restés silencieux (désactivée par défaut).
+  followUpEnabled Boolean @default(false)
+  // Jours sans échange avant une relance, par étape du pipeline ; 0 : jamais.
+  followUpInterestedDays Int @default(1)
+  followUpQuoteDays Int @default(2)
+  // Relances au plus tant que le client ne répond pas.
+  followUpMax Int @default(2)
+  // Message type ({prénom}) ; vide : l'IA rédige chaque relance.
+  followUpTemplate String @default("") @db.Text
   csatMessage String @default("Merci pour votre échange avec nous ! Comment évaluez-vous notre service ? Répondez par un chiffre de 1 (pas satisfait) à 5 (très satisfait).") @db.Text
   agentName String @default("Assistant")
   agentSystemMessage String @default("") @db.Text
@@ -220,9 +234,10 @@ model Project {
   billingRevision Int @default(0)
   stripeStatus String?
   billingNextCheckAt DateTime @default(now())
-  // Fournisseur des identifiants ci-dessous : les colonnes stripe* servent aussi à Polar,
-  // où un même client (une adresse e-mail) peut payer plusieurs projets.
-  billingProvider      String         @default("stripe")
+  // Les colonnes stripe* gardent leur nom historique et contiennent les identifiants
+  // Polar, où un même client (une adresse e-mail) peut payer plusieurs projets.
+  // billingProvider vaut toujours « polar » ; conservée pour les versions déjà déployées.
+  billingProvider      String         @default("polar")
   stripeCustomerId     String?
   stripeSubscriptionId String?        @unique
   stripePriceId        String?
@@ -230,6 +245,7 @@ model Project {
 
   // --- 👥 RELATIONS CRM ---
   members              ProjectMembership[]
+  phoneVerifications   PhoneVerification[]
   contacts             Contact[]      // Les prospects WhatsApp du projet
   tags                 Tag[]
   internalNotes        InternalNote[]
@@ -245,6 +261,7 @@ model Project {
   webhookEventsVersion Int            @default(1)
   knowledgeEntries     KnowledgeEntry[]
   agentTestRuns        AgentTestRun[]
+  aiUsage              AiUsage[]
   aiFeedback           AiFeedback[]
   knowledgeGaps        KnowledgeGap[]
   csatSurveys          CsatSurvey[]
@@ -283,6 +300,10 @@ model Contact {
   // --- Identifiants Evolution API ---
   remoteJid   String    // Identifiant exact WhatsApp (ex: 24107123456@s.whatsapp.net)
   pushName    String?   // Pseudo public WhatsApp du prospect
+  // Photo de profil WhatsApp, recopiée dans notre stockage : le lien de WhatsApp expire.
+  avatarKey       String?
+  // Dernière vérification de la photo : au plus une par semaine et par contact.
+  avatarCheckedAt DateTime?
   
   name        String?   // Nom assigné par l'agent ou l'IA dans l'interface
   aiActive    Boolean   @default(true) // Handover: False si un agent a pris le relais
@@ -339,6 +360,11 @@ lastMessageAt DateTime?
   instinctConfigVersion Int @default(-1)
   instinctLeaseToken String?
   instinctLeaseUntil DateTime?
+  // Relances automatiques : bail du worker qui prépare la relance (sert aussi de délai après un échec).
+  followUpLeaseToken String?
+  followUpLeaseUntil DateTime?
+  // Dernière activité pour laquelle l'IA a jugé une relance déplacée : pas de nouvel essai avant un nouvel échange.
+  followUpDeclinedAt DateTime?
 
   @@index([projectId, lastMessageAt, id])
   // SÉCURITÉ & PERF: Un contact (JID) est unique par projet. Indexé pour recherche rapide.
@@ -453,6 +479,7 @@ model User {
   globalRole    GlobalRole @default(USER)
 
   memberships   ProjectMembership[]
+  phoneVerifications PhoneVerification[]
   messagesSent  Message[] // Historique des messages envoyés manuellement par cet utilisateur
   resolvedContacts Contact[] @relation("ContactResolvedBy")
   assignedContacts Contact[] @relation("ContactAssignee")
@@ -1033,6 +1060,9 @@ model KnowledgeEntry {
   // Minuscules sans accents ; la colonne tsvector est générée par la base.
   searchText  String                   @db.Text
   search      Unsupported("tsvector")?
+  // Mots du titre et du contenu, calculés par la base (colonne générée) :
+  // jamais écrite par l'application.
+  words       Int                      @default(dbgenerated())
   createdById String?
   createdBy   User?                    @relation(fields: [createdById], references: [id], onDelete: SetNull)
   feedback    AiFeedback[]
@@ -1043,6 +1073,26 @@ model KnowledgeEntry {
   @@index([projectId, kind, createdAt])
   @@index([sourceId])
   @@map("knowledge_entry")
+}
+
+// Un appel au modèle (OpenRouter) : tokens et coût facturé, par projet et par usage.
+model AiUsage {
+  id               String   @id @default(cuid())
+  projectId        String?
+  project          Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  // reply, sandbox, summary, writing, system_message, image, audio, instinct
+  feature          String
+  model            String
+  promptTokens     Int      @default(0)
+  completionTokens Int      @default(0)
+  cachedTokens     Int      @default(0)
+  // Millionièmes de dollar ; null si le fournisseur ne l'a pas communiqué.
+  costMicros       Int?
+  createdAt        DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([projectId, createdAt])
+  @@map("ai_usage")
 }
 
 model AgentTestRun {
@@ -1288,4 +1338,37 @@ model BroadcastEvent {
 
   @@index([broadcastId, createdAt, id])
   @@map("broadcast_event")
+}
+
+// Sens de la preuve : code envoyé au client (il le recopie) ou message envoyé
+// par le client lui-même depuis son WhatsApp (vérification inversée).
+enum PhoneVerificationDirection {
+  OUTBOUND
+  INBOUND
+}
+
+// Code à usage unique qui prouve qu'un numéro appartient à l'utilisateur, avant
+// l'enregistrement du projet. Jamais conservé en clair.
+model PhoneVerification {
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // Empreinte du numéro : la preuve ne vaut que pour lui, et les envois vers
+  // un même numéro sont limités tous comptes confondus.
+  numberHash String
+  direction  PhoneVerificationDirection @default(OUTBOUND)
+  codeHash   String
+  attempts   Int       @default(0)
+  expiresAt  DateTime
+  verifiedAt DateTime?
+  // Une preuve n'enregistre qu'un seul projet.
+  consumedAt DateTime?
+  projectId  String?
+  project    Project?  @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  createdAt  DateTime  @default(now())
+
+  @@index([userId, createdAt])
+  @@index([numberHash, createdAt])
+  @@index([projectId])
+  @@map("phone_verification")
 }

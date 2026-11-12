@@ -44,11 +44,14 @@ export function AgentEditor({
   projectName,
   initial,
   version,
+  instinctAvailable,
 }: {
   projectId: string;
   projectName: string;
   initial: AgentConfig;
   version: number;
+  /** L’offre inclut Instinct IA (lu côté serveur dans `PLAN_FEATURES`). */
+  instinctAvailable: boolean;
 }) {
   const form = useForm<AgentConfig>({
     resolver: zodResolver(AgentConfigSchema),
@@ -147,7 +150,7 @@ export function AgentEditor({
           <AgentToneField {...fields} />
           <AgentLengthField {...fields} />
           <AgentLanguageField {...fields} />
-          <AgentBehaviorFields {...fields} />
+          <AgentBehaviorFields {...fields} instinctAvailable={instinctAvailable} />
         </div>
       </section>
 

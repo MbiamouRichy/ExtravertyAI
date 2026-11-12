@@ -16,9 +16,16 @@ import {
 import { chatContactName } from "./chat-privacy";
 import { maskContactPhone } from "./contact-details";
 import { MessageQuotaError, reserveMessageQuota } from "./message-quota";
-import { planAllows, planFeatures, planUpgradeMessage } from "./plan-features";
+import {
+  planAllows,
+  planFeatures,
+  planUpgradeMessage,
+  requiredPlanLabel,
+} from "./plan-features";
 import { projectBillingStatus } from "./project-status";
 import { can } from "./project-permissions";
+import { projectTimeZone } from "./time-zones";
+import { utcOffsetLabel } from "./user-time-zone";
 
 // Safe to show as is to the user.
 export class BroadcastError extends Error {}
@@ -59,6 +66,15 @@ async function requireBroadcastAdmin(db: Db, projectId: string, userId: string, 
   return membership.project;
 }
 
+/** Cibler par étape suppose le pipeline : même offre que lui (Business). */
+export function requireAudienceForPlan(plan: unknown, audience: Audience) {
+  if (audience.stages.length && !planAllows(plan, "pipeline")) {
+    throw new BroadcastError(
+      `Le ciblage par étape du pipeline est disponible avec l’offre ${requiredPlanLabel("pipeline")}.`,
+    );
+  }
+}
+
 /**
  * Only people who already wrote to the business: implicit consent, and the
  * safest audience for a WhatsApp number. Unsubscribed contacts never qualify.
@@ -89,13 +105,20 @@ async function currentPeriod(db: Db, projectId: string, now: Date) {
 }
 
 /** Broadcast messages sent this billing period and today, against the plan limits. */
-export async function broadcastUsage(db: Db, projectId: string, plan: unknown, now = new Date()) {
-  const features = planFeatures(plan);
+export async function broadcastUsage(
+  db: Db,
+  project: { id: string; plan: unknown; timeZone: string },
+  now = new Date(),
+) {
+  const projectId = project.id;
+  const features = planFeatures(project.plan);
   const period = await currentPeriod(db, projectId, now);
   const periodStart = period?.startsAt ?? new Date(now.getTime() - 30 * 86_400_000);
   const [monthly, daily, reserved] = await Promise.all([
     db.message.count({ where: { projectId, source: "broadcast", createdAt: { gte: periodStart } } }),
-    db.message.count({ where: { projectId, source: "broadcast", createdAt: { gte: localDayStart(now) } } }),
+    db.message.count({
+      where: { projectId, source: "broadcast", createdAt: { gte: localDayStart(now, project.timeZone) } },
+    }),
     // Recipients still waiting in an active broadcast are already promised.
     db.broadcastRecipient.count({
       where: { state: "PENDING", broadcast: { projectId, status: { in: [...ACTIVE_STATUSES] } } },
@@ -106,6 +129,8 @@ export async function broadcastUsage(db: Db, projectId: string, plan: unknown, n
     daily: { used: daily, limit: features.broadcastDaily },
     recipientsLimit: features.broadcastRecipients,
     quota: period ? { used: period.used, limit: period.limit } : null,
+    /** Offset of the project's zone (« UTC+1 »): the sending hours are local to it. */
+    sendingZone: utcOffsetLabel(projectTimeZone(project.timeZone), now),
   };
 }
 
@@ -116,6 +141,7 @@ export async function estimateAudience(
 ) {
   const project = await requireBroadcastAdmin(db, input.projectId, input.userId);
   const audience = AudienceSchema.parse(input.audience);
+  requireAudienceForPlan(project.plan, audience);
   const now = new Date();
   const [count, optedOut] = await Promise.all([
     db.contact.count({ where: audienceWhere(input.projectId, audience, now) }),
@@ -150,6 +176,7 @@ export async function createBroadcast(db: PrismaClient, input: BroadcastInput) {
       if (!locked) throw new BroadcastError("Projet indisponible.");
       const { now } = locked;
       const project = await requireBroadcastAdmin(tx, input.projectId, input.userId);
+      requireAudienceForPlan(project.plan, audience);
 
       const existing = await tx.broadcast.findUnique({ where: { requestId: input.requestId } });
       if (existing) {
@@ -185,7 +212,7 @@ export async function createBroadcast(db: PrismaClient, input: BroadcastInput) {
       if (!contacts.length) {
         throw new BroadcastError("Aucun contact ne correspond à ces critères.");
       }
-      const usage = await broadcastUsage(tx, input.projectId, project.plan, now);
+      const usage = await broadcastUsage(tx, project, now);
       if (contacts.length > usage.recipientsLimit) {
         throw new BroadcastError(
           `${contacts.length.toLocaleString("fr-FR")} contacts correspondent : votre offre permet ${usage.recipientsLimit.toLocaleString("fr-FR")} contacts par diffusion. Affinez le ciblage.`,
@@ -356,7 +383,8 @@ export async function runBroadcastTick(
     if (project.instanceStatus !== "connected" || !project.instanceName) {
       return wait(new Date(now.getTime() + 60_000), "DISCONNECTED");
     }
-    const opening = nextSendingWindow(now);
+    // Business hours of the project's customers, not of the server.
+    const opening = nextSendingWindow(now, project.timeZone);
     if (opening > now) return wait(opening, "OUTSIDE_WINDOW");
 
     const features = planFeatures(project.plan);
@@ -369,10 +397,16 @@ export async function runBroadcastTick(
           createdAt: { gte: period?.startsAt ?? new Date(now.getTime() - 30 * 86_400_000) },
         },
       }),
-      tx.message.count({ where: { projectId: project.id, source: "broadcast", createdAt: { gte: localDayStart(now) } } }),
+      tx.message.count({
+        where: {
+          projectId: project.id,
+          source: "broadcast",
+          createdAt: { gte: localDayStart(now, project.timeZone) },
+        },
+      }),
     ]);
     if (monthly >= features.broadcastMonthly) return pause("MONTHLY_LIMIT");
-    if (daily >= features.broadcastDaily) return wait(tomorrowWindow(now), "DAILY_LIMIT");
+    if (daily >= features.broadcastDaily) return wait(tomorrowWindow(now, project.timeZone), "DAILY_LIMIT");
 
     const [next] = await tx.$queryRaw<Array<{ id: string; contactId: string }>>`
       SELECT id, "contactId" FROM broadcast_recipient

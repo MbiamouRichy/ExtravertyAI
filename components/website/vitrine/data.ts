@@ -16,7 +16,8 @@ import {
   type PlanId,
   type PricingPlan,
 } from "@/lib/pricing";
-import { PLAN_FEATURES } from "@/lib/plan-features";
+import { PLAN_FEATURES, type GatedFeature } from "@/lib/plan-features";
+import { wordsToPages } from "@/lib/knowledge-shared";
 
 /* -------------------------------------------------------------------------- */
 /* Navigation                                                                  */
@@ -78,7 +79,7 @@ export const SCENARIOS: readonly Scenario[] = [
     id: "commande",
     label: "Commande",
     shortLabel: "Achat",
-    contact: { name: "Kevin M.", initials: "KM", business: "Urban Shoes · Yaoundé" },
+    contact: { name: "Kevin M.", initials: "KM", business: "Urban Shoes · Sneakers" },
     outcome: { label: "Prospect qualifié", detail: "Étiqueté « Intéressant » par Instinct IA" },
     beats: [
       {
@@ -101,7 +102,7 @@ export const SCENARIOS: readonly Scenario[] = [
         message: {
           id: "a1",
           speaker: "ai",
-          text: "Bonsoir Kevin 👋 Oui, il nous reste 3 paires en 42. Je vous en mets une de côté ? Livraison possible à Yaoundé dès demain.",
+          text: "Bonsoir Kevin 👋 Oui, il nous reste 3 paires en 42. Je vous en mets une de côté ? Livraison possible dès demain.",
           time: "21:47",
         },
       },
@@ -129,7 +130,7 @@ export const SCENARIOS: readonly Scenario[] = [
     id: "rendez-vous",
     label: "Rendez-vous",
     shortLabel: "RDV",
-    contact: { name: "Aminata D.", initials: "AD", business: "Salon Nappy Queen · Dakar" },
+    contact: { name: "Aminata D.", initials: "AD", business: "Salon Nappy Queen · Coiffure" },
     outcome: { label: "À relancer", detail: "Étiqueté « À suivre » en attente de confirmation" },
     beats: [
       {
@@ -190,7 +191,7 @@ export const SCENARIOS: readonly Scenario[] = [
     id: "reclamation",
     label: "Réclamation",
     shortLabel: "SAV",
-    contact: { name: "Grace T.", initials: "GT", business: "Maison Akwa · Douala" },
+    contact: { name: "Grace T.", initials: "GT", business: "Maison Luma · Prêt-à-porter" },
     agentName: "Clara",
     outcome: { label: "Transfert humain", detail: "Clara a repris la main avec le résumé IA" },
     beats: [
@@ -222,7 +223,7 @@ export const SCENARIOS: readonly Scenario[] = [
       {
         kind: "message",
         delay: 1100,
-        message: { id: "s1", speaker: "system", text: "Clara a repris la conversation · IA en pause", time: "14:05" },
+        message: { id: "s1", speaker: "system", text: "Clara a repris la main · IA en pause", time: "14:05" },
       },
       { kind: "typing", delay: 500, who: "agent" },
       {
@@ -283,6 +284,13 @@ export interface PipelineNode {
 
 export const PIPELINE_STAGES = ["Entrée", "Analyse", "Décision", "Issue"] as const;
 
+/** « Pro, Business »… lu dans PLAN_FEATURES, comme les lignes oui/non de la matrice. */
+function offersWith(feature: GatedFeature): string {
+  return PRICING_PLANS.filter((plan) => PLAN_FEATURES[plan.id][feature])
+    .map((plan) => plan.name)
+    .join(", ");
+}
+
 export const PIPELINE_NODES: readonly PipelineNode[] = [
   {
     id: "texte",
@@ -309,7 +317,7 @@ export const PIPELINE_NODES: readonly PipelineNode[] = [
     config: [
       { key: "format", value: "audio WhatsApp" },
       { key: "transcription", value: "automatique" },
-      { key: "offres", value: "Pro, Business" },
+      { key: "offres", value: offersWith("audio") },
     ],
   },
   {
@@ -323,7 +331,7 @@ export const PIPELINE_NODES: readonly PipelineNode[] = [
     config: [
       { key: "format", value: "image" },
       { key: "analyse", value: "contenu de l’image" },
-      { key: "offres", value: "Business" },
+      { key: "offres", value: offersWith("images") },
     ],
   },
   {
@@ -380,7 +388,7 @@ export const PIPELINE_NODES: readonly PipelineNode[] = [
     config: [
       { key: "étiquettes", value: "Intéressant · À suivre" },
       { key: "déclenchement", value: "après chaque message" },
-      { key: "offres", value: "Pro, Business" },
+      { key: "offres", value: offersWith("instinct") },
     ],
   },
   {
@@ -534,13 +542,21 @@ export interface MatrixGroup {
 }
 
 const all = { starter: true, pro: true, business: true } as const;
-const fromPro = { starter: false, pro: true, business: true } as const;
+/** « 30 jours », « 12 mois » : profondeur d’historique lue dans PLAN_FEATURES. */
+function historyLabel(days: number) {
+  return days % 365 === 0 ? `${(days / 365) * 12} mois` : `${days} jours`;
+}
 const count = (value: number) => new Intl.NumberFormat("fr-FR").format(value);
 
 /** Reads a value from every plan so capacity rows stay in sync with lib/pricing. */
 function byPlan(pick: (plan: PricingPlan) => MatrixCell): Record<PlanId, MatrixCell> {
   const [starter, pro, business] = PRICING_PLANS;
   return { starter: pick(starter), pro: pick(pro), business: pick(business) };
+}
+
+/** Oui/non lu dans PLAN_FEATURES : la matrice suit les contrôles faits côté serveur. */
+function gated(feature: GatedFeature): Record<PlanId, MatrixCell> {
+  return byPlan((plan) => PLAN_FEATURES[plan.id][feature]);
 }
 
 /** Inclus dans toutes les offres : affiché une fois, au-dessus du comparatif. */
@@ -570,11 +586,13 @@ export const MATRIX_GROUPS: readonly MatrixGroup[] = [
   {
     title: "Intelligence artificielle",
     rows: [
-      { label: "Compréhension des notes vocales", values: fromPro },
-      { label: "Compréhension des images", values: { starter: false, pro: false, business: true } },
+      { label: "Compréhension des notes vocales", values: gated("audio") },
+      { label: "Compréhension des images", values: gated("images") },
       {
         label: "Base de connaissances",
-        values: byPlan((plan) => `${count(PLAN_FEATURES[plan.id].knowledgeEntries)} entrées`),
+        values: byPlan(
+          (plan) => `≈ ${count(wordsToPages(PLAN_FEATURES[plan.id].knowledgeWords))} pages`,
+        ),
       },
       {
         label: "Documents PDF et pages web",
@@ -585,24 +603,36 @@ export const MATRIX_GROUPS: readonly MatrixGroup[] = [
   {
     title: "Ventes",
     rows: [
-      { label: "Instinct IA : prospects repérés", values: fromPro },
-      { label: "Pipeline de prospects", values: fromPro },
-      { label: "Résumé IA des conversations", values: fromPro },
-      { label: "Questionnaire de satisfaction", values: fromPro },
+      { label: "Instinct IA : prospects repérés", values: gated("instinct") },
+      { label: "Résumé IA des conversations", values: gated("summary") },
+      { label: "Questionnaire de satisfaction", values: gated("csat") },
+      { label: "Pipeline de prospects", values: gated("pipeline") },
+      { label: "Relances automatiques des prospects", values: gated("followUps") },
+      {
+        label: "Diffusion de messages",
+        values: byPlan((plan) =>
+          PLAN_FEATURES[plan.id].broadcast
+            ? `${count(PLAN_FEATURES[plan.id].broadcastRecipients)} contacts / envoi`
+            : false,
+        ),
+      },
     ],
   },
   {
     title: "Équipe et outils",
     rows: [
-      { label: "Répartition automatique des conversations", values: { starter: false, pro: false, business: true } },
-      { label: "Connexion à vos outils (Make, Zapier, CRM)", values: fromPro },
+      { label: "Répartition automatique des conversations", values: gated("autoAssign") },
+      { label: "Connexion à vos outils (Make, Zapier, CRM)", values: gated("webhooks") },
     ],
   },
   {
     title: "Pilotage et support",
     rows: [
-      { label: "Rapports hebdomadaires programmés", values: { starter: false, pro: false, business: true } },
-      { label: "Historique des statistiques", values: { starter: "30 jours", pro: "90 jours", business: "12 mois" } },
+      { label: "Rapports hebdomadaires programmés", values: gated("reports") },
+      {
+        label: "Historique des statistiques",
+        values: byPlan((plan) => historyLabel(PLAN_FEATURES[plan.id].analyticsDays)),
+      },
       {
         label: "Accompagnement",
         values: { starter: "Standard", pro: "Prioritaire", business: "Prioritaire" },
@@ -653,7 +683,12 @@ export const MATRIX_HINTS: Readonly<Record<string, string>> = {
   "Taille maximale d’un PDF": "Poids maximal d’un PDF importé dans la base de connaissances.",
   "Tests de l’agent par jour": "Conversations d’essai pour vérifier les réponses de l’IA avant vos clients.",
   "Instinct IA : prospects repérés": "Après chaque message, l’IA repère les prospects intéressants et ceux à relancer.",
-  "Pipeline de prospects": "Suivez chaque prospect de « Intéressé » à « Gagné », avec la valeur de l’affaire.",
+  "Pipeline de prospects":
+    "Suivez chaque prospect de « Nouveau » à « Gagné », avec la valeur de l’affaire et le chiffre gagné. Les diffusions peuvent cibler une étape.",
+  "Relances automatiques des prospects":
+    "Un prospect « Intéressé » ou « Devis envoyé » resté silencieux est relancé au bon moment, par l’IA ou avec votre message, jamais après sa réponse ni après un STOP.",
+  "Diffusion de messages":
+    "Un même message, personnalisé avec le prénom, envoyé aux clients qui vous ont déjà écrit, à un rythme sûr pour votre numéro.",
   "Résumé IA des conversations": "L’essentiel d’une longue conversation en quelques lignes.",
   "Questionnaire de satisfaction": "Une note demandée au client après la résolution de sa demande.",
   "Export CSV des contacts": "Téléchargez la liste de vos contacts pour votre tableur ou votre CRM.",

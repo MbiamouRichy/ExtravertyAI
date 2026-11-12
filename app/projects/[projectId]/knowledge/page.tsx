@@ -8,6 +8,7 @@ import { knowledgeOverview } from "@/lib/knowledge";
 import { AGENT_DEFAULTS, type AgentConfig } from "@/lib/agent-config";
 import { sandboxUsage } from "@/lib/agent-sandbox";
 import { improvementOverview } from "@/lib/ai-feedback";
+import { planAllows } from "@/lib/plan-features";
 import { KnowledgeWorkspace } from "@/components/dashboard/project/knowledge/knowledge-workspace";
 
 export const dynamic = "force-dynamic";
@@ -87,6 +88,7 @@ export default async function KnowledgePage({
           config: agentConfig,
           version: project.agentConfigVersion,
           aiQuietEnabled: project.aiQuietEnabled,
+          instinctAvailable: planAllows(project.plan, "instinct"),
         }}
         currency={overview.currency}
         usage={overview.usage}

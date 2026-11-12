@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFile, readdir } from "node:fs/promises";
-import { PGlite } from "@electric-sql/pglite";
+import { createTestPGlite } from "./helpers/pglite";
 import { PGLiteSocketServer } from "@electric-sql/pglite-socket";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../src/generated/prisma/client";
@@ -21,6 +21,8 @@ test("l'empreinte ne dépend que des chiffres du numéro et ne le contient pas",
   const hash = hashTrialNumber("+241 66 00 00 01");
   assert.equal(hash, hashTrialNumber("24166000001"));
   assert.notEqual(hash, hashTrialNumber("+24166000002"));
+  // Ancienne numérotation gabonaise : même numéro, même essai.
+  assert.equal(hash, hashTrialNumber("+241 06 00 00 01"));
   assert.ok(!hash.includes("24166000001"));
   assert.throws(() => hashTrialNumber("12"), /TRIAL_NUMBER_INVALID/);
 });
@@ -31,6 +33,8 @@ test("pendant l'essai, seul le numéro déclaré peut être relié à WhatsApp",
   assert.equal(ownerNumberOf("123456@lid"), null);
   assert.equal(isForeignTrialNumber(project, "24166000001@s.whatsapp.net"), false);
   assert.equal(isForeignTrialNumber(project, "24166000009@s.whatsapp.net"), true);
+  // Compte WhatsApp resté à l'ancienne écriture du même numéro : le sien.
+  assert.equal(isForeignTrialNumber(project, "24106000001:4@s.whatsapp.net"), false);
   // Numéro inconnu : rien n'est bloqué ; abonnement payé : libre.
   assert.equal(isForeignTrialNumber(project, null), false);
   assert.equal(
@@ -41,7 +45,7 @@ test("pendant l'essai, seul le numéro déclaré peut être relié à WhatsApp",
 
 // Base PostgreSQL WASM isolée : aucun appel à un fournisseur.
 test("un seul essai par numéro, réservé pendant le paiement puis consommé", { timeout: 120000 }, async () => {
-  const db = await PGlite.create();
+  const db = await createTestPGlite();
   const server = new PGLiteSocketServer({ db, host: "127.0.0.1", port: 0 });
   let prisma: PrismaClient | undefined;
   try {
@@ -89,7 +93,6 @@ test("un seul essai par numéro, réservé pendant le paiement puis consommé", 
     await applySubscriptionState(
       client,
       {
-        provider: "polar",
         id: "sub_trial",
         customerId: "cus_1",
         providerStatus: "trialing",
@@ -101,7 +104,6 @@ test("un seul essai par numéro, réservé pendant le paiement puis consommé", 
         endsAt: now + 10 * 86400,
         cycle: { start: now, end: now + 10 * 86400 },
         paidCycle: false,
-        renewalPending: false,
       },
       1,
     );

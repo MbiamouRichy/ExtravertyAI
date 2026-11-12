@@ -11,6 +11,7 @@ import z from "zod";
 import { isRecentSession } from "@/lib/recent-session";
 import { allowRequest } from "@/lib/rate-limit";
 import { hashInvitationToken } from "@/lib/project-invitations";
+import { teamFullMessage, teamSeats } from "@/lib/plan-features";
 import {
   assignableRoles,
   can,
@@ -273,26 +274,39 @@ export async function inviteTeamMember(
 
     }
 
-    // Compte existant ou non, personne n'entre sans accepter depuis l'e-mail reçu.
-    // Une nouvelle invitation remplace la précédente, dont le lien cesse de marcher.
-    await prisma.invitation.deleteMany({
-      where: { email, projectId },
-    });
-
     const inviteToken = crypto.randomBytes(32).toString("hex");
     const tokenHash = hashInvitationToken(inviteToken);
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // Expire dans 7 jours
 
-    await prisma.invitation.create({
-      data: {
-        email,
-        projectId,
-        role: targetRole,
-        token: tokenHash,
-        expiresAt,
-        inviterId: session.user.id,
-      },
+    // Places de l'offre lues sous verrou : l'acceptation refait ce contrôle,
+    // seule garantie qu'aucune équipe ne dépasse son offre.
+    const full = await prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM project WHERE id = ${projectId} FOR UPDATE`;
+      const [project, members] = await Promise.all([
+        tx.project.findUniqueOrThrow({
+          where: { id: projectId },
+          select: { plan: true },
+        }),
+        tx.projectMembership.count({ where: { projectId } }),
+      ]);
+      if (members >= teamSeats(project.plan)) return teamFullMessage(project.plan);
+
+      // Compte existant ou non, personne n'entre sans accepter depuis l'e-mail reçu.
+      // Une nouvelle invitation remplace la précédente, dont le lien cesse de marcher.
+      await tx.invitation.deleteMany({ where: { email, projectId } });
+      await tx.invitation.create({
+        data: {
+          email,
+          projectId,
+          role: targetRole,
+          token: tokenHash,
+          expiresAt,
+          inviterId: session.user.id,
+        },
+      });
+      return null;
     });
+    if (full) return { success: false, error: full };
 
     // Sans e-mail, l'invité n'a pas le lien : l'invitation est retirée.
     const sent = await sendTeamEmail(() => ({

@@ -104,6 +104,23 @@ test("email escapes untrusted values, rejects unsafe links and has a text versio
   );
 });
 
+/**
+ * Fige l'horloge lue par le service : `clock_timestamp()`, non qualifiée,
+ * renvoie `at` plus le temps écoulé. Les défauts `CURRENT_TIMESTAMP` gardent
+ * l'heure réelle et doivent rester avant `at`, d'où un instant dans le futur.
+ */
+async function setDatabaseClock(pg: PGlite, at: Date, timeZone: string) {
+  await pg.exec(`
+    SET TimeZone = '${timeZone}';
+    CREATE SCHEMA test_clock;
+    CREATE FUNCTION test_clock.clock_timestamp() RETURNS timestamptz
+      LANGUAGE sql VOLATILE AS $$
+        SELECT TIMESTAMPTZ '${at.toISOString()}'
+          + (pg_catalog.clock_timestamp() - TIMESTAMPTZ '${new Date().toISOString()}')
+      $$;
+    SET search_path = test_clock, public, pg_catalog;`);
+}
+
 test(
   "durable weekly reports: tenant isolation, deduplication, revocation, retries and empty weeks",
   { timeout: 120000 },
@@ -122,6 +139,13 @@ test(
         await pg.exec(
           await readFile(`prisma/migrations/${folder}/migration.sql`, "utf8"),
         );
+      // Dimanche 23 h 07 UTC, déjà lundi dans une session à Libreville : le
+      // service doit rester sur la semaine UTC qui vient de finir, quelle que
+      // soit l'heure à laquelle le test tourne.
+      const now = new Date(
+        reportWindow(new Date(), 0).end.getTime() + 2 * WEEK_MS - 53 * 60000,
+      );
+      await setDatabaseClock(pg, now, "Africa/Libreville");
       await server.start();
       db = new PrismaClient({
         adapter: new PrismaPg({
@@ -130,7 +154,6 @@ test(
         }),
         transactionOptions: { maxWait: 15000, timeout: 30000 },
       });
-      const now = new Date();
       const window = reportWindow(now, 0);
       for (const id of ["owner", "admin", "user", "unverified"])
         await db.user.create({

@@ -1,6 +1,14 @@
 "use client";
 import { Button } from "@/components/ui/button";
-export default function ErrorPage({ reset }: { reset: () => void }) {
+import { useReportError } from "@/hooks/use-report-error";
+export default function ErrorPage({
+  error,
+  reset,
+}: {
+  error: Error & { digest?: string };
+  reset: () => void;
+}) {
+  useReportError(error);
   return (
     <div role="alert" className="space-y-4 p-6">
       <h2 className="text-xl font-semibold">

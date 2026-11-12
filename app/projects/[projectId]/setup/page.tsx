@@ -9,6 +9,7 @@ import { can, homePath } from "@/lib/project-permissions";
 import { AGENT_DEFAULTS, type AgentConfig } from "@/lib/agent-config";
 import { knowledgeOverview } from "@/lib/knowledge";
 import { sandboxUsage } from "@/lib/agent-sandbox";
+import { planAllows } from "@/lib/plan-features";
 import { ProjectIcon } from "@/components/dashboard/project/project-icon";
 import { projectLogoUrl } from "@/lib/project-logo";
 import { AgentSetup } from "@/components/dashboard/project/setup/agent-setup";
@@ -138,6 +139,7 @@ export default async function AgentSetupPage({
         projectName={p.name}
         initial={initial}
         version={p.agentConfigVersion}
+        instinctAvailable={planAllows(p.plan, "instinct")}
         sandbox={{
           remaining: usage.remaining,
           suggestions: testSuggestions(knowledge),

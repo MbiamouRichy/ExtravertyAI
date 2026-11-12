@@ -11,6 +11,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import type { ChatNotes } from "@/lib/chat";
+import { ExpandableText } from "./expandable-text";
 import { ScrollFadeArea } from "./scroll-fade-area";
 
 const countLabel = (total: number) =>
@@ -52,6 +53,7 @@ export function InternalNotesStrip({
       </PopoverTrigger>
       <PopoverContent
         align="start"
+        collisionPadding={16}
         aria-label="Notes internes de l’équipe"
         className="w-[min(24rem,calc(100vw-2rem))] p-0"
       >
@@ -84,9 +86,12 @@ export function InternalNotesStrip({
                       {formatDate(note.timestamp)}
                     </time>
                   </p>
-                  <p dir="auto" className="mt-0.5 text-sm whitespace-pre-wrap wrap-anywhere">
-                    {note.content}
-                  </p>
+                  <ExpandableText
+                    content={note.content}
+                    scrollTarget="li"
+                    className="mt-0.5 text-sm"
+                    toggleClassName="mt-1"
+                  />
                 </div>
               </li>
             ))}

@@ -19,8 +19,9 @@ export interface ThreadMessage {
 }
 
 export const THREAD_MODES = [
-  { id: "without", label: "Sans assistant" },
-  { id: "with", label: "Avec ExtravertyAI" },
+  // shortLabel: below 360px both full labels do not fit side by side.
+  { id: "without", label: "Sans assistant", shortLabel: "Sans IA" },
+  { id: "with", label: "Avec ExtravertyAI", shortLabel: "Avec IA" },
 ] as const;
 
 export type ThreadMode = (typeof THREAD_MODES)[number]["id"];

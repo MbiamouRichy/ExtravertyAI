@@ -1,12 +1,11 @@
 import { z } from "zod";
 
 // Public contact details and form rules of the /contact page.
+// The WhatsApp number only builds the chat link: it is never displayed.
 export const WHATSAPP_NUMBER = "24176205629";
-export const PHONE_DISPLAY = "+241 76 20 56 29";
-export const PHONE_HREF = "tel:+24176205629";
-export const EMAIL = "extravertyai@gmail.com";
+export const EMAIL = "support@extravertyai.com";
 export const WHATSAPP_CHAT_URL = `https://wa.me/${WHATSAPP_NUMBER}`;
-/** Gabon has a single time zone (WAT, UTC+1), the one of the published number. */
+/** Gabon has a single time zone (WAT, UTC+1), the team's. */
 export const TEAM_TIME_ZONE = "Africa/Libreville";
 
 export const NEEDS = [

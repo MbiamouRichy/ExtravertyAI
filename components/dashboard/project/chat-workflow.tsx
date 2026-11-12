@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -491,6 +491,40 @@ export function InternalNoteComposer({
     defaultValues: { content: "" },
     values: { content: draft },
   });
+  // Bords flous du champ, comme dans la saisie du message : en haut et/ou en
+  // bas seulement s'il reste du texte à faire défiler de ce côté.
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const [scrollEdges, setScrollEdges] = useState({ top: false, bottom: false });
+  useEffect(() => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+    const updateEdges = () => {
+      // La marge intérieure n'est pas du texte : en écrivant, le navigateur
+      // s'arrête au curseur et laisse une partie de la marge du bas à défiler.
+      const style = getComputedStyle(textarea);
+      const top = textarea.scrollTop - parseFloat(style.paddingTop) > 4;
+      const bottom =
+        textarea.scrollHeight -
+          textarea.clientHeight -
+          textarea.scrollTop -
+          parseFloat(style.paddingBottom) >
+        4;
+      setScrollEdges((previous) =>
+        previous.top === top && previous.bottom === bottom
+          ? previous
+          : { top, bottom },
+      );
+    };
+    const frame = requestAnimationFrame(updateEdges);
+    const observer = new ResizeObserver(updateEdges);
+    observer.observe(textarea);
+    textarea.addEventListener("scroll", updateEdges, { passive: true });
+    return () => {
+      cancelAnimationFrame(frame);
+      observer.disconnect();
+      textarea.removeEventListener("scroll", updateEdges);
+    };
+  }, [draft]);
 
   return (
     <form
@@ -526,33 +560,53 @@ export function InternalNoteComposer({
                   {header}
                 </InputGroupAddon>
               )}
-              <InputGroupTextarea
-                {...field}
-                id="chat-internal-note"
-                rows={1}
-                autoFocus
-                maxLength={MAX_NOTE_LENGTH}
-                autoComplete="off"
-                disabled={saving}
-                aria-invalid={fieldState.invalid}
-                aria-describedby="chat-internal-note-help"
-                placeholder="Visible uniquement par votre équipe…"
-                className="max-h-40 min-h-11 px-3"
-                onChange={(event) => {
-                  field.onChange(event);
-                  onDraftChange(event.target.value);
-                }}
-                onKeyDown={(event) => {
-                  if (
-                    event.key === "Enter" &&
-                    (event.ctrlKey || event.metaKey) &&
-                    !event.nativeEvent.isComposing
-                  ) {
-                    event.preventDefault();
-                    event.currentTarget.form?.requestSubmit();
-                  }
-                }}
-              />
+              <div className="relative w-full min-w-0">
+                <InputGroupTextarea
+                  {...field}
+                  ref={(element) => {
+                    field.ref(element);
+                    textareaRef.current = element;
+                  }}
+                  id="chat-internal-note"
+                  rows={1}
+                  autoFocus
+                  maxLength={MAX_NOTE_LENGTH}
+                  autoComplete="off"
+                  disabled={saving}
+                  aria-invalid={fieldState.invalid}
+                  aria-describedby="chat-internal-note-help"
+                  placeholder="Visible uniquement par votre équipe…"
+                  className="max-h-40 min-h-11 px-3"
+                  onChange={(event) => {
+                    field.onChange(event);
+                    onDraftChange(event.target.value);
+                  }}
+                  onKeyDown={(event) => {
+                    if (
+                      event.key === "Enter" &&
+                      (event.ctrlKey || event.metaKey) &&
+                      !event.nativeEvent.isComposing
+                    ) {
+                      event.preventDefault();
+                      event.currentTarget.form?.requestSubmit();
+                    }
+                  }}
+                />
+                <div
+                  aria-hidden="true"
+                  className={cn(
+                    "pointer-events-none absolute inset-x-2 top-0 h-3 mask-b-from-0% mask-b-to-100% backdrop-blur-xs transition-opacity duration-150 motion-reduce:transition-none",
+                    scrollEdges.top ? "opacity-100" : "opacity-0",
+                  )}
+                />
+                <div
+                  aria-hidden="true"
+                  className={cn(
+                    "pointer-events-none absolute inset-x-2 bottom-0 h-3 mask-t-from-0% mask-t-to-100% backdrop-blur-xs transition-opacity duration-150 motion-reduce:transition-none",
+                    scrollEdges.bottom ? "opacity-100" : "opacity-0",
+                  )}
+                />
+              </div>
               <InputGroupAddon align="block-end" className="gap-2">
                 <span
                   id="chat-internal-note-help"

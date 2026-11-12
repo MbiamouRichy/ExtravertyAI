@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { readFile } from "node:fs/promises";
-import { PGlite } from "@electric-sql/pglite";
+import { createTestPGlite } from "./helpers/pglite";
 import type { Prisma } from "../src/generated/prisma/client";
 import { reserveSystemAssistance } from "../lib/system-assistance-limits";
 
@@ -9,7 +9,7 @@ test(
   "SQL spending ledger serializes concurrent reservations and survives project deletion",
   { timeout: 120000 },
   async () => {
-    const db = await PGlite.create();
+    const db = await createTestPGlite();
     try {
       await db.exec(
         await readFile(

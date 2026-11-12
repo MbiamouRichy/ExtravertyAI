@@ -1,22 +1,21 @@
-import { NotFoundPage } from '@/components/not-found'
-import { Button } from '@/components/ui/button'
-import { BriefcaseBusinessIcon } from 'lucide-react'
-import Link from 'next/link'
+import Link from "next/link";
+import { BriefcaseBusiness } from "lucide-react";
 
+import { NotFoundPage } from "@/components/not-found";
+import { Button } from "@/components/ui/button";
 
 export default function NotFoundDashboard() {
-
-    return (
-        <NotFoundPage
-            personalButton={
-                <Button asChild>
-                    <Link title="Vos Projects" href="/projects">
-                        <BriefcaseBusinessIcon data-icon="inline-start" />
-                        Dashboard
-                    </Link>
-                </Button>
-            }
-        />
-    )
+  return (
+    <NotFoundPage
+      fallbackHref="/projects"
+      action={
+        <Button asChild size="lg">
+          <Link href="/projects">
+            <BriefcaseBusiness aria-hidden="true" data-icon="inline-start" />
+            Mes projets
+          </Link>
+        </Button>
+      }
+    />
+  );
 }
-

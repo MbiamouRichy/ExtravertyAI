@@ -14,7 +14,7 @@ import { csvCell } from "../lib/export-csv";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFile, readdir } from "node:fs/promises";
-import { PGlite } from "@electric-sql/pglite";
+import { createTestPGlite } from "./helpers/pglite";
 import { PGLiteSocketServer } from "@electric-sql/pglite-socket";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../src/generated/prisma/client";
@@ -28,15 +28,16 @@ import {
 import { claimAiJob, runAiJob } from "../lib/ai-jobs";
 import { runInstinctCycle } from "../lib/ai-instinct";
 import { reserveMessageQuota } from "../lib/message-quota";
-import { syncSubscription, subscriptionStatus } from "../lib/billing-quota";
-import type Stripe from "stripe";
+import { subscriptionStatus } from "../lib/billing-quota";
+import { syncPolarSubscription } from "../lib/billing-polar";
+import type { PolarSubscription } from "../lib/polar";
 
 // Isolated PostgreSQL WASM database. Never reads DATABASE_URL or sends to any provider.
 test(
   "durable messaging, migration chain and billing",
   { timeout: 120000 },
   async (t) => {
-    const db = await PGlite.create();
+    const db = await createTestPGlite();
     const server = new PGLiteSocketServer({ db, host: "127.0.0.1", port: 0 });
     let prisma: PrismaClient | undefined;
     try {
@@ -108,7 +109,11 @@ test(
       await t.test(
         "AI instinct persists manual-chat assessments, caches and fences concurrent workers",
         async () => {
-          const project = await fixture();
+          const project = await client.project.update({
+            where: { id: (await fixture()).id },
+            // Instinct IA n’est inclus qu’à partir de Pro.
+            data: { plan: "pro" },
+          });
           await incoming(project.id, "instinct-first");
           const contact = await client.contact.findFirstOrThrow({
             where: { projectId: project.id },
@@ -1079,7 +1084,7 @@ test(
       await t.test(
         "billing duplicates preserve quota and renewal opens exactly one new period",
         async () => {
-          process.env.STRIPE_STARTER_PLAN_ID = "price_test";
+          process.env.POLAR_STARTER_PRODUCT_ID = "prod_test";
           process.env.MESSAGE_LIMIT_STARTER = "1000";
           const p = await fixture();
           await client.quotaPeriod.deleteMany({ where: { projectId: p.id } });
@@ -1093,25 +1098,23 @@ test(
             "inactive",
           );
           const start = Math.floor(Date.now() / 1000);
-          const sub = {
+          const iso = (seconds: number) => new Date(seconds * 1000).toISOString();
+          const sub: PolarSubscription = {
             id: "sub_test",
             metadata: { projectId: p.id },
-            customer: "cus_test",
+            customer_id: "cus_test",
+            product_id: "prod_test",
             status: "trialing",
-            trial_start: start,
-            trial_end: start + 864000,
-            items: {
-              data: [
-                {
-                  price: { id: "price_test" },
-                  current_period_start: start,
-                  current_period_end: start + 864000,
-                },
-              ],
-            },
-            latest_invoice: null,
-          } as unknown as Stripe.Subscription;
-          await syncSubscription(client, sub, 10);
+            amount: 1599,
+            currency: "usd",
+            recurring_interval: "month",
+            trial_start: iso(start),
+            trial_end: iso(start + 864000),
+            current_period_start: iso(start),
+            current_period_end: iso(start + 864000),
+            cancel_at_period_end: false,
+          };
+          await syncPolarSubscription(client, sub, 10);
           const activated = await client.project.findUniqueOrThrow({
             where: { id: p.id },
           });
@@ -1121,7 +1124,7 @@ test(
           assert.equal(activated.messageCount, 0);
           assert.equal(activated.expiredAt?.getTime(), (start + 864000) * 1000);
           await client.$transaction((tx) => reserveMessageQuota(tx, p.id));
-          await syncSubscription(client, sub, 10);
+          await syncPolarSubscription(client, sub, 10);
           assert.equal(
             (
               await client.quotaPeriod.findFirstOrThrow({
@@ -1131,20 +1134,9 @@ test(
             1,
           );
           sub.status = "active";
-          sub.items.data[0].current_period_end = start + 2592000;
-          sub.latest_invoice = {
-            status: "paid",
-            lines: {
-              data: [
-                {
-                  period: { start, end: start + 2592000 },
-                  pricing: { price_details: { price: "price_test" } },
-                },
-              ],
-            },
-          } as unknown as Stripe.Invoice;
-          await syncSubscription(client, sub, 11);
-          await syncSubscription(client, sub, 11);
+          sub.current_period_end = iso(start + 2592000);
+          await syncPolarSubscription(client, sub, 11);
+          await syncPolarSubscription(client, sub, 11);
           const period = await client.quotaPeriod.findFirstOrThrow({
             where: { projectId: p.id, isCurrent: true },
           });
@@ -1161,14 +1153,14 @@ test(
           await client.$transaction((tx) =>
             writeProjectPause(tx, p.id, actor.id, 0, true),
           );
-          await syncSubscription(client, sub, 11);
+          await syncPolarSubscription(client, sub, 11);
           assert.equal(
             (await client.project.findUniqueOrThrow({ where: { id: p.id } }))
               .status,
             "paused",
           );
           sub.status = "past_due";
-          await syncSubscription(client, sub, 12);
+          await syncPolarSubscription(client, sub, 12);
           await assert.rejects(
             client.$transaction((tx) =>
               writeProjectPause(tx, p.id, actor.id, 1, false),
@@ -1176,7 +1168,7 @@ test(
             /abonnement/,
           );
           sub.status = "active";
-          await syncSubscription(client, sub, 13);
+          await syncPolarSubscription(client, sub, 13);
           await client.$transaction((tx) =>
             writeProjectPause(tx, p.id, actor.id, 1, false),
           );

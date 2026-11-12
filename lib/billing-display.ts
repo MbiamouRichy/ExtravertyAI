@@ -1,5 +1,5 @@
-// Stripe uses minor units; XAF and the other currencies listed here have no decimals.
-// ISK and UGX retain two-decimal API representation for backwards compatibility.
+// Montants en unités mineures (centimes) ; XAF et les autres devises listées
+// ici n'ont pas de décimales. ISK et UGX gardent deux décimales dans les API.
 const ZERO_DECIMAL = new Set([
   "bif",
   "clp",
@@ -17,26 +17,12 @@ const ZERO_DECIMAL = new Set([
   "xof",
   "xpf",
 ]);
-export function formatStripeAmount(amount: number, currency: string) {
+export function formatBillingAmount(amount: number, currency: string) {
   const value = amount / (ZERO_DECIMAL.has(currency.toLowerCase()) ? 1 : 100);
   return new Intl.NumberFormat("fr-FR", {
     style: "currency",
     currency: currency.toUpperCase(),
   }).format(value);
-}
-export function stripeDocumentUrl(value: string | null | undefined) {
-  if (!value) return null;
-  try {
-    const url = new URL(value);
-    return url.protocol === "https:" &&
-      (url.hostname === "stripe.com" || url.hostname.endsWith(".stripe.com")) &&
-      !url.username &&
-      !url.password
-      ? url.href
-      : null;
-  } catch {
-    return null;
-  }
 }
 export function billingStatusLabel(status: string) {
   return (
@@ -64,9 +50,9 @@ export function billingStatusLabel(status: string) {
 }
 
 /**
- * Projet créé dont le Checkout n'a jamais abouti : aucun client ni abonnement
- * Stripe, statut resté « inactive ». Un projet actif sans Stripe (ajouté à la
- * main) n'est jamais concerné, pour ne pas facturer deux fois.
+ * Projet créé dont le paiement n'a jamais abouti : aucun client ni abonnement,
+ * statut resté « inactive ». Un projet actif sans abonnement (ajouté à la main)
+ * n'est jamais concerné, pour ne pas facturer deux fois.
  */
 export function needsInitialCheckout(project: {
   status: string;

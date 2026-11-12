@@ -1,10 +1,12 @@
 import { PrismaClient } from "../src/generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
+import { DATABASE_SESSION_OPTIONS } from "./database-session";
 
 // Vercel gèle ses fonctions : une connexion restée au pool peut être morte au
 // réveil, et une requête posée dessus attendrait la coupure de la fonction.
 const adapter = new PrismaPg({
   connectionString: process.env.DATABASE_URL!,
+  options: DATABASE_SESSION_OPTIONS,
   ...(process.env.VERCEL && {
     // Chaque fonction garde son pool, même gelée : à 10 connexions par défaut,
     // une dizaine d’instances suffit à saturer les 100 places de la base.

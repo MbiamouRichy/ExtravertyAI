@@ -121,7 +121,10 @@ export function BillingNotice({
       <p className="shrink-0 text-xs text-muted-foreground tabular-nums">
         <span className="text-foreground">{usage.used.toLocaleString("fr-FR")}</span>
         {" / "}
-        {usage.limit.toLocaleString("fr-FR")} messages
+        {usage.limit.toLocaleString("fr-FR")}{" "}
+        {/* Abrégé sur mobile ; les lecteurs d’écran entendent toujours « messages ». */}
+        <span aria-hidden="true" className="sm:hidden">msg</span>
+        <span className="max-sm:sr-only">messages</span>
       </p>
     </>
   );

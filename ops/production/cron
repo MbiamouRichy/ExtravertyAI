@@ -1,0 +1,9 @@
+# À copier en /etc/cron.d/extravertyai-production (root, 644).
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+# Sauvegarde chiffrée vers R2, chaque nuit à 02 h 30 UTC (03 h 30 à Libreville).
+30 2 * * * root /usr/local/sbin/extraverty-production-backup >> /var/log/extravertyai-backup.log 2>&1
+
+# Test de restauration, le 1er de chaque mois à 04 h 00 UTC.
+0 4 1 * * root /usr/local/sbin/extraverty-production-restore-test >> /var/log/extravertyai-restore-test.log 2>&1

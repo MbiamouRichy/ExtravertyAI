@@ -135,11 +135,14 @@ import {
 import { cn } from "@/lib/utils";
 import { AiResponseText, AiThinking, useLiveAiResponses } from "./ai-response";
 import { ChatComposer } from "./chat-composer";
+import { ExpandableText } from "./expandable-text";
 import { ChatContactPanel } from "./chat-contact-panel";
 import { InternalNotesStrip } from "./chat-internal-notes";
 import { downloadConversation } from "./export-conversation";
 import { ConversationSummaryView } from "./conversation-summary";
 import { useConversationRead } from "@/hooks/use-conversation-read";
+import { useChatDrafts } from "@/hooks/use-chat-drafts";
+import { draftKey as chatDraftKey } from "@/lib/chat-drafts";
 import { createChatDateFormatters } from "@/lib/chat-dates";
 import { SendChatMessageSchema } from "@/lib/message-schema";
 import { type ChatAttachment, messageMediaPath } from "@/lib/chat-media";
@@ -164,8 +167,12 @@ type WorkspaceProps = {
   canPublishCorrection?: boolean;
   /** Propriétaire ou administrateur (vérifié à nouveau côté serveur). */
   canCopyPhone?: boolean;
-  /** Offre Pro ou Business : étape et montant dans la fiche contact. */
+  /** Offre Business : étape et montant dans la fiche contact. */
   pipeline?: { enabled: boolean; currency: string };
+  /** Instinct IA tourne pour ce projet (offre et réglage, vérifiés côté serveur). */
+  instinctEnabled?: boolean;
+  /** Résumé IA inclus dans l’offre (vérifié à nouveau côté serveur). */
+  summaryEnabled?: boolean;
 };
 
 type Filter = ChatFilter;
@@ -262,13 +269,15 @@ function ConversationParticipants({
   active,
   agents,
   loading,
+  className,
 }: {
   active: boolean;
   agents: ChatAgent[];
   loading: boolean;
+  className?: string;
 }) {
   return (
-    <span className="inline-flex shrink-0 items-center gap-1">
+    <span className={cn("inline-flex shrink-0 items-center gap-1", className)}>
       {active && (
         <Hint label="Assistant IA actif : il répond automatiquement à ce contact.">
           <span className="relative flex size-6 shrink-0 items-center justify-center text-info">
@@ -673,9 +682,19 @@ function ChatBubble({
                 "rounded-br-md border border-dashed border-foreground/30 bg-muted/60",
             )}
           >
-            <p dir="auto" className="whitespace-pre-wrap wrap-anywhere">
-              {message.content}
-            </p>
+            {isNote ? (
+              // Note longue : six lignes, puis « Afficher plus ».
+              <ExpandableText
+                content={message.content}
+                lines={6}
+                scrollTarget="article"
+                toggleClassName="mt-0.5"
+              />
+            ) : (
+              <p dir="auto" className="whitespace-pre-wrap wrap-anywhere">
+                {message.content}
+              </p>
+            )}
             <div className="mt-0.5">{meta}</div>
           </div>
         )}
@@ -747,6 +766,8 @@ export default function WhatsappWorkspace({
   canPublishCorrection = false,
   canCopyPhone = false,
   pipeline,
+  instinctEnabled = false,
+  summaryEnabled = false,
   initialClient,
 }: WorkspaceProps) {
   const { dateFormatter, previewDateFormatter, timeZone } = useChatDates();
@@ -844,7 +865,17 @@ export default function WhatsappWorkspace({
 
   const refreshing = contactsQuery.isValidating || historyQuery.isValidating;
 
-  const [drafts, setDrafts] = useState<Record<string, string>>({});
+  // Brouillons (réponse, note interne) gardés sur l’appareil : une fermeture
+  // de page, voulue ou non, ne les perd pas.
+  const {
+    drafts,
+    setDrafts,
+    noteDrafts,
+    setNoteDrafts,
+    noteModes,
+    setNoteMode,
+    restored: draftsRestored,
+  } = useChatDrafts(user.id, project.id);
   const [localMessages, setLocalMessages] = useState<
     Record<string, LocalMessage[]>
   >({});
@@ -858,7 +889,13 @@ export default function WhatsappWorkspace({
   const [resolveBusyId, setResolveBusyId] = useState<string | null>(null);
   const resolveLock = useRef(false);
   const [composerMode, setComposerMode] = useState<ComposerMode>("reply");
-  const [noteDrafts, setNoteDrafts] = useState<Record<string, string>>({});
+  // Page rouverte sur un contact quitté en pleine note : la note est rouverte.
+  const [draftModeRestored, setDraftModeRestored] = useState(false);
+  if (draftsRestored && !draftModeRestored) {
+    setDraftModeRestored(true);
+    if (activeId && noteModes[activeId] && noteDrafts[activeId]?.trim())
+      setComposerMode("note");
+  }
   const [showWelcome, setShowWelcome] = useState(isSuccess);
 
   const sendLocks = useRef(new Set<string>());
@@ -869,8 +906,12 @@ export default function WhatsappWorkspace({
 
   const [announcement, setAnnouncement] = useState("");
 
-  // Retire les substitutions IA dès que le serveur les a confirmées.
-  useEffect(() => {
+  // Nouvelles données serveur : l’état local est ajusté pendant le rendu,
+  // sans rendu intermédiaire ni effet en cascade.
+  const [syncedClients, setSyncedClients] = useState(clients);
+  if (syncedClients !== clients) {
+    setSyncedClients(clients);
+    // Retire les substitutions IA dès que le serveur les a confirmées.
     setAiOverrides((previous) => {
       const next = { ...previous };
       let changed = false;
@@ -903,10 +944,19 @@ export default function WhatsappWorkspace({
 
       return changed ? next : previous;
     });
-  }, [clients]);
+    // Aucune conversation n’est ouverte d’office : seul un lien
+    // (?contactId=…) ou un clic dans la liste en ouvre une. Celle qui est
+    // ouverte suit la version serveur du contact.
+    const updated = activeId
+      ? clients.find((client) => client.id === activeId)
+      : undefined;
+    if (updated) setSelectedClient(updated);
+  }
 
   // Retire les messages locaux dès que leur ID apparaît côté serveur.
-  useEffect(() => {
+  const [syncedMessages, setSyncedMessages] = useState(messages);
+  if (syncedMessages !== messages) {
+    setSyncedMessages(messages);
     setLocalMessages((previous) => {
       let changed = false;
       const next = { ...previous };
@@ -938,19 +988,7 @@ export default function WhatsappWorkspace({
 
       return changed ? next : previous;
     });
-  }, [messages]);
-
-  // Aucune conversation n’est ouverte d’office : seul un lien
-  // (?contactId=…) ou un clic dans la liste en ouvre une.
-  useEffect(() => {
-    if (!activeId) return;
-
-    const updated = clients.find((client) => client.id === activeId);
-
-    if (updated) {
-      setSelectedClient(updated);
-    }
-  }, [activeId, clients]);
+  }
   const visibleClients = useMemo(() => {
     const textQuery = normalizeSearch(search);
 
@@ -1176,7 +1214,9 @@ export default function WhatsappWorkspace({
   }, [visibleClients, activeId]);
 
   function selectClient(id: string) {
-    setComposerMode("reply");
+    setComposerMode(
+      noteModes[id] && noteDrafts[id]?.trim() ? "note" : "reply",
+    );
     // Changer de conversation referme le résumé IA.
     setSummaryFor(null);
     const client = clients.find((item) => item.id === id);
@@ -1200,6 +1240,7 @@ export default function WhatsappWorkspace({
   // « Répondre » signifie reprendre la main : l’IA se met en pause pour ce contact.
   function changeComposerMode(mode: ComposerMode) {
     setComposerMode(mode);
+    if (activeId) setNoteMode(activeId, mode === "note");
     if (mode === "reply" && aiActive && canManageAi && aiBusyId === null) {
       void toggleAi();
     }
@@ -1207,10 +1248,11 @@ export default function WhatsappWorkspace({
       requestAnimationFrame(() => textareaRef.current?.focus());
   }
 
-  const summaryOpen = !!activeClient && summaryFor === activeClient.id;
+  const summaryOpen =
+    summaryEnabled && !!activeClient && summaryFor === activeClient.id;
   // Résumé IA : sans fiche contact visible (mobile, écran réduit, fiche fermée),
-  // placé juste après « Note interne ».
-  const summaryButton = activeClient ? (
+  // placé juste après « Note interne ». Absent hors de l’offre.
+  const summaryButton = summaryEnabled && activeClient ? (
     <Button
       type="button"
       size="xs"
@@ -1236,6 +1278,7 @@ export default function WhatsappWorkspace({
       onNoteClose={() => {
         // Refermer une note revient à la saisie sans toucher à l’IA.
         setComposerMode("reply");
+        if (activeId) setNoteMode(activeId, false);
         requestAnimationFrame(() => textareaRef.current?.focus());
       }}
       hint={
@@ -1834,6 +1877,9 @@ export default function WhatsappWorkspace({
                         )}
                         <span className="relative shrink-0">
                           <Avatar className="size-9">
+                            {client.avatarUrl && (
+                              <AvatarImage src={client.avatarUrl} alt="" className="object-cover" />
+                            )}
                             <AvatarFallback className="bg-muted font-heading text-xs font-semibold">
                               {getInitials(client.name)}
                             </AvatarFallback>
@@ -1858,6 +1904,9 @@ export default function WhatsappWorkspace({
                                 active={client.aiActive}
                                 agents={client.agents ?? []}
                                 loading={false}
+                                // Le retrait vertical des avatars (place de leur anneau)
+                                // ne doit pas éloigner l’aperçu du nom.
+                                className="-my-1"
                               />
                             </span>
                             <time
@@ -1876,7 +1925,7 @@ export default function WhatsappWorkspace({
                             </time>
                           </span>
 
-                          <span className="mt-0.5 flex items-center gap-2">
+                          <span className="flex items-center gap-2">
                             <span
                               className={cn(
                                 "min-w-0 flex-1 truncate text-xs",
@@ -2015,6 +2064,9 @@ export default function WhatsappWorkspace({
                   >
                     <span className="relative hidden shrink-0 sm:flex md:hidden lg:flex">
                       <Avatar className="size-9">
+                        {activeClient.avatarUrl && (
+                          <AvatarImage src={activeClient.avatarUrl} alt="" className="object-cover" />
+                        )}
                         <AvatarFallback className="font-heading text-xs font-semibold">
                           {getInitials(activeClient.name)}
                         </AvatarFallback>
@@ -2349,6 +2401,8 @@ export default function WhatsappWorkspace({
                               !!previousMessage &&
                               message.senderType !== "bot" &&
                               message.senderType !== "system" &&
+                              // Chaque note est un écrit à part : auteur et avatar toujours affichés.
+                              message.senderType !== "note" &&
                               !message.mediaUrl &&
                               !previousMessage.mediaUrl &&
                               previousMessage.senderType ===
@@ -2451,6 +2505,7 @@ export default function WhatsappWorkspace({
                       key={activeClient.id}
                       projectId={project.id}
                       contactId={activeClient.id}
+                      draftKey={chatDraftKey(user.id, project.id, activeClient.id)}
                       assistanceEnabled={!aiActive || project.automationPaused}
                       contextVersion={
                         lastConversationMessage(activeMessages)?.id ?? ""
@@ -2513,6 +2568,8 @@ export default function WhatsappWorkspace({
               canCopyPhone={canCopyPhone}
               currentUserId={user.id}
               pipeline={pipeline}
+              instinctEnabled={instinctEnabled}
+              summaryEnabled={summaryEnabled}
               onContactChanged={() => void contactsQuery.mutate()}
               projectTags={contactsQuery.projectTags}
             />
@@ -2529,7 +2586,7 @@ export default function WhatsappWorkspace({
             <SheetHeader className="sr-only">
               <SheetTitle>Fiche de {activeClient.name}</SheetTitle>
               <SheetDescription>
-                Statut, Instinct IA, résumé et étiquettes du contact
+                Statut, responsable et étiquettes du contact
               </SheetDescription>
             </SheetHeader>
             <ChatContactPanel
@@ -2545,6 +2602,8 @@ export default function WhatsappWorkspace({
               canCopyPhone={canCopyPhone}
               currentUserId={user.id}
               pipeline={pipeline}
+              instinctEnabled={instinctEnabled}
+              summaryEnabled={summaryEnabled}
               onContactChanged={() => void contactsQuery.mutate()}
               projectTags={contactsQuery.projectTags}
             />

@@ -3,7 +3,6 @@ import { can, homePath, roleLabel, rolesWith } from "@/lib/project-permissions";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import {
-  ArrowUpRight,
   Check,
   ChevronLeft,
   ChevronRight,
@@ -14,14 +13,19 @@ import { LocalDate } from "@/components/local-date";
 import { getSession } from "@/lib/auth-server";
 import prisma from "@/lib/prisma";
 import { getBillingAccess } from "@/lib/billing-access";
+import { planAllows } from "@/lib/plan-features";
 import { readIndicators } from "@/lib/report-indicators";
 import { BASELINE_WEEKS, BAND_K } from "@/lib/report-signal";
-import { emptyWeek, formatWeekClose, isoWeek } from "@/lib/report-week";
+import {
+  emptyWeek,
+  formatWeekClose,
+  projectWeek,
+  shortWeekRange,
+} from "@/lib/report-week";
 import { WAITING_CLOSE_UTC } from "@/lib/report-findings";
 import { getUserTimeZone } from "@/lib/server-time-zone";
 import {
   ReportSnapshotSchema,
-  reportRange,
   reportWindow,
   WEEK_MS,
   type ReportSnapshot,
@@ -76,9 +80,9 @@ export default async function ReportsPage({
   const canManageReports = can(member.role, "reports.manage");
   const project = member.project;
   const access = await getBillingAccess(prisma, projectId);
-  const eligible = project.plan === "business" && access.allowed;
+  const eligible = planAllows(project.plan, "reports") && access.allowed;
 
-  if (project.plan !== "business")
+  if (!planAllows(project.plan, "reports"))
     return (
       <main className="mx-auto grid w-full max-w-5xl items-center gap-12 px-4 py-10 sm:px-6 lg:grid-cols-[1fr_1.1fr] lg:py-16">
         <div>
@@ -194,8 +198,9 @@ export default async function ReportsPage({
     const snapshot = parseSnapshot(report.snapshot);
     return {
       id: report.id,
-      label: `S${isoWeek(report.weekStart)}`,
-      range: reportRange(report.weekStart, report.weekEnd),
+      // Semaines comptées depuis la création du projet : S1 est sa première semaine.
+      label: `S${Math.max(1, projectWeek(report.weekStart, project.createdAt))}`,
+      range: shortWeekRange(report.weekStart, report.weekEnd),
       skipped: report.skipped,
       emails: report.emails,
       verdict: snapshot?.version === 2 ? snapshot.verdict : null,
@@ -244,25 +249,26 @@ export default async function ReportsPage({
   const newer = position > 0 ? history[position - 1] : undefined;
 
   return (
-    <main className="mx-auto w-full max-w-5xl space-y-14 px-4 py-6 sm:px-6 sm:py-10">
-      <header className="flex flex-wrap items-end justify-between gap-6">
-        <div>
-          <p className="text-sm text-muted-foreground">
-            {project.name} · Rapport hebdomadaire
-          </p>
-          <h1 className="mt-1 font-sans text-3xl font-semibold tracking-tight">
+    <main className="mx-auto w-full max-w-5xl space-y-10 px-4 py-6 sm:space-y-12 sm:px-6 sm:py-10">
+      <header className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <p className="text-xs text-muted-foreground">Rapport hebdomadaire</p>
+          <h1 className="mt-1 font-sans text-2xl font-semibold tracking-tight sm:text-3xl">
             {selected
-              ? `Semaine ${isoWeek(selected.weekStart)}`
-              : "Rapports programmés"}
+              ? `Semaine ${Math.max(1, projectWeek(selected.weekStart, project.createdAt))}`
+              : "Rapports hebdomadaires"}
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
             {selected
-              ? `${reportRange(selected.weekStart, selected.weekEnd)} · heures UTC · comparée aux ${BASELINE_WEEKS} semaines précédentes`
+              ? shortWeekRange(selected.weekStart, selected.weekEnd)
               : "Chaque lundi : ce qui a changé, où l’IA a passé la main et quoi faire."}
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          {selected && (
+        <nav
+          aria-label={selected ? "Changer de semaine" : "Raccourcis"}
+          className="flex shrink-0 items-center gap-1.5 pt-5"
+        >
+          {selected ? (
             <>
               {older ? (
                 <Button asChild variant="outline" size="icon-sm">
@@ -303,21 +309,20 @@ export default async function ReportsPage({
                 </Button>
               )}
             </>
+          ) : (
+            <Button asChild variant="ghost" size="sm">
+              <Link href={`${base}/analytics`}>Statistiques</Link>
+            </Button>
           )}
-          <Button asChild variant="ghost" size="sm">
-            <Link href={`${base}/analytics`}>
-              Statistiques <ArrowUpRight data-icon="inline-end" />
-            </Link>
-          </Button>
-        </div>
+        </nav>
       </header>
 
       {(!eligible || selected?.skipped) && (
-        <div className="-mt-6 space-y-3">
+        <div className="-mt-4 space-y-3 sm:-mt-6">
           {!eligible && (
             <div
               role="status"
-              className="flex flex-wrap items-center gap-3 rounded-xl border border-destructive/30 px-4 py-3 text-sm"
+              className="flex flex-wrap items-center gap-3 rounded-2xl border border-destructive/30 px-4 py-3 text-sm"
             >
               <TriangleAlert
                 aria-hidden="true"
@@ -335,7 +340,7 @@ export default async function ReportsPage({
           {selected?.skipped && (
             <p
               role="status"
-              className="rounded-xl border px-4 py-3 text-sm text-muted-foreground"
+              className="rounded-2xl border px-4 py-3 text-sm text-muted-foreground"
             >
               Semaine sans activité : l’e-mail n’a pas été envoyé, comme prévu
               dans la programmation.
@@ -345,17 +350,17 @@ export default async function ReportsPage({
       )}
 
       {!selected || !week ? (
-        <section aria-labelledby="first-title">
-          <p className="text-sm text-muted-foreground">
+        <section aria-labelledby="first-title" className="rounded-2xl border bg-card p-5 sm:p-6">
+          <p className="text-xs font-medium text-muted-foreground">
             Aucun rapport pour le moment
           </p>
           <h2
             id="first-title"
-            className="mt-3 max-w-3xl font-sans text-2xl leading-tight font-medium tracking-tight text-balance sm:text-[2rem]"
+            className="mt-2.5 max-w-3xl font-sans text-lg leading-snug font-medium tracking-tight text-pretty sm:text-xl"
           >
             Votre premier rapport arrivera après la première semaine complète.
           </h2>
-          <p className="mt-4 max-w-2xl text-sm text-muted-foreground">
+          <p className="mt-3 max-w-2xl text-sm text-muted-foreground">
             Les comparaisons à l’habitude commencent après 4 semaines. Les
             semaines sans activité sont aussi couvertes, sauf si vous choisissez
             de ne pas les envoyer.
@@ -366,11 +371,11 @@ export default async function ReportsPage({
           {v2 ? (
             <VerdictPanel verdict={v2.verdict} partial={v2.partial} />
           ) : (
-            <section aria-labelledby="legacy-title">
-              <p className="text-sm text-muted-foreground">Ancien format</p>
+            <section aria-labelledby="legacy-title" className="rounded-2xl border bg-card p-5 sm:p-6">
+              <p className="text-xs font-medium text-muted-foreground">Ancien format</p>
               <h2
                 id="legacy-title"
-                className="mt-3 max-w-4xl font-sans text-2xl leading-tight font-medium tracking-tight text-balance sm:text-[2rem]"
+                className="mt-2.5 max-w-3xl font-sans text-lg leading-snug font-medium tracking-tight text-pretty sm:text-xl"
               >
                 Ce rapport date d’avant le nouveau format : il ne contient que
                 les compteurs d’activité.
@@ -390,6 +395,7 @@ export default async function ReportsPage({
             weeks={weeks}
             index={index}
             legacy={!v2}
+            moreHref={`${base}/analytics`}
           />
           {v2 && (
             <>
@@ -413,12 +419,12 @@ export default async function ReportsPage({
 
       <section
         aria-labelledby="sending-title"
-        className="grid grid-cols-1 gap-10 border-t pt-10 md:grid-cols-2"
+        className="grid grid-cols-1 gap-10 border-t pt-10 md:grid-cols-2 md:gap-6"
       >
         <div className="min-w-0">
           <SectionHeader
             id="sending-title"
-            title="Programmation"
+            title="Envoi par e-mail"
             meta={
               !eligible
                 ? "Suspendue"
@@ -453,7 +459,7 @@ export default async function ReportsPage({
                   version={project.reportsVersion}
                 />
               ) : (
-                <p className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
+                <p className="rounded-2xl border border-dashed p-4 text-sm text-muted-foreground">
                   Lecture seule : un administrateur règle l’heure et le contenu des envois.
                 </p>
               )}
@@ -477,7 +483,7 @@ export default async function ReportsPage({
             title="Destinataires"
             meta={`${verified} adresse${verified > 1 ? "s" : ""} vérifiée${verified > 1 ? "s" : ""}`}
           />
-          <ul className="divide-y border-y">
+          <ul className="divide-y rounded-2xl border px-4">
             {recipients.map((recipient) => (
               <li
                 key={recipient.id}
@@ -486,10 +492,10 @@ export default async function ReportsPage({
                 <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-medium">
                   {getInitials(recipient.user.name || recipient.user.email)}
                 </span>
-                {/* Rôle sur la ligne du nom : l’adresse garde toute la largeur. */}
+                {/* Rôle à droite du nom, ou dessous s’il manque de place ; rien n’est tronqué. */}
                 <span className="min-w-0 flex-1">
-                  <span className="flex min-w-0 items-baseline justify-between gap-3">
-                    <span className="truncate">{recipient.user.name}</span>
+                  <span className="flex min-w-0 flex-wrap items-baseline justify-between gap-x-3">
+                    <span className="min-w-0 wrap-anywhere">{recipient.user.name}</span>
                     <span
                       className={cn(
                         "shrink-0 text-xs",
@@ -503,7 +509,7 @@ export default async function ReportsPage({
                         : "Adresse à vérifier"}
                     </span>
                   </span>
-                  <span className="block truncate text-xs text-muted-foreground">
+                  <span className="block text-xs wrap-anywhere text-muted-foreground">
                     {recipient.user.email}
                   </span>
                 </span>
@@ -519,11 +525,14 @@ export default async function ReportsPage({
       </section>
 
       {readings.length > 0 && (
-        <div className="grid grid-cols-1 gap-10 md:grid-cols-[1.4fr_1fr]">
-          <Definitions readings={readings} />
-          <section aria-labelledby="method-title">
-            <SectionHeader id="method-title" title="Méthode" />
-            <ul className="space-y-2.5 text-sm text-muted-foreground">
+        <Definitions
+          readings={readings}
+          method={
+            <ul className="list-disc space-y-1.5 pl-4">
+              <li>
+                Une semaine va du lundi 00:00 au dimanche 23:59 (UTC) ; la
+                semaine 1 est celle de la création du projet.
+              </li>
               <li>
                 L’habitude est la médiane des {BASELINE_WEEKS} semaines
                 précédentes ; la plage normale l’entoure de {BAND_K} écarts
@@ -531,16 +540,12 @@ export default async function ReportsPage({
               </li>
               <li>
                 « Inhabituel » seulement hors de cette plage et au-delà du seuil
-                d’effectif.
-              </li>
-              <li>
-                Sous le seuil, l’écart est donné en valeur absolue, sans
-                pourcentage.
+                d’effectif ; sous le seuil, l’écart est donné en valeur absolue.
               </li>
               <li>Chaque rapport est figé au moment du calcul.</li>
             </ul>
-          </section>
-        </div>
+          }
+        />
       )}
     </main>
   );

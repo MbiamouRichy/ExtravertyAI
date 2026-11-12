@@ -112,13 +112,42 @@ export function isoWeek(date: Date) {
   );
 }
 
+/**
+ * Rang de la semaine dans la vie du projet : 1 pour la semaine (lundi 00:00
+ * UTC, comme les rapports) qui contient sa création, puis 2, 3… Une semaine
+ * antérieure à la création donne 0 ou moins.
+ */
+export function projectWeek(weekStart: Date, projectCreatedAt: Date) {
+  const first = new Date(projectCreatedAt);
+  first.setUTCHours(0, 0, 0, 0);
+  first.setUTCDate(first.getUTCDate() - ((first.getUTCDay() + 6) % 7));
+  return Math.floor((weekStart.getTime() - first.getTime()) / (7 * 86_400_000)) + 1;
+}
+
+/**
+ * Période courte d'une semaine [début, fin[ en UTC, l'année une seule fois :
+ * « 26 oct. – 1 nov. 2026 », ou « 28 déc. 2026 – 3 janv. 2027 ».
+ */
+export function shortWeekRange(start: Date, end: Date) {
+  const last = new Date(end.getTime() - 1);
+  const format = (date: Date, year: boolean) =>
+    new Intl.DateTimeFormat("fr-FR", {
+      day: "numeric",
+      month: "short",
+      ...(year ? { year: "numeric" } : {}),
+      timeZone: "UTC",
+    }).format(date);
+  const sameYear = start.getUTCFullYear() === last.getUTCFullYear();
+  return `${format(start, !sameYear)} – ${format(last, true)}`;
+}
+
 /** Repères d'une semaine : changement de consignes, diffusion. */
 export function weekNote(week: WeekAggregate | undefined) {
   if (!week) return undefined;
   const notes = [
     week.annotations.agentUpdates ? "Consignes de l’agent modifiées" : null,
     week.annotations.broadcastRecipients
-      ? `Diffusion envoyée à ${week.annotations.broadcastRecipients} contacts`
+      ? `Diffusion envoyée à ${week.annotations.broadcastRecipients} contact${week.annotations.broadcastRecipients > 1 ? "s" : ""}`
       : null,
   ].filter(Boolean);
   return notes.length ? notes.join(" · ") : undefined;

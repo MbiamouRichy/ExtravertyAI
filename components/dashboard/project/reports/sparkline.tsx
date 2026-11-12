@@ -9,6 +9,7 @@ import {
   YAxis,
 } from "recharts";
 
+import { cn } from "@/lib/utils";
 import {
   ChartContainer,
   ChartTooltip,
@@ -38,10 +39,13 @@ export function ReportSparkline({
   points,
   band,
   label,
+  className,
 }: {
   points: SparkPoint[];
   band: { low: number; high: number } | null;
   label: string;
+  /** Hauteur et largeur du tracé (12 unités de haut, pleine largeur par défaut). */
+  className?: string;
 }) {
   const values = points.flatMap((point) =>
     point.value === null ? [] : [point.value],
@@ -55,7 +59,7 @@ export function ReportSparkline({
     <div role="img" aria-label={label}>
       <ChartContainer
         config={config}
-        className="aspect-auto h-12 w-full"
+        className={cn("aspect-auto h-12 w-full", className)}
         aria-hidden="true"
       >
         <LineChart
@@ -97,7 +101,7 @@ export function ReportSparkline({
                     {point.display}
                   </span>
                   <span className="text-muted-foreground">
-                    {point.label} · {point.range}
+                    {point.range}
                   </span>
                   {point.flagged && (
                     <span className="text-muted-foreground">

@@ -63,6 +63,7 @@ function setup(
         return {
           project: {
             id: "cmuhe8ap1000004l64j9yddk1",
+            plan: "pro",
             stripeCustomerId: "cus_ours",
             stripeSubscriptionId: "sub_ours",
             deletionPending: false,
@@ -70,55 +71,35 @@ function setup(
         };
       },
     },
-    "@/lib/polar": {},
-    "@/lib/checkout-price": {},
-    "@/lib/pricing": {},
-    "@/lib/stripe": {
-      stripe: {
-        prices: {
-          retrieve: async () => ({
-            id: "price_pro",
-            currency: "usd",
-            active: true,
-          }),
-        },
-        subscriptions: {
-          retrieve: async () => {
-            calls.push("retrieve");
-            return {
-              id: "sub_ours",
-              customer: options.foreign ? "cus_foreign" : "cus_ours",
-              status: options.status ?? "active",
-              cancel_at_period_end: !!options.cancelling,
-              cancel_at: null,
-              items: {
-                data: [{ price: { id: "price_current", currency: "usd" } }],
-              },
-              latest_invoice: options.invoice
-                ? {
-                    status: "open",
-                    hosted_invoice_url: "https://invoice.stripe.com/i/test",
-                  }
-                : null,
-            };
-          },
-          update: async (id: string, input: unknown) => {
-            calls.push({ update: id, input });
-          },
-          cancel: async (id: string) => {
-            calls.push({ cancel: id });
-          },
-        },
-        billingPortal: {
-          sessions: {
-            create: async (input: unknown) => {
-              calls.push(input);
-              return { url: "https://billing.stripe.com/p/session" };
-            },
-          },
-        },
+    "@/lib/polar": {
+      getPolarSubscription: async (id: string) => {
+        calls.push("retrieve");
+        return {
+          id,
+          customer_id: options.foreign ? "cus_foreign" : "cus_ours",
+          status: options.status ?? "active",
+          cancel_at_period_end: !!options.cancelling,
+          customer: { email: "owner@example.test" },
+        };
       },
+      isEndedPolarSubscription: (sub: { status: string }) =>
+        ["canceled", "unpaid", "incomplete_expired"].includes(sub.status),
+      cancelPolarSubscription: async (id: string) => void calls.push({ cancelAtPeriodEnd: id }),
+      revokePolarSubscription: async (id: string) => void calls.push({ revoke: id }),
+      resumePolarSubscription: async (id: string) => void calls.push({ resume: id }),
+      createPolarPortalUrl: async (customer: string, returnUrl: string) => {
+        calls.push({ portal: customer, returnUrl });
+        return "https://sandbox.polar.sh/portal/session";
+      },
+      createPolarCheckout: async (input: unknown) => {
+        calls.push({ checkout: input });
+        return "https://sandbox.polar.sh/checkout/renew";
+      },
+      polarProductId: (plan: string) => `prod_${plan}`,
+      getPolarProduct: async () => ({}),
     },
+    "@/lib/checkout-price": { matchesPolarProduct: () => true },
+    "@/lib/pricing": { resolvePlanId: (plan: string) => plan },
   };
   const source = ts.transpileModule(
     readFileSync("app/actions/project-settings.ts", "utf8"),
@@ -133,10 +114,7 @@ function setup(
     exports,
     URL,
     process: {
-      env: {
-        NEXT_PUBLIC_APP_URL: "https://app.example.test",
-        STRIPE_PRO_PLAN_ID: "price_pro",
-      },
+      env: { NEXT_PUBLIC_APP_URL: "https://app.example.test" },
     },
     require: (name: string) => {
       assert.ok(name in modules, name);
@@ -150,7 +128,12 @@ function setup(
     calls,
   };
 }
-test("billing plan actions validate intent and require the project owner before Stripe", async () => {
+const BILLING_URL =
+  "https://app.example.test/projects/cmuhe8ap1000004l64j9yddk1/billing";
+// Les objets créés dans le contexte vm n'ont pas les prototypes du test.
+const sameCalls = (actual: unknown, expected: unknown) =>
+  assert.deepEqual(JSON.parse(JSON.stringify(actual)), expected);
+test("billing plan actions validate intent and require the project owner before Polar", async () => {
   for (const options of [{ anonymous: true }, { forbidden: true }]) {
     const s = setup(options);
     assert.equal((await s.call("upgrade")).success, false);
@@ -160,29 +143,47 @@ test("billing plan actions validate intent and require the project owner before 
   assert.equal((await s.call("unexpected")).success, false);
   assert.equal(s.calls.length, 0);
 });
-test("billing rejects a mismatched customer and opens only the project's subscription update", async () => {
+test("billing rejects a mismatched customer and opens only the project's customer portal", async () => {
   const foreign = setup({ foreign: true });
   assert.equal((await foreign.call("upgrade")).success, false);
-  assert.equal(foreign.calls.length, 1);
+  assert.deepEqual(foreign.calls, ["retrieve"]);
   const s = setup();
-  assert.equal((await s.call("upgrade")).success, true);
-  const input = s.calls[1] as {
-    customer: string;
-    flow_data: { subscription_update: { subscription: string } };
-  };
-  assert.equal(input.customer, "cus_ours");
-  assert.equal(input.flow_data.subscription_update.subscription, "sub_ours");
+  const result = await s.call("upgrade");
+  assert.equal(result.url, "https://sandbox.polar.sh/portal/session");
+  sameCalls(s.calls, ["retrieve", { portal: "cus_ours", returnUrl: BILLING_URL }]);
 });
-test("renewal opens the outstanding invoice without creating another subscription", async () => {
-  const s = setup({ invoice: true });
+test("an unpaid subscription must be settled before changing plan", async () => {
+  const s = setup({ status: "past_due" });
+  assert.equal((await s.call("upgrade")).success, false);
+  assert.deepEqual(s.calls, ["retrieve"]);
+});
+test("renewing an ended subscription revokes it and opens a paid checkout without trial", async () => {
+  const s = setup({ status: "canceled" });
   const result = await s.call("renew");
-  assert.equal(result.url, "https://invoice.stripe.com/i/test");
-  assert.equal(s.calls.length, 1);
+  assert.equal(result.url, "https://sandbox.polar.sh/checkout/renew");
+  sameCalls(s.calls, [
+    "retrieve",
+    { revoke: "sub_ours" },
+    {
+      checkout: {
+        productId: "prod_pro",
+        projectId: "cmuhe8ap1000004l64j9yddk1",
+        plan: "pro",
+        email: "owner@example.test",
+        successUrl: `${BILLING_URL}?success=true`,
+        returnUrl: BILLING_URL,
+        trial: false,
+      },
+    },
+  ]);
 });
-// Les objets créés dans le contexte vm n'ont pas les prototypes du test.
-const sameCall = (actual: unknown, expected: unknown) =>
-  assert.deepEqual(JSON.parse(JSON.stringify(actual)), expected);
-test("cancellation requires the billing permission and checks the customer before Stripe", async () => {
+test("renewal lifts a scheduled cancellation instead of opening the portal", async () => {
+  const s = setup({ cancelling: true });
+  const result = await s.call("renew");
+  assert.equal(result.url, BILLING_URL);
+  sameCalls(s.calls, ["retrieve", { resume: "sub_ours" }]);
+});
+test("cancellation requires the billing permission and checks the customer before Polar", async () => {
   for (const options of [{ anonymous: true }, { forbidden: true }]) {
     const s = setup(options);
     assert.equal((await s.cancel()).success, false);
@@ -195,10 +196,7 @@ test("cancellation requires the billing permission and checks the customer befor
 test("an up-to-date subscription is cancelled at period end, only once", async () => {
   const s = setup();
   assert.equal((await s.cancel()).success, true);
-  sameCall(s.calls[1], {
-    update: "sub_ours",
-    input: { cancel_at_period_end: true },
-  });
+  sameCalls(s.calls, ["retrieve", { cancelAtPeriodEnd: "sub_ours" }]);
   const scheduled = setup({ cancelling: true });
   assert.equal((await scheduled.cancel()).success, true);
   assert.deepEqual(scheduled.calls, ["retrieve"]);
@@ -206,21 +204,12 @@ test("an up-to-date subscription is cancelled at period end, only once", async (
 test("an unpaid subscription stops now and an ended one is refused", async () => {
   const s = setup({ status: "past_due" });
   assert.equal((await s.cancel()).success, true);
-  sameCall(s.calls[1], { cancel: "sub_ours" });
+  sameCalls(s.calls, ["retrieve", { revoke: "sub_ours" }]);
   const ended = setup({ status: "canceled" });
   assert.equal((await ended.cancel()).success, false);
   assert.deepEqual(ended.calls, ["retrieve"]);
 });
-test("renewal lifts a scheduled cancellation instead of opening the portal", async () => {
-  const s = setup({ cancelling: true });
-  const result = await s.call("renew");
-  assert.equal(result.url, "https://app.example.test/projects/cmuhe8ap1000004l64j9yddk1/billing");
-  sameCall(s.calls[1], {
-    update: "sub_ours",
-    input: { cancel_at_period_end: false },
-  });
-});
-test("cancellation refuses a login older than ten minutes before Stripe", async () => {
+test("cancellation refuses a login older than ten minutes before Polar", async () => {
   const s = setup({ staleLogin: true });
   const result = (await s.cancel()) as { success: boolean; code?: string };
   assert.equal(result.success, false);

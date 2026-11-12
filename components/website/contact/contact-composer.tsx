@@ -257,24 +257,31 @@ export function ContactComposer() {
               )}
             />
 
-            {/* Below lg the phone preview is hidden: the exact text stays visible here. */}
+            {/* Below lg the phone preview is hidden: the exact text stays visible here,
+                full width on phones so lines stay readable. */}
             <div className="rounded-xl border bg-muted/40 p-3 lg:hidden">
               <p className="mb-2 font-mono text-[11px] tracking-widest text-muted-foreground uppercase">
                 Aperçu du message
               </p>
-              <div className="ml-auto max-w-[92%] rounded-2xl rounded-br-md bg-primary px-3 py-2 text-sm leading-snug text-primary-foreground">
+              <div className="rounded-2xl rounded-br-md bg-primary px-3 py-2 text-sm leading-snug text-primary-foreground sm:ml-auto sm:max-w-[92%]">
                 <Draft lines={draftLines(draft)} />
               </div>
             </div>
 
             <div>
-              <Button type="submit" size="lg" className="group h-12 w-full text-base sm:w-auto sm:px-5">
+              {/* Shorter label on phones so it fits on one line without overflowing. */}
+              <Button
+                type="submit"
+                size="lg"
+                className="group h-auto min-h-12 w-full text-base max-[399px]:text-sm sm:w-auto sm:px-5"
+              >
                 <WhatsAppIcon aria-hidden="true" data-icon="inline-start" />
-                Ouvrir mon message dans WhatsApp
+                <span className="sm:hidden">Ouvrir dans WhatsApp</span>
+                <span className="max-sm:hidden">Ouvrir mon message dans WhatsApp</span>
                 <ArrowRight
                   aria-hidden="true"
                   data-icon="inline-end"
-                  className="transition-transform group-hover:translate-x-0.5"
+                  className="transition-transform group-hover:translate-x-0.5 max-[399px]:hidden"
                 />
               </Button>
             </div>

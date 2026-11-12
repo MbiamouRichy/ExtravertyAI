@@ -2,6 +2,7 @@ import type {
   PrismaClient,
   InstanceStatus,
 } from "@/src/generated/prisma/client";
+import { sameWhatsAppNumber } from "@/lib/whatsapp-number";
 
 // Only promote a provider-confirmed connection if nothing changed while the
 // request was in flight. In particular, never overwrite a newer webhook.
@@ -43,7 +44,8 @@ export function ownerNumberOf(jid: unknown) {
 
 /**
  * Un seul essai par numéro WhatsApp : pendant l'essai, le compte relié doit
- * être le numéro déclaré à la création. Sans numéro connu, rien n'est bloqué.
+ * être le numéro déclaré à la création, dans l’une ou l’autre de ses écritures
+ * (ancienne numérotation gabonaise comprise). Sans numéro connu, rien n'est bloqué.
  */
 export function isForeignTrialNumber(
   project: { numero: string; status: string },
@@ -51,7 +53,7 @@ export function isForeignTrialNumber(
 ) {
   if (project.status !== "trialing") return false;
   const owner = ownerNumberOf(ownerJid);
-  return !!owner && owner !== project.numero.replace(/\D/g, "");
+  return !!owner && !sameWhatsAppNumber(owner, project.numero);
 }
 
 export const FOREIGN_TRIAL_NUMBER_ERROR =

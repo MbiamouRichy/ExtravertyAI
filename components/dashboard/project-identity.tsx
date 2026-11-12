@@ -7,6 +7,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import type { SwitcherProject } from "@/lib/project-switcher";
 
 export type ProjectIdentity = {
   projectId: string;
@@ -14,6 +15,10 @@ export type ProjectIdentity = {
   logoUrl: string | null;
   /** Rôle du membre connecté : ne sert qu’à masquer les liens, le serveur revérifie. */
   role: string;
+  /** État de l’offre, ou rôle pour qui ne voit pas la facturation. */
+  subtitle: string;
+  /** Projets du membre pour le sélecteur, calculés côté serveur. */
+  projects: SwitcherProject[];
 };
 
 const IdentityContext = createContext<{
@@ -40,10 +45,12 @@ export function useProjectIdentity(projectId: string | undefined) {
 }
 
 /** Publie l’identité du projet ; se met à jour après un renommage ou une nouvelle icône. */
-export function ProjectIdentitySync({ projectId, name, logoUrl, role }: ProjectIdentity) {
+export function ProjectIdentitySync({ projectId, name, logoUrl, role, subtitle, projects }: ProjectIdentity) {
   const { setIdentity } = useContext(IdentityContext);
+  // Liste comparée par contenu : un nouveau rendu serveur identique ne republie rien.
+  const projectsKey = JSON.stringify(projects);
   useEffect(() => {
-    setIdentity({ projectId, name, logoUrl, role });
-  }, [projectId, name, logoUrl, role, setIdentity]);
+    setIdentity({ projectId, name, logoUrl, role, subtitle, projects: JSON.parse(projectsKey) });
+  }, [projectId, name, logoUrl, role, subtitle, projectsKey, setIdentity]);
   return null;
 }

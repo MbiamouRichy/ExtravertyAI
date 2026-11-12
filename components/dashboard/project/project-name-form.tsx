@@ -79,23 +79,15 @@ export function ProjectNameForm({
         event.preventDefault();
         void autosave.queue.flush();
       }}
-      className="space-y-6 rounded-2xl border bg-card p-4 sm:p-6"
     >
-      <div>
-        <h2 className="font-heading text-lg font-semibold tracking-tight">
-          Votre projet
-        </h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Les informations partagées dans votre espace de travail.
-        </p>
-      </div>
+      {/* Champ seul : la carte « Identité du projet » est fournie par la page. */}
       <FieldGroup>
         <Controller
           name="name"
           control={form.control}
           render={({ field, fieldState }) => (
             <Field data-invalid={fieldState.invalid}>
-              <FieldLabel htmlFor="project-name">Nom du projet</FieldLabel>
+              <FieldLabel htmlFor="project-name">Nom</FieldLabel>
               <InputGroup
                 className={cn(
                   "relative overflow-hidden",

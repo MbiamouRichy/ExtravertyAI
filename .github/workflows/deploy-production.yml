@@ -1,0 +1,57 @@
+name: Deploy production workers
+
+# Workers de production du VPS (IA, messages sortants, facturation, rapports).
+# L’app web est déployée par l’intégration Git de Vercel au même push. Voir
+# docs/production.md. L’environnement GitHub `production` peut exiger une
+# validation manuelle avant chaque exécution (Settings → Environments).
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: extravertyai-production-workers
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    environment: production
+    steps:
+      - name: Configure dedicated SSH identity
+        env:
+          DEPLOY_KEY: ${{ secrets.PRODUCTION_VPS_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.PRODUCTION_VPS_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          if [[ -z "$DEPLOY_KEY" || -z "$KNOWN_HOSTS" ]]; then
+            echo "::warning::Secrets de déploiement de production absents : workers non déployés (docs/production.md)."
+            echo "SKIP_DEPLOY=1" >> "$GITHUB_ENV"
+            exit 0
+          fi
+          umask 077
+          mkdir -p "$HOME/.ssh"
+          printf '%s\n' "$DEPLOY_KEY" > "$HOME/.ssh/production_deploy"
+          printf '%s\n' "$KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
+      - name: Build, back up, migrate and restart production workers
+        if: env.SKIP_DEPLOY != '1'
+        env:
+          DEPLOY_HOST: ${{ secrets.PRODUCTION_VPS_HOST }}
+          DEPLOY_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          [[ "$DEPLOY_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$DEPLOY_HOST" =~ ^[a-zA-Z0-9.-]+$ ]]
+          ssh -T -i "$HOME/.ssh/production_deploy" \
+            -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes \
+            -o ConnectTimeout=20 -o ServerAliveInterval=30 -o ServerAliveCountMax=5 \
+            "root@$DEPLOY_HOST" "deploy $DEPLOY_SHA"
+      - name: Remove runner identity
+        if: always()
+        run: rm -f "$HOME/.ssh/production_deploy"

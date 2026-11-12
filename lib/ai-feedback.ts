@@ -1,7 +1,8 @@
 import { z } from "zod";
 import type { Prisma, PrismaClient } from "../src/generated/prisma/client";
 import { chatContactName } from "./chat-privacy";
-import { KNOWLEDGE_LIMITS, entrySearchText } from "./knowledge-shared";
+import { KNOWLEDGE_LIMITS, countEntryWords, entrySearchText } from "./knowledge-shared";
+import { remainingWords, wordLimitMessage } from "./knowledge";
 import { planFeatures } from "./plan-features";
 import { requireProjectAdmin } from "./project-settings";
 import { can, rolesWith } from "./project-permissions";
@@ -145,6 +146,11 @@ async function createEntry(
   const used = await tx.knowledgeEntry.count({ where: { projectId: project.id } });
   if (used >= planFeatures(project.plan).knowledgeEntries) {
     throw new FeedbackError("La base de connaissances est pleine pour votre offre.");
+  }
+  const words = countEntryWords({ title: draft.question, content: draft.answer });
+  const remaining = await remainingWords(tx, project.id, project.plan);
+  if (words > remaining) {
+    throw new FeedbackError(wordLimitMessage(project.plan, words, remaining));
   }
   return tx.knowledgeEntry.create({
     data: {

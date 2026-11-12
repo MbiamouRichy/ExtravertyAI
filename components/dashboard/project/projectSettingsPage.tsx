@@ -12,6 +12,8 @@ import {
   Download,
   ShieldCheck,
   ArrowUpRight,
+  ArrowRight,
+  UsersRound,
   Loader2,
   AlertTriangle,
   Trash2,
@@ -27,6 +29,7 @@ import { ProjectLogoSettings } from "./project-logo-settings";
 import { TeamAutoAssignSettings } from "./team-auto-assign-settings";
 import { CsatSettings } from "./csat-settings";
 import { WaitingTimeSettings } from "./waiting-time-settings";
+import { ProjectTimeZoneSettings } from "./project-time-zone-settings";
 import type { ProjectSettingsView } from "@/lib/settings-types";
 import { formatStorage } from "@/lib/storage-quota";
 import {
@@ -278,26 +281,50 @@ export default function ProjectSettingsPage({
             <CsatSettings key={p.id} projectId={p.id} initial={p.csat} />
           </div>
           <div hidden={tab !== "general"} className="space-y-6">
-            <ProjectLogoSettings
-              key={`logo-${p.id}`}
-              projectId={p.id}
-              name={p.name}
-              logoUrl={p.logoUrl}
-              disabled={!canPause || !!pending || p.deletionPending}
-            />
-            <ProjectNameForm
-              key={p.id}
-              projectId={p.id}
-              name={p.name}
-              version={Math.max(settingsVersion, p.settingsVersion)}
-              disabled={!!pending || p.deletionPending}
-              onVersionChange={setSettingsVersion}
-              onSavingChange={setNameSaving}
-            />
+            {/* Une seule carte pour l’identité : logo puis nom. */}
+            <section
+              aria-labelledby="project-identity-title"
+              className="rounded-2xl border bg-card p-4 sm:p-6"
+            >
+              <h2
+                id="project-identity-title"
+                className="font-heading text-lg font-semibold tracking-tight"
+              >
+                Identité du projet
+              </h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Le nom et le logo que voit votre équipe.
+              </p>
+              <div className="mt-5 space-y-5">
+                <ProjectLogoSettings
+                  key={`logo-${p.id}`}
+                  projectId={p.id}
+                  name={p.name}
+                  logoUrl={p.logoUrl}
+                  disabled={!canPause || !!pending || p.deletionPending}
+                />
+                <ProjectNameForm
+                  key={p.id}
+                  projectId={p.id}
+                  name={p.name}
+                  version={Math.max(settingsVersion, p.settingsVersion)}
+                  disabled={!!pending || p.deletionPending}
+                  onVersionChange={setSettingsVersion}
+                  onSavingChange={setNameSaving}
+                />
+              </div>
+            </section>
             <WaitingTimeSettings
               key={`waiting-${p.id}`}
               projectId={p.id}
               initial={p.showWaitingTime}
+              disabled={!!pending || p.deletionPending}
+            />
+            <ProjectTimeZoneSettings
+              key={`time-zone-${p.id}`}
+              projectId={p.id}
+              initial={p.timeZone}
+              groups={p.timeZoneGroups}
               disabled={!!pending || p.deletionPending}
             />
             <TeamAutoAssignSettings
@@ -468,38 +495,50 @@ export default function ProjectSettingsPage({
                   réservés aux propriétaires et administrateurs, dans la limite
                   de 10 000 contacts par export.
                 </p>
-                {/* Libellés sur deux lignes si besoin plutôt que coupés. */}
-                <div className="mt-6 grid grid-cols-1 gap-2 sm:flex sm:flex-wrap sm:gap-3 [&>*]:h-auto [&>*]:min-h-10 [&>*]:whitespace-normal">
+                {/* Trois actions de même gabarit : pictogramme en tête, libellé
+                    court et centré sur une ligne. Téléphone : pleine largeur,
+                    empilées ; dès sm, côte à côte, l’équipe à part à droite.
+                    Repli sur deux lignes centrées si l’écran est très étroit. */}
+                <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:gap-3 [&>*]:h-auto [&>*]:min-h-10 [&>*]:px-4 [&>*]:text-center [&>*]:whitespace-normal">
                   <Button
                     disabled={!!pending}
+                    aria-busy={pending === "csv"}
                     onClick={() => void download("csv")}
                     variant="outline"
                     size="lg"
                   >
                     {pending === "csv" ? (
-                      <Loader2 className="size-4 animate-spin" />
+                      <Loader2
+                        aria-hidden="true"
+                        className="animate-spin motion-reduce:animate-none"
+                      />
                     ) : (
-                      <Download className="size-4" />
-                    )}{" "}
-                    Export CSV
+                      <Download aria-hidden="true" />
+                    )}
+                    Exporter en CSV
                   </Button>
                   <Button
                     disabled={!!pending}
+                    aria-busy={pending === "xlsx"}
                     onClick={() => void download("xlsx")}
                     variant="outline"
                     size="lg"
                   >
                     {pending === "xlsx" ? (
-                      <Loader2 className="size-4 animate-spin" />
+                      <Loader2
+                        aria-hidden="true"
+                        className="animate-spin motion-reduce:animate-none"
+                      />
                     ) : (
-                      <Download className="size-4" />
-                    )}{" "}
-                    Export Excel
+                      <Download aria-hidden="true" />
+                    )}
+                    Exporter en Excel
                   </Button>
-                  <Button asChild variant="outline" size="lg">
+                  <Button asChild variant="outline" size="lg" className="sm:ml-auto">
                     <Link href={`/projects/${p.id}/team`}>
-                      Gérer les accès de l’équipe{" "}
-                      <ArrowUpRight className="size-4" />
+                      <UsersRound aria-hidden="true" />
+                      Gérer l’équipe
+                      <ArrowRight aria-hidden="true" className="text-muted-foreground" />
                     </Link>
                   </Button>
                 </div>
@@ -533,6 +572,8 @@ export default function ProjectSettingsPage({
                                 ? "Temps d’attente des clients affiché"
                                 : item.action === "waiting.disabled"
                                   ? "Temps d’attente des clients masqué"
+                              : item.action === "timezone.updated"
+                                ? "Fuseau horaire modifié"
                               : item.action === "auto_assign.enabled"
                                 ? "Répartition automatique activée"
                                 : item.action === "auto_assign.disabled"

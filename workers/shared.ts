@@ -1,12 +1,14 @@
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../src/generated/prisma/client";
 import Pusher from "pusher";
+import { DATABASE_SESSION_OPTIONS } from "../lib/database-session";
 
 export function workerDatabase() {
   if (!process.env.DATABASE_URL) throw new Error("DATABASE_URL manquant.");
   return new PrismaClient({
     adapter: new PrismaPg({
       connectionString: process.env.DATABASE_URL,
+      options: DATABASE_SESSION_OPTIONS,
       max: 3,
     }),
   });

@@ -1,11 +1,11 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFile, readdir } from "node:fs/promises";
-import { PGlite } from "@electric-sql/pglite";
+import { createTestPGlite } from "./helpers/pglite";
 import { PGLiteSocketServer } from "@electric-sql/pglite-socket";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../src/generated/prisma/client";
-import type Stripe from "stripe";
+import type { PolarSubscription } from "../lib/polar";
 import {
   billingAccess,
   getBillingAccess,
@@ -16,7 +16,8 @@ import {
   deliverNextBillingEmail,
   reconcileNextBillingProject,
 } from "../lib/billing-lifecycle";
-import { applySubscriptionState, syncSubscription } from "../lib/billing-quota";
+import { syncPolarSubscription } from "../lib/billing-polar";
+import { applySubscriptionState } from "../lib/billing-quota";
 import { reserveMessageQuota } from "../lib/message-quota";
 import { runInstinctCycle } from "../lib/ai-instinct";
 import { claimAiJob, runAiJob } from "../lib/ai-jobs";
@@ -71,12 +72,12 @@ test("billing access expires at the exact deadline and respects billing versus m
   assert.equal(billingAccess(null, now).allowed, false);
 });
 
-// Isolated PostgreSQL WASM; no live DB, Stripe request, AI call or email.
+// Isolated PostgreSQL WASM; no live DB, Polar request, AI call or email.
 test(
   "billing lifecycle, recovery and durable owner notifications",
   { timeout: 120000 },
   async (t) => {
-    const db = await PGlite.create();
+    const db = await createTestPGlite();
     const server = new PGLiteSocketServer({ db, host: "127.0.0.1", port: 0 });
     let prisma: PrismaClient | undefined;
     const config = {
@@ -143,44 +144,34 @@ test(
         });
         return { project, owner, period };
       }
+      const cycleStart = Math.floor(Date.now() / 1000);
       function subscription(
         projectId: string,
-        status: Stripe.Subscription.Status = "active",
-        paid = true,
-      ) {
-        const start = Math.floor(Date.now() / 1000);
+        status = "active",
+      ): PolarSubscription {
         return {
           id: `sub_${projectId}`,
-          customer: `cus_${projectId}`,
-          metadata: { projectId },
           status,
-          items: {
-            data: [
-              {
-                price: { id: "price_billing_test" },
-                current_period_start: start,
-                current_period_end: start + 2592000,
-              },
-            ],
-          },
-          latest_invoice: {
-            status: paid ? "paid" : "open",
-            lines: {
-              data: [
-                {
-                  period: { start, end: start + 2592000 },
-                  pricing: { price_details: { price: "price_billing_test" } },
-                },
-              ],
-            },
-          },
-        } as unknown as Stripe.Subscription;
+          customer_id: `cus_${projectId}`,
+          product_id: "prod_billing_test",
+          amount: 1599,
+          currency: "usd",
+          recurring_interval: "month",
+          current_period_start: new Date(cycleStart * 1000).toISOString(),
+          current_period_end: new Date(
+            (cycleStart + 2592000) * 1000,
+          ).toISOString(),
+          trial_start: null,
+          trial_end: null,
+          cancel_at_period_end: false,
+          metadata: { projectId },
+        };
       }
-      process.env.STRIPE_STARTER_PLAN_ID = "price_billing_test";
+      process.env.POLAR_STARTER_PRODUCT_ID = "prod_billing_test";
       process.env.MESSAGE_LIMIT_STARTER = "4000";
 
       await t.test(
-        "a recognized legacy price restores access; unknown prices cannot trigger stale expiry emails",
+        "an unknown product cannot trigger stale expiry emails; once configured, access is restored",
         async () => {
           const { project } = await fixture();
           const sub = subscription(project.id);
@@ -188,26 +179,9 @@ test(
             where: { id: project.id },
             data: { stripeSubscriptionId: sub.id },
           });
-          process.env.STRIPE_STARTER_PLAN_ID = "price_new";
+          process.env.POLAR_STARTER_PRODUCT_ID = "prod_other";
           try {
-            await reconcileNextBillingProject(client, async () => sub, config);
-            assert.equal(
-              await client.billingEmail.count({
-                where: { projectId: project.id },
-              }),
-              0,
-            );
-            process.env.STRIPE_STARTER_LEGACY_PRICE_IDS =
-              "price_other, price_billing_test";
-            await client.project.update({
-              where: { id: project.id },
-              data: { billingNextCheckAt: new Date(0) },
-            });
-            await reconcileNextBillingProject(client, async () => sub, config);
-            assert.equal(
-              (await getBillingAccess(client, project.id)).allowed,
-              true,
-            );
+            await reconcileNextBillingProject(client, config, async () => sub);
             assert.equal(
               await client.billingEmail.count({
                 where: { projectId: project.id },
@@ -215,9 +189,23 @@ test(
               0,
             );
           } finally {
-            process.env.STRIPE_STARTER_PLAN_ID = "price_billing_test";
-            delete process.env.STRIPE_STARTER_LEGACY_PRICE_IDS;
+            process.env.POLAR_STARTER_PRODUCT_ID = "prod_billing_test";
           }
+          await client.project.update({
+            where: { id: project.id },
+            data: { billingNextCheckAt: new Date(0) },
+          });
+          await reconcileNextBillingProject(client, config, async () => sub);
+          assert.equal(
+            (await getBillingAccess(client, project.id)).allowed,
+            true,
+          );
+          assert.equal(
+            await client.billingEmail.count({
+              where: { projectId: project.id },
+            }),
+            0,
+          );
         },
       );
 
@@ -225,6 +213,8 @@ test(
         "expired trials block manual, automatic and auxiliary AI access without a webhook",
         async () => {
           const { project } = await fixture();
+          // Offre avec Instinct IA : seul l’essai expiré doit bloquer l’analyse.
+          await client.project.update({ where: { id: project.id }, data: { plan: "pro" } });
           assert.equal(
             (await getBillingAccess(client, project.id)).reason,
             "trial_expired",
@@ -336,22 +326,25 @@ test(
       );
 
       await t.test(
-        "pending first invoice keeps access closed; confirmed payment restores once and cancels expiry",
+        "an incomplete first payment keeps access closed; confirmed payment restores once and cancels expiry",
         async () => {
           const { project } = await fixture();
-          const sub = subscription(project.id, "active", false);
-          await syncSubscription(client, sub, 10);
+          await syncPolarSubscription(
+            client,
+            subscription(project.id, "incomplete"),
+            10,
+          );
           assert.equal(
             (await getBillingAccess(client, project.id)).allowed,
             false,
           );
           await queueBillingEmails(client, project.id, config);
           const paid = subscription(project.id);
-          await syncSubscription(client, paid, 11);
+          await syncPolarSubscription(client, paid, 11);
           await client.$transaction((tx) =>
             reserveMessageQuota(tx, project.id),
           );
-          await syncSubscription(client, paid, 11);
+          await syncPolarSubscription(client, paid, 11);
           assert.equal(
             (await getBillingAccess(client, project.id)).allowed,
             true,
@@ -376,12 +369,11 @@ test(
       );
 
       await t.test(
-        "a new Polar subscription replaces only an ended one",
+        "a new subscription replaces only an ended one",
         async () => {
           const { project } = await fixture();
           const now = Math.floor(Date.now() / 1000);
           const state = (id: string) => ({
-            provider: "polar" as const,
             id,
             customerId: "polar-customer",
             providerStatus: "active",
@@ -393,12 +385,10 @@ test(
             endsAt: now + 2592000,
             cycle: { start: now, end: now + 2592000 },
             paidCycle: true,
-            renewalPending: false,
           });
           await client.project.update({
             where: { id: project.id },
             data: {
-              billingProvider: "polar",
               stripeSubscriptionId: `old_${project.id}`,
               stripeStatus: "active",
             },
@@ -423,25 +413,24 @@ test(
       );
 
       await t.test(
-        "renewal keeps paid access while Stripe collects the invoice, then opens a fresh quota",
+        "a paid renewal opens a fresh quota for the new cycle",
         async () => {
           const { project, period } = await fixture();
-          const pending = subscription(project.id, "active", false);
-          const cycleStart = pending.items.data[0].current_period_start;
+          const sub = subscription(project.id);
           // Cycle payé précédent, qui vient de se terminer au début du nouveau cycle.
           await client.project.update({
             where: { id: project.id },
             data: {
               status: "active",
               stripeStatus: "active",
-              stripeSubscriptionId: pending.id,
+              stripeSubscriptionId: sub.id,
             },
           });
           await client.quotaPeriod.update({
             where: { id: period.id },
             data: {
               kind: "active",
-              key: `cycle:${pending.id}:${cycleStart - 2592000}`,
+              key: `cycle:${sub.id}:${cycleStart - 2592000}`,
               startsAt: new Date((cycleStart - 2592000) * 1000),
               endsAt: new Date(cycleStart * 1000 - 1000),
               limit: 4000,
@@ -452,46 +441,11 @@ test(
             (await getBillingAccess(client, project.id)).allowed,
             false,
           );
-
-          // Facture du nouveau cycle encore ouverte : accès prolongé, quota conservé.
-          await syncSubscription(client, pending, 20);
-          assert.equal(
-            (await getBillingAccess(client, project.id)).allowed,
-            true,
-          );
-          const extended = await client.quotaPeriod.findUniqueOrThrow({
-            where: { id: period.id },
-          });
-          assert.equal(extended.isCurrent, true);
-          assert.ok(
-            extended.endsAt.getTime() > Date.now() + 2 * 86400000,
-            "grace period covers the collection delay",
-          );
-          await client.$transaction((tx) =>
-            reserveMessageQuota(tx, project.id),
-          );
-          assert.equal(
-            (
-              await client.quotaPeriod.findUniqueOrThrow({
-                where: { id: period.id },
-              })
-            ).used,
-            13,
-          );
-          await queueBillingEmails(client, project.id, config);
-          assert.equal(
-            await client.billingEmail.count({
-              where: { projectId: project.id },
-            }),
-            0,
-          );
-
-          // Paiement confirmé : nouveau cycle avec un quota neuf.
-          await syncSubscription(client, subscription(project.id), 21);
+          await syncPolarSubscription(client, sub, 20);
           const renewed = await client.quotaPeriod.findFirstOrThrow({
             where: { projectId: project.id, isCurrent: true },
           });
-          assert.equal(renewed.key, `cycle:${pending.id}:${cycleStart}`);
+          assert.equal(renewed.key, `cycle:${sub.id}:${cycleStart}`);
           assert.equal(renewed.used, 0);
           assert.equal(renewed.limit, 4000);
           assert.equal(
@@ -502,37 +456,17 @@ test(
       );
 
       await t.test(
-        "a failed renewal payment ends the grace immediately",
+        "a failed renewal payment closes access immediately",
         async () => {
-          const { project, period } = await fixture();
-          const pending = subscription(project.id, "active", false);
-          const cycleStart = pending.items.data[0].current_period_start;
-          await client.project.update({
-            where: { id: project.id },
-            data: {
-              status: "active",
-              stripeStatus: "active",
-              stripeSubscriptionId: pending.id,
-            },
-          });
-          await client.quotaPeriod.update({
-            where: { id: period.id },
-            data: {
-              kind: "active",
-              key: `cycle:${pending.id}:${cycleStart - 2592000}`,
-              startsAt: new Date((cycleStart - 2592000) * 1000),
-              endsAt: new Date(cycleStart * 1000 - 1000),
-              limit: 4000,
-            },
-          });
-          await syncSubscription(client, pending, 30);
+          const { project } = await fixture();
+          await syncPolarSubscription(client, subscription(project.id), 30);
           assert.equal(
             (await getBillingAccess(client, project.id)).allowed,
             true,
           );
-          await syncSubscription(
+          await syncPolarSubscription(
             client,
-            subscription(project.id, "past_due", false),
+            subscription(project.id, "past_due"),
             31,
           );
           const access = await getBillingAccess(client, project.id);
@@ -642,7 +576,7 @@ test(
             where: { id: project.id },
             data: { stripeSubscriptionId: sub.id },
           });
-          await reconcileNextBillingProject(client, async () => sub, config);
+          await reconcileNextBillingProject(client, config, async () => sub);
           assert.equal(
             (await getBillingAccess(client, project.id)).allowed,
             true,
@@ -659,18 +593,14 @@ test(
             where: { id: project.id },
             data: { billingNextCheckAt: new Date(0) },
           });
-          await reconcileNextBillingProject(
-            client,
-            async () => {
-              await syncSubscription(
-                client,
-                subscription(project.id, "past_due"),
-                20,
-              );
-              return sub; // Stale retrieval from before the webhook.
-            },
-            config,
-          );
+          await reconcileNextBillingProject(client, config, async () => {
+            await syncPolarSubscription(
+              client,
+              subscription(project.id, "past_due"),
+              20,
+            );
+            return sub; // Stale retrieval from before the webhook.
+          });
           assert.equal(
             (await getBillingAccess(client, project.id)).reason,
             "payment_failed",
@@ -687,20 +617,16 @@ test(
       );
 
       await t.test(
-        "Stripe outage cannot prevent expiry notifications",
+        "Polar outage cannot prevent expiry notifications",
         async () => {
           const { project } = await fixture();
           await client.project.update({
             where: { id: project.id },
             data: { stripeSubscriptionId: `sub_${project.id}` },
           });
-          await reconcileNextBillingProject(
-            client,
-            async () => {
-              throw Error("Stripe offline");
-            },
-            config,
-          );
+          await reconcileNextBillingProject(client, config, async () => {
+            throw Error("Polar offline");
+          });
           assert.equal(
             (await getBillingAccess(client, project.id)).allowed,
             false,

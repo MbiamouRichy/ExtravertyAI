@@ -1,6 +1,7 @@
 import { z } from "zod";
 import {
   getCountries,
+  isSupportedCountry,
   parsePhoneNumberFromString,
   type CountryCode,
 } from "libphonenumber-js/max";
@@ -35,11 +36,15 @@ export function parseProjectPhone(value: string, country?: CountryCode) {
 export const ProjectCreationFormSchema = z
   .object({
     name: nameSchema,
-    country: PhoneCountrySchema,
+    // Aucun pays par défaut : le champ part vide, il est choisi ou déduit d’un
+    // numéro saisi avec son indicatif.
+    country: z.string().pipe(PhoneCountrySchema),
     numero: phoneTextSchema,
     plan: planSchema,
   })
   .superRefine((values, ctx) => {
+    // Sans pays, seule l’erreur du pays s’affiche.
+    if (!isSupportedCountry(values.country)) return;
     if (!parseProjectPhone(values.numero, values.country)) {
       ctx.addIssue({
         code: "custom",
@@ -67,6 +72,9 @@ export const ProjectCheckoutSchema = z.object({
   plan: planSchema,
 });
 
+export type ProjectCreationFormInput = z.input<
+  typeof ProjectCreationFormSchema
+>;
 export type ProjectCreationFormValues = z.infer<
   typeof ProjectCreationFormSchema
 >;

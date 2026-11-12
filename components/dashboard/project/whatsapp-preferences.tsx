@@ -128,33 +128,41 @@ export function WhatsAppPreferences({
             name={option.key}
             control={form.control}
             render={({ field, fieldState }) => (
+              // La case à cocher sur la ligne du titre ; l’explication
+              // dessous, sur toute la largeur.
               <Field
                 orientation="horizontal"
                 data-invalid={fieldState.invalid}
-                className="justify-between gap-5 py-5"
+                className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-4 gap-y-1.5 py-5"
               >
-                <div>
-                  <FieldLabel htmlFor={`whatsapp-${option.key}`}>
-                    {option.title}
-                  </FieldLabel>
-                  <FieldDescription id={`whatsapp-${option.key}-description`}>
-                    {option.description}
-                  </FieldDescription>
-                  <FieldError errors={[fieldState.error]} />
-                </div>
-                <Checkbox
-                  id={`whatsapp-${option.key}`}
-                  name={field.name}
-                  ref={field.ref}
-                  onBlur={field.onBlur}
-                  checked={field.value}
-                  onCheckedChange={(checked) =>
-                    void change(option.key, checked === true)
-                  }
-                  disabled={disabled || saving}
-                  aria-invalid={fieldState.invalid}
-                  aria-describedby={`whatsapp-${option.key}-description`}
-                />
+                <FieldLabel
+                  htmlFor={`whatsapp-${option.key}`}
+                  className="col-start-1 row-start-1 min-h-5 items-center"
+                >
+                  {option.title}
+                </FieldLabel>
+                <span className="col-start-2 row-start-1 flex min-h-5 items-center">
+                  <Checkbox
+                    id={`whatsapp-${option.key}`}
+                    name={field.name}
+                    ref={field.ref}
+                    onBlur={field.onBlur}
+                    checked={field.value}
+                    onCheckedChange={(checked) =>
+                      void change(option.key, checked === true)
+                    }
+                    disabled={disabled || saving}
+                    aria-invalid={fieldState.invalid}
+                    aria-describedby={`whatsapp-${option.key}-description`}
+                  />
+                </span>
+                <FieldDescription
+                  id={`whatsapp-${option.key}-description`}
+                  className="col-span-2"
+                >
+                  {option.description}
+                </FieldDescription>
+                <FieldError className="col-span-2" errors={[fieldState.error]} />
               </Field>
             )}
           />

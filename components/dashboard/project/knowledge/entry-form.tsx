@@ -178,7 +178,7 @@ export function EntryFormDialog({
                     autoComplete="off"
                     maxLength={KNOWLEDGE_LIMITS.titleMax}
                     aria-invalid={fieldState.invalid}
-                    placeholder={kind === "PRODUCT" ? "Sneakers Urban blanches" : "Livrez-vous à Port-Gentil ?"}
+                    placeholder={kind === "PRODUCT" ? "Sneakers Urban blanches" : "Livrez-vous le dimanche ?"}
                   />
                   {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
                 </Field>

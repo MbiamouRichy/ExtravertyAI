@@ -24,6 +24,8 @@ export type BroadcastUsageView = {
   daily: { used: number; limit: number };
   recipientsLimit: number;
   quota: { used: number; limit: number } | null;
+  /** Offset of the project's zone, e.g. « UTC+1 »: the sending hours are local to it. */
+  sendingZone: string;
 };
 
 export const ACTIVE_STATUSES: BroadcastStatus[] = ["SCHEDULED", "SENDING", "PAUSED"];

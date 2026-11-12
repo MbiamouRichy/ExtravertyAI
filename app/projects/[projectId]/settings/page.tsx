@@ -9,6 +9,7 @@ import type { ProjectSettingsView } from "@/lib/settings-types";
 import { planAllows } from "@/lib/plan-features";
 import { storageUsage } from "@/lib/storage-quota";
 import { projectLogoUrl } from "@/lib/project-logo";
+import { projectTimeZone, timeZoneGroups } from "@/lib/time-zones";
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "Paramètres du projet | ExtravertyAI",
@@ -89,7 +90,9 @@ export default async function SettingsPage({
     storage,
     showWaitingTime: p.showWaitingTime,
     aiQuietEnabled: p.aiQuietEnabled,
-    autoAssign: { enabled: p.autoAssignTeam, available: p.plan === "business" },
+    timeZone: projectTimeZone(p.timeZone),
+    timeZoneGroups: timeZoneGroups(new Date(), projectTimeZone(p.timeZone)),
+    autoAssign: { enabled: p.autoAssignTeam, available: planAllows(p.plan, "autoAssign") },
     csat: {
       enabled: p.csatEnabled,
       message: p.csatMessage,

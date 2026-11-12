@@ -129,11 +129,14 @@ export function BroadcastComposer({
   tags,
   usage,
   connected,
+  stageTargeting,
 }: {
   projectId: string;
   tags: Array<{ id: string; name: string }>;
   usage: BroadcastUsageView;
   connected: boolean;
+  /** Ciblage par étape du pipeline : offres avec pipeline seulement (revérifié côté serveur). */
+  stageTargeting: { enabled: true } | { enabled: false; planName: string };
 }) {
   const id = useId();
   const router = useRouter();
@@ -470,35 +473,45 @@ export function BroadcastComposer({
                 </FieldSet>
               )}
             />
-            <Controller
-              name="stages"
-              control={form.control}
-              render={({ field }) => (
-                <FieldSet>
-                  <FieldLegend variant="label">Étapes du pipeline</FieldLegend>
-                  <div className="flex flex-wrap gap-2">
-                    {PIPELINE_STAGES.map((stage) => (
-                      <FieldLabel
-                        key={stage.id}
-                        htmlFor={`${id}-stage-${stage.id}`}
-                        className="w-auto! cursor-pointer gap-2 rounded-md border px-2.5 py-1.5 font-normal has-data-[state=checked]:border-primary has-data-[state=checked]:bg-muted/50"
-                      >
-                        <Checkbox
-                          id={`${id}-stage-${stage.id}`}
-                          checked={field.value.includes(stage.id)}
-                          onCheckedChange={(next) =>
-                            field.onChange(
-                              next ? [...field.value, stage.id] : field.value.filter((value) => value !== stage.id),
-                            )
-                          }
-                        />
-                        {stage.label}
-                      </FieldLabel>
-                    ))}
-                  </div>
-                </FieldSet>
-              )}
-            />
+            {stageTargeting.enabled ? (
+              <Controller
+                name="stages"
+                control={form.control}
+                render={({ field }) => (
+                  <FieldSet>
+                    <FieldLegend variant="label">Étapes du pipeline</FieldLegend>
+                    <div className="flex flex-wrap gap-2">
+                      {PIPELINE_STAGES.map((stage) => (
+                        <FieldLabel
+                          key={stage.id}
+                          htmlFor={`${id}-stage-${stage.id}`}
+                          className="w-auto! cursor-pointer gap-2 rounded-md border px-2.5 py-1.5 font-normal has-data-[state=checked]:border-primary has-data-[state=checked]:bg-muted/50"
+                        >
+                          <Checkbox
+                            id={`${id}-stage-${stage.id}`}
+                            checked={field.value.includes(stage.id)}
+                            onCheckedChange={(next) =>
+                              field.onChange(
+                                next ? [...field.value, stage.id] : field.value.filter((value) => value !== stage.id),
+                              )
+                            }
+                          />
+                          {stage.label}
+                        </FieldLabel>
+                      ))}
+                    </div>
+                  </FieldSet>
+                )}
+              />
+            ) : (
+              <FieldSet>
+                <FieldLegend variant="label">Étapes du pipeline</FieldLegend>
+                <FieldDescription>
+                  Ciblez vos prospects « Intéressé » ou « Devis envoyé » avec l’offre{" "}
+                  {stageTargeting.planName}.
+                </FieldDescription>
+              </FieldSet>
+            )}
             <Controller
               name="activeWithinDays"
               control={form.control}
@@ -581,7 +594,7 @@ export function BroadcastComposer({
                     />
                     <FieldDescription id={`${id}-date-help`}>
                       Heure de votre appareil. Hors de {BROADCAST_WINDOW.startHour} h – {BROADCAST_WINDOW.endHour} h
-                      (Libreville), l’envoi attend l’ouverture suivante.
+                      (heure de votre activité, {usage.sendingZone}), l’envoi attend l’ouverture suivante.
                     </FieldDescription>
                     {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
                   </Field>

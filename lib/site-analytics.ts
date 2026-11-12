@@ -33,7 +33,33 @@ export function normalizePath(raw: string): string | null {
   return normalized;
 }
 
-/** Site d'origine seul (jamais l'URL complète), hors navigation interne. */
+/**
+ * Pages du site vitrine, sous leur chemin normalisé (minuscules) : seules
+ * classées dans « Top pages ». L'application (projets, connexion…) n'y figure
+ * pas. Une nouvelle page publique s'ajoute ici (les tests vérifient qu'elle existe).
+ */
+export const SITE_PAGES = [
+  "/",
+  "/tarifs",
+  "/apropos",
+  "/contact",
+  "/conditions",
+  "/remboursement",
+  "/donneesetconfidentialite",
+] as const;
+
+/**
+ * Domaines par lesquels passent les parcours de l'application : paiement,
+ * connexion Google, accès aux préversions. Un retour depuis ces sites est un
+ * utilisateur déjà là, pas une source de visiteurs. Sous-domaines compris ;
+ * la recherche Google (google.com) reste une vraie source.
+ */
+export const APP_FLOW_REFERRERS = ["stripe.com", "polar.sh", "accounts.google.com", "vercel.com"] as const;
+export function isAppFlowReferrer(host: string) {
+  return APP_FLOW_REFERRERS.some((domain) => host === domain || host.endsWith(`.${domain}`));
+}
+
+/** Site d'origine seul (jamais l'URL complète), hors navigation interne et parcours de l'app. */
 export function referrerHost(referrer: string | undefined, ownHost: string | null) {
   if (!referrer) return null;
   try {
@@ -41,7 +67,7 @@ export function referrerHost(referrer: string | undefined, ownHost: string | nul
     if (url.protocol !== "https:" && url.protocol !== "http:") return null;
     const host = url.hostname.toLowerCase().replace(/^www\./, "");
     const own = ownHost?.toLowerCase().split(":")[0].replace(/^www\./, "");
-    if (!host || host === own) return null;
+    if (!host || host === own || isAppFlowReferrer(host)) return null;
     return host.slice(0, 100);
   } catch {
     return null;

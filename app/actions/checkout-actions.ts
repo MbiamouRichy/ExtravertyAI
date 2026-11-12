@@ -4,12 +4,7 @@ import crypto from "crypto";
 import { revalidatePath } from "next/cache";
 import prisma from "@/lib/prisma";
 import { getSession } from "@/lib/auth-server";
-import { stripe } from "@/lib/stripe";
-import { checkoutProvider } from "@/lib/billing-provider";
-import {
-  matchesCheckoutPrice,
-  matchesPolarProduct,
-} from "@/lib/checkout-price";
+import { matchesPolarProduct } from "@/lib/checkout-price";
 import {
   createPolarCheckout,
   getPolarProduct,
@@ -26,36 +21,48 @@ import { resolvePlanId, type PlanId } from "@/lib/pricing";
 import { needsInitialCheckout } from "@/lib/billing-display";
 import { isTrialAvailable, reserveTrial } from "@/lib/trial-eligibility";
 import {
+  consumeNumberProof,
+  formatVerificationNumber,
+  releaseNumberProof,
+  usableNumberProof,
+} from "@/lib/phone-verification";
+import { ownProjectNumberConflict } from "@/lib/project-number-conflict";
+import { getBrowserTimeZone } from "@/lib/server-time-zone";
+import {
   createEvolutionInstance,
   deleteEvolutionInstance,
 } from "./evolutionAPI";
-
-const STRIPE_PRICE_MAPPING: Record<
-  "starter" | "business" | "pro",
-  string | undefined
-> = {
-  starter: process.env.STRIPE_STARTER_PLAN_ID,
-  business: process.env.STRIPE_BUSINESS_PLAN_ID,
-  pro: process.env.STRIPE_PRO_PLAN_ID,
-};
 
 const EMAIL_NOT_VERIFIED_ERROR =
   "Confirmez votre adresse e-mail avant de créer un projet.";
 const TRIAL_UNAVAILABLE_ERROR =
   "Ce numéro WhatsApp a déjà bénéficié de l’essai gratuit.";
+const NUMBER_NOT_VERIFIED_ERROR =
+  "Confirmez d’abord votre numéro WhatsApp avec le code reçu.";
 
-/** Le client confirme explicitement un paiement sans essai. */
+/**
+ * Le client confirme explicitement un paiement sans essai, et présente la
+ * preuve de son numéro (envoi WhatsApp dont il a saisi le bon code).
+ */
 const CheckoutOptionsSchema = z
-  .object({ withoutTrial: z.boolean().optional() })
+  .object({
+    withoutTrial: z.boolean().optional(),
+    verificationId: z.string().uuid().optional(),
+  })
   .optional();
 
 class TrialTakenError extends Error {}
+class NumberProofUsedError extends Error {}
 
 const PROJECTS_PER_HOUR = 5;
 
+/**
+ * Enregistre le projet et ouvre le paiement, une fois le numéro prouvé : rien
+ * n’est créé (projet, instance WhatsApp, réservation d’essai) avant le bon code.
+ */
 export async function createProjectAndCheckout(
   data: ProjectCheckoutInput,
-  options?: { withoutTrial?: boolean },
+  options?: { withoutTrial?: boolean; verificationId?: string },
 ) {
   const session = await getSession();
   if (!session?.user?.id || !session?.user?.email) {
@@ -68,8 +75,9 @@ export async function createProjectAndCheckout(
       code: "EMAIL_NOT_VERIFIED" as const,
       error: EMAIL_NOT_VERIFIED_ERROR,
     };
-  const withoutTrial =
-    CheckoutOptionsSchema.safeParse(options).data?.withoutTrial === true;
+  const checkoutOptions = CheckoutOptionsSchema.safeParse(options).data;
+  const withoutTrial = checkoutOptions?.withoutTrial === true;
+  const verificationId = checkoutOptions?.verificationId;
   // Chaque création ouvre une instance WhatsApp et peut réserver l’essai d’un
   // numéro : limite durable en base, et rafale bloquée sur cette instance.
   const recentProjects = await prisma.projectMembership.count({
@@ -99,10 +107,23 @@ export async function createProjectAndCheckout(
   }
   data = parsed.data;
   const cleanedNumero = parsed.data.numero;
+  const userId = session.user.id;
 
-  if (!checkoutReference(data.plan)) {
+  // Sans preuve du numéro, rien n’est créé et l’essai n’est même pas consulté.
+  const proof = verificationId
+    ? await usableNumberProof(prisma, { verificationId, userId, numero: cleanedNumero })
+    : null;
+  if (!verificationId || !proof?.verifiedAt)
+    return {
+      success: false as const,
+      code: "NUMBER_NOT_VERIFIED" as const,
+      error: NUMBER_NOT_VERIFIED_ERROR,
+    };
+  const verifiedAt = proof.verifiedAt;
+
+  if (!polarProductId(data.plan)) {
     // Variable d'environnement absente : à corriger côté hébergement, pas par le client.
-    console.error("CHECKOUT_REFERENCE_MISSING", checkoutProvider(), data.plan);
+    console.error("CHECKOUT_REFERENCE_MISSING", data.plan);
     return {
       success: false,
       error:
@@ -127,21 +148,8 @@ export async function createProjectAndCheckout(
     };
   }
 
-  const existingProject = await prisma.project.findFirst({
-    where: {
-      numero: cleanedNumero,
-      members: { some: { userId: session.user.id } },
-    },
-  });
-
-  if (existingProject) {
-    return {
-      success: false,
-      error: existingProject.stripeSubscriptionId
-        ? "Ce numéro WhatsApp est déjà configuré sur l'un de vos projets."
-        : `Ce numéro est déjà associé au projet « ${existingProject.name} », dont le paiement n’est pas terminé. Ouvrez sa facturation pour reprendre le paiement.`,
-    };
-  }
+  const conflict = await ownProjectNumberConflict(prisma, userId, cleanedNumero);
+  if (conflict) return { success: false, error: conflict };
 
   // Lecture avant toute création externe ; la réservation atomique suit.
   const trial = await isTrialAvailable(prisma, cleanedNumero);
@@ -160,6 +168,9 @@ export async function createProjectAndCheckout(
 
   let isInstanceCreated = false;
   let createdProjectId: string | null = null;
+  // The creator usually works where the business is: their browser's zone is
+  // the best first guess (broadcast hours), editable later in the settings.
+  const timeZone = (await getBrowserTimeZone()) ?? undefined;
 
   try {
     // Si votre fonction d'API accepte le token, vous pouvez lui passer instanceToken
@@ -176,14 +187,26 @@ export async function createProjectAndCheckout(
           instanceStatus: "connecting",
           plan: data.plan,
           status: "inactive",
+          timeZone,
+          numeroVerifiedAt: verifiedAt,
           members: {
             create: {
-              userId: session.user.id,
+              userId,
               role: "OWNER",
             },
           },
         },
       });
+      // Une preuve n’enregistre qu’un projet, même sur deux onglets à la fois.
+      if (
+        !(await consumeNumberProof(tx, {
+          verificationId,
+          userId,
+          numero: cleanedNumero,
+          projectId: created.id,
+        }))
+      )
+        throw new NumberProofUsedError();
       // Deux comptes sur le même numéro : un seul obtient l’essai.
       if (trial && !(await reserveTrial(tx, cleanedNumero, created.id)))
         throw new TrialTakenError();
@@ -201,15 +224,18 @@ export async function createProjectAndCheckout(
 
     revalidatePath("/projects");
 
-    return { success: true, url };
+    return { success: true as const, url };
   } catch (error) {
     const trialTaken = error instanceof TrialTakenError;
-    if (!trialTaken)
+    const proofUsed = error instanceof NumberProofUsedError;
+    if (!trialTaken && !proofUsed)
       console.error("❌ Échec de la création (Rollback) :", error);
 
     if (createdProjectId) {
       try {
         await prisma.project.delete({ where: { id: createdProjectId } });
+        // Projet annulé : la preuve resservira, sans nouveau code.
+        await releaseNumberProof(prisma, { verificationId, userId });
       } catch (dbError) {
         console.error("CRITIQUE: Échec de suppression du projet", dbError);
       }
@@ -229,6 +255,12 @@ export async function createProjectAndCheckout(
         code: "TRIAL_UNAVAILABLE" as const,
         error: TRIAL_UNAVAILABLE_ERROR,
       };
+    if (proofUsed)
+      return {
+        success: false as const,
+        code: "NUMBER_NOT_VERIFIED" as const,
+        error: NUMBER_NOT_VERIFIED_ERROR,
+      };
     return {
       success: false,
       error:
@@ -237,18 +269,9 @@ export async function createProjectAndCheckout(
   }
 }
 
-/** Prix Stripe ou produit Polar du forfait, selon le fournisseur actif. */
-function checkoutReference(plan: PlanId) {
-  return checkoutProvider() === "polar"
-    ? polarProductId(plan)
-    : STRIPE_PRICE_MAPPING[plan];
-}
-
+/** Le produit Polar du forfait est-il toujours au tarif affiché ? */
 async function isCheckoutPriceCurrent(plan: PlanId) {
-  const reference = checkoutReference(plan)!;
-  return checkoutProvider() === "polar"
-    ? matchesPolarProduct(await getPolarProduct(reference), plan)
-    : matchesCheckoutPrice(await stripe.prices.retrieve(reference), plan);
+  return matchesPolarProduct(await getPolarProduct(polarProductId(plan)!), plan);
 }
 
 /** Paiement d'abonnement, avec ou sans essai de 10 jours, pour un projet existant. */
@@ -262,49 +285,30 @@ async function createCheckoutUrl(input: {
 }) {
   const origin = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "");
   if (!origin) throw new Error("NEXT_PUBLIC_APP_URL manquant");
-  const reference = checkoutReference(input.plan);
-  if (!reference) throw new Error("Forfait non configuré");
-  if (checkoutProvider() === "polar")
-    return createPolarCheckout({
-      productId: reference,
-      projectId: input.projectId,
-      plan: input.plan,
-      email: input.email,
-      successUrl: `${origin}/projects/${input.projectId}?success=true`,
-      returnUrl: `${origin}${input.cancelPath}`,
-      trial: input.trial,
-    });
-  const checkoutSession = await stripe.checkout.sessions.create({
-    payment_method_types: ["card"],
-    mode: "subscription",
-    customer_email: input.email,
-    line_items: [{ price: reference, quantity: 1 }],
-    payment_method_collection: "always",
-    metadata: { projectId: input.projectId },
-    subscription_data: {
-      metadata: { projectId: input.projectId },
-      ...(input.trial ? { trial_period_days: 10 } : {}),
-    },
-    // La session ne doit pas survivre à la réservation de l'essai.
-    ...(input.trial
-      ? { expires_at: Math.floor(Date.now() / 1000) + 60 * 60 }
-      : {}),
-    success_url: `${origin}/projects/${input.projectId}?success=true`,
-    cancel_url: `${origin}${input.cancelPath}`,
+  const productId = polarProductId(input.plan);
+  if (!productId) throw new Error("Forfait non configuré");
+  return createPolarCheckout({
+    productId,
+    projectId: input.projectId,
+    plan: input.plan,
+    email: input.email,
+    successUrl: `${origin}/projects/${input.projectId}?success=true`,
+    returnUrl: `${origin}${input.cancelPath}`,
+    trial: input.trial,
   });
-  if (!checkoutSession.url) throw new Error("URL Stripe non générée");
-  return checkoutSession.url;
 }
 
 const ResumeSchema = z.object({
   projectId: z.string().cuid(),
   withoutTrial: z.boolean().optional(),
+  /** Preuve du numéro, pour un projet enregistré avant la vérification. */
+  verificationId: z.string().uuid().optional(),
 });
 
 /**
  * Reprend le paiement d'un projet dont le Checkout n'a pas abouti (onglet
  * fermé, carte refusée). Réservé au propriétaire et au rôle Facturation, tant
- * qu'aucun client ni abonnement Stripe n'est rattaché au projet.
+ * qu'aucun client ni abonnement n'est rattaché au projet.
  */
 export async function resumeProjectCheckout(
   input: z.input<typeof ResumeSchema>,
@@ -321,7 +325,7 @@ export async function resumeProjectCheckout(
       code: "EMAIL_NOT_VERIFIED" as const,
       error: EMAIL_NOT_VERIFIED_ERROR,
     };
-  const { projectId, withoutTrial } = parsed.data;
+  const { projectId, withoutTrial, verificationId } = parsed.data;
   const membership = await prisma.projectMembership.findUnique({
     where: { userId_projectId: { userId: session.user.id, projectId } },
     select: {
@@ -334,6 +338,7 @@ export async function resumeProjectCheckout(
           deletionPending: true,
           stripeCustomerId: true,
           stripeSubscriptionId: true,
+          numeroVerifiedAt: true,
         },
       },
     },
@@ -355,6 +360,35 @@ export async function resumeProjectCheckout(
       error:
         "Ce projet a déjà un abonnement : utilisez « Gérer l’abonnement ».",
     };
+  // Aucun essai ni paiement tant que le numéro n'est pas prouvé par un code.
+  if (!project.numeroVerifiedAt) {
+    const userId = session.user.id;
+    const proved =
+      !!verificationId &&
+      (await prisma.$transaction(async (tx) => {
+        if (
+          !(await consumeNumberProof(tx, {
+            verificationId,
+            userId,
+            numero: project.numero,
+            projectId,
+          }))
+        )
+          return false;
+        await tx.project.updateMany({
+          where: { id: projectId, numeroVerifiedAt: null },
+          data: { numeroVerifiedAt: new Date() },
+        });
+        return true;
+      }));
+    if (!proved)
+      return {
+        success: false as const,
+        code: "NUMBER_NOT_VERIFIED" as const,
+        error: "Confirmez d’abord le numéro WhatsApp du projet.",
+        number: formatVerificationNumber(project.numero),
+      };
+  }
   // Chaque appel ouvre une session de paiement : pas de rafale.
   if (!allowRequest(`checkout-resume:${projectId}`, 5, 10 * 60 * 1000))
     return {
@@ -362,7 +396,7 @@ export async function resumeProjectCheckout(
       error: "Trop de tentatives. Réessayez dans quelques minutes.",
     };
   const plan = resolvePlanId(project.plan);
-  if (!checkoutReference(plan))
+  if (!polarProductId(plan))
     return {
       success: false as const,
       error: "Ce forfait est temporairement indisponible.",

@@ -2,11 +2,16 @@ import "server-only";
 import { cookies } from "next/headers";
 import { TIME_ZONE_COOKIE, validTimeZone } from "./user-time-zone";
 
-export async function getUserTimeZone() {
+/** Zone reported by this browser, or null when the cookie is missing or invalid. */
+export async function getBrowserTimeZone() {
   const value = (await cookies()).get(TIME_ZONE_COOKIE)?.value;
   try {
-    return validTimeZone(decodeURIComponent(value ?? "")) ?? "UTC";
+    return validTimeZone(decodeURIComponent(value ?? ""));
   } catch {
-    return "UTC";
+    return null;
   }
+}
+
+export async function getUserTimeZone() {
+  return (await getBrowserTimeZone()) ?? "UTC";
 }

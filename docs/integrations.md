@@ -1,6 +1,8 @@
 # Intégrations : webhooks, Make/Zapier et Google Sheets
 
-Fonctionnalité réservée à l’offre **Business** (vérifiée côté serveur à chaque action et à chaque émission d’événement).
+Google Sheets est inclus dans toutes les offres, les webhooks à partir de **Pro**. Les événements suivent l’offre : `csat.received` et `contact.qualified` (Instinct IA) à partir de Pro, `pipeline.stage_changed` avec **Business** seulement, comme le pipeline. Tout est vérifié côté serveur à chaque action et à chaque émission d’événement (`lib/plan-features.ts`, `integrationEventsForPlan`).
+
+Instinct IA hors offre : `data.contact.instinct` vaut toujours `null` (aucune ancienne analyse ne sort), et la feuille Google n’a pas de colonne « Instinct IA ». Sur Pro et Business, cette colonne est la dernière : un changement d’offre l’ajoute ou la retire sans décaler les autres, et l’en-tête écrit par ExtravertyAI est mis à jour au prochain envoi (un en-tête modifié à la main n’est jamais touché).
 
 ## Variables d’environnement
 

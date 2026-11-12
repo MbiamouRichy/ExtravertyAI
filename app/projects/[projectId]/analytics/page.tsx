@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
 import { getAnalyticsAccess } from "@/lib/analytics-access";
-import { homePath } from "@/lib/project-permissions";
+import { can, homePath } from "@/lib/project-permissions";
 import { getAnalyticsOverview } from "@/app/actions/analytics";
 import {
   PERIOD_DAYS,
@@ -11,7 +11,8 @@ import {
   parseAnalyticsPeriod,
 } from "@/lib/analytics";
 import prisma from "@/lib/prisma";
-import { planAllows } from "@/lib/plan-features";
+import { minimumPlanFor, planAllows } from "@/lib/plan-features";
+import { pricingPlan } from "@/lib/pricing";
 import { openPipelineValue, wonValue } from "@/lib/pipeline";
 
 import ProjectNotFoundDialog from "@/components/dashboard/project/projectNotfoundDialog";
@@ -26,7 +27,10 @@ import { AnalyticsDiscussionsChart } from "@/components/dashboard/AnalyticsNewDi
 import { RespondersCard } from "@/components/dashboard/responders-card";
 import { InstinctFunnelCard } from "@/components/dashboard/instinct-funnel-card";
 import { ActivityHeatmapCard } from "@/components/dashboard/activity-heatmap-card";
-import { PipelineValueCard } from "@/components/dashboard/pipeline-value-card";
+import {
+  PipelineValueCard,
+  PipelineValueLockedCard,
+} from "@/components/dashboard/pipeline-value-card";
 import { CsatCard } from "@/components/dashboard/csat-card";
 import { AvoidedRepliesCard } from "@/components/dashboard/avoided-replies-card";
 import { FirstAiReplyTimeChart } from "@/components/dashboard/first-reply-time-chart";
@@ -126,18 +130,20 @@ export default async function AnalyticsPage({
         where: { id: projectId },
         select: { plan: true, currency: true, csatEnabled: true },
       })
-      .then(async (project) =>
-        // Pipeline and satisfaction share the same plans (Pro, Business).
-        project && planAllows(project.plan, "pipeline")
-          ? {
-              currency: project.currency,
-              won: await wonValue(prisma, projectId, since),
-              open: await openPipelineValue(prisma, projectId),
-              csatEnabled: project.csatEnabled,
-              csat: await csatStats(prisma, projectId, since),
-            }
-          : null,
-      ),
+      .then(async (project) => {
+        // Satisfaction dès Pro, pipeline de ventes avec Business seulement.
+        if (!project || !planAllows(project.plan, "csat")) return null;
+        const [pipeline, csat] = await Promise.all([
+          planAllows(project.plan, "pipeline")
+            ? Promise.all([
+                wonValue(prisma, projectId, since),
+                openPipelineValue(prisma, projectId),
+              ]).then(([won, open]) => ({ currency: project.currency, won, open }))
+            : null,
+          csatStats(prisma, projectId, since),
+        ]);
+        return { pipeline, csatEnabled: project.csatEnabled, csat };
+      }),
     // Réponses que l’IA n’a volontairement pas envoyées (toutes offres).
     Promise.all([
       avoidedReplies(prisma, projectId, since),
@@ -229,6 +235,16 @@ export default async function AnalyticsPage({
               instinct={overview.instinct}
               rangeLabel={overview.rangeLabel}
               settingsHref={`${projectPath}/knowledge`}
+              locked={
+                planAllows(access.plan, "instinct")
+                  ? undefined
+                  : {
+                      planName: pricingPlan(minimumPlanFor("instinct")).name,
+                      upgradeHref: can(access.role, "billing.manage")
+                        ? `${projectPath}/billing`
+                        : null,
+                    }
+              }
             />
             <FirstAiReplyTimeChart data={responseTime} />
             <AvoidedRepliesCard
@@ -250,13 +266,20 @@ export default async function AnalyticsPage({
         {sales && (
           <AnalyticsSection id="analytics-sales-title" title="Ventes et satisfaction">
             <div className="grid min-w-0 gap-4 @5xl:grid-cols-2">
-              <PipelineValueCard
-                currency={sales.currency}
-                won={sales.won}
-                open={sales.open}
-                rangeLabel={overview.rangeLabel}
-                pipelineHref={`${projectPath}/pipeline`}
-              />
+              {sales.pipeline ? (
+                <PipelineValueCard
+                  currency={sales.pipeline.currency}
+                  won={sales.pipeline.won}
+                  open={sales.pipeline.open}
+                  rangeLabel={overview.rangeLabel}
+                  pipelineHref={`${projectPath}/pipeline`}
+                />
+              ) : (
+                <PipelineValueLockedCard
+                  planName={pricingPlan(minimumPlanFor("pipeline")).name}
+                  upgradeHref={can(access.role, "billing.manage") ? `${projectPath}/billing` : null}
+                />
+              )}
               <CsatCard
                 stats={sales.csat}
                 enabled={sales.csatEnabled}
@@ -279,6 +302,8 @@ export default async function AnalyticsPage({
               projectId={projectId}
               contacts={overview.topContacts}
               rangeLabel={overview.rangeLabel}
+              // null exactement quand Instinct ne tourne pas (offre ou réglage).
+              instinct={overview.instinct !== null}
             />
           </div>
         </AnalyticsSection>

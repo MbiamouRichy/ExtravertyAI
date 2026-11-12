@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { AiMeter } from "./ai-usage";
 import type { SummaryMessage } from "./conversation-summary";
 
 export const AssistanceInputSchema = z.discriminatedUnion("mode", [
@@ -23,6 +24,7 @@ export async function generateWritingAssistance(input: {
   draft?: string;
   history: SummaryMessage[];
   instructions: string;
+  meter?: AiMeter;
 }) {
   const key = process.env.OPENROUTER_API_KEY;
   const model = process.env.OPENROUTER_MODEL;
@@ -77,6 +79,7 @@ export async function generateWritingAssistance(input: {
   // Le statut HTTP permet d’afficher une cause précise (clé, crédits, limite).
   if (!response.ok) throw new Error(`ASSISTANCE_PROVIDER_${response.status}`);
   const payload = await response.json();
+  await input.meter?.(payload, model);
   const choice = payload?.choices?.[0];
   if (
     choice?.finish_reason === "length" ||

@@ -171,7 +171,8 @@ function Thread({ scenario, messages, typing, handedOver }: ThreadProps) {
   const agent = scenario.agentName ?? "Équipe";
 
   return (
-    <div className="flex min-w-0 flex-col">
+    // Container queries: the thread is narrow on phones and in the desktop grid alike.
+    <div className="@container/thread flex min-w-0 flex-col">
       <div className="flex items-center justify-between gap-3 border-b px-4 py-3">
         <div className="flex min-w-0 items-center gap-3">
           <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-secondary font-heading text-xs font-bold">
@@ -255,10 +256,19 @@ function Thread({ scenario, messages, typing, handedOver }: ThreadProps) {
       </div>
 
       <div aria-hidden="true" className="flex items-center gap-2 border-t px-3 py-2.5">
-        <span className="flex h-9 flex-1 items-center rounded-full border bg-background px-4 text-xs text-muted-foreground">
-          {handedOver ? `${agent} répond…` : "L’IA répond pour vous"}
+        <span className="flex h-9 min-w-0 flex-1 items-center rounded-full border bg-background px-4 text-xs text-muted-foreground">
+          <span className="truncate">
+            {handedOver ? (
+              `${agent} répond…`
+            ) : (
+              <>
+                <span className="@xs/thread:hidden">L’IA répond…</span>
+                <span className="@max-xs/thread:hidden">L’IA répond pour vous</span>
+              </>
+            )}
+          </span>
         </span>
-        <span className="flex size-9 items-center justify-center rounded-full bg-primary text-primary-foreground">
+        <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
           <Mic className="size-4" />
         </span>
       </div>
@@ -268,16 +278,27 @@ function Thread({ scenario, messages, typing, handedOver }: ThreadProps) {
 
 function MessageBubble({ message, agent }: { message: SimMessage; agent: string }) {
   if (message.speaker === "system") {
+    // "Who · state": one pill on wide threads, two centred lines on narrow ones.
+    const [lead, ...rest] = message.text.split(" · ");
     return (
       <m.li
         layout="position"
         initial={{ opacity: 0, scale: 0.94 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={SPRING}
-        className="flex items-center gap-1.5 self-center rounded-full border bg-background px-3 py-1 font-mono text-[11px] text-muted-foreground"
+        className="flex max-w-full flex-col items-center gap-0.5 self-center rounded-xl border bg-background px-3 py-1.5 text-center font-mono text-[10px] text-muted-foreground @sm/thread:flex-row @sm/thread:gap-1.5 @sm/thread:rounded-full @sm/thread:py-1 @sm/thread:text-[11px]"
       >
-        <UserRoundCheck aria-hidden="true" className="size-3.5 text-foreground" />
-        {message.text}
+        <span className="flex items-center gap-1.5">
+          <UserRoundCheck aria-hidden="true" className="size-3 shrink-0 text-foreground @sm/thread:size-3.5" />
+          {lead}
+        </span>
+        {rest.length > 0 && (
+          <span>
+            <span aria-hidden="true" className="@max-sm/thread:hidden">· </span>
+            <span className="sr-only @sm/thread:hidden">, </span>
+            {rest.join(" · ")}
+          </span>
+        )}
       </m.li>
     );
   }

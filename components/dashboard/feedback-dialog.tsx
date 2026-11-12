@@ -49,20 +49,19 @@ import { cn } from "@/lib/utils";
 const KINDS = [
   {
     value: "BUG",
-    label: "Un bug",
+    label: "Bug",
     icon: Bug,
-    placeholder:
-      "Ce que vous faisiez, ce qui s’est passé et ce que vous attendiez…",
+    placeholder: "Ce que vous faisiez, ce qui s’est passé, ce que vous attendiez…",
   },
   {
     value: "IDEA",
-    label: "Une idée",
+    label: "Idée",
     icon: Lightbulb,
-    placeholder: "Ce qui vous ferait gagner du temps ou manque aujourd’hui…",
+    placeholder: "Ce qui vous ferait gagner du temps ou vous manque…",
   },
   {
     value: "PRAISE",
-    label: "Ça marche bien",
+    label: "J’aime",
     icon: Heart,
     placeholder: "Ce qui vous plaît ou vous aide au quotidien…",
   },
@@ -73,7 +72,7 @@ const Schema = z.object({
   message: z
     .string()
     .trim()
-    .min(10, "Décrivez votre retour en quelques mots (10 caractères minimum).")
+    .min(10, "Écrivez au moins 10 caractères.")
     .max(
       FEEDBACK_MESSAGE_MAX,
       `${FEEDBACK_MESSAGE_MAX} caractères au maximum.`,
@@ -82,10 +81,12 @@ const Schema = z.object({
 });
 type Values = z.infer<typeof Schema>;
 const DEFAULTS: Values = { kind: "IDEA", message: "", contactOk: true };
+/** Le compteur n’apparaît qu’à l’approche de la limite. */
+const COUNTER_FROM = Math.floor(FEEDBACK_MESSAGE_MAX * 0.9);
 
 /**
  * « Votre avis » : bug, idée ou compliment, envoyé sans quitter la page.
- * La page d’origine (chemin seul) accompagne le retour pour le comprendre.
+ * Le chemin de la page d’origine accompagne le retour pour le comprendre.
  */
 export function FeedbackDialog() {
   const id = useId();
@@ -99,9 +100,10 @@ export function FeedbackDialog() {
   const kind = useWatch({ control: form.control, name: "kind" });
   const message = useWatch({ control: form.control, name: "message" });
   const current = KINDS.find((item) => item.value === kind) ?? KINDS[1];
+  const submitting = form.formState.isSubmitting;
 
   function changeOpen(next: boolean) {
-    if (form.formState.isSubmitting) return;
+    if (submitting) return;
     setOpen(next);
     if (!next) {
       // Réinitialisé à la fermeture, après l’animation.
@@ -143,25 +145,22 @@ export function FeedbackDialog() {
         <TooltipContent>Signaler un bug ou proposer une idée</TooltipContent>
       </Tooltip>
 
-      <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-lg">
+      <DialogContent className="max-h-[90dvh] overflow-y-auto p-5 sm:p-6">
         {sent ? (
           <div
             role="status"
-            className="flex flex-col items-center py-6 text-center"
+            className="flex flex-col items-center py-2 text-center"
           >
-            <span className="flex size-12 items-center justify-center rounded-full border bg-muted/50">
-              <CircleCheck aria-hidden="true" className="size-6" />
+            <span className="flex size-11 items-center justify-center rounded-full bg-muted">
+              <CircleCheck aria-hidden="true" className="size-5" />
             </span>
-            <DialogTitle className="mt-4 text-lg">
-              Merci pour votre retour
-            </DialogTitle>
-            <DialogDescription className="mt-2 max-w-sm">
-              Chaque message est lu par l’équipe.
+            <DialogTitle className="mt-4 text-lg">{"Merci !"}</DialogTitle>
+            <DialogDescription className="mt-1.5 max-w-xs">
               {form.getValues("contactOk")
-                ? " Nous vous répondrons par e-mail si nous avons besoin de précisions."
-                : ""}
+                ? "Votre message est bien arrivé. Nous vous écrirons si nous avons besoin de précisions."
+                : "Votre message est bien arrivé. L’équipe le lira avec attention."}
             </DialogDescription>
-            <div className="mt-6 flex gap-2">
+            <div className="mt-6 flex w-full flex-col-reverse gap-2 sm:w-auto sm:flex-row">
               <Button
                 type="button"
                 variant="outline"
@@ -170,7 +169,7 @@ export function FeedbackDialog() {
                   form.reset(DEFAULTS);
                 }}
               >
-                Envoyer un autre retour
+                Nouveau message
               </Button>
               <Button type="button" onClick={() => changeOpen(false)}>
                 Fermer
@@ -178,16 +177,15 @@ export function FeedbackDialog() {
             </div>
           </div>
         ) : (
-          <form onSubmit={submit} noValidate className="space-y-5">
-            <DialogHeader>
-              <DialogTitle>Votre avis compte</DialogTitle>
+          <form onSubmit={submit} noValidate className="flex flex-col gap-5">
+            <DialogHeader className="gap-1.5 pr-8">
+              <DialogTitle className="text-lg">Votre avis</DialogTitle>
               <DialogDescription>
-                Signalez un bug, proposez une idée ou dites-nous ce qui
-                fonctionne bien.
+                {"Un bug, une idée ou ce qui vous plaît : l’équipe lit chaque message."}
               </DialogDescription>
             </DialogHeader>
 
-            <FieldGroup>
+            <FieldGroup className="gap-4">
               <Controller
                 name="kind"
                 control={form.control}
@@ -196,29 +194,31 @@ export function FeedbackDialog() {
                     <FieldLegend variant="label" className="sr-only">
                       Type de retour
                     </FieldLegend>
+                    {/* Sélecteur segmenté, au style des onglets du projet. */}
                     <RadioGroup
                       name={field.name}
                       value={field.value}
                       onValueChange={field.onChange}
-                      className="grid grid-cols-3 gap-2"
+                      className="@container grid grid-cols-3 gap-1 rounded-lg bg-muted p-[3px]"
                     >
                       {KINDS.map(({ value, label, icon: Icon }) => (
                         <FieldLabel
                           key={value}
                           htmlFor={`${id}-${value}`}
-                          className="w-full! cursor-pointer rounded-xl border p-3 font-normal transition-colors hover:bg-muted/40 has-data-[state=checked]:border-primary has-data-[state=checked]:bg-muted/50"
+                          className={cn(
+                            "w-full cursor-pointer flex-col items-center justify-center gap-1 rounded-md border border-transparent px-1 py-1.5 text-sm font-medium text-foreground/60 transition-colors hover:text-foreground @[16rem]:h-8 @[16rem]:flex-row @[16rem]:gap-1.5 @[16rem]:py-0",
+                            "has-focus-visible:border-ring has-focus-visible:ring-[3px] has-focus-visible:ring-ring/50",
+                            "has-data-[state=checked]:border-transparent has-data-[state=checked]:bg-background has-data-[state=checked]:text-foreground has-data-[state=checked]:shadow-sm dark:has-data-[state=checked]:border-input dark:has-data-[state=checked]:bg-input/30",
+                          )}
                         >
-                          <span className="flex w-full flex-col items-center gap-2 text-center">
-                            <Icon aria-hidden="true" className="size-5" />
-                            <span className="text-xs font-medium sm:text-sm">
-                              {label}
-                            </span>
-                            <RadioGroupItem
-                              id={`${id}-${value}`}
-                              value={value}
-                              className="sr-only"
-                            />
-                          </span>
+                          <Icon aria-hidden="true" className="size-4 shrink-0" />
+                          {label}
+                          <RadioGroupItem
+                            id={`${id}-${value}`}
+                            value={value}
+                            // « absolute » remplace le « relative » du composant : hors du flux.
+                            className="absolute sr-only"
+                          />
                         </FieldLabel>
                       ))}
                     </RadioGroup>
@@ -230,9 +230,9 @@ export function FeedbackDialog() {
                 name="message"
                 control={form.control}
                 render={({ field, fieldState }) => (
-                  <Field data-invalid={fieldState.invalid}>
-                    <FieldLabel htmlFor={`${id}-message`}>
-                      Votre message
+                  <Field data-invalid={fieldState.invalid} className="gap-2">
+                    <FieldLabel htmlFor={`${id}-message`} className="sr-only">
+                      Message
                     </FieldLabel>
                     <Textarea
                       {...field}
@@ -254,29 +254,21 @@ export function FeedbackDialog() {
                       }}
                       className="min-h-32 resize-y"
                     />
-                    <FieldDescription
-                      id={`${id}-message-help`}
-                      className="flex justify-between gap-3 text-xs"
-                    >
-                      <span>
-                        {kind === "BUG"
-                          ? "La page actuelle est jointe pour nous aider à reproduire le problème."
-                          : "La page actuelle est jointe à votre message."}
-                      </span>
-                      <span
-                        className={cn(
-                          "shrink-0 tabular-nums",
-                          message.length > FEEDBACK_MESSAGE_MAX * 0.9 &&
-                            "text-foreground",
-                        )}
-                      >
-                        {message.length.toLocaleString("fr-FR")} /{" "}
-                        {FEEDBACK_MESSAGE_MAX.toLocaleString("fr-FR")}
-                      </span>
-                    </FieldDescription>
                     {fieldState.invalid && (
                       <FieldError errors={[fieldState.error]} />
                     )}
+                    <FieldDescription
+                      id={`${id}-message-help`}
+                      className="flex items-start justify-between gap-3 text-xs"
+                    >
+                      <span>L’adresse de cette page est jointe au message.</span>
+                      {message.length >= COUNTER_FROM && (
+                        <span className="shrink-0 text-foreground tabular-nums">
+                          {message.length.toLocaleString("fr-FR")} /{" "}
+                          {FEEDBACK_MESSAGE_MAX.toLocaleString("fr-FR")}
+                        </span>
+                      )}
+                    </FieldDescription>
                   </Field>
                 )}
               />
@@ -285,38 +277,42 @@ export function FeedbackDialog() {
                 name="contactOk"
                 control={form.control}
                 render={({ field }) => (
-                  <Field orientation="horizontal" className="items-start gap-3">
+                  <Field orientation="horizontal" className="items-start gap-2.5">
                     <Checkbox
                       id={`${id}-contact`}
                       checked={field.value}
                       onCheckedChange={(checked) =>
                         field.onChange(checked === true)
                       }
-                      className="mt-0.5"
+                      className="mt-px"
                     />
                     <FieldLabel
                       htmlFor={`${id}-contact`}
                       className="font-normal leading-snug"
                     >
-                      Vous pouvez me recontacter par e-mail au sujet de ce
-                      retour
+                      L’équipe peut me répondre par e-mail
                     </FieldLabel>
                   </Field>
                 )}
               />
             </FieldGroup>
 
-            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+            <div className="flex gap-2 sm:justify-end">
               <Button
                 type="button"
                 variant="outline"
-                disabled={form.formState.isSubmitting}
+                disabled={submitting}
                 onClick={() => changeOpen(false)}
+                className="flex-1 sm:flex-none"
               >
                 Annuler
               </Button>
-              <Button type="submit" disabled={form.formState.isSubmitting}>
-                {form.formState.isSubmitting ? (
+              <Button
+                type="submit"
+                disabled={submitting}
+                className="flex-1 sm:flex-none"
+              >
+                {submitting ? (
                   <Loader2
                     data-icon="inline-start"
                     className="animate-spin motion-reduce:animate-none"
@@ -324,7 +320,7 @@ export function FeedbackDialog() {
                 ) : (
                   <Send data-icon="inline-start" />
                 )}
-                {form.formState.isSubmitting ? "Envoi…" : "Envoyer"}
+                {submitting ? "Envoi…" : "Envoyer"}
               </Button>
             </div>
           </form>

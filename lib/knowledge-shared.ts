@@ -19,6 +19,23 @@ export const KNOWLEDGE_LIMITS = {
 
 export type KnowledgeKindId = "FAQ" | "TEXT" | "PRODUCT" | "CHUNK";
 
+/** Repère de lecture : une page de texte compte environ 500 mots. */
+export const WORDS_PER_PAGE = 500;
+
+/**
+ * Mots d’une entrée (titre puis contenu), comptés comme la colonne `words`
+ * que la base calcule : suites de caractères séparées par des blancs.
+ */
+export function countEntryWords(entry: { title: string; content: string }): number {
+  const text = `${entry.title} ${entry.content}`.trim();
+  return text ? text.split(/\s+/).length : 0;
+}
+
+/** « ≈ 40 pages » : ordre de grandeur lisible d’un volume en mots. */
+export function wordsToPages(words: number): number {
+  return Math.max(1, Math.round(words / WORDS_PER_PAGE));
+}
+
 /** Lowercase, accent-free, single-spaced: the input of the French full-text index. */
 export function normalizeSearchText(text: string): string {
   return text
@@ -280,6 +297,8 @@ const SOURCE_ERROR_LABELS: Record<string, string> = {
   PDF_INVALID: "PDF illisible ou protégé.",
   PDF_TOO_MANY_PAGES: "PDF trop long (200 pages maximum).",
   LIMIT_REACHED: "Import partiel : limite d’entrées de votre offre atteinte.",
+  WORD_LIMIT:
+    "Document trop volumineux pour l’espace restant de votre base. Supprimez des contenus ou changez d’offre, puis relancez l’import.",
   PROCESSING_FAILED: "Traitement impossible pour le moment.",
 };
 

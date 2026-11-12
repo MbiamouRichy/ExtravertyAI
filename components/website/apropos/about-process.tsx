@@ -20,7 +20,7 @@ export function AboutProcess() {
         <div className="px-4 pt-20 pb-10 sm:px-8 md:pt-28 lg:col-span-5 lg:px-12 lg:pb-28">
           <div className="lg:sticky lg:top-28">
             <Eyebrow>
-              <span className="text-foreground">03</span>
+              <span className="text-foreground">04</span>
               <span aria-hidden="true"> / </span>
               Avancer ensemble
             </Eyebrow>
@@ -74,7 +74,7 @@ export function AboutCta() {
         <Eyebrow className="text-primary-foreground/60">Construisons la suite</Eyebrow>
         <h2
           id="apropos-cta-titre"
-          className="mt-6 max-w-4xl text-5xl text-balance tracking-tight md:text-7xl"
+          className="mt-6 max-w-4xl text-4xl text-balance tracking-tight min-[360px]:text-5xl md:text-7xl"
         >
           Votre prochaine bonne conversation <Serif>commence ici.</Serif>
         </h2>

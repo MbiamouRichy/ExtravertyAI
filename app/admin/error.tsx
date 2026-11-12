@@ -2,6 +2,7 @@
 
 import { CircleAlert, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useReportError } from "@/hooks/use-report-error";
 
 export default function AdminDashboardError({
   error,
@@ -10,6 +11,7 @@ export default function AdminDashboardError({
   error: Error & { digest?: string };
   retry: () => void;
 }) {
+  useReportError(error);
   return (
     <div className="flex min-h-[60vh] items-center justify-center">
       <div role="alert" className="w-full max-w-md rounded-2xl border bg-card p-6 text-center shadow-sm">

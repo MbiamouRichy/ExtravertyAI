@@ -1,15 +1,16 @@
 import { readFile, readdir } from "node:fs/promises";
-import { PGlite } from "@electric-sql/pglite";
 import { PGLiteSocketServer } from "@electric-sql/pglite-socket";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../../src/generated/prisma/client";
 import { ingestMessage } from "../../lib/evolution-ingestion";
+import { createTestPGlite } from "./pglite";
 
 /** Isolated PostgreSQL WASM database with every migration applied. Never reads DATABASE_URL. */
 export async function withTestDatabase(
   run: (prisma: PrismaClient) => Promise<void>,
+  options: { serverTimeZone?: string } = {},
 ) {
-  const db = await PGlite.create();
+  const db = await createTestPGlite(options);
   const server = new PGLiteSocketServer({ db, host: "127.0.0.1", port: 0 });
   let prisma: PrismaClient | undefined;
   try {

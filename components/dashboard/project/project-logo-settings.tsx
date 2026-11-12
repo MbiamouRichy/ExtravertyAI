@@ -13,7 +13,7 @@ import {
 import { PROJECT_LOGO_MAX_BYTES, PROJECT_LOGO_TYPES } from "@/lib/project-logo";
 import { ProjectIcon } from "./project-icon";
 
-/** Icône de l’entreprise : affichée sur la liste des projets et dans l’espace. */
+/** Logo du projet : affiché sur la liste des projets et dans l’espace. */
 export function ProjectLogoSettings({
   projectId,
   name,
@@ -48,7 +48,7 @@ export function ProjectLogoSettings({
         return;
       }
       setCurrent(result.logoUrl);
-      toast.success("Icône de l’entreprise mise à jour.");
+      toast.success("Logo mis à jour.");
       router.refresh();
     } catch {
       toast.error("Connexion interrompue. Réessayez.");
@@ -66,7 +66,7 @@ export function ProjectLogoSettings({
         return;
       }
       setCurrent(null);
-      toast.success("Icône retirée.");
+      toast.success("Logo retiré.");
       router.refresh();
     } catch {
       toast.error("Connexion interrompue. Réessayez.");
@@ -75,66 +75,64 @@ export function ProjectLogoSettings({
     }
   }
 
+  // Ligne compacte : aperçu, puis libellé et formats, puis actions (sous le
+  // texte sur téléphone, à droite dès sm). La carte est fournie par la page.
   return (
-    <section
-      aria-labelledby="project-logo-title"
-      className="rounded-2xl border bg-card p-4 sm:p-6"
-    >
-      <h2
-        id="project-logo-title"
-        className="font-heading text-lg font-semibold tracking-tight"
-      >
-        Icône de l’entreprise
-      </h2>
-      <p id={descriptionId} className="mt-1 text-sm text-muted-foreground">
-        Votre logo remplace l’initiale du projet dans votre espace. JPEG, PNG
-        ou WEBP, 2 Mo au maximum, de préférence carré.
-      </p>
-      <div className="mt-5 flex flex-col gap-4 sm:flex-row sm:items-center">
-        <ProjectIcon
-          name={name}
-          logoUrl={current}
-          className="size-16"
-          fallbackClassName="text-xl"
-        />
-        <div className="flex flex-wrap gap-2">
+    <div className="flex items-center gap-4">
+      <ProjectIcon
+        name={name}
+        logoUrl={current}
+        className="size-14"
+        fallbackClassName="text-lg"
+      />
+      <div className="min-w-0 flex-1 space-y-2.5 sm:flex sm:items-center sm:justify-between sm:gap-4 sm:space-y-0">
+        <div className="min-w-0">
+          <p className="text-sm font-medium">Logo</p>
+          <p id={descriptionId} className="mt-0.5 text-xs text-muted-foreground">
+            PNG, JPEG ou WEBP · 2 Mo max.
+          </p>
+        </div>
+        <div className="flex shrink-0 items-center gap-1.5">
           <Button
             type="button"
             variant="outline"
+            size="sm"
             disabled={disabled || !!pending}
             aria-describedby={descriptionId}
+            aria-busy={pending === "upload"}
             onClick={() => input.current?.click()}
           >
             {pending === "upload" ? (
               <Loader2
+                aria-hidden="true"
                 data-icon="inline-start"
                 className="animate-spin motion-reduce:animate-none"
               />
             ) : (
-              <ImageUp data-icon="inline-start" />
+              <ImageUp aria-hidden="true" data-icon="inline-start" />
             )}
-            {pending === "upload"
-              ? "Envoi…"
-              : current
-                ? "Changer l’icône"
-                : "Ajouter une icône"}
+            {pending === "upload" ? "Envoi…" : current ? "Changer" : "Ajouter"}
           </Button>
           {current && (
             <Button
               type="button"
               variant="ghost"
+              size="icon-sm"
               disabled={disabled || !!pending}
+              aria-busy={pending === "remove"}
+              aria-label="Retirer le logo"
+              title="Retirer le logo"
               onClick={() => void remove()}
+              className="text-muted-foreground hover:text-destructive"
             >
               {pending === "remove" ? (
                 <Loader2
-                  data-icon="inline-start"
+                  aria-hidden="true"
                   className="animate-spin motion-reduce:animate-none"
                 />
               ) : (
-                <Trash2 data-icon="inline-start" />
+                <Trash2 aria-hidden="true" />
               )}
-              Retirer
             </Button>
           )}
           <input
@@ -152,6 +150,6 @@ export function ProjectLogoSettings({
           />
         </div>
       </div>
-    </section>
+    </div>
   );
 }

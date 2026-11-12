@@ -11,7 +11,7 @@ const script = [
     from: "ai",
     text: "Bonjour Aïcha 👋 Oui, il reste 3 pièces en M : beige et sauge. Laquelle vous ferait plaisir ?",
   },
-  { from: "client", text: "Sauge ! Livraison possible à Douala demain ?" },
+  { from: "client", text: "Sauge ! Livraison possible demain ?" },
   {
     from: "ai",
     text: "Oui, livraison express demain avant 18 h. Je vous envoie le lien de paiement ?",

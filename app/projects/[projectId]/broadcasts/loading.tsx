@@ -28,15 +28,14 @@ export default function BroadcastsLoading() {
           </div>
           <div className="divide-y rounded-xl border">
             {Array.from({ length: 3 }, (_, index) => (
-              <div key={index} className="space-y-3 p-4">
-                <div className="flex justify-between gap-3">
-                  <div className="space-y-1.5">
-                    <Skeleton className="h-4 w-48" />
-                    <Skeleton className="h-3 w-56 max-w-full" />
+              <div key={index} className="@container/broadcast p-4">
+                <div className="flex flex-col gap-3 @3xl/broadcast:flex-row @3xl/broadcast:items-center @3xl/broadcast:gap-6">
+                  <div className="min-w-0 flex-1 space-y-2">
+                    <Skeleton className="h-4 w-40 max-w-full" />
+                    <Skeleton className="h-3 w-52 max-w-full" />
                   </div>
-                  <Skeleton className="h-4 w-16" />
+                  <Skeleton className="h-3 w-48 max-w-full @3xl/broadcast:h-9 @3xl/broadcast:w-88" />
                 </div>
-                <Skeleton className="h-9 w-full" />
               </div>
             ))}
           </div>

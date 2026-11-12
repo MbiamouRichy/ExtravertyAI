@@ -45,6 +45,7 @@ test("server actions keep their own error response", () => {
   assert.equal(response.headers.get("location"), null);
 });
 
-test("only the signed-in workspace is filtered", () => {
-  assert.deepEqual(config.matcher, ["/projects/:path*"]);
+test("only the signed-in workspace and the mockups are filtered", () => {
+  // Les maquettes passent par le proxy pour renvoyer une vraie 404 en production.
+  assert.deepEqual(config.matcher, ["/projects/:path*", "/maquettes", "/maquettes/:path*"]);
 });

@@ -2,7 +2,7 @@ import { writeContactAiState } from "../lib/contact-ai-state";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import { PGlite } from "@electric-sql/pglite";
+import { createTestPGlite } from "./helpers/pglite";
 import type { PrismaClient } from "../src/generated/prisma/client";
 import {
   cachedConversationSummary,
@@ -27,7 +27,7 @@ test("chat names do not fall back to phone numbers", () => {
 });
 
 test("persistent summary cache deduplicates concurrent requests and invalidates changed history", async () => {
-  const db = await PGlite.create();
+  const db = await createTestPGlite();
   try {
     await db.exec(
       "CREATE TABLE contact (id TEXT PRIMARY KEY); INSERT INTO contact VALUES ('a'), ('b');",
@@ -177,7 +177,7 @@ test("persistent summary cache deduplicates concurrent requests and invalidates 
 });
 
 test("every member may toggle their contact, without crossing project boundaries", async () => {
-  const db = await PGlite.create();
+  const db = await createTestPGlite();
   try {
     await db.exec(`
       CREATE TABLE project (id TEXT PRIMARY KEY, "deletionPending" BOOLEAN DEFAULT false);

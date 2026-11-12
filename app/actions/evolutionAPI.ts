@@ -4,6 +4,10 @@ import {
   EVOLUTION_WEBHOOK_EVENTS,
   evolutionWebhookUrl,
 } from "@/lib/contact-presence";
+import {
+  alternateWhatsAppDigits,
+  knownWhatsAppDigits,
+} from "@/lib/whatsapp-number";
 const EVOLUTION_API_URL = process.env.EVOLUTION_API_URL;
 const EVOLUTION_API_TOKEN = process.env.EVOLUTION_API_KEY;
 const WEBHOOK_SECRET = process.env.EVOLUTION_WEBHOOK_SECRET;
@@ -343,5 +347,37 @@ export async function requestEvolutionPairingCode(
     }
 
     throw new Error("Erreur critique inconnue lors du couplage.");
+  }
+}
+
+/**
+ * Écriture du numéro sous laquelle le compte WhatsApp existe. Un compte resté à
+ * l’ancienne numérotation gabonaise (+241 06…) n’accepte un code de liaison
+ * que sous celle-ci. Lecture seule, par l’instance d’ExtravertyAI (aucun
+ * message envoyé) ; au moindre doute, le numéro tel qu’il a été saisi.
+ */
+export async function whatsAppAccountDigits(digits: string) {
+  const alternate = alternateWhatsAppDigits(digits);
+  const instance = process.env.OTP_WHATSAPP_INSTANCE;
+  if (!alternate || !instance || !EVOLUTION_API_URL || !EVOLUTION_API_TOKEN)
+    return digits;
+  try {
+    const response = await fetch(
+      `${EVOLUTION_API_URL}/chat/whatsappNumbers/${encodeURIComponent(instance)}`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: EVOLUTION_API_TOKEN,
+        },
+        body: JSON.stringify({ numbers: [digits, alternate] }),
+        cache: "no-store",
+        signal: AbortSignal.timeout(8000),
+      },
+    );
+    if (!response.ok) return digits;
+    return knownWhatsAppDigits(await response.json(), digits, alternate);
+  } catch {
+    return digits;
   }
 }

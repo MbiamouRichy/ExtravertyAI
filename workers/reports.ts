@@ -1,12 +1,14 @@
 import "dotenv/config";
 import { setTimeout as sleep } from "node:timers/promises";
 import { workerDatabase } from "./shared";
+import { flushWorkerMonitoring, initWorkerMonitoring, reportWorkerError } from "./monitoring";
 import { billingEmailConfig } from "../lib/billing-lifecycle";
 import {
   queueNextWeeklyReport,
   deliverNextReportEmail,
 } from "../lib/weekly-report-service";
 
+initWorkerMonitoring("reports-worker");
 const db = workerDatabase();
 const controller = new AbortController();
 for (const signal of ["SIGTERM", "SIGINT"])
@@ -21,10 +23,8 @@ async function main() {
     let worked = false;
     try {
       worked = await queueNextWeeklyReport(db, config);
-    } catch {
-      console.error(
-        "[reports-worker] Calcul interrompu ; nouvelle tentative au prochain passage.",
-      );
+    } catch (error) {
+      reportWorkerError("[reports-worker] Calcul interrompu ; nouvelle tentative au prochain passage.", error);
     }
     try {
       worked =
@@ -53,8 +53,8 @@ async function main() {
             throw new Error("REPORT_EMAIL_UNCONFIRMED");
           return result.id;
         })) || worked;
-    } catch {
-      console.error("[reports-worker] Livraison interrompue.");
+    } catch (error) {
+      reportWorkerError("[reports-worker] Livraison interrompue.", error);
     }
     await sleep(worked ? 600 : 5000, undefined, {
       signal: controller.signal,
@@ -62,8 +62,11 @@ async function main() {
   }
 }
 main()
-  .catch(() => {
-    console.error("[reports-worker] Arrêt : vérifier la configuration.");
+  .catch((error) => {
+    reportWorkerError("[reports-worker] Arrêt : vérifier la configuration.", error);
     process.exitCode = 1;
   })
-  .finally(() => db.$disconnect());
+  .finally(async () => {
+    await flushWorkerMonitoring();
+    await db.$disconnect();
+  });

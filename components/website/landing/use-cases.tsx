@@ -15,7 +15,7 @@ const cases = [
       "Lien de paiement envoyé au bon moment",
     ],
     thread: [
-      { from: "client", text: "Vous livrez à Yaoundé ce week-end ?" },
+      { from: "client", text: "Vous livrez ce week-end ?" },
       { from: "ai", text: "Oui ! Livraison samedi entre 10 h et 14 h. Je confirme votre commande de 2 articles ?" },
     ],
   },
@@ -30,7 +30,7 @@ const cases = [
       "Transfert à un agent humain pour les prospects chauds",
     ],
     thread: [
-      { from: "client", text: "L’appartement à Bonapriso est toujours dispo ?" },
+      { from: "client", text: "L’appartement trois pièces est toujours dispo ?" },
       { from: "ai", text: "Oui. Pour organiser une visite : quel est votre budget mensuel et votre date d’emménagement ?" },
     ],
   },
