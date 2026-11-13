@@ -1,6 +1,6 @@
 "use client";
 import { LocalDate } from "@/components/local-date";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -72,6 +72,11 @@ const tabs = [
     icon: ShieldCheck,
   },
 ] as const;
+function subscribeToHash(notify: () => void) {
+  window.addEventListener("hashchange", notify);
+  return () => window.removeEventListener("hashchange", notify);
+}
+
 export default function ProjectSettingsPage({
   project: p,
 }: {
@@ -79,7 +84,16 @@ export default function ProjectSettingsPage({
 }) {
   const router = useRouter();
   const deleteButton = useRef<HTMLButtonElement>(null);
-  const [tab, setTab] = useState<string>("general");
+  // Retour après reconnexion (#supprimer-projet) : le bloc de suppression est
+  // dans l'onglet Données, ouvert d'office tant que l'utilisateur n'en choisit
+  // pas un autre. Le serveur ignore l'ancre : lue après l'hydratation.
+  const returningToDelete = useSyncExternalStore(
+    subscribeToHash,
+    () => window.location.hash === "#supprimer-projet",
+    () => false,
+  );
+  const [chosenTab, setTab] = useState<string | null>(null);
+  const tab = chosenTab ?? (returningToDelete ? "data" : "general");
   const [nameSaving, setNameSaving] = useState(false);
   const [paused, setPaused] = useState(p.automationPaused);
   const [settingsVersion, setSettingsVersion] = useState(p.settingsVersion);
