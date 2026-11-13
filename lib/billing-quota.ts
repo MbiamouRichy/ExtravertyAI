@@ -59,6 +59,12 @@ export async function applySubscriptionState(
     await tx.$queryRaw`SELECT id FROM project WHERE id = ${projectId} FOR UPDATE`;
     const current = await tx.project.findUnique({ where: { id: projectId } });
     if (!current) throw new Error("BILLING_PROJECT_MISSING");
+    // Jamais d'abonnement sur le projet interne, même avec des métadonnées
+    // qui le désigneraient : il garderait sinon un quota de client.
+    if (current.internal) {
+      console.error("[billing] Abonnement ignoré sur le projet interne.", { projectId });
+      return;
+    }
     // A background retrieval must not overwrite a webhook applied meanwhile.
     if (
       expectedRevision !== undefined &&

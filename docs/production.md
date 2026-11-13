@@ -298,3 +298,31 @@ Pour revenir en arrière :
 - **pour les workers** : `git revert` du commit fautif sur `master`, puis push. Le workflow redéploie l'état précédent, après une nouvelle sauvegarde. Le script n'accepte que la dernière révision de `master` : il ne peut pas déployer un ancien commit par erreur.
 
 Une migration déjà appliquée ne se défait pas toute seule : il faut restaurer la sauvegarde prise juste avant (étape 4).
+
+## 7. Support client sur le numéro des codes
+
+Le numéro qui envoie les codes de vérification sert aussi au support d'ExtravertyAI, dans un **projet interne** :
+
+- jamais facturé : ni Polar, ni essai, ni e-mail de facturation, et absent des revenus du tableau de bord ;
+- fonctions de l'offre Business, avec un quota mensuel au plafond `MESSAGE_LIMIT_BUSINESS`, renouvelé le 1er du mois (UTC) par le worker de facturation. Ce plafond borne le coût d'une boucle ou d'un abus ;
+- les codes envoyés par les clients restent traités par la vérification, qui répond elle-même : ils n'apparaissent pas dans la messagerie et ne réveillent pas l'IA. Les codes et réponses automatiques écrits par notre numéro ne sont jamais enregistrés ;
+- tout autre message arrive dans le projet de support, où l'IA et l'équipe répondent comme pour un client ;
+- aucun client ne peut enregistrer ce numéro pour son projet ;
+- le projet ne se supprime pas depuis l'application, et sa suppression (par exemple avec le compte de son propriétaire) ne supprime jamais l'instance WhatsApp.
+
+Le marqueur `internal` n'est posé que par le script ci-dessous, jamais par l'application.
+
+1. Vérifier que l'adresse e-mail du propriétaire a un compte **vérifié** en production.
+2. Simuler, puis créer :
+
+   ```bash
+   cd /opt/extravertyai-production
+   docker compose -p extravertyai-production run --rm --no-deps billing-worker \
+     ./node_modules/.bin/tsx scripts/create-internal-project.ts \
+     --owner VOTRE_EMAIL --instance NOM_INSTANCE_OTP --numero +241XXXXXXXX
+   ```
+
+   Relancer la même commande avec `--apply` à la fin. Le script refuse si l'instance n'est pas connectée, si elle n'appartient pas au numéro donné, ou si un projet client l'utilise déjà. Relancé, il complète seulement ce qui manque.
+3. Ouvrir le lien affiché, une fois connecté en production. La première ouverture règle le webhook de l'instance vers la production, avec tous les événements. **La vérification par message entrant ne fonctionne alors plus en préversion** (une instance n'a qu'un webhook).
+4. Configurer l'agent (connaissances, ton), puis inviter l'équipe depuis l'onglet Équipe.
+5. Tester depuis un autre téléphone : une question arrive dans la messagerie du support, et un code de vérification reçoit toujours sa réponse automatique sans y apparaître.

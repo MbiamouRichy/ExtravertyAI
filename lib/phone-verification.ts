@@ -142,6 +142,18 @@ export const INBOUND_REPLIES = {
     "Ce code n’est pas valable pour ce numéro, ou il a expiré. Envoyez-le depuis le WhatsApp du numéro saisi sur ExtravertyAI, ou demandez un nouveau code.",
 } as const;
 
+const SENT_CODE = /^ExtravertyAI : votre code de vérification est \d{6}\. /;
+const REPLIES: ReadonlySet<string> = new Set(Object.values(INBOUND_REPLIES));
+
+/**
+ * Texte écrit par le numéro d’ExtravertyAI pour une vérification : un code
+ * envoyé ou une réponse automatique. Ces messages ne sont jamais enregistrés
+ * dans le projet de support (un code n’est conservé qu’en empreinte).
+ */
+export function isVerificationText(text: string) {
+  return SENT_CODE.test(text) || REPLIES.has(text);
+}
+
 /** Envoi depuis le numéro d’ExtravertyAI, connecté à Evolution comme un projet. */
 export const sendWhatsAppCode: OtpSender = async (digits, text) => {
   const base = process.env.EVOLUTION_API_URL!.replace(/\/+$/, "");
@@ -525,11 +537,12 @@ export async function receiveVerificationMessage(
   const digits = senderNumberDigits(parsed.data.key);
   if (!code || !digits) return null;
   const now = new Date();
+  // Un code déjà validé reste reconnu jusqu’à son expiration : le même message
+  // relu (webhook rejoué, client qui renvoie) reçoit la même réponse, sans effet.
   const candidates = await db.phoneVerification.findMany({
     where: {
       numberHash: hashTrialNumber(digits),
       direction: "INBOUND",
-      verifiedAt: null,
       expiresAt: { gt: now },
     },
     orderBy: { createdAt: "desc" },

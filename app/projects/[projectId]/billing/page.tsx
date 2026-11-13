@@ -3,7 +3,7 @@ import { needsInitialCheckout } from "@/lib/billing-display";
 import { can, homePath } from "@/lib/project-permissions";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { CircleAlert, FileText } from "lucide-react";
+import { Building2, CircleAlert, FileText } from "lucide-react";
 import { getSession } from "@/lib/auth-server";
 import prisma from "@/lib/prisma";
 import {
@@ -22,6 +22,76 @@ import {
 import { BillingInvoiceButton } from "@/components/dashboard/project/billing-invoice-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+
+/**
+ * Projet interne d'ExtravertyAI : ni abonnement ni facture. Seul le quota
+ * mensuel, qui borne le coût d'une boucle ou d'un abus, est affiché.
+ */
+function InternalBilling({
+  name,
+  quota,
+}: {
+  name: string;
+  quota: { used: number; limit: number; endsAt: Date } | null;
+}) {
+  const ratio = quota ? Math.min(1, quota.used / Math.max(1, quota.limit)) : 0;
+  return (
+    <main className="mx-auto w-full min-w-0 max-w-4xl space-y-8 p-4 wrap-break-word sm:space-y-10 sm:p-6 xl:p-8">
+      <header className="min-w-0">
+        <p className="truncate text-sm text-muted-foreground">{name}</p>
+        <h1 className="mt-1 text-2xl font-semibold tracking-tight sm:text-3xl">
+          Facturation
+        </h1>
+      </header>
+      <section aria-labelledby="internal-title" className="overflow-hidden rounded-xl border bg-card">
+        <div className="flex gap-3 p-4 sm:p-6">
+          <Building2 aria-hidden="true" className="mt-1 size-5 shrink-0 text-muted-foreground" />
+          <div className="min-w-0">
+            <h2 id="internal-title" className="flex flex-wrap items-center gap-2 text-xl font-semibold tracking-tight">
+              Projet interne
+              <Badge variant="secondary">Sans facturation</Badge>
+            </h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Ce projet appartient à ExtravertyAI. Il n’a ni abonnement ni facture et dispose
+              des fonctions de l’offre Business. Son quota de messages se renouvelle le 1er de
+              chaque mois.
+            </p>
+          </div>
+        </div>
+        <div className="border-t px-4 py-3.5 sm:p-6">
+          <p className="text-xs text-muted-foreground">Messages ce mois-ci</p>
+          {quota ? (
+            <>
+              <p className="mt-1 text-sm font-medium tabular-nums">
+                {quota.used.toLocaleString("fr-FR")}
+                <span className="font-normal text-muted-foreground">
+                  {" "}/ {quota.limit.toLocaleString("fr-FR")}
+                </span>
+              </p>
+              <div
+                role="progressbar"
+                aria-label="Messages utilisés ce mois-ci"
+                aria-valuemin={0}
+                aria-valuemax={Math.max(1, quota.limit)}
+                aria-valuenow={Math.min(quota.used, Math.max(1, quota.limit))}
+                className="mt-2 h-1.5 max-w-sm overflow-hidden rounded-full bg-muted"
+              >
+                <div
+                  className={ratio >= 0.9 ? "h-full rounded-full bg-destructive" : "h-full rounded-full bg-primary"}
+                  style={{ width: `${ratio * 100}%` }}
+                />
+              </div>
+            </>
+          ) : (
+            <p role="status" className="mt-1 text-sm text-muted-foreground">
+              Quota en préparation : le worker de facturation l’ouvre dans la minute.
+            </p>
+          )}
+        </div>
+      </section>
+    </main>
+  );
+}
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
@@ -53,6 +123,7 @@ export default async function BillingPage({
           stripeCustomerId: true,
           stripeSubscriptionId: true,
           stripeCurrentPeriodEnd: true,
+          internal: true,
         },
       },
     },
@@ -64,6 +135,7 @@ export default async function BillingPage({
   const quota = await prisma.quotaPeriod.findFirst({
     where: { projectId, isCurrent: true },
   });
+  if (p.internal) return <InternalBilling name={p.name} quota={quota} />;
   const ordersPage =
     typeof query.page === "string" && /^[1-9]\d{0,3}$/.test(query.page)
       ? Number(query.page)

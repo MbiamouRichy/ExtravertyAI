@@ -190,6 +190,10 @@ model Project {
   timeZone String @default("Africa/Libreville")
   // Numéro WhatsApp prouvé par un code avant l'enregistrement : condition de l'essai.
   numeroVerifiedAt DateTime?
+  // Projet d'ExtravertyAI elle-même (support sur le numéro des codes) : jamais
+  // facturé, quota mensuel renouvelé par le worker de facturation. Posé
+  // uniquement par scripts/create-internal-project.ts, jamais par l'application.
+  internal Boolean @default(false)
   csatEnabled Boolean @default(false)
   // Badge « client en attente » dans la messagerie (réglable par les admins).
   showWaitingTime Boolean @default(true)

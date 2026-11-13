@@ -13,12 +13,12 @@ import {
   saveReceipt,
 } from "@/lib/evolution-ingestion";
 import { isForeignTrialNumber } from "@/lib/instance-connection";
-import {
-  isOtpInstance,
-  receiveVerificationMessage,
-  sendWhatsAppCode,
-} from "@/lib/phone-verification";
+import { isOtpInstance, sendWhatsAppCode } from "@/lib/phone-verification";
 import { allowRequest } from "@/lib/rate-limit";
+import {
+  sortSupportNumberMessages,
+  type VerificationReply,
+} from "@/lib/support-inbox";
 import {
   getEvolutionOwnerJid,
   logoutEvolutionInstance,
@@ -47,22 +47,15 @@ function upsertedMessages(data: unknown) {
       : [data];
 }
 
-/**
- * Numéro d’ExtravertyAI : seuls les codes de vérification envoyés par les
- * clients y sont lus, puis le client reçoit une réponse dans sa conversation.
- */
-async function receiveOtpEvent(eventName: string, data: unknown) {
-  if (eventName !== "messages.upsert") return;
-  const replies: Array<{ digits: string; reply: string }> = [];
-  for (const message of upsertedMessages(data)) {
-    const outcome = await receiveVerificationMessage(prisma, message);
-    // Une seule réponse par numéro toutes les quelques minutes, jamais de boucle.
-    if (outcome && allowRequest(`otp-reply:${outcome.digits}`, 3, 10 * 60 * 1000))
-      replies.push(outcome);
-  }
-  if (replies.length)
+/** Réponses de la vérification, envoyées après l’accusé du webhook. */
+function sendVerificationReplies(replies: VerificationReply[]) {
+  // Trois réponses par numéro toutes les dix minutes au plus, jamais de boucle.
+  const allowed = replies.filter(({ digits }) =>
+    allowRequest(`otp-reply:${digits}`, 3, 10 * 60 * 1000),
+  );
+  if (allowed.length)
     after(async () => {
-      for (const { digits, reply } of replies)
+      for (const { digits, reply } of allowed)
         await sendWhatsAppCode(digits, reply).catch(() =>
           console.error("[otp] Réponse WhatsApp non envoyée."),
         );
@@ -84,17 +77,29 @@ export async function POST(req: Request) {
   }
   try {
     const { event, instance, data } = Body.parse(await req.json());
-    if (isOtpInstance(instance)) {
-      await receiveOtpEvent(event.toLowerCase().replaceAll("_", "."), data);
-      return NextResponse.json({ success: true });
+    const eventName = event.toLowerCase().replaceAll("_", ".");
+    let messages =
+      eventName === "messages.upsert" ? upsertedMessages(data) : [];
+    // Numéro des codes : la vérification d’abord, le support ensuite.
+    const supportNumber = isOtpInstance(instance);
+    if (supportNumber && messages.length) {
+      const sorted = await sortSupportNumberMessages(prisma, messages);
+      sendVerificationReplies(sorted.replies);
+      messages = sorted.support;
     }
-    const project = await prisma.project.findUnique({
-      where: { instanceName: instance },
+    // Sur le numéro des codes, seul le projet interne reçoit les messages.
+    const project = await prisma.project.findFirst({
+      where: supportNumber
+        ? { instanceName: instance, internal: true, deletionPending: false }
+        : { instanceName: instance },
       select: { id: true, numero: true, status: true },
     });
     if (!project)
-      return NextResponse.json({ error: "Instance inconnue" }, { status: 404 });
-    const eventName = event.toLowerCase().replaceAll("_", ".");
+      return supportNumber
+        ? NextResponse.json({ success: true })
+        : NextResponse.json({ error: "Instance inconnue" }, { status: 404 });
+    if (eventName === "messages.upsert" && !messages.length)
+      return NextResponse.json({ success: true });
     // Présence d’un contact : relayée en direct, rien n’est enregistré.
     if (eventName === "presence.update") {
       await relayPresenceUpdate(prisma, project.id, instance, data);
@@ -119,7 +124,7 @@ export async function POST(req: Request) {
       async (tx) => {
         await tx.$queryRaw`SELECT id FROM project WHERE id = ${project.id} FOR UPDATE`;
         if (eventName === "messages.upsert") {
-          for (const message of upsertedMessages(data)) {
+          for (const message of messages) {
             await ingestMessage(tx, project.id, message);
             const parsed = IncomingSchema.safeParse(message);
             if (parsed.success && !parsed.data.key.fromMe)

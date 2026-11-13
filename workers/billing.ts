@@ -7,6 +7,7 @@ import {
   reconcileNextBillingProject,
   deliverNextBillingEmail,
 } from "../lib/billing-lifecycle";
+import { renewInternalQuotas } from "../lib/internal-project";
 
 initWorkerMonitoring("billing-worker");
 const prisma = workerDatabase();
@@ -28,8 +29,20 @@ async function main() {
     paidMessageLimit(plan);
   }
   const config = billingEmailConfig();
+  // Projet interne (support) : quota de l'offre Business, vérifié chaque minute.
+  const internalLimit = paidMessageLimit("business");
+  let internalCheckAt = 0;
   while (!stopping) {
     let worked = false;
+    if (Date.now() >= internalCheckAt) {
+      internalCheckAt = Date.now() + 60_000;
+      try {
+        for (const projectId of await renewInternalQuotas(prisma, internalLimit))
+          await notifyProject(projectId);
+      } catch (error) {
+        reportWorkerError("[billing-worker] Quota du projet interne non renouvelé.", error);
+      }
+    }
     try {
       const projectId = await reconcileNextBillingProject(prisma, config);
       if (projectId) {

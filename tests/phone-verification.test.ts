@@ -409,10 +409,19 @@ test("the customer proves the number by sending the code from it", { timeout: 18
         numero: "+24166000020",
       }),
     );
-    // Un second envoi du même message ne refait rien.
+    // Un second envoi du même message (ou un webhook rejoué) ne refait rien et
+    // reçoit la même réponse, jamais « code non valable » après un succès.
+    const verifiedAt = (await prisma.phoneVerification.findUniqueOrThrow({
+      where: { id: pending.verificationId },
+    })).verifiedAt;
     assert.deepEqual(
       await receiveVerificationMessage(prisma, incoming(pending.text, "24166000020@s.whatsapp.net")),
-      { digits: "24166000020", reply: INBOUND_REPLIES.unknown },
+      { digits: "24166000020", reply: INBOUND_REPLIES.verified },
+    );
+    assert.deepEqual(
+      (await prisma.phoneVerification.findUniqueOrThrow({ where: { id: pending.verificationId } }))
+        .verifiedAt,
+      verifiedAt,
     );
 
     // Nouveau code : le précédent, pas encore envoyé, ne vaut plus rien.

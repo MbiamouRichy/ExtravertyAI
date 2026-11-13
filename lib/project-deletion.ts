@@ -72,7 +72,9 @@ export async function deleteProjectResources(
       );
     }
   }
-  if (project.instanceName) {
+  // L'instance du projet interne envoie aussi les codes de vérification : elle
+  // survit toujours au projet (suppression du compte de son propriétaire).
+  if (project.instanceName && !project.internal) {
     try {
       await deleteInstanceWithRetry(project.instanceName);
     } catch {

@@ -273,6 +273,12 @@ export async function deleteProjectAction(
     }
 
     const project = membership.project;
+    // Le support partage l'instance des codes de vérification : le supprimer
+    // couperait l'inscription de tous les clients.
+    if (project.internal)
+      throw new Error(
+        "Le projet interne d’ExtravertyAI ne se supprime pas depuis l’application.",
+      );
     if (parsed.data.confirmationName !== project.name)
       throw new Error("Le nom de confirmation ne correspond pas au projet.");
 

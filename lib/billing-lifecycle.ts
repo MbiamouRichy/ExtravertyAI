@@ -56,7 +56,8 @@ export async function queueBillingEmails(
         },
       },
     });
-    if (!project || project.deletionPending) return;
+    // Le projet interne n'est jamais facturé : aucun e-mail de facturation.
+    if (!project || project.deletionPending || project.internal) return;
     const period = project.quotaPeriods[0];
     if (!period) return; // Checkout has not yet granted any access.
     const access = await getBillingAccess(tx, projectId);
@@ -147,7 +148,7 @@ export async function reconcileNextBillingProject(
 ) {
   const [candidate] = await prisma.$queryRaw<Array<{ id: string }>>`
     WITH candidate AS (
-      SELECT id FROM project WHERE NOT "deletionPending"
+      SELECT id FROM project WHERE NOT "deletionPending" AND NOT "internal"
         AND "billingNextCheckAt" <= clock_timestamp()
         AND ("stripeSubscriptionId" IS NOT NULL OR EXISTS (
           SELECT 1 FROM quota_period q WHERE q."projectId" = project.id AND q."isCurrent"))
