@@ -29,7 +29,7 @@ export const dynamic = "force-static";
 const highlights = [
   { icon: CalendarClock, title: "10 jours d’essai", text: "Annulez avant la fin : aucun prélèvement." },
   { icon: RefreshCw, title: "Sans engagement", text: "Abonnement mensuel, résiliable à tout moment." },
-  { icon: ShieldAlert, title: "WhatsApp non officiel", text: "Connexion via Evolution API : votre numéro peut être restreint par WhatsApp." },
+  { icon: ShieldAlert, title: "Connexion type WhatsApp Web", text: "Hors API officielle de Meta : un risque de restriction existe, que l’application limite." },
 ];
 
 const sections: LegalSection[] = [
@@ -50,43 +50,70 @@ const sections: LegalSection[] = [
   {
     id: "whatsapp",
     icon: ShieldAlert,
-    title: "Connexion à WhatsApp (non officielle)",
+    title: "Connexion à WhatsApp",
     body: (
       <>
         <p>
-          ExtravertyAI ne passe pas par l’API WhatsApp Business officielle de
-          Meta. Votre numéro est relié à WhatsApp par Evolution API, un logiciel
-          libre qui utilise le protocole de WhatsApp Web : votre numéro devient
-          un appareil associé. ExtravertyAI n’est ni affilié à Meta ou à
-          WhatsApp, ni approuvé par eux.
+          Votre numéro est relié à ExtravertyAI comme un appareil associé, de la
+          même façon que WhatsApp Web, grâce au logiciel libre Evolution API.
+          ExtravertyAI n’utilise pas l’API WhatsApp Business de Meta : c’est un
+          service indépendant, qui n’est ni affilié à Meta ou à WhatsApp, ni
+          approuvé par eux.
         </p>
-        <p>En connectant un numéro, vous reconnaissez et acceptez que :</p>
+        <p>En connectant un numéro, vous reconnaissez que :</p>
         <ul>
           <li>
-            ce mode de connexion n’est pas autorisé par les conditions de
-            WhatsApp, qui peut à tout moment restreindre, suspendre ou bloquer
-            définitivement un numéro, y compris lorsqu’il est utilisé de bonne
-            foi ;
+            ce mode de connexion n’est pas un service officiel de WhatsApp, dont
+            les conditions ne le prévoient pas ; WhatsApp peut donc, selon ses
+            propres règles, limiter, suspendre ou bloquer un numéro, y compris
+            utilisé de bonne foi ;
           </li>
           <li>
-            nous ne pouvons ni empêcher une telle décision, ni la faire lever, ni
+            nous ne pouvons pas revenir sur une décision de WhatsApp, ni
             récupérer l’accès au numéro ou à ses conversations ;
           </li>
           <li>
-            une restriction décidée par WhatsApp ne constitue pas un manquement
-            d’ExtravertyAI et n’ouvre pas droit à un dédommagement ; vous
-            pouvez résilier votre abonnement à tout moment ;
+            une telle décision ne relève pas d’ExtravertyAI et n’ouvre pas droit
+            à un dédommagement ; vous restez libre de résilier votre abonnement
+            à tout moment ;
           </li>
           <li>
-            il vous appartient de choisir le numéro à connecter : nous vous
-            recommandons un numéro dédié à votre activité plutôt que votre
-            numéro personnel.
+            vous choisissez le numéro à connecter : nous vous recommandons un
+            numéro dédié à votre activité plutôt que votre numéro personnel.
           </li>
         </ul>
         <p>
-          Pour réduire ce risque, n’écrivez qu’aux personnes qui vous ont
-          contacté ou qui ont donné leur accord, et gardez des diffusions
-          raisonnables (voir{" "}
+          Pour limiter ce risque, l’application applique à tous les projets les
+          protections suivantes :
+        </p>
+        <ul>
+          <li>
+            une diffusion ne part qu’aux personnes qui vous ont déjà écrit, et
+            aucune liste de numéros ne peut être importée ;
+          </li>
+          <li>
+            chaque diffusion propose de répondre STOP ; le contact ne reçoit
+            alors plus ni diffusion ni relance ;
+          </li>
+          <li>
+            les messages d’une diffusion sont espacés de 8 à 15 secondes, au
+            hasard, et les relances d’au moins 20 secondes ;
+          </li>
+          <li>
+            diffusions et relances ne partent qu’entre 8 h et 20 h, à l’heure
+            de vos clients, dans des plafonds quotidiens et mensuels propres à
+            chaque offre ;
+          </li>
+          <li>
+            les relances sont désactivées par défaut et limitées à trois par
+            prospect ; l’indication « en train d’écrire » précède chaque envoi.
+          </li>
+        </ul>
+        <p>
+          Ces protections réduisent le risque sans pouvoir le supprimer. Votre
+          part compte aussi : n’écrivez qu’aux personnes qui vous ont contacté
+          ou qui ont donné leur accord, et gardez des diffusions raisonnables
+          (voir{" "}
           <Link href="#usages" className="underline underline-offset-4">
             Usages interdits
           </Link>
@@ -282,8 +309,8 @@ export default function TermsPage() {
       eyebrowIcon={FileText}
       title="Conditions d’utilisation"
       intro="Les règles qui encadrent votre utilisation d’ExtravertyAI, écrites le plus simplement possible."
-      updatedLabel="12 novembre 2026"
-      updatedDate="2026-11-12"
+      updatedLabel="13 novembre 2026"
+      updatedDate="2026-11-13"
       highlights={highlights}
       sections={sections}
       contactTitle="Une question sur ces conditions ?"
