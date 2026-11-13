@@ -37,9 +37,15 @@ export function ReturnToAnchor() {
       for (const type of USER_INPUT) window.removeEventListener(type, stopWaiting);
     };
 
+    // Au chargement complet, le contenu arrive d'abord dans un conteneur caché
+    // (<div hidden>, streaming) avant d'être mis en place : seul un bloc
+    // affiché peut défiler et recevoir le focus.
     const find = () => {
       const element = document.getElementById(anchor);
-      return element?.hasAttribute("data-return-anchor") ? element : null;
+      return element?.hasAttribute("data-return-anchor") &&
+        element.getClientRects().length > 0
+        ? element
+        : null;
     };
 
     const reveal = (element: HTMLElement) => {
