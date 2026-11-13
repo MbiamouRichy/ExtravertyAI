@@ -37,27 +37,23 @@ export function ReturnToAnchor() {
       for (const type of USER_INPUT) window.removeEventListener(type, stopWaiting);
     };
 
-    // Au chargement complet, le contenu arrive d'abord dans un conteneur caché
-    // (<div hidden>, streaming) avant d'être mis en place : seul un bloc
-    // affiché peut défiler et recevoir le focus.
-    const find = () => {
-      const element = document.getElementById(anchor);
-      return element?.hasAttribute("data-return-anchor") &&
-        element.getClientRects().length > 0
-        ? element
-        : null;
-    };
+    // Le streaming peut laisser une copie du bloc dans un conteneur caché
+    // (<div hidden>), avec le même id : seule la copie affichée compte.
+    const find = () =>
+      Array.from(document.querySelectorAll<HTMLElement>("[data-return-anchor]")).find(
+        (element) => element.id === anchor && element.getClientRects().length > 0,
+      ) ?? null;
 
+    // Défilement immédiat : une animation serait interrompue par le contenu
+    // qui arrive encore. L'ancre reste dans l'adresse : la retirer avec
+    // history.replaceState relance le rendu du routeur, qui remonte en haut.
     const reveal = (element: HTMLElement) => {
       stopWaiting();
-      const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-      element.scrollIntoView({ block: "center", behavior: reduceMotion ? "auto" : "smooth" });
+      element.scrollIntoView({ block: "center" });
       element.focus({ preventScroll: true });
       element.setAttribute("data-returned", "");
       // Minuterie laissée au nettoyage : retirer l’attribut d’un bloc démonté est sans effet.
       window.setTimeout(() => element.removeAttribute("data-returned"), HIGHLIGHT_MS);
-      // L'ancre a servi : un rechargement ne ramène plus la page sur ce bloc.
-      window.history.replaceState(null, "", window.location.pathname + window.location.search);
     };
 
     const existing = find();
