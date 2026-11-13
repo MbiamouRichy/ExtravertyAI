@@ -7,6 +7,7 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { signOut } from "@/lib/auth-client";
+import { reauthHref } from "@/lib/auth-redirects";
 import {
   PROJECT_DELETION_SESSION_MAX_AGE_MS,
   isRecentSession,
@@ -33,15 +34,43 @@ export function useRecentSession(sessionCreatedAt: string) {
   );
 }
 
+/**
+ * Déconnecte puis ouvre la connexion. Une fois reconnecté, l’utilisateur
+ * revient sur `callbackUrl` et, avec `anchor`, sur le bloc d’où il est parti
+ * (voir ReturnToAnchor). Seule voie de reconnexion de l’espace connecté.
+ */
+export function useReauthenticate() {
+  const router = useRouter();
+  const [reconnecting, setReconnecting] = useState(false);
+
+  async function reconnect(callbackUrl: string, anchor?: string) {
+    setReconnecting(true);
+    try {
+      const result = await signOut();
+      if (result.error) throw new Error("SIGN_OUT_FAILED");
+      router.replace(reauthHref(callbackUrl, anchor));
+      router.refresh();
+    } catch {
+      toast.error("Impossible de vous déconnecter. Réessayez.");
+      setReconnecting(false);
+    }
+  }
+
+  return { reconnecting, reconnect };
+}
+
 /** Affiche l’action sensible après une connexion récente, sinon la reconnexion. */
 export function RecentSessionGate({
   sessionCreatedAt,
   callbackUrl,
+  anchor,
   className,
   children,
 }: {
   sessionCreatedAt: string;
   callbackUrl: string;
+  /** Bloc où revenir après la reconnexion (id posé avec returnAnchor). */
+  anchor?: string;
   /** Classes du bouton de reconnexion (largeur, retour à la ligne). */
   className?: string;
   children: ReactNode;
@@ -51,6 +80,7 @@ export function RecentSessionGate({
   return (
     <ReauthButton
       callbackUrl={callbackUrl}
+      anchor={anchor}
       label="Se reconnecter pour modifier"
       size="sm"
       className={className}
@@ -58,47 +88,36 @@ export function RecentSessionGate({
   );
 }
 
-/** Déconnecte puis renvoie vers la connexion, avec retour sur la page voulue. */
+/** Déconnecte puis renvoie vers la connexion, avec retour sur la page et le bloc voulus. */
 export function ReauthButton({
   callbackUrl,
+  anchor,
   label = "Se reconnecter",
   variant = "outline",
   size = "default",
   className,
 }: {
   callbackUrl: string;
+  /** Bloc où revenir après la reconnexion (id posé avec returnAnchor). */
+  anchor?: string;
   label?: string;
   variant?: "outline" | "destructive" | "default";
   size?: "default" | "sm" | "lg";
   className?: string;
 }) {
-  const router = useRouter();
-  const [busy, setBusy] = useState(false);
-
-  async function reconnect() {
-    setBusy(true);
-    try {
-      const result = await signOut();
-      if (result.error) throw new Error("SIGN_OUT_FAILED");
-      router.replace("/sign-in?callbackUrl=" + encodeURIComponent(callbackUrl));
-      router.refresh();
-    } catch {
-      toast.error("Impossible de vous déconnecter. Réessayez.");
-      setBusy(false);
-    }
-  }
+  const { reconnecting, reconnect } = useReauthenticate();
 
   return (
     <Button
       type="button"
       variant={variant}
       size={size}
-      disabled={busy}
-      aria-busy={busy}
-      onClick={() => void reconnect()}
+      disabled={reconnecting}
+      aria-busy={reconnecting}
+      onClick={() => void reconnect(callbackUrl, anchor)}
       className={className}
     >
-      {busy ? (
+      {reconnecting ? (
         <Loader2
           data-icon="inline-start"
           className="animate-spin motion-reduce:animate-none"
@@ -106,7 +125,7 @@ export function ReauthButton({
       ) : (
         <LogIn data-icon="inline-start" />
       )}
-      {busy ? "Reconnexion…" : label}
+      {reconnecting ? "Reconnexion…" : label}
     </Button>
   );
 }

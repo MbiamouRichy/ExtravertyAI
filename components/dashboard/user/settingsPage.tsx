@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { useHaptics } from "@/lib/webHaptics";
 import type { AccountDeletionPlan } from "@/lib/account-deletion";
 import { DeleteAccountDialog } from "./delete-account-dialog";
+import { returnAnchor } from "@/lib/return-anchor";
 import { SettingsSection } from "./settings-section";
 export default function UserSettingsPage({
   sessionCreatedAt,
@@ -112,9 +113,13 @@ export default function UserSettingsPage({
         description="Ces actions sont définitives."
         danger
       >
-        <div className="flex flex-col justify-between gap-4 rounded-2xl border border-destructive/30 bg-card p-4 sm:flex-row sm:items-center sm:gap-6 sm:p-5">
+        <div
+          {...returnAnchor("supprimer-compte", "flex flex-col justify-between gap-4 rounded-2xl border border-destructive/30 bg-card p-4 sm:flex-row sm:items-center sm:gap-6 sm:p-5")}
+          role="group"
+          aria-labelledby="supprimer-compte-titre"
+        >
           <div className="min-w-0">
-            <p className="text-sm font-medium">Supprimer le compte</p>
+            <p id="supprimer-compte-titre" className="text-sm font-medium">Supprimer le compte</p>
             <p className="mt-1 text-sm text-muted-foreground">
               Supprime votre profil et les projets dont vous êtes l’unique membre.
               Les projets partagés doivent d’abord être transférés. Une

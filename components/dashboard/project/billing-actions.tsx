@@ -19,7 +19,15 @@ import {
 } from "@/app/actions/project-settings";
 import { BillingPlanButton } from "./billing-plan-button";
 import { LocalBillingDate } from "./local-billing-date";
-import { ReauthButton, useRecentSession } from "../user/recent-session";
+import {
+  ReauthButton,
+  useReauthenticate,
+  useRecentSession,
+} from "../user/recent-session";
+import { returnAnchor } from "@/lib/return-anchor";
+
+/** Bloc de résiliation : retour ici après une reconnexion. */
+const CANCEL_ANCHOR = "resilier-abonnement";
 
 export type BillingCancellation = {
   /** Abonnement à jour : il s'arrête en fin de période, sinon tout de suite. */
@@ -110,6 +118,8 @@ export function BillingCancelSection({
 }) {
   const router = useRouter();
   const recentLogin = useRecentSession(sessionCreatedAt);
+  const { reconnect } = useReauthenticate();
+  const billingPage = `/projects/${projectId}/billing`;
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   async function confirm() {
@@ -117,8 +127,15 @@ export function BillingCancelSection({
     try {
       const result = await cancelProjectSubscription(projectId);
       if (!result.success) {
-        toast.error(result.error);
-        if ("code" in result) setOpen(false);
+        if ("code" in result && result.code === "REAUTH_REQUIRED") {
+          setOpen(false);
+          toast.error(result.error, {
+            action: {
+              label: "Se reconnecter",
+              onClick: () => void reconnect(billingPage, CANCEL_ANCHOR),
+            },
+          });
+        } else toast.error(result.error);
         return;
       }
       toast.success(
@@ -144,7 +161,7 @@ export function BillingCancelSection({
   return (
     <section
       aria-labelledby="cancel-title"
-      className="flex flex-col gap-4 rounded-xl border p-4 sm:flex-row sm:items-center sm:justify-between sm:gap-6 sm:p-6"
+      {...returnAnchor(CANCEL_ANCHOR, "flex flex-col gap-4 rounded-xl border p-4 sm:flex-row sm:items-center sm:justify-between sm:gap-6 sm:p-6")}
     >
       <div className="min-w-0">
         <h2 id="cancel-title" className="text-sm font-medium">
@@ -172,7 +189,8 @@ export function BillingCancelSection({
         </Button>
       ) : (
         <ReauthButton
-          callbackUrl={`/projects/${projectId}/billing`}
+          callbackUrl={billingPage}
+          anchor={CANCEL_ANCHOR}
           label="Se reconnecter"
           className="min-h-10 w-full shrink-0 sm:min-h-9 sm:w-auto"
         />

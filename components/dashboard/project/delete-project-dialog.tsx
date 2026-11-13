@@ -7,7 +7,7 @@ import { z } from "zod";
 import { AlertTriangle, Check, Circle, Download, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { deleteProjectAction } from "@/app/actions/projects";
-import { signOut } from "@/lib/auth-client";
+import { useReauthenticate } from "@/components/dashboard/user/recent-session";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -67,7 +67,7 @@ export function DeleteProjectDialog({
   const [serverReauth, setServerReauth] = useState(false);
   // Le serveur reste juge : son refus compte même si l’horloge locale dit le contraire.
   const reauthRequired = serverReauth || !recentLogin;
-  const [reconnecting, setReconnecting] = useState(false);
+  const { reconnecting, reconnect: reauthenticate } = useReauthenticate();
   const schema = z.object({
     confirmationName: z
       .string()
@@ -121,22 +121,13 @@ export function DeleteProjectDialog({
     }
   }
 
+  // Retour sur le bloc « Supprimer ce projet » des réglages, une fois reconnecté.
   async function reconnect() {
-    setReconnecting(true);
     setError("");
-    try {
-      const result = await signOut();
-      if (result.error) throw new Error("SIGN_OUT_FAILED");
-      const callback =
-        "/projects/" + encodeURIComponent(project.id) + "/settings";
-      router.replace("/sign-in?callbackUrl=" + encodeURIComponent(callback));
-      router.refresh();
-    } catch {
-      setError(
-        "Impossible de vous déconnecter. Réessayez pour renouveler votre connexion.",
-      );
-      setReconnecting(false);
-    }
+    await reauthenticate(
+      "/projects/" + encodeURIComponent(project.id) + "/settings",
+      "supprimer-projet",
+    );
   }
 
   const submit = form.handleSubmit(async (values) => {

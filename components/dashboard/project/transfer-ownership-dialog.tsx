@@ -27,10 +27,13 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { transferProjectOwnership } from "@/app/actions/team";
-import { authClient } from "@/lib/auth-client";
+import { useReauthenticate } from "@/components/dashboard/user/recent-session";
 import { useHaptics } from "@/lib/webHaptics";
 
 type Member = { id: string; name: string; email: string };
+
+/** Ancre de la ligne d'un membre dans la liste de l'équipe. */
+export const memberAnchor = (membershipId: string) => `membre-${membershipId}`;
 
 export function TransferOwnershipDialog({
   member,
@@ -95,12 +98,10 @@ function TransferForm({
     defaultValues: { confirmation: "" },
   });
 
-  async function reconnect() {
-    await authClient.signOut();
-    router.replace(
-      `/sign-in?callbackUrl=${encodeURIComponent(`/projects/${projectId}/team`)}`,
-    );
-  }
+  // Retour sur la ligne du membre dans l'équipe, une fois reconnecté.
+  const { reconnect: reauthenticate } = useReauthenticate();
+  const reconnect = () =>
+    reauthenticate(`/projects/${projectId}/team`, memberAnchor(member.id));
 
   const onSubmit = () =>
     startTransition(async () => {

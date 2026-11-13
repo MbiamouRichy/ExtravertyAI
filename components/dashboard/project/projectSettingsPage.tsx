@@ -38,6 +38,7 @@ import {
 } from "@/app/actions/project-settings";
 import { DeleteProjectDialog } from "./delete-project-dialog";
 import { ReauthButton, useRecentSession } from "../user/recent-session";
+import { returnAnchor } from "@/lib/return-anchor";
 import { ScrollFadeArea } from "./scroll-fade-area";
 import { can } from "@/lib/project-permissions";
 
@@ -680,9 +681,12 @@ export default function ProjectSettingsPage({
                 </section>
               )}
               {owner && (
-                <section className="flex flex-col justify-between gap-4 rounded-2xl border border-destructive/25 p-4 sm:flex-row sm:items-center sm:p-6">
+                <section
+                  {...returnAnchor("supprimer-projet", "flex flex-col justify-between gap-4 rounded-2xl border border-destructive/25 p-4 sm:flex-row sm:items-center sm:p-6")}
+                  aria-labelledby="supprimer-projet-titre"
+                >
                   <div>
-                    <h2 className="flex items-center gap-2 font-heading text-base font-semibold tracking-tight">
+                    <h2 id="supprimer-projet-titre" className="flex items-center gap-2 font-heading text-base font-semibold tracking-tight">
                       <AlertTriangle
                         aria-hidden="true"
                         className="size-4 text-destructive"
@@ -717,6 +721,7 @@ export default function ProjectSettingsPage({
                   ) : (
                     <ReauthButton
                       callbackUrl={`/projects/${p.id}/settings`}
+                      anchor="supprimer-projet"
                       label="Se reconnecter pour supprimer"
                       size="lg"
                       className="h-auto min-h-10 w-full shrink-0 whitespace-normal text-balance sm:w-auto"

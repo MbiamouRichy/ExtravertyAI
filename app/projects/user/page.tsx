@@ -15,6 +15,7 @@ import type { Metadata } from "next";
 import { getInitials } from "@/components/getInitials";
 import { RecentSessions } from "@/components/dashboard/user/recent-sessions";
 import { RecentSessionGate } from "@/components/dashboard/user/recent-session";
+import { returnAnchor } from "@/lib/return-anchor";
 import UserSettingsPage from "@/components/dashboard/user/settingsPage";
 import { SettingsSection } from "@/components/dashboard/user/settings-section";
 import { getAccountDeletionPlan } from "@/lib/account-deletion";
@@ -27,6 +28,9 @@ export const metadata: Metadata = {
 /** Bouton d’une ligne de sécurité : pleine largeur et sur plusieurs lignes au besoin sur mobile. */
 const ROW_ACTION =
   "h-auto min-h-10 w-full shrink-0 whitespace-normal text-balance sm:min-h-8 sm:w-auto";
+/** Ligne de sécurité ; arrondie comme la liste quand elle est mise en évidence au retour. */
+const ROW =
+  "flex flex-col justify-between gap-3 p-4 first:rounded-t-[inherit] last:rounded-b-[inherit] sm:flex-row sm:items-center sm:gap-6 sm:p-5";
 export default async function ProfilePage() {
   // Récupération de la session utilisateur via Better Auth
   const sessionData = await getSession();
@@ -133,7 +137,7 @@ export default async function ProfilePage() {
         {/* Mobile : libellé, valeur puis bouton, chacun sur toute la largeur.
             Dès sm : bouton à droite de la valeur. */}
         <ul className="divide-y rounded-2xl border bg-card">
-          <li className="flex flex-col justify-between gap-3 p-4 sm:flex-row sm:items-center sm:gap-6 sm:p-5">
+          <li {...returnAnchor("adresse-email", ROW)}>
             <div className="min-w-0">
               <p className="flex items-center gap-2 text-sm font-medium">
                 <Mail aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
@@ -144,6 +148,7 @@ export default async function ProfilePage() {
             <RecentSessionGate
               sessionCreatedAt={sessionCreatedAt}
               callbackUrl="/projects/user"
+              anchor="adresse-email"
               className={ROW_ACTION}
             >
               <ChangeEmailForm>
@@ -153,7 +158,7 @@ export default async function ProfilePage() {
               </ChangeEmailForm>
             </RecentSessionGate>
           </li>
-          <li className="flex flex-col justify-between gap-3 p-4 sm:flex-row sm:items-center sm:gap-6 sm:p-5">
+          <li {...returnAnchor("mot-de-passe", ROW)}>
             <div className="min-w-0">
               <p className="flex items-center gap-2 text-sm font-medium">
                 <Key aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
@@ -166,6 +171,7 @@ export default async function ProfilePage() {
             <RecentSessionGate
               sessionCreatedAt={sessionCreatedAt}
               callbackUrl="/projects/user"
+              anchor="mot-de-passe"
               className={ROW_ACTION}
             >
               <ChangePasswordDialog hasPassword={!!passwordAccount}>

@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   checkoutCallback,
+  reauthHref,
   safeAuthCallback,
   signInAfterSignUpHref,
   signUpHref,
@@ -78,4 +79,28 @@ test("signin allows local destinations and rejects unsafe redirect targets", () 
   ]) {
     assert.equal(safeAuthCallback(value), "/projects");
   }
+});
+
+test("reconnection returns to the page and block the user left", () => {
+  const callback = (href: string) =>
+    safeAuthCallback(new URL(href, base).searchParams.get("callbackUrl"));
+  assert.equal(
+    callback(reauthHref("/projects/p1/settings", "supprimer-projet")),
+    "/projects/p1/settings#supprimer-projet",
+  );
+  assert.equal(
+    callback(reauthHref("/projects/p1/team", "membre-cmabc123")),
+    "/projects/p1/team#membre-cmabc123",
+  );
+  // Sans ancre, ou avec une ancre douteuse : la page seule.
+  for (const anchor of [undefined, "", "1abc", "a b", "x\"><img", "a".repeat(101)])
+    assert.equal(callback(reauthHref("/projects/user", anchor)), "/projects/user");
+  // L'ancre fournie remplace toujours celle de l'adresse.
+  assert.equal(
+    callback(reauthHref("/projects/user#ancienne", "mot-de-passe")),
+    "/projects/user#mot-de-passe",
+  );
+  // Jamais de sortie du site.
+  for (const target of ["https://evil.test/x", "//evil.test/x", "/\\evil.test"])
+    assert.equal(callback(reauthHref(target, "supprimer-compte")), "/projects");
 });

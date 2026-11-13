@@ -90,7 +90,8 @@ import {
   type ProjectRole,
 } from "@/lib/project-permissions";
 import { ChangeRoleModal } from "./changeRoleModal";
-import { TransferOwnershipDialog } from "./transfer-ownership-dialog";
+import { memberAnchor, TransferOwnershipDialog } from "./transfer-ownership-dialog";
+import { returnAnchor } from "@/lib/return-anchor";
 import { MemberPresence, useProjectPresence } from "../user/member-presence";
 import { getInitials } from "@/components/getInitials";
 import { AssignNextButton } from "./assign-next-button";
@@ -452,7 +453,10 @@ export default function TeamManagement({
               // Dès sm : une seule rangée.
               <li
                 key={member.id}
-                className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-3 px-4 py-3.5 transition-colors hover:bg-muted/30 sm:flex sm:px-5"
+                {...returnAnchor(
+                  memberAnchor(member.id),
+                  "grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-3 px-4 py-3.5 hover:bg-muted/30 sm:flex sm:px-5",
+                )}
               >
                 <Avatar className="size-9 shrink-0 sm:size-10">
                   <AvatarImage src={member.image || undefined} alt="" />

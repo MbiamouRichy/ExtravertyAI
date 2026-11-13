@@ -1,4 +1,5 @@
 import { PRICING_PLANS, projectPlanHref, type PlanId } from "./pricing";
+import { isReturnAnchor } from "./return-anchor";
 
 // Only relative application URLs may be used as authentication destinations.
 export function safeAuthCallback(value: unknown, fallback = "/projects") {
@@ -18,6 +19,21 @@ export function safeAuthCallback(value: unknown, fallback = "/projects") {
   } catch {
     return fallback;
   }
+}
+
+/**
+ * Connexion puis retour sur la page d'origine et, si l'ancre est valable, sur
+ * le bloc où l'utilisateur a demandé à se reconnecter.
+ */
+export function reauthHref(returnTo: string, anchor?: string) {
+  const [page] = safeAuthCallback(returnTo, "").split("#");
+  // Page refusée : retour à la liste des projets, sans ancre.
+  const target = !page
+    ? "/projects"
+    : isReturnAnchor(anchor)
+      ? `${page}#${anchor}`
+      : page;
+  return `/sign-in?callbackUrl=${encodeURIComponent(target)}`;
 }
 
 // Rebuild checkout intent from the allowlisted plan, never from URL prices/quotas.

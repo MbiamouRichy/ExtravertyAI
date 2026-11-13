@@ -30,9 +30,15 @@ import {
 } from "@/components/ui/field";
 import { authClient } from "@/lib/auth-client";
 import { isRecentSession } from "@/lib/recent-session";
-import { ReauthButton, useRecentSession } from "./recent-session";
+import {
+  ReauthButton,
+  useReauthenticate,
+  useRecentSession,
+} from "./recent-session";
 import { useHaptics } from "@/lib/webHaptics";
 import type { AccountDeletionPlan } from "@/lib/account-deletion";
+
+const ACCOUNT_PAGE = "/projects/user";
 
 export function DeleteAccountDialog({
   email,
@@ -48,7 +54,7 @@ export function DeleteAccountDialog({
   const [open, setOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [reauthRequired, setReauthRequired] = useState(false);
-  const [reconnecting, setReconnecting] = useState(false);
+  const { reconnecting, reconnect } = useReauthenticate();
   const busy = isDeleting || reconnecting;
   const blocked = plan.blockers.length > 0;
   const recentLogin = useRecentSession(sessionCreatedAt);
@@ -77,21 +83,6 @@ export function DeleteAccountDialog({
     }
     setOpen(next);
   };
-
-  async function reconnect() {
-    setReconnecting(true);
-    try {
-      const result = await authClient.signOut();
-      if (result.error) throw new Error();
-      router.replace(
-        "/sign-in?callbackUrl=" + encodeURIComponent("/projects/user"),
-      );
-      router.refresh();
-    } catch {
-      toast.error("Impossible de vous déconnecter. Réessayez.");
-      setReconnecting(false);
-    }
-  }
 
   const onSubmit = async () => {
     if (isDeleting) return;
@@ -136,7 +127,8 @@ export function DeleteAccountDialog({
   if (!blocked && !recentLogin && !open)
     return (
       <ReauthButton
-        callbackUrl="/projects/user"
+        callbackUrl={ACCOUNT_PAGE}
+        anchor="supprimer-compte"
         label="Se reconnecter pour supprimer"
         className="h-auto min-h-10 w-full shrink-0 whitespace-normal text-balance sm:min-h-9 sm:w-auto sm:whitespace-nowrap"
       />
@@ -339,7 +331,7 @@ export function DeleteAccountDialog({
                   type="button"
                   variant="destructive"
                   disabled={busy}
-                  onClick={reconnect}
+                  onClick={() => void reconnect(ACCOUNT_PAGE, "supprimer-compte")}
                 >
                   {reconnecting && <Loader2 className="animate-spin" aria-hidden />}
                   {reconnecting ? "Reconnexion…" : "Se reconnecter"}

@@ -1,6 +1,7 @@
 import { AppShell } from "@/components/dashboard/app-shell";
 import { ActivityTracker } from "@/components/dashboard/user/activityTracker";
 import { AccountThemeSync } from "@/components/dashboard/account-theme-sync";
+import { ReturnToAnchor } from "@/components/dashboard/return-to-anchor";
 import prisma from "@/lib/prisma";
 import { getUser } from "@/lib/auth-server";
 
@@ -23,6 +24,7 @@ export default async function ProjectsLayout({
       )}
       <AppShell>{children}</AppShell>
       <ActivityTracker />
+      <ReturnToAnchor />
     </>
   );
 }
