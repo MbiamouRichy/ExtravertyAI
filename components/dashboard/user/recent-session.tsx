@@ -88,7 +88,16 @@ export function RecentSessionGate({
   );
 }
 
-/** Déconnecte puis renvoie vers la connexion, avec retour sur la page et le bloc voulus. */
+const COMPACT_LABEL = "Se reconnecter";
+
+/**
+ * Déconnecte puis renvoie vers la connexion, avec retour sur la page et le bloc voulus.
+ *
+ * Dans un bloc étroit (moins de 19rem dans le conteneur `@container` le plus
+ * proche, téléphone compris), le libellé se réduit à « Se reconnecter » pour
+ * tenir sur une ligne ; le libellé complet reste lu par les lecteurs d'écran.
+ * Sans conteneur, le libellé complet s'affiche toujours.
+ */
 export function ReauthButton({
   callbackUrl,
   anchor,
@@ -125,7 +134,18 @@ export function ReauthButton({
       ) : (
         <LogIn data-icon="inline-start" />
       )}
-      {reconnecting ? "Reconnexion…" : label}
+      {reconnecting ? (
+        "Reconnexion…"
+      ) : label === COMPACT_LABEL ? (
+        label
+      ) : (
+        <>
+          <span className="@max-[19rem]:sr-only">{label}</span>
+          <span aria-hidden="true" className="hidden @max-[19rem]:inline">
+            {COMPACT_LABEL}
+          </span>
+        </>
+      )}
     </Button>
   );
 }

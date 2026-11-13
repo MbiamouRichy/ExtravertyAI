@@ -682,7 +682,7 @@ export default function ProjectSettingsPage({
               )}
               {owner && (
                 <section
-                  {...returnAnchor("supprimer-projet", "flex flex-col justify-between gap-4 rounded-2xl border border-destructive/25 p-4 sm:flex-row sm:items-center sm:p-6")}
+                  {...returnAnchor("supprimer-projet", "@container flex flex-col justify-between gap-4 rounded-2xl border border-destructive/25 p-4 sm:flex-row sm:items-center sm:p-6")}
                   aria-labelledby="supprimer-projet-titre"
                 >
                   <div>

@@ -161,7 +161,7 @@ export function BillingCancelSection({
   return (
     <section
       aria-labelledby="cancel-title"
-      {...returnAnchor(CANCEL_ANCHOR, "flex flex-col gap-4 rounded-xl border p-4 sm:flex-row sm:items-center sm:justify-between sm:gap-6 sm:p-6")}
+      {...returnAnchor(CANCEL_ANCHOR, "@container flex flex-col gap-4 rounded-xl border p-4 sm:flex-row sm:items-center sm:justify-between sm:gap-6 sm:p-6")}
     >
       <div className="min-w-0">
         <h2 id="cancel-title" className="text-sm font-medium">

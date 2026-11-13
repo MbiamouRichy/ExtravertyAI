@@ -114,7 +114,7 @@ export default function UserSettingsPage({
         danger
       >
         <div
-          {...returnAnchor("supprimer-compte", "flex flex-col justify-between gap-4 rounded-2xl border border-destructive/30 bg-card p-4 sm:flex-row sm:items-center sm:gap-6 sm:p-5")}
+          {...returnAnchor("supprimer-compte", "@container flex flex-col justify-between gap-4 rounded-2xl border border-destructive/30 bg-card p-4 sm:flex-row sm:items-center sm:gap-6 sm:p-5")}
           role="group"
           aria-labelledby="supprimer-compte-titre"
         >

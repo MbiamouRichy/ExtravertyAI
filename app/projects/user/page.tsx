@@ -30,7 +30,7 @@ const ROW_ACTION =
   "h-auto min-h-10 w-full shrink-0 whitespace-normal text-balance sm:min-h-8 sm:w-auto";
 /** Ligne de sécurité ; arrondie comme la liste quand elle est mise en évidence au retour. */
 const ROW =
-  "flex flex-col justify-between gap-3 p-4 first:rounded-t-[inherit] last:rounded-b-[inherit] sm:flex-row sm:items-center sm:gap-6 sm:p-5";
+  "@container flex flex-col justify-between gap-3 p-4 first:rounded-t-[inherit] last:rounded-b-[inherit] sm:flex-row sm:items-center sm:gap-6 sm:p-5";
 export default async function ProfilePage() {
   // Récupération de la session utilisateur via Better Auth
   const sessionData = await getSession();
