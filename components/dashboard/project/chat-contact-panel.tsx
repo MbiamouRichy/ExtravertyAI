@@ -404,7 +404,7 @@ export function ChatContactPanel({
           type="button"
           variant="outline"
           size="sm"
-          className="mt-3"
+          className="mt-3 w-full"
           disabled={exporting}
           aria-busy={exporting}
           onClick={async () => {

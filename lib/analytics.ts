@@ -269,6 +269,64 @@ export function bucketLabel(key: string, mode: BucketMode): string {
     : dayMonthFormatter.format(date);
 }
 
+const offsetFormatters = new Map<string, Intl.DateTimeFormat>();
+
+/** Écart (ms) entre l'heure locale du fuseau et l'heure UTC à cet instant. */
+function zoneOffsetMs(instant: number, timeZone: string): number {
+  let formatter = offsetFormatters.get(timeZone);
+  if (!formatter) {
+    formatter = new Intl.DateTimeFormat("en-US", {
+      timeZone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hourCycle: "h23",
+    });
+    if (offsetFormatters.size >= 32) offsetFormatters.clear();
+    offsetFormatters.set(timeZone, formatter);
+  }
+  const parts = formatter.formatToParts(new Date(instant));
+  const part = (type: string) =>
+    Number(parts.find((entry) => entry.type === type)?.value ?? 0);
+  const local = Date.UTC(
+    part("year"),
+    part("month") - 1,
+    part("day"),
+    part("hour") % 24,
+    part("minute"),
+    part("second"),
+  );
+  return local - Math.floor(instant / 1000) * 1000;
+}
+
+/** Instant où commence le jour civil `dayKey` (AAAA-MM-JJ) dans le fuseau. */
+export function localDayStart(dayKey: string, timeZone = "UTC"): Date {
+  const midnight = new Date(`${dayKey}T00:00:00.000Z`).getTime();
+  // Deux passes : l'écart peut changer entre minuit UTC et minuit local (DST).
+  const first = midnight - zoneOffsetMs(midnight, timeZone);
+  return new Date(midnight - zoneOffsetMs(first, timeZone));
+}
+
+/**
+ * Les `days` derniers jours civils du fuseau, aujourd'hui compris, et la
+ * période précédente de même nombre de jours. Les comptes et les graphiques
+ * d'une même carte portent ainsi exactement sur les mêmes messages.
+ */
+export function recentLocalDays(days: number, timeZone = "UTC", now = new Date()) {
+  const today = new Date(`${localDayKey(now, timeZone)}T00:00:00.000Z`).getTime();
+  const dayKey = (offset: number) => utcDayKey(new Date(today - offset * DAY_MS));
+  const keys = Array.from({ length: days }, (_, index) => dayKey(days - 1 - index));
+  return {
+    keys,
+    start: localDayStart(keys[0], timeZone),
+    previousStart: localDayStart(dayKey(2 * days - 1), timeZone),
+    end: now,
+  };
+}
+
 /** Génère les regroupements intersectant l'intervalle [start, endExclusive). */
 export function buildBucketKeys(
   start: Date,

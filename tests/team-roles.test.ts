@@ -342,6 +342,7 @@ function loadTeamActions(prisma: PrismaClient, userId: string, emailFails = fals
       },
     },
     "@/components/emailTemplate/invitationEmail": { ProjectInvitationEmail: () => "" },
+    "@/lib/email-senders": { NOREPLY_SENDER: "ExtravertyAI <noreply@example.test>" },
     "@/lib/project-invitations": { hashInvitationToken },
     zod: { default: z, z },
     "@/lib/recent-session": recentSession,

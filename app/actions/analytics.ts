@@ -21,6 +21,7 @@ import {
   computeDeltaPct,
   computeDeltaPts,
   getBucketMode,
+  recentLocalDays,
   type AnalyticsOverview,
   type AnalyticsPeriod,
   type DiscussionPoint,
@@ -31,7 +32,6 @@ import {
   type VolumePoint,
 } from "@/lib/analytics";
 
-const DAY_MS = 86_400_000;
 
 const STATUS_ORDER: MessageStatusKey[] = [
   "READ",
@@ -62,9 +62,9 @@ export async function getAnalyticsOverview(
 
   const timeZone = await getUserTimeZone();
   const days = PERIOD_DAYS[period];
-  const end = new Date();
-  const start = new Date(end.getTime() - days * DAY_MS);
-  const previousStart = new Date(start.getTime() - days * DAY_MS);
+  // « 7 derniers jours » = 7 jours civils du fuseau, aujourd'hui compris :
+  // un départ à J−7 à la même heure ajoutait un 8e jour tronqué au graphique.
+  const { start, previousStart, end } = recentLocalDays(days, timeZone);
 
   const currentRange = { gte: start, lt: end };
   const previousRange = { gte: previousStart, lt: start };
@@ -81,8 +81,7 @@ export async function getAnalyticsOverview(
     previousDiscussionsCount,
     activeContactsCount,
     previousActiveContactsCount,
-    readCount,
-    previousReadCount,
+    previousStatusGroups,
     statusGroups,
     sourceGroups,
     contactGroups,
@@ -117,21 +116,14 @@ export async function getAnalyticsOverview(
     prisma.contact.count({
       where: { projectId, messages: { some: { createdAt: previousRange } } },
     }),
-    prisma.message.count({
+    prisma.message.groupBy({
+      by: ["status"],
       where: {
         projectId,
         senderType: { in: sentSenderTypes },
-        status: "READ",
-        createdAt: currentRange,
-      },
-    }),
-    prisma.message.count({
-      where: {
-        projectId,
-        senderType: { in: sentSenderTypes },
-        status: "READ",
         createdAt: previousRange,
       },
+      _count: { _all: true },
     }),
     prisma.message.groupBy({
       by: ["status"],
@@ -203,11 +195,16 @@ export async function getAnalyticsOverview(
     (message) => message.senderType === "BOT" || message.senderType === "AGENT",
   ).length;
 
-  const readRate = sentCount > 0 ? (readCount / sentCount) * 100 : null;
-  const previousReadRate =
-    previousSentCount > 0
-      ? (previousReadCount / previousSentCount) * 100
-      : null;
+  // Taux de lecture parmi les messages arrivés sur le téléphone du contact :
+  // un envoi en attente ou en échec ne peut pas être lu et ne le fait pas baisser.
+  const readRateOf = (groups: typeof statusGroups) => {
+    const count = (status: MessageStatusKey) =>
+      groups.find((group) => group.status === status)?._count._all ?? 0;
+    const delivered = count("DELIVERED") + count("READ");
+    return delivered > 0 ? (count("READ") / delivered) * 100 : null;
+  };
+  const readRate = readRateOf(statusGroups);
+  const previousReadRate = readRateOf(previousStatusGroups);
   const aiAutonomy = sentCount > 0 ? (botCount / sentCount) * 100 : null;
   const previousAiAutonomy =
     previousSentCount > 0 ? (previousBotCount / previousSentCount) * 100 : null;

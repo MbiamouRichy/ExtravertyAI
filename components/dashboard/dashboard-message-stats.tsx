@@ -1,8 +1,13 @@
 import { getUserTimeZone } from "@/lib/server-time-zone";
-import { buildBucketKeys } from "@/lib/analytics";
+import { computeDeltaPct, recentLocalDays } from "@/lib/analytics";
 import { localDayKey } from "@/lib/user-time-zone";
-import prisma from "@/lib/prisma"; // Ajuste le chemin
+import prisma from "@/lib/prisma";
 import { ChartDataPoint, MessagesChart } from "./message-recu-chart";
+
+const weekdayLabel = new Intl.DateTimeFormat("fr-FR", {
+  weekday: "short",
+  timeZone: "UTC",
+});
 
 export async function DashboardMessageRecu({
   projectId,
@@ -10,18 +15,16 @@ export async function DashboardMessageRecu({
   projectId: string;
 }) {
   const timeZone = await getUserTimeZone();
-  const now = new Date();
-  const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-  const fourteenDaysAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
+  // Les 7 jours civils affichés (aujourd'hui compris), pas 7 × 24 h glissantes :
+  // sinon le premier jour, tronqué, apparaît deux fois sur l'axe.
+  const { keys, start, previousStart, end } = recentLocalDays(7, timeZone);
 
-  // 1. Récupération des données en parallèle (Messages de la semaine actuelle et précédente)
-  // On ne sélectionne que 'createdAt' pour minimiser le payload SQL
-  const [currentWeekMsgs, previousWeekMsgs] = await Promise.all([
+  const [currentWeekMsgs, previousWeekCount] = await Promise.all([
     prisma.message.findMany({
       where: {
         projectId,
         senderType: "CLIENT",
-        createdAt: { gte: sevenDaysAgo },
+        createdAt: { gte: start, lte: end },
       },
       select: { createdAt: true },
     }),
@@ -29,50 +32,30 @@ export async function DashboardMessageRecu({
       where: {
         projectId,
         senderType: "CLIENT",
-        createdAt: { gte: fourteenDaysAgo, lt: sevenDaysAgo },
+        createdAt: { gte: previousStart, lt: start },
       },
     }),
   ]);
 
-  // 2. Initialisation d'un tableau vide pour les 7 derniers jours
-  const dataMap = new Map<string, number>();
-  for (const key of buildBucketKeys(sevenDaysAgo, now, "day", timeZone))
-    dataMap.set(key, 0);
+  const counts = new Map(keys.map((key) => [key, 0]));
+  for (const message of currentWeekMsgs) {
+    const key = localDayKey(message.createdAt, timeZone);
+    const current = counts.get(key);
+    if (current !== undefined) counts.set(key, current + 1);
+  }
 
-  // 3. Remplissage avec les données de Prisma
-  currentWeekMsgs.forEach((msg) => {
-    const dateKey = localDayKey(msg.createdAt, timeZone);
-    if (dataMap.has(dateKey)) {
-      dataMap.set(dateKey, dataMap.get(dateKey)! + 1);
-    }
-  });
-
-  // 4. Formatage final pour le graphique
-  const chartData: ChartDataPoint[] = Array.from(dataMap.entries()).map(
-    ([dateKey, count]) => ({
-      dateLabel: new Intl.DateTimeFormat("fr-FR", {
-        weekday: "short",
-        timeZone: "UTC",
-      }).format(new Date(dateKey)),
-      messages: count,
-    }),
-  );
-
-  // 5. Calcul de la croissance
-  const currentTotal = currentWeekMsgs.length;
-  const growthPct =
-    previousWeekMsgs === 0
-      ? currentTotal > 0
-        ? 100
-        : 0
-      : ((currentTotal - previousWeekMsgs) / previousWeekMsgs) * 100;
+  const chartData: ChartDataPoint[] = keys.map((key) => ({
+    date: key,
+    dateLabel: weekdayLabel.format(new Date(`${key}T12:00:00.000Z`)),
+    messages: counts.get(key) ?? 0,
+  }));
 
   return (
     <MessagesChart
       title="Messages reçus"
       description="Volume client sur 7 jours"
       data={chartData}
-      growthPct={growthPct}
+      growthPct={computeDeltaPct(currentWeekMsgs.length, previousWeekCount)}
     />
   );
 }

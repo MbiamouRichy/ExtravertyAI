@@ -25,6 +25,8 @@ interface KpiItem {
     delta: number | null;
     unit: "%" | "pt";
     previous: string;
+    /** Affiché quand la période précédente n'offre aucune base de comparaison. */
+    noPrevious?: string;
     definition: string;
 }
 
@@ -133,8 +135,9 @@ export function AnalyticsKpiGrid({ kpis }: AnalyticsKpiGridProps) {
             delta: kpis.readRate.deltaPts,
             unit: "pt",
             previous: formatPctFr(kpis.readRate.previous),
+            noPrevious: "Aucun message distribué la période précédente",
             definition:
-                "Part des messages sortants de la période actuellement marqués comme lus. Les accusés peuvent arriver plus tard.",
+                "Part des messages sortants distribués sur le téléphone du contact (bot et équipe) qui ont été lus. Un contact qui a désactivé les confirmations de lecture n’en envoie jamais : ce taux est un minimum. Les accusés peuvent arriver plus tard.",
         },
         {
             label: "Part des envois IA",
@@ -144,6 +147,7 @@ export function AnalyticsKpiGrid({ kpis }: AnalyticsKpiGridProps) {
             delta: kpis.aiAutonomy.deltaPts,
             unit: "pt",
             previous: formatPctFr(kpis.aiAutonomy.previous),
+            noPrevious: "Aucun envoi la période précédente",
             definition:
                 "Part des messages sortants envoyés par le bot. Ce n’est pas un taux de résolution autonome.",
         },
@@ -182,18 +186,22 @@ export function AnalyticsKpiGrid({ kpis }: AnalyticsKpiGridProps) {
                     </p>
 
                     <p className="mt-1 flex flex-wrap items-center gap-x-1.5 text-xs text-muted-foreground">
-                        <Delta
-                            value={item.delta}
-                            unit={item.unit}
-                            current={item.current}
-                            previous={item.previousValue}
-                        />
-                        <span>
-                            {item.previousValue === null
-                                ? "Aucune donnée"
-                                : `vs ${item.previous}`}
-                            <span className="sr-only"> sur la période précédente</span>
-                        </span>
+                        {item.previousValue === null ? (
+                            <span>{item.noPrevious ?? "Aucune donnée la période précédente"}</span>
+                        ) : (
+                            <>
+                                <Delta
+                                    value={item.delta}
+                                    unit={item.unit}
+                                    current={item.current}
+                                    previous={item.previousValue}
+                                />
+                                <span>
+                                    vs {item.previous}
+                                    <span className="sr-only"> sur la période précédente</span>
+                                </span>
+                            </>
+                        )}
                     </p>
                 </div>
             ))}

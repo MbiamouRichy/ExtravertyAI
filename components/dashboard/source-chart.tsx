@@ -21,7 +21,7 @@ interface Props {
   data: SourceDatum[];
   totalMessages: number;
   otherSources?: { source: string; count: number }[];
-  trendPercentage?: number;
+  trendPercentage?: number | null;
   error?: string;
   className?: string;
 }
@@ -48,6 +48,7 @@ export function SourceMessageChart({
       className={className}
       aside={
         !error &&
+        trendPercentage !== null &&
         trendPercentage !== 0 && (
           <Delta value={trendPercentage} className="text-xs font-medium">
             <DeltaIcon variant="trend" />

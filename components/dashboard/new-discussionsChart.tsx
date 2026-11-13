@@ -21,7 +21,7 @@ export type DashboardDiscussionRow = {
 
 interface DashboardDiscussionsChartProps {
 	data: DashboardDiscussionRow[];
-	growthPct: number;
+	growthPct: number | null;
 }
 
 const chartConfig = {
@@ -44,7 +44,7 @@ export function DashboardDiscussionsChart({ data, growthPct }: DashboardDiscussi
 			title="Nouvelles discussions"
 			description="Comparées à la semaine précédente"
 			aside={
-				hasData && (
+				hasData && growthPct !== null && (
 					<Delta value={growthPct} className="text-xs font-medium">
 						<DeltaIcon variant="trend" />
 						<DeltaValue />

@@ -14,15 +14,24 @@ import { ChartEmptyState } from "./chart-empty-state";
 
 // On définit le format des données attendues
 export type ChartDataPoint = {
-	dateLabel: string; // ex: "Lun", "12/04", "Janv"
+	date: string; // jour civil AAAA-MM-JJ
+	dateLabel: string; // ex: "lun."
 	messages: number;
 };
+
+const tooltipDate = new Intl.DateTimeFormat("fr-FR", {
+	weekday: "long",
+	day: "numeric",
+	month: "long",
+	timeZone: "UTC",
+});
 
 interface MessagesChartProps {
 	title?: string;
 	description?: string;
 	data: ChartDataPoint[];
-	growthPct: number;
+	/** null : aucune base de comparaison la semaine précédente. */
+	growthPct: number | null;
 	className?: string;
 }
 
@@ -48,8 +57,8 @@ export function MessagesChart({
 			description={description}
 			className={className}
 			aside={
-				hasData && (
-					<Delta value={Number(growthPct)} className="text-xs font-medium">
+				hasData && growthPct !== null && (
+					<Delta value={growthPct} className="text-xs font-medium">
 						<DeltaIcon variant="trend" />
 						<DeltaValue />
 					</Delta>
@@ -69,13 +78,23 @@ export function MessagesChart({
 						<XAxis
 							axisLine={false}
 							dataKey="dateLabel"
-							interval="preserveStartEnd" // Évite que les labels se chevauchent sur 30 jours
-							tickFormatter={(value) => String(value)}
+							interval={0}
 							tickLine={false}
 							tickMargin={10}
-							minTickGap={20}
 						/>
-						<ChartTooltip content={<ChartTooltipContent hideLabel />} cursor={false} />
+						<ChartTooltip
+							cursor={false}
+							content={
+								<ChartTooltipContent
+									labelFormatter={(_, payload) => {
+										const date = payload?.[0]?.payload?.date;
+										return typeof date === "string"
+											? tooltipDate.format(new Date(`${date}T12:00:00.000Z`))
+											: "";
+									}}
+								/>
+							}
+						/>
 						<Bar dataKey="messages" fill="var(--color-messages)" radius={[4, 4, 0, 0]} maxBarSize={40} />
 					</BarChart>
 				</ChartContainer>

@@ -1,27 +1,27 @@
 import { Delta, DeltaIcon, DeltaValue } from "@/components/delta";
-import prisma from "@/lib/prisma"; // Assure-toi que ce chemin correspond à ton instance Prisma
+import prisma from "@/lib/prisma";
+import { computeDeltaPct, recentLocalDays } from "@/lib/analytics";
+import { getUserTimeZone } from "@/lib/server-time-zone";
 
 type Stat = {
 	label: string;
 	value: string;
-	delta: number;
+	delta: number | null; // null : rien à comparer la semaine précédente
 	invertDelta?: boolean; // Permet de dire que "moins c'est mieux" (ex: pour les erreurs ou interventions)
 };
 
-// Fonction utilitaire pour calculer le pourcentage de croissance
-const calculateDelta = (current: number, previous: number): number => {
-	if (previous === 0) return current > 0 ? 100 : 0;
-	return Number((((current - previous) / previous) * 100).toFixed(1));
+const calculateDelta = (current: number, previous: number): number | null => {
+	const delta = computeDeltaPct(current, previous);
+	return delta === null ? null : Number(delta.toFixed(1));
 };
 
 // Formateur pour les grands nombres (ex: 1200 -> 1 200)
 const formatNumber = (num: number) => new Intl.NumberFormat('fr-FR').format(num);
 
 export async function DashboardStats({ projectId }: { projectId: string }) {
-	// Définition des fenêtres temporelles : 7 derniers jours vs 7 jours précédents
-	const now = new Date();
-	const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-	const fourteenDaysAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
+	// Mêmes 7 jours civils que les graphiques du tableau de bord.
+	const timeZone = await getUserTimeZone();
+	const { start: sevenDaysAgo, previousStart: fourteenDaysAgo } = recentLocalDays(7, timeZone);
 
 	// Exécution de toutes les requêtes en parallèle (Performance 🚀)
 	const [
@@ -82,11 +82,17 @@ export async function DashboardStats({ projectId }: { projectId: string }) {
 						{s.value}
 					</dd>
 					<dd className="flex flex-wrap items-center gap-x-1 text-xs">
-						<Delta value={s.delta}>
-							<DeltaIcon />
-							<DeltaValue />
-						</Delta>
-						<span className="text-muted-foreground">vs sem. dernière</span>
+						{s.delta === null ? (
+							<span className="text-muted-foreground">Rien la semaine dernière</span>
+						) : (
+							<>
+								<Delta value={s.delta}>
+									<DeltaIcon />
+									<DeltaValue />
+								</Delta>
+								<span className="text-muted-foreground">vs sem. dernière</span>
+							</>
+						)}
 					</dd>
 				</div>
 			))}

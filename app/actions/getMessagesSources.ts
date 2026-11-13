@@ -3,6 +3,8 @@
 import { getSession } from "@/lib/auth-server";
 import { can } from "@/lib/project-permissions";
 import prisma from "@/lib/prisma";
+import { computeDeltaPct, recentLocalDays } from "@/lib/analytics";
+import { getUserTimeZone } from "@/lib/server-time-zone";
 import { z } from "zod";
 
 export type TimePeriod =
@@ -30,38 +32,17 @@ const colorMapping: Record<MessageSourceKey, string> = {
   unknown: "var(--chart-4)",
 };
 
-function getStartDateFromPeriod(period: TimePeriod, now: Date): Date {
-  const date = new Date(now);
-  switch (period) {
-    case "7d":
-      date.setDate(date.getDate() - 7);
-      break;
-    case "14d":
-      date.setDate(date.getDate() - 14);
-      break;
-    case "21d":
-      date.setDate(date.getDate() - 21);
-      break;
-    case "1m":
-      date.setMonth(date.getMonth() - 1);
-      break;
-    case "2m":
-      date.setMonth(date.getMonth() - 2);
-      break;
-    case "3m":
-      date.setMonth(date.getMonth() - 3);
-      break;
-    case "6m":
-      date.setMonth(date.getMonth() - 6);
-      break;
-    case "1y":
-      date.setFullYear(date.getFullYear() - 1);
-      break;
-    default:
-      date.setDate(date.getDate() - 7);
-  }
-  return date;
-}
+// Jours civils du fuseau de l'utilisateur, aujourd'hui compris.
+const PERIOD_DAY_COUNT: Record<TimePeriod, number> = {
+  "7d": 7,
+  "14d": 14,
+  "21d": 21,
+  "1m": 30,
+  "2m": 60,
+  "3m": 90,
+  "6m": 180,
+  "1y": 365,
+};
 
 export async function getMessageSourcesStats(
   rawProjectId: string,
@@ -119,11 +100,12 @@ export async function getMessageSourcesStats(
     }
 
     // --- Logique Métier ---
-    const now = new Date();
-    const startDate = getStartDateFromPeriod(period, now);
-    const previousStartDate = new Date(
-      startDate.getTime() - (now.getTime() - startDate.getTime()),
-    );
+    // Mêmes jours civils que les autres cartes du tableau de bord.
+    const {
+      start: startDate,
+      previousStart: previousStartDate,
+      end: now,
+    } = recentLocalDays(PERIOD_DAY_COUNT[period], await getUserTimeZone());
 
     const [groupedMessages, previousTotal] = await Promise.all([
       prisma.message.groupBy({
@@ -182,16 +164,11 @@ export async function getMessageSourcesStats(
         .map(([source, count]) => ({ source, count }))
         .sort((a, b) => b.count - a.count || a.source.localeCompare(b.source)),
       totalMessages,
-      trendPercentage:
-        previousTotal === 0
-          ? totalMessages > 0
-            ? 100
-            : 0
-          : Number(
-              (((totalMessages - previousTotal) / previousTotal) * 100).toFixed(
-                1,
-              ),
-            ),
+      // null : aucun message la période précédente, rien à comparer.
+      trendPercentage: (() => {
+        const delta = computeDeltaPct(totalMessages, previousTotal);
+        return delta === null ? null : Number(delta.toFixed(1));
+      })(),
     };
   } catch (error) {
     // 🛡️ 6. Ne jamais fuiter l'erreur brute (Prisma peut révéler la structure de la BDD)
