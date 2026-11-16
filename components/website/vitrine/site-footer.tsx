@@ -52,7 +52,7 @@ export function SiteFooter() {
             <div className="flex gap-1">
               <Button asChild size="icon-sm" variant="outline">
                 <a
-                  href="https://www.facebook.com/profile.php?id=61576441577255"
+                  href="https://www.facebook.com/profile.php?id=61596607112511"
                   target="_blank"
                   rel="noopener noreferrer"
                   aria-label="ExtravertyAI sur Facebook"

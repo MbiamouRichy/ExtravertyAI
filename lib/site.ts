@@ -20,7 +20,7 @@ export const SITE_DESCRIPTION =
   "Automatisez votre support client WhatsApp avec ExtravertyAI. Réponses instantanées, augmentation des ventes et expérience client améliorée.";
 
 export const SITE_SOCIAL_PROFILES = [
-  "https://www.facebook.com/profile.php?id=61576441577255",
+  "https://www.facebook.com/profile.php?id=61596607112511",
 ];
 
 export const SITE_CONTACT = {
