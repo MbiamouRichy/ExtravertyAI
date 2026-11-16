@@ -233,7 +233,7 @@ export function BillingNotice({
         {(usage || signedOut || canViewBilling || canManageBilling) && (
           <div className="flex min-w-0 items-center gap-3 sm:shrink-0">
             {usage && (
-              <div className="flex min-w-0 flex-1 items-center gap-3 sm:w-56 sm:flex-none">
+              <div className="flex min-w-0 flex-1 items-center gap-3 sm:w-56 sm:flex-none lg:w-80 xl:w-96">
                 {quota}
               </div>
             )}
