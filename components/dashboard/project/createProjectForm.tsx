@@ -1,18 +1,17 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
-  getCountries,
   getCountryCallingCode,
   isSupportedCountry,
 } from "libphonenumber-js/max";
 import { ArrowLeft, ArrowRight, Check, ChevronDown } from "lucide-react";
 
 import { createProjectAndCheckout } from "@/app/actions/checkout-actions";
+import { CountryPicker } from "@/components/dashboard/project/country-picker";
 import {
   NumberVerification,
   toCheckoutAttempt,
@@ -35,13 +34,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
   ProjectCreationFormSchema,
   parseProjectPhone,
   type ProjectCreationFormInput,
@@ -57,16 +49,6 @@ import {
   type PlanId,
 } from "@/lib/pricing";
 import { cn } from "@/lib/utils";
-
-
-const countryNames = new Intl.DisplayNames(["fr"], { type: "region" });
-const phoneCountries = getCountries()
-  .map((code) => ({
-    code,
-    name: countryNames.of(code) ?? code,
-    callingCode: getCountryCallingCode(code),
-  }))
-  .sort((a, b) => a.name.localeCompare(b.name, "fr"));
 
 export default function CreateProjectForm({
   initialPlan = "starter",
@@ -220,58 +202,18 @@ export default function CreateProjectForm({
                     <FieldLabel htmlFor="project-phone-country">
                       Pays
                     </FieldLabel>
-                    <Select
+                    <CountryPicker
+                      id="project-phone-country"
                       name={field.name}
                       value={field.value}
-                      onValueChange={(value) => {
+                      onChange={(value) => {
                         field.onChange(value);
                         if (watch("numero")) void trigger("numero");
                       }}
-                    >
-                      <SelectTrigger
-                        id="project-phone-country"
-                        ref={field.ref}
-                        onBlur={field.onBlur}
-                        aria-invalid={fieldState.invalid}
-                        className="w-full min-w-0 data-[size=default]:h-11"
-                      >
-                        {/* L’indicatif figure déjà dans le champ du numéro. */}
-                        <SelectValue placeholder="Choisir un pays">
-                          {isSupportedCountry(field.value) && (
-                            <>
-                              <CountryFlag code={field.value} />
-                              <span className="truncate">
-                                {countryNames.of(field.value) ?? field.value}
-                              </span>
-                            </>
-                          )}
-                        </SelectValue>
-                      </SelectTrigger>
-                      <SelectContent
-                        position="popper"
-                        align="start"
-                        // Largeur bornée : les noms longs sont tronqués, jamais
-                        // l’indicatif, et la liste ne dépasse pas de l’écran.
-                        className="max-h-80 w-(--radix-select-trigger-width) min-w-[min(18rem,calc(100vw-2rem))] max-w-[calc(100vw-2rem)]"
-                      >
-                        {phoneCountries.map((country) => (
-                          <SelectItem
-                            key={country.code}
-                            value={country.code}
-                            textValue={`${country.name} ${country.code} +${country.callingCode}`}
-                            className="min-h-10 *:[span]:last:w-full *:[span]:last:min-w-0"
-                          >
-                            <CountryFlag code={country.code} />
-                            <span className="min-w-0 truncate">
-                              {country.name}
-                            </span>
-                            <span className="ml-auto shrink-0 text-muted-foreground tabular-nums">
-                              +{country.callingCode}
-                            </span>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      onBlur={field.onBlur}
+                      invalid={fieldState.invalid}
+                      triggerRef={field.ref}
+                    />
                     {fieldState.invalid && (
                       <FieldError errors={[fieldState.error]} />
                     )}
@@ -476,16 +418,3 @@ export default function CreateProjectForm({
   );
 }
 
-// Fichiers locaux : Windows n’affiche pas les emojis de drapeaux.
-function CountryFlag({ code }: { code: string }) {
-  return (
-    <Image
-      src={`/flags/${code}.svg`}
-      alt=""
-      width={21}
-      height={14}
-      unoptimized
-      className="h-3.5 w-[21px] shrink-0 rounded-xs object-cover ring-1 ring-border"
-    />
-  );
-}
