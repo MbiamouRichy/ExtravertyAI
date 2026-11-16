@@ -178,7 +178,7 @@ export function ChangePlanDialog({
                     aria-invalid={fieldState.invalid}
                     aria-describedby="plan-change-effect"
                     disabled={submitting}
-                    className="gap-0 divide-y rounded-xl border"
+                    className="@container gap-0 divide-y rounded-xl border"
                   >
                     {PRICING_PLANS.map((plan) => {
                       const checked = field.value === plan.id;
@@ -214,8 +214,14 @@ export function ChangePlanDialog({
                               {formatMessageLimit(plan.messageLimit)} messages ·{" "}
                               {plan.users} membres
                             </span>
+                            {/* Écran étroit : le prix passe sous l'offre plutôt
+                                que de chevaucher son nom et ses badges. */}
+                            <span className="mt-1 hidden text-sm font-medium tabular-nums @max-[22rem]:block">
+                              {formatPlanPrice(plan.priceCents)}
+                              <span className="font-normal text-muted-foreground"> / mois</span>
+                            </span>
                           </span>
-                          <span className="shrink-0 text-right text-sm font-medium tabular-nums">
+                          <span className="shrink-0 text-right text-sm font-medium tabular-nums @max-[22rem]:hidden">
                             {formatPlanPrice(plan.priceCents)}
                             <span className="block text-xs font-normal text-muted-foreground">
                               / mois
