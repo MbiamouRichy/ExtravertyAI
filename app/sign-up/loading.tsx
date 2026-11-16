@@ -8,7 +8,7 @@ import {
 } from "@/components/auth/auth-loading";
 
 // Miroir de l’inscription en une étape : nom, e-mail, « Continuer », puis
-// Google et TikTok. Mêmes boîtes de ligne que la page, panneau produit à
+// Google. Mêmes boîtes de ligne que la page, panneau produit à
 // gauche sur grand écran.
 export default function SignUpLoading() {
   return (

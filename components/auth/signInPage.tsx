@@ -71,7 +71,7 @@ export function AuthPage({ callbackUrl }: { callbackUrl: string }) {
 					</p>
 
 					<div className="mt-6 sm:mt-8">
-						<SignInSocialButton callbackUrl={callbackUrl} text="Continuer avec" form="flex" />
+						<SignInSocialButton callbackUrl={callbackUrl} text="Continuer avec" />
 					</div>
 
 					<div className="my-5 sm:my-6">

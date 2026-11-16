@@ -23,7 +23,6 @@ Dans **Settings → Environment Variables**, utiliser l’environnement **Previe
 | Sessions | `BETTER_AUTH_SECRET` : secret aléatoire réservé à cet environnement, stable entre les déploiements |
 | E-mails | `RESEND_API_KEY` ; autoriser et vérifier le domaine d’envoi `extravertyai.com`, utilisé par le code |
 | Connexion Google | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` |
-| Connexion TikTok | `TIKTOK_CLIENT_KEY`, `TIKTOK_CLIENT_SECRET` si ce parcours est testé ; sinon il reste indisponible |
 | Fichiers | `MINIO_ENDPOINT`, `MINIO_BUCKET`, `MINIO_ACCESS_KEY`, `MINIO_SECRET_KEY` : stockage de test compatible S3, accessible en HTTPS ; le module actuel exige les clés dès son chargement |
 | WhatsApp | `EVOLUTION_API_URL`, `EVOLUTION_API_KEY`, `EVOLUTION_WEBHOOK_SECRET` : service et instance de test dédiés |
 | Paiement (Polar) | `POLAR_SERVER=sandbox`, `POLAR_ACCESS_TOKEN` du sandbox, `POLAR_WEBHOOK_SECRET` du nouvel endpoint, et `POLAR_STARTER_PRODUCT_ID`, `POLAR_PRO_PRODUCT_ID`, `POLAR_BUSINESS_PRODUCT_ID` : produits mensuels du sandbox |
@@ -33,7 +32,7 @@ Dans **Settings → Environment Variables**, utiliser l’environnement **Previe
 
 Pour générer un secret de session ou de webhook, exécuter localement `node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"`, puis le saisir directement dans les paramètres privés du service. Ne jamais utiliser un nom `NEXT_PUBLIC_*` pour une clé privée.
 
-Les adresses `localhost`, `postgres` et `evolution-api` du réseau Docker ne sont pas joignables depuis Vercel. Les remplacer par les points d’accès appropriés. Pour Google, autoriser l’origine de préproduction et le retour `https://VOTRE-HOTE/api/auth/callback/google`. Configurer le retour TikTok `/api/auth/callback/tiktok` si nécessaire. Tester les e-mails avec les destinataires autorisés par le compte Resend.
+Les adresses `localhost`, `postgres` et `evolution-api` du réseau Docker ne sont pas joignables depuis Vercel. Les remplacer par les points d’accès appropriés. Pour Google, autoriser l’origine de préproduction et le retour `https://VOTRE-HOTE/api/auth/callback/google`. Tester les e-mails avec les destinataires autorisés par le compte Resend.
 
 ## 3. Préparer la base, puis déployer
 

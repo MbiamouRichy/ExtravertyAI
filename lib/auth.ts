@@ -314,7 +314,7 @@ export const auth = betterAuth({
   account: {
     accountLinking: {
       enabled: true,
-      trustedProviders: ["google", "tiktok"],
+      trustedProviders: ["google"],
     },
   },
   emailAndPassword: {
@@ -354,10 +354,6 @@ export const auth = betterAuth({
       prompt: "select_account",
       clientId: process.env.GOOGLE_CLIENT_ID as string,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET as string,
-    },
-    tiktok: {
-      clientKey: process.env.TIKTOK_CLIENT_KEY as string,
-      clientSecret: process.env.TIKTOK_CLIENT_SECRET as string,
     },
   },
   emailVerification: {

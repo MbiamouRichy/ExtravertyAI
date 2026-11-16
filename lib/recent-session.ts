@@ -12,8 +12,8 @@ export function isRecentSession(createdAt: unknown, now = Date.now()): boolean {
   );
 }
 
-// Routes Better Auth refusées sans connexion récente : un compte Google ou
-// TikTok n’a pas de mot de passe à confirmer, la reconnexion vaut pour tous.
+// Routes Better Auth refusées sans connexion récente : un compte Google n’a
+// pas de mot de passe à confirmer, la reconnexion vaut pour tous.
 const RECENT_SESSION_PATHS = new Set([
   "/delete-user",
   "/delete-user/callback",

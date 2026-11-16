@@ -57,7 +57,7 @@ const pages: {
     icon: LogIn,
     title: "Connexion",
     live: "/sign-in",
-    text: "Écran scindé, connexion Google et TikTok, formulaire validé (React Hook Form + Zod).",
+    text: "Écran scindé, connexion Google, formulaire validé (React Hook Form + Zod).",
   },
 ];
 

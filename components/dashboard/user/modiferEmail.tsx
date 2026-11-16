@@ -61,8 +61,8 @@ export default function ChangeEmailForm({
     },
   });
 
-  // La reconnexion récente remplace le mot de passe : les comptes Google ou
-  // TikTok n’en ont pas. Le serveur la revérifie sur /change-email.
+  // La reconnexion récente remplace le mot de passe : les comptes Google
+  // n’en ont pas. Le serveur la revérifie sur /change-email.
   const handleOpenChange = (isOpen: boolean) => {
     setOpen(isOpen);
     if (!isOpen) {

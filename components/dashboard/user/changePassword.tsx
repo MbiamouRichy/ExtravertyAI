@@ -59,7 +59,7 @@ export function ChangePasswordDialog({
     hasPassword,
 }: {
     children: React.ReactNode;
-    /** Faux pour un compte Google ou TikTok, qui n’en a pas encore. */
+    /** Faux pour un compte Google, qui n’en a pas encore. */
     hasPassword: boolean;
 }) {
     const { playHaptic } = useHaptics();

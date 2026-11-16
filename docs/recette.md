@@ -29,5 +29,5 @@ Les tests de messagerie utilisent une base isolée et des appels fournisseurs si
 - 18 tests automatisés réussis ; vérification TypeScript et contrôle ESLint ciblé réussis.
 - Compilation de production réussie avec Next.js 16.3.3 (Webpack), après les mises à jour des dépendances.
 - Serveur local démarré sur `http://127.0.0.1:3000` ; réponses HTTP 200 pour `/contact`, `/apropos`, `/projects`, `/projects/billing` et `/sign-in`. Ce contrôle de disponibilité ne valide pas les parcours connectés ni le rendu visuel.
-- Polar configuré en sandbox. La connexion TikTok manque encore de ses identifiants.
+- Polar configuré en sandbox. Connexion sociale : Google seulement (TikTok retiré le 16 novembre 2026).
 - Recette visuelle et parcours WhatsApp réels à effectuer ensemble ; aucun worker n’a été lancé pour envoyer des messages aux contacts existants.

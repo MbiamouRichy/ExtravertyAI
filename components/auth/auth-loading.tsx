@@ -60,16 +60,12 @@ export function AuthFieldSkeleton({
   );
 }
 
-/** Boutons Google et TikTok, empilés avec l’écart réel de SignInSocialButton. */
+/** Bouton Google, à la hauteur réelle de SignInSocialButton. */
 export function AuthSocialSkeleton() {
   return (
-    <div className="flex flex-col gap-4">
-      {[0, 1].map((index) => (
-        <div key={index} className="flex h-9 items-center justify-center gap-2 rounded-md border">
-          <Skeleton className="size-4 rounded-full" />
-          <Skeleton className="h-3.5 w-40 max-w-[60%]" />
-        </div>
-      ))}
+    <div className="flex h-9 items-center justify-center gap-2 rounded-md border">
+      <Skeleton className="size-4 rounded-full" />
+      <Skeleton className="h-3.5 w-40 max-w-[60%]" />
     </div>
   );
 }

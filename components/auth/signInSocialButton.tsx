@@ -2,16 +2,24 @@ import { signIn } from "@/lib/auth-client";
 import { useHaptics } from "@/lib/webHaptics";
 import { toast } from "sonner";
 import { Button } from "../ui/button";
-import { GoogleIcon, TiktokIcon } from "../social-icon";
+import { GoogleIcon } from "../social-icon";
 import { safeAuthCallback } from "@/lib/auth-redirects";
-type providerType = Parameters<typeof signIn.social>[0]["provider"];
 
-export function SignInSocialButton({ variant: variant = "outline", form: form = "grid", text, callbackUrl = "/projects" }: { variant?: "outline" | "default", form?: "grid" | "flex", text?: string, callbackUrl?: string }) {
+/** Connexion Google, seul fournisseur social de l'application. */
+export function SignInSocialButton({
+  variant = "outline",
+  text,
+  callbackUrl = "/projects",
+}: {
+  variant?: "outline" | "default";
+  text?: string;
+  callbackUrl?: string;
+}) {
   const { playHaptic } = useHaptics();
-  async function SignInSocial(provider: providerType) {
+  async function signInWithGoogle() {
     await signIn.social(
       {
-        provider: provider,
+        provider: "google",
         callbackURL: safeAuthCallback(callbackUrl),
       },
       {
@@ -25,9 +33,7 @@ export function SignInSocialButton({ variant: variant = "outline", form: form = 
             className: "text-muted-foreground text-sm bg-card",
             action: {
               label: "Réessayer",
-              onClick: () => {
-                SignInSocial(provider);
-              },
+              onClick: () => void signInWithGoogle(),
             },
           });
         },
@@ -35,24 +41,14 @@ export function SignInSocialButton({ variant: variant = "outline", form: form = 
     );
   }
   return (
-    <div className={`gap-2 space-y-2 ${form === "flex" ? "flex flex-col" : "grid grid-cols-2"}`}>
-      <Button
-        onClick={() => SignInSocial("google")}
-        variant={variant}
-        type="button"
-      >
-        <GoogleIcon data-icon="inline-start" />
-        {text} Google
-      </Button>
-      <Button
-        onClick={() => SignInSocial("tiktok")}
-        variant={variant}
-        type="button"
-      >
-        <TiktokIcon data-icon="inline-start" />
-        {text} Tiktok
-      </Button>
-    </div>
+    <Button
+      onClick={() => void signInWithGoogle()}
+      variant={variant}
+      type="button"
+      className="w-full"
+    >
+      <GoogleIcon data-icon="inline-start" />
+      {text} Google
+    </Button>
   );
 }
-

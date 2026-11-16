@@ -251,7 +251,6 @@ export function AuthPage({ callbackUrl }: { callbackUrl?: string }) {
 
 						<AuthDivider>ou</AuthDivider>
 						<SignInSocialButton
-							form="flex"
 							variant="outline"
 							text="Continuer avec"
 							callbackUrl={destination}

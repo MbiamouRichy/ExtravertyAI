@@ -49,7 +49,7 @@ export default async function ProfilePage() {
   });
   const passwordLastUpdated = passwordAccount
     ? `Dernière modification : ${formatTimeAgo(passwordAccount.updatedAt)}`
-    : "Aucun mot de passe : connexion via Google ou TikTok";
+    : "Aucun mot de passe : connexion via Google ou par code e-mail";
 
   const deletionPlan = await getAccountDeletionPlan(user.id);
 

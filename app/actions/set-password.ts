@@ -17,7 +17,7 @@ const inputSchema = z.object({
 
 /**
  * Définit ou remplace le mot de passe. La connexion récente tient lieu de
- * confirmation : un compte Google ou TikTok n’a pas de mot de passe à saisir.
+ * confirmation : un compte Google n’a pas de mot de passe à saisir.
  */
 export async function setAccountPasswordAction(
   input: z.infer<typeof inputSchema>,

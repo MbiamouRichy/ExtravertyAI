@@ -7,7 +7,7 @@ import {
   AuthTopBarSkeleton,
 } from "@/components/auth/auth-loading";
 
-// Miroir de l’écran de connexion par code : titre, Google et TikTok, e-mail,
+// Miroir de l’écran de connexion par code : titre, Google, e-mail,
 // « Recevoir un code » puis le lien vers le mot de passe. Mêmes boîtes de
 // ligne que la page pour qu’elle remplace le squelette sans décalage.
 export default function SignInLoading() {
