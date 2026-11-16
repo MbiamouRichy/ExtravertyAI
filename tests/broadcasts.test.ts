@@ -406,3 +406,33 @@ test("broadcasts end to end", { timeout: 240000 }, async (t) => {
     });
   });
 });
+
+test("the internal project never broadcasts from the verification number", { timeout: 120000 }, async () => {
+  await withTestDatabase(async (prisma) => {
+    const owner = await createUser(prisma, "Équipe ExtravertyAI");
+    const project = await proProject(prisma, "business");
+    await addMember(prisma, project.id, owner.id, "OWNER");
+    await customer(prisma, project.id, "Aminata Diallo");
+    const input = { ...draft(), projectId: project.id, userId: owner.id, audience: {} };
+
+    // Une diffusion créée avant que le projet ne devienne interne…
+    const broadcast = await createBroadcast(prisma, input);
+    await prisma.project.update({ where: { id: project.id }, data: { internal: true } });
+
+    // … ne part jamais : le worker la met en pause sans rien envoyer.
+    const inWindow = new Date(tomorrowWindow(new Date(), project.timeZone).getTime() + 2 * 3_600_000);
+    await prisma.broadcast.update({ where: { id: broadcast.id }, data: { nextSendAt: inWindow } });
+    assert.equal((await runBroadcastTick(prisma, { now: inWindow }))?.sent, false);
+    const paused = await prisma.broadcast.findUniqueOrThrow({ where: { id: broadcast.id } });
+    assert.equal(paused.status, "PAUSED");
+    assert.equal(paused.pauseReason, "INTERNAL_PROJECT");
+    assert.equal(await prisma.message.count({ where: { projectId: project.id, source: "broadcast" } }), 0);
+
+    // Ni reprise, ni nouvelle diffusion, ni estimation ; l'annulation reste possible.
+    const action = { projectId: project.id, userId: owner.id, broadcastId: broadcast.id };
+    await assert.rejects(resumeBroadcast(prisma, action), /projet interne/);
+    await assert.rejects(createBroadcast(prisma, { ...input, ...draft() }), /projet interne/);
+    await assert.rejects(estimateAudience(prisma, { projectId: project.id, userId: owner.id, audience: {} }), /projet interne/);
+    assert.equal((await cancelBroadcast(prisma, action)).status, "CANCELLED");
+  });
+});

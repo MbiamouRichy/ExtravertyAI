@@ -81,8 +81,17 @@ export const BROADCAST_STATUS_LABEL = {
   CANCELLED: "Annulée",
 } as const;
 
+/**
+ * Le projet interne répond sur le numéro qui envoie les codes de vérification :
+ * un envoi en masse pourrait le faire bloquer par WhatsApp et couper
+ * l'inscription de tous les clients. Les diffusions y sont donc refusées.
+ */
+export const INTERNAL_BROADCAST_ERROR =
+  "Les diffusions sont désactivées sur le projet interne : elles partiraient du numéro qui envoie les codes de vérification.";
+
 /** Why a broadcast stopped (PAUSED) or waits (SENDING): safe to show as is. */
 export const BROADCAST_REASON_LABEL: Record<string, string> = {
+  INTERNAL_PROJECT: "Diffusions désactivées sur le projet interne (numéro des codes de vérification).",
   MANUAL: "Mise en pause par un membre de l’équipe.",
   QUOTA_EXCEEDED: "Quota de messages du mois atteint. Elle reprendra quand vous la relancerez.",
   PERIOD_UNAVAILABLE: "Abonnement à régulariser avant de reprendre l’envoi.",

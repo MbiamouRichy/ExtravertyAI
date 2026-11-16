@@ -29,12 +29,16 @@ export default async function NewBroadcastPage({ params }: { params: Promise<{ p
     where: { userId_projectId: { userId: session.user.id, projectId } },
     select: {
       role: true,
-      project: { select: { name: true, plan: true, timeZone: true, deletionPending: true, instanceStatus: true } },
+      project: {
+        select: { name: true, plan: true, timeZone: true, deletionPending: true, instanceStatus: true, internal: true },
+      },
     },
   });
   if (!membership || membership.project.deletionPending) notFound();
-  // Creation is reserved to owners and administrators, on plans with broadcasts.
-  if (!can(membership.role, "project.manage") || !planAllows(membership.project.plan, "broadcast")) {
+  // Creation is reserved to owners and administrators, on plans with broadcasts,
+  // and never on the internal project (number of the verification codes).
+  const { internal, ...project } = membership.project;
+  if (internal || !can(membership.role, "project.manage") || !planAllows(project.plan, "broadcast")) {
     redirect(base);
   }
   const active = await prisma.broadcast.findFirst({
@@ -49,7 +53,7 @@ export default async function NewBroadcastPage({ params }: { params: Promise<{ p
       select: { id: true, name: true },
       take: 100,
     }),
-    broadcastUsage(prisma, { id: projectId, ...membership.project }),
+    broadcastUsage(prisma, { id: projectId, ...project }),
   ]);
 
   return (
@@ -81,7 +85,7 @@ export default async function NewBroadcastPage({ params }: { params: Promise<{ p
           usage={usage}
           connected={membership.project.instanceStatus === "connected"}
           stageTargeting={
-            planAllows(membership.project.plan, "pipeline")
+            planAllows(project.plan, "pipeline")
               ? { enabled: true }
               : { enabled: false, planName: pricingPlan(minimumPlanFor("pipeline")).name }
           }

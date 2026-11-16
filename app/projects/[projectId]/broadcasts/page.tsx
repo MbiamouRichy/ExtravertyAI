@@ -40,17 +40,21 @@ export default async function BroadcastsPage({ params }: { params: Promise<{ pro
     where: { userId_projectId: { userId, projectId } },
     select: {
       role: true,
-      project: { select: { name: true, plan: true, timeZone: true, deletionPending: true, instanceStatus: true } },
+      project: {
+        select: { name: true, plan: true, timeZone: true, deletionPending: true, instanceStatus: true, internal: true },
+      },
     },
   });
   if (!membership || membership.project.deletionPending) notFound();
   if (!can(membership.role, "pipeline.view")) redirect(homePath(projectId, membership.role));
   const canManage = can(membership.role, "project.manage");
-  const allowed = planAllows(membership.project.plan, "broadcast");
+  // Projet interne : jamais de diffusion depuis le numéro des codes de vérification.
+  const { internal, ...project } = membership.project;
+  const allowed = !internal && planAllows(project.plan, "broadcast");
 
   const [broadcasts, usage, optedOut, optedOutTotal] = await Promise.all([
     listBroadcasts(prisma, projectId),
-    broadcastUsage(prisma, { id: projectId, ...membership.project }),
+    broadcastUsage(prisma, { id: projectId, ...project }),
     listOptedOut(prisma, { projectId, userId }),
     prisma.contact.count({ where: { projectId, broadcastOptOutAt: { not: null } } }),
   ]);
@@ -113,12 +117,24 @@ export default async function BroadcastsPage({ params }: { params: Promise<{ pro
     </section>
   );
 
-  // Without the feature and without history: only the offer is shown.
+  const internalNotice = (
+    <section className="rounded-xl border bg-card p-4 sm:p-5">
+      <h2 className="text-sm font-medium">Diffusions désactivées sur le projet interne</h2>
+      <p className="mt-1 max-w-xl text-sm text-muted-foreground">
+        Ce projet répond sur le numéro qui envoie les codes de vérification. Un envoi en masse pourrait le
+        faire bloquer par WhatsApp et empêcher les clients de s’inscrire. Les conversations de support
+        restent disponibles dans la messagerie.
+      </p>
+    </section>
+  );
+  const unavailable = internal ? internalNotice : upsell;
+
+  // Without the feature and without history: only the offer (or the notice) is shown.
   if (!allowed && !broadcasts.length) {
     return (
       <main className="mx-auto w-full max-w-5xl space-y-6 p-4 sm:p-6 lg:p-8">
         {header}
-        {upsell}
+        {unavailable}
       </main>
     );
   }
@@ -142,7 +158,7 @@ export default async function BroadcastsPage({ params }: { params: Promise<{ pro
   return (
     <main className="mx-auto w-full max-w-5xl space-y-6 p-4 sm:p-6 lg:p-8">
       {header}
-      {!allowed && upsell}
+      {!allowed && unavailable}
       <SectionTabs
         label="Sections des diffusions"
         tabs={[

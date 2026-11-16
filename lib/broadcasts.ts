@@ -5,6 +5,7 @@ import {
   AudienceSchema,
   BroadcastDraftSchema,
   BROADCAST_LIMITS,
+  INTERNAL_BROADCAST_ERROR,
   localDayStart,
   nextPace,
   nextSendingWindow,
@@ -46,8 +47,9 @@ async function logEvent(
 }
 
 /**
- * Owners and administrators. Creating or resuming needs a plan with broadcasts;
- * pausing or cancelling stays possible after a downgrade, to stop a broadcast.
+ * Owners and administrators. Creating or resuming needs a plan with broadcasts
+ * and is never allowed on the internal project; pausing or cancelling stays
+ * possible after a downgrade, to stop a broadcast.
  */
 async function requireBroadcastAdmin(db: Db, projectId: string, userId: string, needsPlan = true) {
   const membership = await db.projectMembership.findUnique({
@@ -59,6 +61,9 @@ async function requireBroadcastAdmin(db: Db, projectId: string, userId: string, 
   }
   if (!can(membership.role, "project.manage")) {
     throw new BroadcastError("Seuls les propriétaires et administrateurs gèrent les diffusions.");
+  }
+  if (needsPlan && membership.project.internal) {
+    throw new BroadcastError(INTERNAL_BROADCAST_ERROR);
   }
   if (needsPlan && !planAllows(membership.project.plan, "broadcast")) {
     throw new BroadcastError(planUpgradeMessage("broadcast"));
@@ -370,6 +375,8 @@ export async function runBroadcastTick(
       });
       return result(false);
     }
+    // Ceinture et bretelles : rien ne part jamais du numéro des codes.
+    if (project.internal) return pause("INTERNAL_PROJECT");
     if (!planAllows(project.plan, "broadcast")) return pause("PLAN");
     if (project.automationPaused) return pause("PROJECT_PAUSED");
     if (!["active", "trialing"].includes(projectBillingStatus(project))) return pause("PROJECT_INACTIVE");
