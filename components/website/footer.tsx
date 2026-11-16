@@ -46,8 +46,9 @@ export default function Footer() {
             <span className="sr-only">Accueil ExtravertyAI</span>
           </Link>
           <p className="max-w-xs text-sm text-muted-foreground">
-            L’assistant WhatsApp qui répond, qualifie et passe la main à votre
-            équipe au bon moment.
+            ExtravertyAI automatise le service client des entreprises sur
+            WhatsApp : une IA répond 24 h/24, qualifie les demandes et transmet
+            à votre équipe les conversations qui comptent.
           </p>
           <div className="flex gap-1">
             <Button asChild size="icon-sm" variant="outline">

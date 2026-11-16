@@ -47,8 +47,10 @@ export function SiteFooter() {
               <span className="sr-only">Haut de page ExtravertyAI</span>
             </Link>
             <p className="max-w-xs text-sm text-muted-foreground">
-              ExtravertyAI (Extraverty) est l’assistant WhatsApp à IA qui
-              répond, qualifie et passe la main à votre équipe au bon moment.
+              ExtravertyAI (Extraverty) automatise le service client des
+              entreprises sur WhatsApp : une IA répond 24 h/24, qualifie les
+              demandes et transmet à votre équipe les conversations qui
+              comptent.
             </p>
             <div className="flex gap-1">
               <Button asChild size="icon-sm" variant="outline">
