@@ -84,7 +84,7 @@ export default function BillingLoading() {
                 </div>
               </div>
               <div className="mt-auto flex min-h-18 flex-col justify-center border-t px-4 py-4 sm:items-end sm:px-6 @4xl:items-stretch">
-                <Skeleton className="h-10 w-full rounded-md sm:w-60 @4xl:w-full" />
+                <Skeleton className="h-10 w-full rounded-md sm:h-9 sm:w-60 @4xl:w-full" />
               </div>
             </section>
           </div>

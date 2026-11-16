@@ -605,7 +605,7 @@ export default async function BillingPage({
                     projectId={projectId}
                     label={packLabel}
                     disabled={!paidPeriod || creditFull}
-                    className="w-full sm:w-auto @4xl:w-full"
+                    className="w-full sm:min-h-9 sm:w-auto @4xl:w-full"
                   />
                   {(!paidPeriod || creditFull) && (
                     <p className="text-center text-xs text-muted-foreground">
