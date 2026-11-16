@@ -5,6 +5,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import {
   Building2,
+  CalendarClock,
   CircleAlert,
   CreditCard,
   FileText,
@@ -458,21 +459,28 @@ export default async function BillingPage({
         </p>
       )}
 
-      <div className="grid gap-4 lg:grid-cols-3">
-        <section
-          aria-labelledby="plan-title"
-          className={cn(CARD, "flex flex-col", showCredit && "lg:col-span-2")}
-        >
-          <div className="flex flex-col gap-4 p-4 sm:flex-row sm:items-start sm:justify-between sm:p-6">
-            <div className="min-w-0">
-              <h2 id="plan-title" className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                <span className="text-2xl font-semibold tracking-tight">
-                  {pricingPlan(currentPlan).name}
-                </span>
+      {/* Offre et crédit côte à côte dès que la zone de contenu (et non
+          l'écran, barre latérale ouverte ou non) est assez large. Même
+          structure dans les deux cartes : libellé, valeur, précision, puis
+          action en pied, à la même hauteur d'une carte à l'autre. */}
+      <div className="@container">
+        <div className={cn("grid gap-4", showCredit && "@4xl:grid-cols-5")}>
+          <section
+            aria-labelledby="plan-title"
+            className={cn(CARD, "flex flex-col", showCredit && "@4xl:col-span-3")}
+          >
+            <div className="p-4 sm:p-6">
+              <div className="flex h-6 items-center justify-between gap-3">
+                <h2 id="plan-title" className="text-sm text-muted-foreground">
+                  Offre
+                </h2>
                 <Badge variant={cancelling || ended || !upToDate ? "outline" : "secondary"}>
                   {cancelling && !ended ? "Résiliation programmée" : billingStatusLabel(status)}
                 </Badge>
-              </h2>
+              </div>
+              <p className="mt-2 text-2xl font-semibold tracking-tight">
+                {pricingPlan(currentPlan).name}
+              </p>
               <p className="mt-1 text-sm text-muted-foreground tabular-nums">
                 {price ? (
                   <>
@@ -490,106 +498,129 @@ export default async function BillingPage({
                 )}
               </p>
               {pendingPlan && (
-                <p role="status" className="mt-2 text-sm">
-                  Passe à l’offre {pricingPlan(pendingPlan).name}{" "}
-                  {pendingAt ? (
-                    <>
-                      le <LocalBillingDate value={pendingAt} dateOnly />
-                    </>
-                  ) : (
-                    "au renouvellement"
-                  )}
-                  .
+                <p role="status" className="mt-3 flex items-start gap-2 text-sm">
+                  <CalendarClock
+                    aria-hidden="true"
+                    className="mt-0.5 size-4 shrink-0 text-muted-foreground"
+                  />
+                  <span>
+                    Passe à l’offre {pricingPlan(pendingPlan).name}{" "}
+                    {pendingAt ? (
+                      <>
+                        le <LocalBillingDate value={pendingAt} dateOnly />
+                      </>
+                    ) : (
+                      "au renouvellement"
+                    )}
+                    .
+                  </span>
                 </p>
               )}
             </div>
-            {canManage && (
-              <BillingActions
-                projectId={projectId}
-                configured={!!p.stripeCustomerId}
-                needsCheckout={needsInitialCheckout(p)}
-                primary={primary}
-                changePlan={changePlan}
-              />
-            )}
-          </div>
-          <div className="mt-auto border-t p-4 sm:px-6">
-            {quota ? (
-              <>
-                <div className="flex items-baseline justify-between gap-3 text-sm">
-                  <span className="text-muted-foreground">Messages utilisés</span>
-                  <span className="font-medium tabular-nums">
-                    {quota.used.toLocaleString("fr-FR")}
-                    <span className="font-normal text-muted-foreground">
-                      {" "}/ {quota.limit.toLocaleString("fr-FR")}
-                    </span>
-                  </span>
-                </div>
-                <div
-                  role="progressbar"
-                  aria-label="Messages utilisés sur la période"
-                  aria-valuemin={0}
-                  aria-valuemax={Math.max(1, quota.limit)}
-                  aria-valuenow={Math.min(quota.used, Math.max(1, quota.limit))}
-                  className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted"
-                >
-                  <div
-                    className={cn("h-full rounded-full", usedRatio >= 0.9 ? "bg-destructive" : "bg-primary")}
-                    style={{ width: `${usedRatio * 100}%` }}
+            <div className="mt-auto flex min-h-18 flex-col justify-center gap-4 border-t px-4 py-4 sm:flex-row sm:items-center sm:gap-6 sm:px-6">
+              <div className="min-w-0 flex-1">
+                {quota ? (
+                  <>
+                    <div className="flex items-baseline justify-between gap-3 text-sm">
+                      <span className="text-muted-foreground">Messages utilisés</span>
+                      <span className="font-medium tabular-nums">
+                        {quota.used.toLocaleString("fr-FR")}
+                        <span className="font-normal text-muted-foreground">
+                          {" "}/ {quota.limit.toLocaleString("fr-FR")}
+                        </span>
+                      </span>
+                    </div>
+                    <div
+                      role="progressbar"
+                      aria-label="Messages utilisés sur la période"
+                      aria-valuemin={0}
+                      aria-valuemax={Math.max(1, quota.limit)}
+                      aria-valuenow={Math.min(quota.used, Math.max(1, quota.limit))}
+                      className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted"
+                    >
+                      <div
+                        className={cn(
+                          "h-full rounded-full",
+                          usedRatio >= 0.9 ? "bg-destructive" : "bg-primary",
+                        )}
+                        style={{ width: `${usedRatio * 100}%` }}
+                      />
+                    </div>
+                    {(quota.extraUsed > 0 || quota.endsAt <= new Date()) && (
+                      <p className="mt-2 text-xs text-muted-foreground tabular-nums">
+                        {quota.endsAt <= new Date() ? (
+                          <span className="text-destructive">
+                            Période terminée : en attente du paiement.
+                          </span>
+                        ) : (
+                          `+ ${quota.extraUsed.toLocaleString("fr-FR")} payés par le crédit`
+                        )}
+                      </p>
+                    )}
+                  </>
+                ) : (
+                  <p className="text-sm text-muted-foreground">Aucune période en cours</p>
+                )}
+              </div>
+              {canManage && (
+                <div className="shrink-0 empty:hidden">
+                  <BillingActions
+                    projectId={projectId}
+                    configured={!!p.stripeCustomerId}
+                    needsCheckout={needsInitialCheckout(p)}
+                    primary={primary}
+                    changePlan={changePlan}
                   />
                 </div>
-                {(quota.extraUsed > 0 || quota.endsAt <= new Date()) && (
-                  <p className="mt-2 text-xs text-muted-foreground tabular-nums">
-                    {quota.endsAt <= new Date() ? (
-                      <span className="text-destructive">Période terminée : en attente du paiement.</span>
-                    ) : (
-                      `+ ${quota.extraUsed.toLocaleString("fr-FR")} payés par le crédit`
-                    )}
-                  </p>
-                )}
-              </>
-            ) : (
-              <p className="text-sm text-muted-foreground">Aucune période en cours</p>
-            )}
-          </div>
-        </section>
+              )}
+            </div>
+          </section>
 
-        {showCredit && (
-          <section aria-labelledby="credit-title" className={cn(CARD, "flex flex-col p-4 sm:p-6")}>
-            <h2 id="credit-title" className="text-sm text-muted-foreground">
-              Crédit messages
-            </h2>
-            <p className="mt-1 text-2xl font-semibold tracking-tight tabular-nums">
-              {formatBillingAmount(creditCents(p.extraCredit), "usd")}
-            </p>
-            <p className="text-sm text-muted-foreground tabular-nums">
-              ≈ {creditMessages.toLocaleString("fr-FR")} messages après le quota
-            </p>
-            {query.recharge === "ok" && (
-              <p role="status" className="mt-2 text-xs">
-                Paiement reçu : le crédit s’ajoute dans un instant.
-              </p>
-            )}
-            {canManage && creditOffered && (
-              <div className="mt-4 space-y-1.5 lg:mt-auto lg:pt-4">
-                <MessageCreditButton
-                  projectId={projectId}
-                  label={packLabel}
-                  disabled={!paidPeriod || creditFull}
-                />
-                {(!paidPeriod || creditFull) && (
-                  <p className="text-center text-xs text-muted-foreground">
-                    {creditFull
-                      ? "Crédit maximal atteint."
-                      : p.status === "trialing"
-                        ? "Disponible après l’essai."
-                        : "Disponible avec un abonnement à jour."}
+          {showCredit && (
+            <section
+              aria-labelledby="credit-title"
+              className={cn(CARD, "flex flex-col @4xl:col-span-2")}
+            >
+              <div className="p-4 sm:p-6">
+                <div className="flex h-6 items-center">
+                  <h2 id="credit-title" className="text-sm text-muted-foreground">
+                    Crédit messages
+                  </h2>
+                </div>
+                <p className="mt-2 text-2xl font-semibold tracking-tight tabular-nums">
+                  {formatBillingAmount(creditCents(p.extraCredit), "usd")}
+                </p>
+                <p className="mt-1 text-sm text-muted-foreground tabular-nums">
+                  ≈ {creditMessages.toLocaleString("fr-FR")} messages après le quota
+                </p>
+                {query.recharge === "ok" && (
+                  <p role="status" className="mt-3 text-sm">
+                    Paiement reçu : le crédit s’ajoute dans un instant.
                   </p>
                 )}
               </div>
-            )}
-          </section>
-        )}
+              {canManage && creditOffered && (
+                <div className="mt-auto flex min-h-18 flex-col justify-center gap-1.5 border-t px-4 py-4 sm:items-end sm:px-6 @4xl:items-stretch">
+                  <MessageCreditButton
+                    projectId={projectId}
+                    label={packLabel}
+                    disabled={!paidPeriod || creditFull}
+                    className="w-full sm:w-auto @4xl:w-full"
+                  />
+                  {(!paidPeriod || creditFull) && (
+                    <p className="text-center text-xs text-muted-foreground">
+                      {creditFull
+                        ? "Crédit maximal atteint."
+                        : p.status === "trialing"
+                          ? "Disponible après l’essai."
+                          : "Disponible avec un abonnement à jour."}
+                    </p>
+                  )}
+                </div>
+              )}
+            </section>
+          )}
+        </div>
       </div>
 
       <section aria-labelledby="invoices-title" className="space-y-3">
@@ -603,14 +634,16 @@ export default async function BillingPage({
                 const Icon = row.kind === "credit" ? MessageSquarePlus : Repeat;
                 return (
                   <li key={row.id} className="flex items-center gap-3 px-4 py-3 sm:gap-4 sm:px-6">
+                    {/* Écran étroit : le libellé prend la place de l'icône,
+                        qu'il nomme déjà, pour rester lisible en entier. */}
                     <span
                       aria-hidden="true"
-                      className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground"
+                      className="hidden size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground sm:flex"
                     >
                       <Icon className="size-4" />
                     </span>
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium">{row.label}</p>
+                      <p className="text-sm font-medium break-words">{row.label}</p>
                       <p className="text-xs text-muted-foreground">
                         <LocalBillingDate value={row.date} dateOnly shortMonth />
                         {row.status && (

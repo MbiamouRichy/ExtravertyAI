@@ -4,6 +4,7 @@ import { Loader2, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { buyMessageCredit } from "@/app/actions/billing-plan";
+import { cn } from "@/lib/utils";
 
 /**
  * Ouvre le paiement Polar d'une recharge. Le serveur revérifie tout (droits,
@@ -13,10 +14,12 @@ export function MessageCreditButton({
   projectId,
   label,
   disabled = false,
+  className,
 }: {
   projectId: string;
   label: string;
   disabled?: boolean;
+  className?: string;
 }) {
   const [busy, setBusy] = useState(false);
   async function open() {
@@ -36,7 +39,7 @@ export function MessageCreditButton({
   }
   return (
     <Button
-      className="h-auto min-h-10 w-full whitespace-normal"
+      className={cn("h-auto min-h-10 w-full whitespace-normal", className)}
       disabled={disabled || busy}
       aria-busy={busy}
       onClick={() => void open()}

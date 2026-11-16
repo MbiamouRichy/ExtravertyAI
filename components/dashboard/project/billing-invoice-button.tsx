@@ -34,6 +34,7 @@ export function BillingInvoiceButton({
       disabled={busy}
       aria-busy={busy}
       aria-label={label}
+      className="max-sm:w-8 max-sm:px-0"
       onClick={() => void open()}
     >
       {busy ? (
@@ -41,7 +42,8 @@ export function BillingInvoiceButton({
       ) : (
         <ArrowDownToLine data-icon="inline-start" />
       )}
-      PDF
+      {/* Écran étroit : l'icône seule, le nom complet reste dans aria-label. */}
+      <span className="hidden sm:inline">PDF</span>
     </Button>
   );
 }
