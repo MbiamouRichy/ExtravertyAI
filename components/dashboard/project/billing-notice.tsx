@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import useSWR from "swr";
 import { useEffect } from "react";
-import { AlertCircle, ArrowUpRight } from "lucide-react";
+import { AlertCircle, ArrowUpRight, LogIn } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -17,9 +18,14 @@ type Access = ReturnType<typeof billingAccess> & {
   /** Absent pour les rôles qui ne voient pas la facturation. */
   usage?: { used: number; limit: number } | null;
 };
+class StatusError extends Error {
+  constructor(readonly status: number) {
+    super("BILLING_STATUS_UNAVAILABLE");
+  }
+}
 async function fetchStatus(url: string): Promise<Access> {
   const response = await fetch(url, { cache: "no-store" });
-  if (!response.ok) throw new Error("BILLING_STATUS_UNAVAILABLE");
+  if (!response.ok) throw new StatusError(response.status);
   return response.json();
 }
 const titles = {
@@ -64,6 +70,7 @@ export function BillingNotice({
   canManageBilling: boolean;
   needsCheckout?: boolean;
 }) {
+  const pathname = usePathname();
   const {
     data = initial,
     error,
@@ -81,22 +88,30 @@ export function BillingNotice({
     const timer = setTimeout(() => void mutate(), remaining + 100);
     return () => clearTimeout(timer);
   }, [data.allowed, data.endsAt, mutate]);
-  if (data.reason === "active" && !data.automationPaused && !error) return null;
-  const blocked = !data.allowed;
-  const title = needsCheckout
-    ? "Paiement à finaliser"
-    : error && data.reason === "active" && !data.automationPaused
-      ? "État de l’abonnement à vérifier"
+  // Session expirée : l'état affiché n'est plus fiable et toute action
+  // échouerait. On le dit tel quel plutôt qu'un « état à vérifier ».
+  const signedOut = error instanceof StatusError && error.status === 401;
+  // Un échec ponctuel ne dit rien de l'abonnement : le dernier état connu
+  // reste affiché (ou rien s'il était normal) et SWR réessaie seul.
+  if (data.reason === "active" && !data.automationPaused && !signedOut) return null;
+  const blocked = !signedOut && !data.allowed;
+  const title = signedOut
+    ? "Session expirée"
+    : needsCheckout
+      ? "Paiement à finaliser"
       : titles[data.reason];
-  const detail = needsCheckout
-    ? `Le paiement n’a pas abouti lors de la création du projet. Reprenez-le pour activer l’essai de ${TRIAL_DAYS} jours.`
-    : data.reason === "active" && data.automationPaused
-      ? "Votre abonnement reste actif ; les réponses automatiques sont en pause."
-      : data.reason === "trialing"
-        ? null
-        : data.message;
+  const detail = signedOut
+    ? "Reconnectez-vous pour continuer."
+    : needsCheckout
+      ? `Le paiement n’a pas abouti lors de la création du projet. Reprenez-le pour activer l’essai de ${TRIAL_DAYS} jours.`
+      : data.reason === "active" && data.automationPaused
+        ? "Votre abonnement reste actif ; les réponses automatiques sont en pause."
+        : data.reason === "trialing"
+          ? null
+          : data.message;
+  const stale = !!error && !signedOut;
 
-  const usage = data.allowed ? data.usage : null;
+  const usage = data.allowed && !signedOut ? data.usage : null;
   const limit = Math.max(1, usage?.limit ?? 1);
   const ratio = Math.min(1, (usage?.used ?? 0) / limit);
   // Petits écrans : rien à décider ici, le quota suffit et mène à la facturation.
@@ -178,19 +193,23 @@ export function BillingNotice({
           </TooltipContent>
         </Tooltip>
       )}
-      <div className={cn("flex flex-wrap items-center gap-x-4 gap-y-1.5", compact && "max-lg:hidden")}>
-        <div
-          className={cn("min-w-0 flex-1 text-sm", usage && "sm:flex-none")}
-          role="status"
-          aria-live="polite"
-        >
+      {/* Texte à gauche sur toute la place libre ; quota de largeur fixe et
+          action à droite, sans jamais se chevaucher. Mobile : texte, puis
+          quota et action sur une ligne. */}
+      <div
+        className={cn(
+          "flex flex-col gap-2 py-0.5 sm:flex-row sm:items-center sm:gap-4",
+          compact && "max-lg:hidden",
+        )}
+      >
+        <div className="min-w-0 flex-1 text-sm" role="status" aria-live="polite">
           <p className="flex min-w-0 items-center gap-1.5 font-medium">
             {blocked && (
               <AlertCircle aria-hidden="true" className="size-4 shrink-0 text-destructive" />
             )}
-            <span>
+            <span className="min-w-0">
               {title}
-              {data.endsAt && (
+              {data.endsAt && !signedOut && (
                 <span className="font-normal text-muted-foreground">
                   {" "}
                   · <span className="max-sm:hidden">{data.reason === "trialing" ? "jusqu’au " : "échéance le "}</span>
@@ -205,36 +224,47 @@ export function BillingNotice({
               Contactez le propriétaire du projet pour régulariser l’abonnement.
             </p>
           )}
-          {error && (
-            <p className="mt-0.5 text-xs text-destructive">
-              Actualisation indisponible. Réessayez dans quelques instants.
+          {stale && (
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              Dernier état connu : mise à jour impossible pour l’instant.
             </p>
           )}
         </div>
-        {usage && (
-          <div className="order-last flex w-full min-w-0 items-center gap-3 sm:order-none sm:w-auto sm:flex-1">
-            {quota}
-          </div>
-        )}
-        {(canViewBilling || canManageBilling) && (
-          <div className="ml-auto flex shrink-0 flex-wrap gap-2">
-            {blocked && canManageBilling ? (
-              <BillingPlanButton
-                projectId={projectId}
-                intent="renew"
-                size="sm"
-                needsCheckout={needsCheckout}
-              />
-            ) : (
-              canViewBilling && (
-                <Button variant="ghost" size="sm" asChild>
-                  <Link href={`/projects/${projectId}/billing`} aria-label="Facturation">
-                    <span className="hidden sm:inline">Facturation</span>
-                    <ArrowUpRight data-icon="inline-end" />
+        {(usage || signedOut || canViewBilling || canManageBilling) && (
+          <div className="flex min-w-0 items-center gap-3 sm:shrink-0">
+            {usage && (
+              <div className="flex min-w-0 flex-1 items-center gap-3 sm:w-56 sm:flex-none">
+                {quota}
+              </div>
+            )}
+            <div className="ml-auto flex shrink-0 gap-2">
+              {signedOut ? (
+                <Button size="sm" asChild>
+                  <Link href={`/sign-in?${new URLSearchParams({ callbackUrl: pathname }).toString()}`}>
+                    <LogIn data-icon="inline-start" />
+                    Se reconnecter
                   </Link>
                 </Button>
-              )
-            )}
+              ) : blocked && canManageBilling ? (
+                <BillingPlanButton
+                  projectId={projectId}
+                  intent="renew"
+                  size="sm"
+                  needsCheckout={needsCheckout}
+                />
+              ) : (
+                canViewBilling &&
+                // Déjà sur la facturation : le lien n'y mènerait nulle part.
+                pathname !== `/projects/${projectId}/billing` && (
+                  <Button variant="ghost" size="sm" asChild>
+                    <Link href={`/projects/${projectId}/billing`} aria-label="Facturation">
+                      <span className="hidden sm:inline">Facturation</span>
+                      <ArrowUpRight data-icon="inline-end" />
+                    </Link>
+                  </Button>
+                )
+              )}
+            </div>
           </div>
         )}
       </div>
