@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useSyncExternalStore, type ReactNode } from "react";
-import { useRouter } from "next/navigation";
 import { Loader2, LogIn } from "lucide-react";
 import { toast } from "sonner";
 
@@ -34,23 +33,40 @@ export function useRecentSession(sessionCreatedAt: string) {
   );
 }
 
+let reauthenticating = false;
+
+/**
+ * Reconnexion en cours : la session disparaît volontairement. Les composants
+ * qui renvoient vers la connexion sans session (menu du compte) attendent,
+ * sinon leur redirection, sans page de retour, passerait devant la nôtre.
+ */
+export function isReauthenticating() {
+  return reauthenticating;
+}
+
+function markReauthenticating(value: boolean) {
+  reauthenticating = value;
+}
+
 /**
  * Déconnecte puis ouvre la connexion. Une fois reconnecté, l’utilisateur
  * revient sur `callbackUrl` et, avec `anchor`, sur le bloc d’où il est parti
  * (voir ReturnToAnchor). Seule voie de reconnexion de l’espace connecté.
  */
 export function useReauthenticate() {
-  const router = useRouter();
   const [reconnecting, setReconnecting] = useState(false);
 
   async function reconnect(callbackUrl: string, anchor?: string) {
     setReconnecting(true);
+    markReauthenticating(true);
     try {
       const result = await signOut();
       if (result.error) throw new Error("SIGN_OUT_FAILED");
-      router.replace(reauthHref(callbackUrl, anchor));
-      router.refresh();
+      // Navigation complète : aucune page connectée ne reste en cache, et
+      // aucune redirection côté client ne peut remplacer l'adresse de retour.
+      window.location.replace(reauthHref(callbackUrl, anchor));
     } catch {
+      markReauthenticating(false);
       toast.error("Impossible de vous déconnecter. Réessayez.");
       setReconnecting(false);
     }

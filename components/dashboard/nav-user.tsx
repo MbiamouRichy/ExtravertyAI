@@ -25,7 +25,9 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import SignOutButton from "./user/signOutButton";
 import { useSession } from "@/lib/auth-client";
-import { redirect } from "next/navigation";
+import { redirect, usePathname } from "next/navigation";
+import { reauthHref } from "@/lib/auth-redirects";
+import { isReauthenticating } from "./user/recent-session";
 import { getInitials } from "../getInitials";
 
 export function NavUser() {
@@ -49,13 +51,17 @@ export function NavUser() {
   };
   const [isModalOpen, setIsModalOpen] = React.useState(false);
   const { data: session, isPending } = useSession();
-  if (isPending) {
+  const pathname = usePathname();
+  // Pendant une reconnexion, la session disparaît exprès : le hook de
+  // reconnexion mène lui-même à la connexion, avec la page et le bloc de retour.
+  if (isPending || ((!session || !session.user.id) && isReauthenticating())) {
     return (
       <Loader2Icon className="w-6 h-6 animate-spin text-muted-foreground" />
     );
   }
   if (!session || !session.user.id) {
-    return redirect("/sign-in");
+    // Session expirée ou révoquée : retour sur cette page après connexion.
+    return redirect(reauthHref(pathname));
   }
   const user = session.user;
   return (

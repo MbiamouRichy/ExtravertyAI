@@ -23,7 +23,8 @@ export default async function ProjectLayout({
 }>) {
   const { projectId } = await params;
   const session = await getSession();
-  if (!session?.user?.id) redirect("/sign-in");
+  if (!session?.user?.id)
+    redirect(`/sign-in?callbackUrl=${encodeURIComponent(`/projects/${projectId}`)}`);
   const member = await prisma.projectMembership.findUnique({
     where: { userId_projectId: { userId: session.user.id, projectId } },
     select: {
