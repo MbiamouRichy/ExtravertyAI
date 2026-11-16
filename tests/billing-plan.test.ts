@@ -7,7 +7,7 @@ import { z } from "zod";
 import * as billingPlanChange from "../lib/billing-plan-change";
 import * as pricing from "../lib/pricing";
 import * as planFeatures from "../lib/plan-features";
-import { polarPaymentSettingsUrl } from "../lib/polar";
+import { getPolarDefaultCard, polarPaymentSettingsUrl } from "../lib/polar";
 
 const { planChange, isPaymentHolder, maskEmail, holderManagesBilling } = billingPlanChange;
 const PROJECT = "cmuhe8ap1000004l64j9yddk1";
@@ -347,4 +347,41 @@ test("payment settings open only for the holder, on the payment page of the port
   const forbidden = setup({ forbidden: true });
   assert.equal((await forbidden.payment()).success, false);
   assert.equal(forbidden.calls.length, 0);
+});
+
+test("the card shown is the default one, or the same card saved for several projects", async () => {
+  const card = (id: string, last4: string) => ({
+    id,
+    type: "card",
+    method_metadata: { brand: "visa", last4, exp_month: 4, exp_year: 2030, wallet: null },
+  });
+  const realFetch = globalThis.fetch;
+  const previousToken = process.env.POLAR_ACCESS_TOKEN;
+  process.env.POLAR_ACCESS_TOKEN = "polar_test";
+  const run = async (items: unknown[], defaultId: string | null = null) => {
+    globalThis.fetch = (async () =>
+      new Response(JSON.stringify({ items }), { status: 200 })) as typeof fetch;
+    return getPolarDefaultCard({ id: "cus_1", email: "o@example.test", default_payment_method_id: defaultId });
+  };
+  try {
+    assert.equal(await run([]), null);
+    assert.deepEqual(await run([card("pm_1", "4242"), card("pm_2", "4242")]), {
+      brand: "visa",
+      last4: "4242",
+      expMonth: 4,
+      expYear: 2030,
+      wallet: null,
+    });
+    assert.equal(await run([card("pm_1", "4242"), card("pm_2", "1881")]), "several");
+    assert.equal(
+      ((await run([card("pm_1", "4242"), card("pm_2", "1881")], "pm_2")) as { last4: string }).last4,
+      "1881",
+    );
+    // Métadonnées inattendues : rien d'affiché plutôt qu'une valeur douteuse.
+    assert.equal(await run([{ id: "pm_x", type: "card", method_metadata: { last4: "12" } }]), null);
+  } finally {
+    globalThis.fetch = realFetch;
+    if (previousToken === undefined) delete process.env.POLAR_ACCESS_TOKEN;
+    else process.env.POLAR_ACCESS_TOKEN = previousToken;
+  }
 });

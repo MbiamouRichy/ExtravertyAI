@@ -206,7 +206,10 @@ export default async function BillingPage({
   let unavailable = false;
   // Carte et titulaire : réservés aux rôles qui gèrent la facturation.
   // card : null sans carte enregistrée, undefined si Polar ne l'a pas donnée.
-  let payment: { holder: string; card: PolarCard | null | undefined } | null = null;
+  let payment: {
+    holder: string;
+    card: PolarCard | "several" | null | undefined;
+  } | null = null;
   const configured = !!p.stripeCustomerId && !!p.stripeSubscriptionId;
   if (configured) {
     const customerId = p.stripeCustomerId!;
@@ -305,6 +308,20 @@ export default async function BillingPage({
   const holder = payment?.holder ?? subscription?.customer?.email ?? null;
   const isHolder =
     !!session.user.emailVerified && isPaymentHolder(session.user.email, holder);
+  // Sans carte précise à montrer : pourquoi, et où la voir.
+  const cardNote = !configured
+    ? "Enregistré au premier paiement."
+    : !payment
+      ? "Momentanément indisponible. Actualisez dans un instant."
+      : payment.card === null
+        ? "Aucune carte enregistrée."
+        : payment.card === "several"
+          ? isHolder
+            ? "Plusieurs cartes enregistrées : choisissez celle par défaut avec « Modifier le moyen de paiement »."
+            : "Plusieurs cartes enregistrées par le titulaire du paiement."
+          : isHolder
+            ? "Détail visible chez Polar, avec « Modifier le moyen de paiement »."
+            : "Visible par le titulaire du paiement.";
   const price = subscription
     ? formatBillingAmount(subscription.amount, subscription.currency)
     : null;
@@ -482,18 +499,10 @@ export default async function BillingPage({
                 <span className="text-muted-foreground">
                   Visible par le propriétaire et le rôle Facturation.
                 </span>
-              ) : payment?.card ? (
+              ) : payment?.card && payment.card !== "several" ? (
                 <CardSummary card={payment.card} />
               ) : (
-                <span className="text-muted-foreground">
-                  {!configured
-                    ? "Enregistré au premier paiement."
-                    : payment?.card === null
-                      ? "Aucune carte à afficher."
-                      : payment
-                        ? "Détail visible chez Polar, avec « Modifier le moyen de paiement »."
-                        : "Momentanément indisponible. Actualisez dans un instant."}
-                </span>
+                <span className="text-muted-foreground">{cardNote}</span>
               )}
             </dd>
           </div>

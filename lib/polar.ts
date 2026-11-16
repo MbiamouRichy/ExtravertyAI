@@ -226,17 +226,8 @@ type PolarPaymentMethod = {
   };
 };
 
-/**
- * Carte par défaut du client, réduite à ce qu'on peut afficher (marque,
- * 4 derniers chiffres, expiration). Null sans carte enregistrée.
- */
-export async function getPolarDefaultCard(customer: PolarCustomer) {
-  const { items } = await polarRequest<{ items: PolarPaymentMethod[] }>(
-    `/v1/customers/${segment(customer.id)}/payment-methods?limit=20`,
-  );
-  const method =
-    items.find((item) => item.id === customer.default_payment_method_id) ??
-    (items.length === 1 ? items[0] : undefined);
+/** Carte réduite à ce qu'on peut afficher, ou null si la réponse est inattendue. */
+function toPolarCard(method: PolarPaymentMethod | undefined): PolarCard | null {
   const meta = method?.type === "card" ? method.method_metadata : undefined;
   if (
     !meta ||
@@ -253,7 +244,32 @@ export async function getPolarDefaultCard(customer: PolarCustomer) {
     expMonth: meta.exp_month as number,
     expYear: meta.exp_year as number,
     wallet: typeof meta.wallet === "string" ? meta.wallet.slice(0, 20) : null,
-  } satisfies PolarCard;
+  };
+}
+
+const sameCard = (a: PolarCard, b: PolarCard) =>
+  a.brand === b.brand &&
+  a.last4 === b.last4 &&
+  a.expMonth === b.expMonth &&
+  a.expYear === b.expYear;
+
+/**
+ * Carte du client (marque, 4 derniers chiffres, expiration). Sans carte par
+ * défaut, chaque paiement enregistre la sienne : une même carte saisie pour
+ * plusieurs projets reste une carte. « several » : cartes différentes sans
+ * défaut, on n'en désigne aucune au hasard. Null sans carte.
+ */
+export async function getPolarDefaultCard(
+  customer: PolarCustomer,
+): Promise<PolarCard | "several" | null> {
+  const { items } = await polarRequest<{ items: PolarPaymentMethod[] }>(
+    `/v1/customers/${segment(customer.id)}/payment-methods?limit=20`,
+  );
+  const preferred = items.find((item) => item.id === customer.default_payment_method_id);
+  if (preferred) return toPolarCard(preferred);
+  const cards = items.map(toPolarCard).filter((card) => card !== null);
+  if (!cards.length) return null;
+  return cards.every((card) => sameCard(card, cards[0])) ? cards[0] : "several";
 }
 
 /** Résiliation immédiate. Déjà révoqué ou introuvable : rien à annuler. */
