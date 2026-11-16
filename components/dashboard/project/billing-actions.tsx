@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { CreditCard, ExternalLink, Loader2 } from "lucide-react";
+import { ExternalLink, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -40,9 +40,8 @@ export type BillingCancellation = {
 export const PAYMENT_ANCHOR = "paiement";
 
 /**
- * Une action principale selon l'état de l'abonnement, et l'accès au paiement
- * de ce projet. « Changer d'offre » ouvre le formulaire du projet ; « Gérer le
- * paiement » mène au bloc Paiement de cette page, pas au portail Polar.
+ * L'action principale qu'appelle l'état de l'abonnement : payer, changer
+ * d'offre (formulaire du projet) ou renouveler. Pleine largeur sur mobile.
  */
 export function BillingActions({
   projectId,
@@ -62,56 +61,31 @@ export function BillingActions({
     defaultPlan?: PlanId;
   } | null;
 }) {
+  const width = "min-h-10 w-full shrink-0 sm:min-h-9 sm:w-auto";
   if (needsCheckout)
+    return <BillingPlanButton projectId={projectId} intent="renew" needsCheckout className={width} />;
+  if (primary?.intent === "upgrade" && changePlan)
+    return (
+      <ChangePlanDialog
+        state={changePlan.state}
+        defaultOpen={changePlan.defaultOpen}
+        defaultPlan={changePlan.defaultPlan}
+        label={primary.label}
+        className={width}
+      />
+    );
+  if (primary?.intent === "renew")
     return (
       <BillingPlanButton
         projectId={projectId}
-        intent="renew"
-        needsCheckout
-        className="min-h-10 w-full sm:min-h-9 sm:w-auto"
+        intent={primary.intent}
+        label={primary.label}
+        variant="default"
+        disabled={!configured}
+        className={width}
       />
     );
-  // Mobile : boutons pleine largeur, l'action principale en haut (même
-  // convention que les pieds de dialogue). Dès sm : en ligne, principale à droite.
-  return (
-    <div className="flex shrink-0 flex-col-reverse gap-2 sm:flex-row">
-      {configured ? (
-        <Button
-          variant="outline"
-          className="h-auto min-h-10 whitespace-normal sm:min-h-9"
-          asChild
-        >
-          <a href={`#${PAYMENT_ANCHOR}`}>
-            <CreditCard aria-hidden="true" className="size-4" />
-            Gérer le paiement
-          </a>
-        </Button>
-      ) : (
-        <Button variant="outline" className="h-auto min-h-10 whitespace-normal sm:min-h-9" disabled>
-          <CreditCard aria-hidden="true" className="size-4" />
-          Gérer le paiement
-        </Button>
-      )}
-      {primary?.intent === "upgrade" && changePlan ? (
-        <ChangePlanDialog
-          state={changePlan.state}
-          defaultOpen={changePlan.defaultOpen}
-          defaultPlan={changePlan.defaultPlan}
-          label={primary.label}
-          className="min-h-10 sm:min-h-9"
-        />
-      ) : primary?.intent === "renew" && (
-        <BillingPlanButton
-          projectId={projectId}
-          intent={primary.intent}
-          label={primary.label}
-          variant="default"
-          disabled={!configured}
-          className="min-h-10 sm:min-h-9"
-        />
-      )}
-    </div>
-  );
+  return null;
 }
 
 /**
@@ -148,7 +122,7 @@ export function PaymentSettingsButton({ projectId }: { projectId: string }) {
       ) : (
         <ExternalLink aria-hidden="true" className="size-4" />
       )}
-      Modifier le moyen de paiement
+      Modifier la carte
     </Button>
   );
 }
@@ -211,28 +185,23 @@ export function BillingCancelSection({
   return (
     <section
       aria-labelledby="cancel-title"
-      {...returnAnchor(CANCEL_ANCHOR, "@container flex flex-col gap-4 rounded-xl border p-4 sm:flex-row sm:items-center sm:justify-between sm:gap-6 sm:p-6")}
+      {...returnAnchor(CANCEL_ANCHOR, "flex flex-col gap-3 border-t pt-6 sm:flex-row sm:items-center sm:justify-between sm:gap-6")}
     >
       <div className="min-w-0">
         <h2 id="cancel-title" className="text-sm font-medium">
           Résilier l’abonnement
         </h2>
-        <p className="mt-1 max-w-lg text-sm text-muted-foreground">
+        <p className="mt-0.5 max-w-lg text-sm text-muted-foreground">
           {cancellation.atPeriodEnd
-            ? "Aucun nouveau prélèvement. Votre offre reste active jusqu’à la fin de la période en cours."
-            : "Le paiement en attente est abandonné et l’abonnement s’arrête immédiatement."}
+            ? "L’offre reste active jusqu’à la fin de la période."
+            : "L’abonnement s’arrête immédiatement."}
+          {!recentLogin && " Reconnectez-vous d’abord, par sécurité."}
         </p>
-        {!recentLogin && (
-          <p className="mt-2 max-w-lg text-xs text-muted-foreground">
-            Par sécurité, reconnectez-vous d’abord : la résiliation reste
-            possible 10 minutes après la connexion.
-          </p>
-        )}
       </div>
       {recentLogin ? (
         <Button
-          variant="destructive"
-          className="min-h-10 w-full shrink-0 sm:min-h-9 sm:w-auto"
+          variant="outline"
+          className="min-h-10 w-full shrink-0 text-destructive hover:text-destructive sm:min-h-9 sm:w-auto"
           onClick={() => setOpen(true)}
         >
           Résilier

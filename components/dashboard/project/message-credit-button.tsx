@@ -36,8 +36,7 @@ export function MessageCreditButton({
   }
   return (
     <Button
-      variant="outline"
-      className="h-auto min-h-10 w-full whitespace-normal sm:min-h-9 sm:w-auto"
+      className="h-auto min-h-10 w-full whitespace-normal"
       disabled={disabled || busy}
       aria-busy={busy}
       onClick={() => void open()}

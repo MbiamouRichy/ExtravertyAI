@@ -3,7 +3,15 @@ import { needsInitialCheckout } from "@/lib/billing-display";
 import { can, homePath } from "@/lib/project-permissions";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { Building2, CircleAlert, FileText } from "lucide-react";
+import {
+  Building2,
+  CircleAlert,
+  CreditCard,
+  FileText,
+  MessageSquarePlus,
+  Repeat,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
 import { getSession } from "@/lib/auth-server";
 import prisma from "@/lib/prisma";
 import {
@@ -59,7 +67,7 @@ function InternalBilling({
 }) {
   const ratio = quota ? Math.min(1, quota.used / Math.max(1, quota.limit)) : 0;
   return (
-    <main className="mx-auto w-full min-w-0 max-w-4xl space-y-8 p-4 wrap-break-word sm:space-y-10 sm:p-6 xl:p-8">
+    <main className="mx-auto w-full min-w-0 max-w-5xl space-y-8 p-4 wrap-break-word sm:p-6 xl:p-8">
       <header className="min-w-0">
         <p className="truncate text-sm text-muted-foreground">{name}</p>
         <h1 className="mt-1 text-2xl font-semibold tracking-tight sm:text-3xl">
@@ -143,25 +151,36 @@ function CardSummary({ card }: { card: PolarCard }) {
     card.expYear < now.getUTCFullYear() ||
     (card.expYear === now.getUTCFullYear() && card.expMonth < now.getUTCMonth() + 1);
   return (
-    <>
-      <p className="font-medium">
+    <p>
+      <span className="font-medium">
         {CARD_BRANDS[card.brand.toLowerCase()] ?? "Carte"}{" "}
         <span className="tabular-nums">
           <span aria-hidden="true">•••• </span>
           <span className="sr-only">se terminant par </span>
           {card.last4}
         </span>
-      </p>
-      <p className={expired ? "text-destructive" : "text-muted-foreground"}>
-        {expired ? "Expirée depuis " : "Expire fin "}
-        <span className="tabular-nums">
-          {String(card.expMonth).padStart(2, "0")}/{card.expYear}
-        </span>
-        {card.wallet && " · portefeuille mobile"}
-      </p>
-    </>
+      </span>
+      <span className={cn("ml-2 text-xs tabular-nums", expired ? "text-destructive" : "text-muted-foreground")}>
+        {expired ? "Expirée " : "Exp. "}
+        {String(card.expMonth).padStart(2, "0")}/{card.expYear}
+      </span>
+    </p>
   );
 }
+
+/** Une ligne de la liste unique des factures : abonnement ou recharge. */
+type InvoiceRow = {
+  id: string;
+  orderId: string;
+  kind: "subscription" | "credit";
+  label: string;
+  date: Date;
+  amount: string;
+  /** null : payée, rien à signaler. */
+  status: string | null;
+};
+
+const CARD = "min-w-0 rounded-xl border bg-card";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
@@ -206,29 +225,25 @@ export default async function BillingPage({
     redirect(homePath(projectId, membership.role));
   const p = membership.project;
   const canManage = can(membership.role, "billing.manage");
-  const [quota, members, purchases] = await Promise.all([
+  const [quota, members] = await Promise.all([
     prisma.quotaPeriod.findFirst({ where: { projectId, isCurrent: true } }),
     canManage && !p.internal
       ? prisma.projectMembership.count({ where: { projectId } })
       : 0,
-    p.internal
-      ? []
-      : prisma.messageCreditPurchase.findMany({
-          where: { projectId },
-          orderBy: { createdAt: "desc" },
-          take: 5,
-          select: { id: true, orderId: true, credit: true, refunded: true, createdAt: true },
-        }),
   ]);
   if (p.internal) return <InternalBilling name={p.name} quota={quota} />;
   const ordersPage =
     typeof query.page === "string" && /^[1-9]\d{0,3}$/.test(query.page)
       ? Number(query.page)
       : 1;
+  const firstPage = ordersPage === 1;
   let subscription: PolarSubscription | null = null;
   let orders: PolarOrder[] = [];
   let hasMore = false;
   let unavailable = false;
+  // Bornes de la page de factures, pour y glisser les recharges de la même période.
+  let newerThan: Date | null = null;
+  let olderThan: Date | null = null;
   // Carte et titulaire : réservés aux rôles qui gèrent la facturation.
   // card : null sans carte enregistrée, undefined si Polar ne l'a pas donnée.
   let payment: {
@@ -251,9 +266,10 @@ export default async function BillingPage({
           .catch(() => null)
       : Promise.resolve(null);
     try {
-      const [sub, history, paymentInfo] = await Promise.all([
+      const [sub, history, previous, paymentInfo] = await Promise.all([
         getPolarSubscription(p.stripeSubscriptionId!),
         listPolarOrders(p.stripeSubscriptionId!, ordersPage),
+        firstPage ? null : listPolarOrders(p.stripeSubscriptionId!, ordersPage - 1),
         paymentLookup,
       ]);
       payment = paymentInfo;
@@ -266,10 +282,31 @@ export default async function BillingPage({
       // L'essai crée une commande à 0 : ce n'est pas un paiement à afficher.
       orders = history.orders.filter((order) => order.total_amount > 0);
       hasMore = ordersPage < history.maxPage;
+      const oldest = (list: PolarOrder[]) =>
+        list.length ? new Date(list[list.length - 1].created_at) : null;
+      newerThan = hasMore ? oldest(history.orders) : null;
+      olderThan = previous ? oldest(previous.orders) : null;
     } catch {
       unavailable = true;
     }
   }
+  // Recharges de la même période que cette page de factures (toutes sur la
+  // dernière page) ; sans Polar, seulement les plus récentes en première page.
+  const purchases =
+    !firstPage && (unavailable || !configured)
+      ? []
+      : await prisma.messageCreditPurchase.findMany({
+          where: {
+            projectId,
+            createdAt: {
+              ...(newerThan ? { gte: newerThan } : {}),
+              ...(olderThan ? { lt: olderThan } : {}),
+            },
+          },
+          orderBy: { createdAt: "desc" },
+          take: 50,
+          select: { id: true, orderId: true, credit: true, refunded: true, createdAt: true },
+        });
   const periodEnd =
     subscription?.status === "trialing"
       ? subscription.trial_end
@@ -279,31 +316,19 @@ export default async function BillingPage({
   const status = subscription?.status || p.status;
   const synced = !!subscription;
   const ended = !!subscription && isEndedPolarSubscription(subscription);
+  const upToDate = ["active", "trialing"].includes(status);
   const cancellation =
     synced && !ended && !cancelling
-      ? {
-          atPeriodEnd: ["active", "trialing"].includes(status),
-          trial: status === "trialing",
-          endsAt,
-        }
+      ? { atPeriodEnd: upToDate, trial: status === "trialing", endsAt }
       : null;
-  const renewal = !synced
-    ? "À vérifier"
-    : ended
-      ? "Abonnement terminé"
-      : cancelling
-        ? "Résiliation programmée"
-        : ["active", "trialing"].includes(status)
-          ? "Automatique"
-          : "Paiement à régulariser";
   // Une seule action principale : celle qu'appelle l'état de l'abonnement.
   const primary = !canManage || !synced
     ? null
     : ended
-      ? { intent: "renew" as const, label: "Renouveler le plan" }
+      ? { intent: "renew" as const, label: "Renouveler l’offre" }
       : cancelling
         ? { intent: "renew" as const, label: "Réactiver l’abonnement" }
-        : ["active", "trialing"].includes(status)
+        : upToDate
           ? { intent: "upgrade" as const, label: "Changer d’offre" }
           : { intent: "renew" as const, label: "Régulariser le paiement" };
   const currentPlan = planOfProduct(subscription?.product_id) ?? resolvePlanId(p.plan);
@@ -333,20 +358,16 @@ export default async function BillingPage({
   const holder = payment?.holder ?? subscription?.customer?.email ?? null;
   const isHolder =
     !!session.user.emailVerified && isPaymentHolder(session.user.email, holder);
-  // Sans carte précise à montrer : pourquoi, et où la voir.
+  // Sans carte précise à montrer : pourquoi, en quelques mots.
   const cardNote = !configured
-    ? "Enregistré au premier paiement."
+    ? "Enregistrée au premier paiement"
     : !payment
-      ? "Momentanément indisponible. Actualisez dans un instant."
+      ? "Indisponible pour le moment"
       : payment.card === null
-        ? "Aucune carte enregistrée."
+        ? "Aucune carte enregistrée"
         : payment.card === "several"
-          ? isHolder
-            ? "Plusieurs cartes enregistrées : choisissez celle par défaut avec « Modifier le moyen de paiement »."
-            : "Plusieurs cartes enregistrées par le titulaire du paiement."
-          : isHolder
-            ? "Détail visible chez Polar, avec « Modifier le moyen de paiement »."
-            : "Visible par le titulaire du paiement.";
+          ? "Plusieurs cartes enregistrées"
+          : "Carte enregistrée chez Polar";
   const price = subscription
     ? formatBillingAmount(subscription.amount, subscription.currency)
     : null;
@@ -359,32 +380,50 @@ export default async function BillingPage({
   const interval = subscription
     ? intervalLabels[subscription.recurring_interval]
     : null;
-  const billingName = subscription?.customer?.name;
-  const billingEmail = subscription?.customer?.email;
-  const billingAddress = subscription?.customer?.billing_address;
+  const billedTo = [subscription?.customer?.name, subscription?.customer?.email]
+    .filter(Boolean)
+    .join(" · ");
   const usedRatio = quota ? Math.min(1, quota.used / Math.max(1, quota.limit)) : 0;
-  const endLabel =
-    status === "trialing" && !cancelling
-      ? "Fin de l’essai"
-      : cancelling || ended
-        ? "Fin de l’abonnement"
-        : "Prochain renouvellement";
-  const rows = orders.map((order) => ({
-    id: order.id,
-    number: order.invoice_number,
-    date: new Date(order.created_at),
-    amount: formatBillingAmount(order.total_amount, order.currency),
-    status: order.status,
-    document: (
-      <BillingInvoiceButton
-        projectId={projectId}
-        orderId={order.id}
-        label={`Télécharger la facture ${order.invoice_number || ""} en PDF`}
-      />
-    ),
-  }));
-  // Messages au-delà du quota : crédit prépayé, décompté au tarif de l'offre.
+  const endPhrase =
+    ended
+      ? "terminé le"
+      : cancelling
+        ? "jusqu’au"
+        : status === "trialing"
+          ? "essai jusqu’au"
+          : upToDate
+            ? "renouvelé le"
+            : "échéance le";
+
+  // Abonnement et recharges : une seule liste, la plus récente en haut.
   const creditPlan = pricingPlan(p.plan);
+  const invoices: InvoiceRow[] = [
+    ...orders.map((order) => ({
+      id: order.id,
+      orderId: order.id,
+      kind: "subscription" as const,
+      label: `Abonnement ${pricingPlan(planOfProduct(order.product_id) ?? currentPlan).name}`,
+      date: new Date(order.created_at),
+      amount: formatBillingAmount(order.total_amount, order.currency),
+      status: order.status === "paid" ? null : billingStatusLabel(order.status),
+    })),
+    ...purchases.map((purchase) => ({
+      id: purchase.id,
+      orderId: purchase.orderId,
+      kind: "credit" as const,
+      label: `Recharge de messages`,
+      date: purchase.createdAt,
+      amount: formatBillingAmount(creditCents(purchase.credit), "usd"),
+      status:
+        purchase.refunded >= purchase.credit
+          ? "Remboursée"
+          : purchase.refunded > 0
+            ? "Remboursée en partie"
+            : null,
+    })),
+  ].sort((a, b) => b.date.getTime() - a.date.getTime());
+
+  // Messages au-delà du quota : crédit prépayé, décompté au tarif de l'offre.
   const perMessage = extraMessageCost(p.plan);
   const creditMessages = Math.floor(p.extraCredit / perMessage);
   const paidPeriod =
@@ -394,30 +433,17 @@ export default async function BillingPage({
   const creditFull =
     p.extraCredit + creditPackUnits(creditPlan.id) > MAX_CREDIT_PACKS * creditPackUnits(creditPlan.id);
   const packLabel = `Acheter ${EXTRA_PACK_MESSAGES.toLocaleString("fr-FR")} messages · ${formatPlanPrice(creditPlan.extraPackCents)}`;
-  const showCredit = creditOffered || p.extraCredit > 0 || purchases.length > 0;
-  const firstPage = ordersPage === 1;
+  const showCredit = creditOffered || p.extraCredit > 0;
   const nextHref = `/projects/${projectId}/billing?page=${ordersPage + 1}`;
+  const firstHref = `/projects/${projectId}/billing`;
 
   return (
     // wrap-break-word plutôt que « anywhere » : les longues valeurs passent à
     // la ligne sans que les boutons et libellés se cassent au milieu d'un mot.
-    <main className="mx-auto w-full min-w-0 max-w-4xl space-y-8 p-4 wrap-break-word sm:space-y-10 sm:p-6 xl:p-8">
-      <header className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
-        <div className="min-w-0">
-          <p className="truncate text-sm text-muted-foreground">{p.name}</p>
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight sm:text-3xl">
-            Facturation
-          </h1>
-        </div>
-        {canManage && (
-          <BillingActions
-            projectId={projectId}
-            configured={!!p.stripeCustomerId}
-            needsCheckout={needsInitialCheckout(p)}
-            primary={primary}
-            changePlan={changePlan}
-          />
-        )}
+    <main className="mx-auto w-full min-w-0 max-w-5xl space-y-8 p-4 wrap-break-word sm:p-6 xl:p-8">
+      <header className="min-w-0">
+        <p className="truncate text-sm text-muted-foreground">{p.name}</p>
+        <h1 className="mt-1 text-2xl font-semibold tracking-tight sm:text-3xl">Facturation</h1>
       </header>
 
       {(unavailable || !configured) && (
@@ -427,65 +453,78 @@ export default async function BillingPage({
         >
           <CircleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-foreground" />
           {unavailable
-            ? "Le service de paiement ne répond pas. Les informations enregistrées restent affichées ; actualisez dans un instant."
-            : "Votre facturation n’est pas encore synchronisée. Si vous venez de créer ce projet, terminez le paiement puis actualisez cette page."}
+            ? "Le service de paiement ne répond pas. Actualisez dans un instant."
+            : "Facturation pas encore synchronisée. Terminez le paiement puis actualisez."}
         </p>
       )}
 
-      <section aria-labelledby="plan-title" className="overflow-hidden rounded-xl border bg-card">
-        <div className="p-4 sm:p-6">
-          <h2 id="plan-title" className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
-            <span className="text-xl font-semibold capitalize tracking-tight">{p.plan}</span>
-            <Badge variant={cancelling || ended ? "outline" : "secondary"}>
-              {cancelling && !ended ? "Résiliation programmée" : billingStatusLabel(status)}
-            </Badge>
-          </h2>
-          <p className="mt-1 text-sm text-muted-foreground tabular-nums">
-            {price ? (
-              <>
-                <span className="text-foreground">{price}</span>
-                {interval && ` / ${interval}`}
-              </>
-            ) : (
-              "Tarif à confirmer"
-            )}
-          </p>
-          {pendingPlan && (
-            <p role="status" className="mt-3 text-sm text-muted-foreground">
-              Passage à l’offre{" "}
-              <span className="font-medium text-foreground">{pricingPlan(pendingPlan).name}</span>{" "}
-              prévu {pendingAt ? (
-                <>
-                  le <LocalBillingDate value={pendingAt} dateOnly />
-                </>
-              ) : (
-                "au prochain renouvellement"
-              )}
-              .{canManage && " Pour l’annuler, choisissez de nouveau l’offre actuelle dans « Changer d’offre »."}
-            </p>
-          )}
-        </div>
-        <dl className="grid grid-cols-1 border-t max-sm:divide-y sm:grid-cols-3 sm:divide-x">
-          <div className="px-4 py-3.5 sm:p-6">
-            <dt className="text-xs text-muted-foreground">{endLabel}</dt>
-            <dd className="mt-1 text-sm font-medium">
-              <LocalBillingDate value={endsAt} dateOnly />
-            </dd>
-          </div>
-          <div className="px-4 py-3.5 sm:p-6">
-            <dt className="text-xs text-muted-foreground">Renouvellement</dt>
-            <dd className="mt-1 text-sm font-medium">{renewal}</dd>
-          </div>
-          <div className="px-4 py-3.5 sm:p-6">
-            <dt className="text-xs text-muted-foreground">Messages</dt>
-            {quota ? (
-              <dd className="mt-1">
-                <p className="text-sm font-medium tabular-nums">
-                  {quota.used.toLocaleString("fr-FR")}
-                  <span className="font-normal text-muted-foreground">
-                    {" "}/ {quota.limit.toLocaleString("fr-FR")}
-                  </span>
+      <div className="grid gap-4 lg:grid-cols-3">
+        <section
+          aria-labelledby="plan-title"
+          className={cn(CARD, "flex flex-col", showCredit && "lg:col-span-2")}
+        >
+          <div className="flex flex-col gap-4 p-4 sm:flex-row sm:items-start sm:justify-between sm:p-6">
+            <div className="min-w-0">
+              <h2 id="plan-title" className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                <span className="text-2xl font-semibold tracking-tight">
+                  {pricingPlan(currentPlan).name}
+                </span>
+                <Badge variant={cancelling || ended || !upToDate ? "outline" : "secondary"}>
+                  {cancelling && !ended ? "Résiliation programmée" : billingStatusLabel(status)}
+                </Badge>
+              </h2>
+              <p className="mt-1 text-sm text-muted-foreground tabular-nums">
+                {price ? (
+                  <>
+                    <span className="font-medium text-foreground">{price}</span>
+                    {interval && ` / ${interval}`}
+                  </>
+                ) : (
+                  "Tarif à confirmer"
+                )}
+                {endsAt && (
+                  <>
+                    <span aria-hidden="true"> · </span>
+                    {endPhrase} <LocalBillingDate value={endsAt} dateOnly />
+                  </>
+                )}
+              </p>
+              {pendingPlan && (
+                <p role="status" className="mt-2 text-sm">
+                  Passe à l’offre {pricingPlan(pendingPlan).name}{" "}
+                  {pendingAt ? (
+                    <>
+                      le <LocalBillingDate value={pendingAt} dateOnly />
+                    </>
+                  ) : (
+                    "au renouvellement"
+                  )}
+                  .
                 </p>
+              )}
+            </div>
+            {canManage && (
+              <BillingActions
+                projectId={projectId}
+                configured={!!p.stripeCustomerId}
+                needsCheckout={needsInitialCheckout(p)}
+                primary={primary}
+                changePlan={changePlan}
+              />
+            )}
+          </div>
+          <div className="mt-auto border-t p-4 sm:px-6">
+            {quota ? (
+              <>
+                <div className="flex items-baseline justify-between gap-3 text-sm">
+                  <span className="text-muted-foreground">Messages utilisés</span>
+                  <span className="font-medium tabular-nums">
+                    {quota.used.toLocaleString("fr-FR")}
+                    <span className="font-normal text-muted-foreground">
+                      {" "}/ {quota.limit.toLocaleString("fr-FR")}
+                    </span>
+                  </span>
+                </div>
                 <div
                   role="progressbar"
                   aria-label="Messages utilisés sur la période"
@@ -495,249 +534,110 @@ export default async function BillingPage({
                   className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted"
                 >
                   <div
-                    className={usedRatio >= 0.9 ? "h-full rounded-full bg-destructive" : "h-full rounded-full bg-primary"}
+                    className={cn("h-full rounded-full", usedRatio >= 0.9 ? "bg-destructive" : "bg-primary")}
                     style={{ width: `${usedRatio * 100}%` }}
                   />
                 </div>
-                {quota.extraUsed > 0 && (
-                  <p className="mt-1.5 text-xs text-muted-foreground tabular-nums">
-                    + {quota.extraUsed.toLocaleString("fr-FR")} payés par le crédit
+                {(quota.extraUsed > 0 || quota.endsAt <= new Date()) && (
+                  <p className="mt-2 text-xs text-muted-foreground tabular-nums">
+                    {quota.endsAt <= new Date() ? (
+                      <span className="text-destructive">Période terminée : en attente du paiement.</span>
+                    ) : (
+                      `+ ${quota.extraUsed.toLocaleString("fr-FR")} payés par le crédit`
+                    )}
                   </p>
                 )}
-                <p className="mt-2 text-xs text-muted-foreground">
-                  {quota.endsAt <= new Date() ? (
-                    <span className="text-destructive">
-                      Période expirée : le prochain quota attend la confirmation du paiement.
-                    </span>
-                  ) : (
-                    <>
-                      Jusqu’au <LocalBillingDate value={quota.endsAt} dateOnly />, IA et
-                      équipe comprises.
-                    </>
-                  )}
-                </p>
-              </dd>
+              </>
             ) : (
-              <dd className="mt-1 text-sm text-muted-foreground">Aucune période en cours</dd>
-            )}
-          </div>
-        </dl>
-      </section>
-
-      {showCredit && (
-        <section aria-labelledby="credit-title" className="space-y-3">
-          <h2 id="credit-title" className="text-sm font-medium">
-            Messages supplémentaires
-          </h2>
-          <div className="overflow-hidden rounded-xl border bg-card text-sm">
-            <div className="flex flex-col gap-3 px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:gap-6 sm:p-5">
-              <div className="min-w-0">
-                <p className="font-medium tabular-nums">
-                  {formatBillingAmount(creditCents(p.extraCredit), "usd")} de crédit
-                  <span className="font-normal text-muted-foreground">
-                    {" "}· ≈ {creditMessages.toLocaleString("fr-FR")} messages
-                  </span>
-                </p>
-                <p className="mt-1 max-w-md text-xs text-muted-foreground">
-                  Une fois le quota du mois atteint, chaque message est payé par ce crédit :{" "}
-                  {formatPlanPrice(creditPlan.extraPackCents)} les{" "}
-                  {EXTRA_PACK_MESSAGES.toLocaleString("fr-FR")} avec l’offre {creditPlan.name}, jusqu’à{" "}
-                  {quota ? quota.limit.toLocaleString("fr-FR") : "un quota"} messages de plus par
-                  période. Le crédit n’expire pas ; il ne sert pas pendant l’essai.
-                </p>
-                {query.recharge === "ok" && (
-                  <p role="status" className="mt-2 text-xs text-foreground">
-                    Paiement reçu : le crédit s’affiche ici dès que Polar le confirme. Actualisez
-                    dans un instant.
-                  </p>
-                )}
-              </div>
-              {canManage && creditOffered && (
-                <div className="flex shrink-0 flex-col gap-1.5 sm:items-end">
-                  <MessageCreditButton
-                    projectId={projectId}
-                    label={packLabel}
-                    disabled={!paidPeriod || creditFull}
-                  />
-                  {(!paidPeriod || creditFull) && (
-                    <p className="text-xs text-muted-foreground">
-                      {creditFull
-                        ? "Crédit maximal atteint."
-                        : p.status === "trialing"
-                          ? "Disponible après l’essai."
-                          : "Disponible avec un abonnement à jour."}
-                    </p>
-                  )}
-                </div>
-              )}
-            </div>
-            {purchases.length > 0 && (
-              <ul aria-label="Recharges récentes" className="divide-y border-t">
-                {purchases.map((purchase) => (
-                  <li
-                    key={purchase.id}
-                    className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 px-4 py-2.5 sm:px-5"
-                  >
-                    <p className="min-w-0">
-                      <LocalBillingDate value={purchase.createdAt} dateOnly shortMonth />
-                      <span className="text-muted-foreground tabular-nums">
-                        {" "}· {formatBillingAmount(creditCents(purchase.credit), "usd")}
-                        {purchase.refunded > 0 &&
-                          (purchase.refunded >= purchase.credit ? " · remboursée" : " · remboursée en partie")}
-                      </span>
-                    </p>
-                    <div className="-mr-2.5">
-                      <BillingInvoiceButton
-                        projectId={projectId}
-                        orderId={purchase.orderId}
-                        label="Télécharger la facture de cette recharge en PDF"
-                      />
-                    </div>
-                  </li>
-                ))}
-              </ul>
+              <p className="text-sm text-muted-foreground">Aucune période en cours</p>
             )}
           </div>
         </section>
-      )}
 
-      <section aria-labelledby="details-title" className="space-y-3">
-        <h2 id="details-title" className="text-sm font-medium">
-          Paiement
-        </h2>
-        <div
-          role="group"
-          aria-labelledby="details-title"
-          {...returnAnchor(PAYMENT_ANCHOR, "overflow-hidden rounded-xl border bg-card text-sm")}
-        >
-        <dl className="divide-y">
-          <div className="flex flex-col gap-1 px-4 py-3.5 sm:flex-row sm:gap-6 sm:p-5">
-            <dt className="text-muted-foreground sm:w-40 sm:shrink-0">Moyen de paiement</dt>
-            <dd className="min-w-0">
-              {!canManage ? (
-                <span className="text-muted-foreground">
-                  Visible par le propriétaire et le rôle Facturation.
-                </span>
-              ) : payment?.card && payment.card !== "several" ? (
-                <CardSummary card={payment.card} />
-              ) : (
-                <span className="text-muted-foreground">{cardNote}</span>
-              )}
-            </dd>
-          </div>
-          <div className="flex flex-col gap-1 px-4 py-3.5 sm:flex-row sm:gap-6 sm:p-5">
-            <dt className="text-muted-foreground sm:w-40 sm:shrink-0">Facturé à</dt>
-            <dd className="min-w-0">
-              <p className="font-medium">{billingName || p.name}</p>
-              <p className="break-all text-muted-foreground">
-                {billingEmail || "Adresse à renseigner avec le moyen de paiement"}
-              </p>
-              {billingAddress && (
-                <p className="mt-0.5 text-xs text-muted-foreground">
-                  {[
-                    billingAddress.line1,
-                    billingAddress.line2,
-                    billingAddress.postal_code,
-                    billingAddress.city,
-                    billingAddress.country,
-                  ]
-                    .filter(Boolean)
-                    .join(", ")}
-                </p>
-              )}
-            </dd>
-          </div>
-        </dl>
-        {canManage && synced && holder && (
-          <div className="flex flex-col gap-3 border-t px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:gap-6 sm:p-5">
-            <p className="min-w-0 max-w-md text-xs text-muted-foreground">
-              {isHolder
-                ? "La modification s’ouvre chez Polar, notre prestataire de paiement. Cette carte règle tous les projets que vous payez avec ce compte."
-                : `Seul le titulaire du paiement (${maskEmail(holder)}) peut modifier la carte, depuis son propre compte.`}
+        {showCredit && (
+          <section aria-labelledby="credit-title" className={cn(CARD, "flex flex-col p-4 sm:p-6")}>
+            <h2 id="credit-title" className="text-sm text-muted-foreground">
+              Crédit messages
+            </h2>
+            <p className="mt-1 text-2xl font-semibold tracking-tight tabular-nums">
+              {formatBillingAmount(creditCents(p.extraCredit), "usd")}
             </p>
-            {isHolder && <PaymentSettingsButton projectId={projectId} />}
-          </div>
+            <p className="text-sm text-muted-foreground tabular-nums">
+              ≈ {creditMessages.toLocaleString("fr-FR")} messages après le quota
+            </p>
+            {query.recharge === "ok" && (
+              <p role="status" className="mt-2 text-xs">
+                Paiement reçu : le crédit s’ajoute dans un instant.
+              </p>
+            )}
+            {canManage && creditOffered && (
+              <div className="mt-4 space-y-1.5 lg:mt-auto lg:pt-4">
+                <MessageCreditButton
+                  projectId={projectId}
+                  label={packLabel}
+                  disabled={!paidPeriod || creditFull}
+                />
+                {(!paidPeriod || creditFull) && (
+                  <p className="text-center text-xs text-muted-foreground">
+                    {creditFull
+                      ? "Crédit maximal atteint."
+                      : p.status === "trialing"
+                        ? "Disponible après l’essai."
+                        : "Disponible avec un abonnement à jour."}
+                  </p>
+                )}
+              </div>
+            )}
+          </section>
         )}
-        </div>
-        {!canManage && (
-          <p className="text-xs text-muted-foreground">
-            Seuls le propriétaire et le rôle Facturation peuvent modifier l’offre et le paiement.
-          </p>
-        )}
-      </section>
+      </div>
 
       <section aria-labelledby="invoices-title" className="space-y-3">
-        <h2 id="invoices-title" className="text-sm font-medium">
+        <h2 id="invoices-title" className="text-base font-semibold tracking-tight">
           Factures
         </h2>
-        {rows.length ? (
-          <div className="overflow-hidden rounded-xl border bg-card">
-            {/* Mobile : une ligne par facture, sans défilement horizontal.
-                Date et montant en tête, statut et numéro dessous, document à droite. */}
-            <ul aria-labelledby="invoices-title" className="divide-y sm:hidden">
-              {rows.map((row) => (
-                <li
-                  key={row.id}
-                  className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-0.5 px-4 py-3"
-                >
-                  <p className="text-sm">
-                    <LocalBillingDate value={row.date} dateOnly shortMonth />
-                  </p>
-                  <p className="text-right text-sm font-medium tabular-nums">{row.amount}</p>
-                  <p className="min-w-0 text-xs text-muted-foreground">
-                    {billingStatusLabel(row.status)}
-                    <span aria-hidden="true"> · </span>
-                    <span className="break-all font-mono">
-                      {row.number || "Numéro en préparation"}
+        {invoices.length ? (
+          <div className={cn(CARD, "overflow-hidden")}>
+            <ul aria-labelledby="invoices-title" className="divide-y">
+              {invoices.map((row) => {
+                const Icon = row.kind === "credit" ? MessageSquarePlus : Repeat;
+                return (
+                  <li key={row.id} className="flex items-center gap-3 px-4 py-3 sm:gap-4 sm:px-6">
+                    <span
+                      aria-hidden="true"
+                      className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground"
+                    >
+                      <Icon className="size-4" />
                     </span>
-                  </p>
-                  <div className="-mr-2.5 justify-self-end">{row.document}</div>
-                </li>
-              ))}
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium">{row.label}</p>
+                      <p className="text-xs text-muted-foreground">
+                        <LocalBillingDate value={row.date} dateOnly shortMonth />
+                        {row.status && (
+                          <>
+                            <span aria-hidden="true"> · </span>
+                            <span className="text-foreground">{row.status}</span>
+                          </>
+                        )}
+                      </p>
+                    </div>
+                    <p className="shrink-0 text-sm font-medium tabular-nums">{row.amount}</p>
+                    <div className="-mr-2 shrink-0">
+                      <BillingInvoiceButton
+                        projectId={projectId}
+                        orderId={row.orderId}
+                        label={`Télécharger la facture « ${row.label} » en PDF`}
+                      />
+                    </div>
+                  </li>
+                );
+              })}
             </ul>
-            {/* Dès sm : tableau. « relative » garde dans la zone défilante le
-                libellé masqué de la colonne Document (positionné en absolu),
-                qui sinon élargissait toute la page. */}
-            <div
-              role="region"
-              aria-label="Historique des factures"
-              tabIndex={0}
-              className="relative overflow-x-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring max-sm:hidden"
-            >
-              <table className="w-full min-w-[32rem] text-left text-sm">
-                <thead className="border-b text-xs text-muted-foreground">
-                  <tr>
-                    {["Date", "Numéro", "Montant", "Statut", ""].map((label, index) => (
-                      <th key={index} scope="col" className="px-5 py-3 font-normal">
-                        {label || <span className="sr-only">Document</span>}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y">
-                  {rows.map((row) => (
-                    <tr key={row.id}>
-                      <td className="whitespace-nowrap px-5 py-3">
-                        <LocalBillingDate value={row.date} dateOnly />
-                      </td>
-                      <td className="whitespace-nowrap px-5 py-3 font-mono text-xs text-muted-foreground">
-                        {row.number || "En préparation"}
-                      </td>
-                      <td className="whitespace-nowrap px-5 py-3 tabular-nums">{row.amount}</td>
-                      <td className="whitespace-nowrap px-5 py-3 text-muted-foreground">
-                        {billingStatusLabel(row.status)}
-                      </td>
-                      <td className="px-5 py-2 text-right">{row.document}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
             {(!firstPage || hasMore) && (
               <div className="flex flex-wrap justify-end gap-2 border-t p-2 sm:p-3">
                 {!firstPage && (
                   <Button variant="ghost" size="sm" asChild>
-                    <Link href={`/projects/${projectId}/billing`}>Plus récentes</Link>
+                    <Link href={firstHref}>Plus récentes</Link>
                   </Button>
                 )}
                 {hasMore && (
@@ -749,23 +649,64 @@ export default async function BillingPage({
             )}
           </div>
         ) : (
-          <div className="flex flex-wrap items-center gap-3 rounded-xl border border-dashed p-4 text-sm text-muted-foreground sm:p-5">
+          <div className="flex flex-wrap items-center gap-3 rounded-xl border border-dashed p-4 text-sm text-muted-foreground sm:px-6">
             <FileText aria-hidden="true" className="size-4 shrink-0" />
             <p className="min-w-0 flex-1">
               {unavailable
-                ? "Factures momentanément indisponibles. Actualisez la page dans un instant."
-                : !firstPage
-                  ? "Fin de l’historique."
-                  : "Aucune facture pour l’instant. Elles apparaîtront ici après chaque paiement."}
+                ? "Factures indisponibles pour le moment."
+                : firstPage
+                  ? "Aucune facture pour l’instant."
+                  : "Fin de l’historique."}
             </p>
             {!firstPage && (
               <Button variant="ghost" size="sm" asChild>
-                <Link href={`/projects/${projectId}/billing`}>Plus récentes</Link>
+                <Link href={firstHref}>Plus récentes</Link>
               </Button>
             )}
           </div>
         )}
       </section>
+
+      {canManage ? (
+        <section aria-labelledby="payment-title" className="space-y-3">
+          <h2 id="payment-title" className="text-base font-semibold tracking-tight">
+            Paiement
+          </h2>
+          <div
+            {...returnAnchor(
+              PAYMENT_ANCHOR,
+              cn(CARD, "flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between sm:px-6"),
+            )}
+          >
+            <div className="flex min-w-0 items-center gap-3 text-sm">
+              <span
+                aria-hidden="true"
+                className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground"
+              >
+                <CreditCard className="size-4" />
+              </span>
+              <div className="min-w-0">
+                {payment?.card && payment.card !== "several" ? (
+                  <CardSummary card={payment.card} />
+                ) : (
+                  <p className="text-muted-foreground">{cardNote}</p>
+                )}
+                {billedTo && <p className="truncate text-xs text-muted-foreground">{billedTo}</p>}
+                {synced && holder && !isHolder && (
+                  <p className="text-xs text-muted-foreground">
+                    Modifiable par le titulaire ({maskEmail(holder)}).
+                  </p>
+                )}
+              </div>
+            </div>
+            {synced && holder && isHolder && <PaymentSettingsButton projectId={projectId} />}
+          </div>
+        </section>
+      ) : (
+        <p className="text-xs text-muted-foreground">
+          Seuls le propriétaire et le rôle Facturation modifient l’offre et le paiement.
+        </p>
+      )}
 
       {canManage && cancellation && (
         <BillingCancelSection
