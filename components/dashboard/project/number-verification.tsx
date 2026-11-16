@@ -13,7 +13,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
 import { QRCodeSVG } from "qrcode.react";
-import { Check, CircleAlert, CircleCheck, Copy, Info, Loader2 } from "lucide-react";
+import { Check, CircleAlert, Copy, Info, Loader2, ShieldCheck } from "lucide-react";
 
 import {
   checkNumberMessage,
@@ -174,6 +174,8 @@ export function NumberVerification({
   const codeRequested = useRef(false);
   const proceeding = useRef(false);
   const Heading = headingLevel;
+  // L'essai n'est refusé qu'après la preuve : le numéro reste vérifié.
+  const confirmed = verified || trialUsed;
   const titleId = useId();
 
   const form = useForm<CodeValues>({
@@ -578,24 +580,46 @@ export function NumberVerification({
             headingLevel === "h1" ? "text-2xl! sm:text-3xl!" : "text-xl!",
           )}
         >
-          Vérifiez votre numéro
+          {confirmed ? "Numéro vérifié" : "Vérifiez votre numéro"}
         </Heading>
-        <div className="flex min-h-10 flex-wrap items-center gap-x-1 text-muted-foreground">
-          <span className="font-medium whitespace-nowrap text-foreground tabular-nums">{number}</span>
-          {onEditNumber && !verified && (
-            <Button
-              type="button"
-              variant="link"
-              size="sm"
-              className="h-auto min-h-10 px-1"
-              aria-label={`Modifier le numéro ${number}`}
-              disabled={busy}
-              onClick={onEditNumber}
+        {confirmed ? (
+          // Preuve obtenue : le numéro et son état, sans ambiguïté, avant
+          // l'étape de paiement.
+          <div
+            role="status"
+            className="mt-3 flex items-center gap-3 rounded-xl border bg-muted/40 p-3 @2xs:p-4"
+          >
+            <span
+              aria-hidden
+              className="flex size-10 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
             >
-              Modifier
-            </Button>
-          )}
-        </div>
+              <ShieldCheck className="size-5" />
+            </span>
+            <span className="min-w-0">
+              <span className="block font-medium whitespace-nowrap tabular-nums">{number}</span>
+              <span className="block text-sm text-emerald-600 dark:text-emerald-400">
+                Confirmé avec WhatsApp
+              </span>
+            </span>
+          </div>
+        ) : (
+          <div className="flex min-h-10 flex-wrap items-center gap-x-1 text-muted-foreground">
+            <span className="font-medium whitespace-nowrap text-foreground tabular-nums">{number}</span>
+            {onEditNumber && (
+              <Button
+                type="button"
+                variant="link"
+                size="sm"
+                className="h-auto min-h-10 px-1"
+                aria-label={`Modifier le numéro ${number}`}
+                disabled={busy}
+                onClick={onEditNumber}
+              >
+                Modifier
+              </Button>
+            )}
+          </div>
+        )}
       </div>
 
       {trialUsed ? (
@@ -620,10 +644,6 @@ export function NumberVerification({
         </div>
       ) : verified ? (
         <div className="space-y-4">
-          <p role="status" className="flex items-center gap-2 text-sm font-medium">
-            <CircleCheck aria-hidden className="size-4 text-primary" />
-            Numéro vérifié
-          </p>
           {noticeAlert}
           <Button
             size="lg"
