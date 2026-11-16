@@ -192,15 +192,15 @@ export default function CreateProjectForm({
               control={control}
               render={({ field, fieldState }) => (
                 <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor="project-name">Nom du projet</FieldLabel>
+                  <FieldLabel htmlFor="project-name">Nom du projet (Entreprise)</FieldLabel>
                   <Input
                     {...field}
                     id="project-name"
                     type="text"
-                    autoComplete="off"
+                    autoComplete="organization"
                     maxLength={80}
                     required
-                    placeholder="Ex. Service client"
+                    placeholder="Ex. Ma Boutique"
                     aria-invalid={fieldState.invalid}
                     className="h-11 text-base sm:text-sm"
                   />
