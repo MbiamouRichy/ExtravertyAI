@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { HISTORY_CHAR_BUDGET, fitHistory } from "../lib/ai-history";
+import { HISTORY_CHAR_BUDGET, HISTORY_MESSAGE_MAX, fitHistory } from "../lib/ai-history";
 import { aiMeter, readAiUsage } from "../lib/ai-usage";
 import { generateReply } from "../lib/ai-jobs";
 import { AgentConfigSchema } from "../lib/agent-config";
@@ -20,17 +20,25 @@ test("the history keeps the newest messages within the character budget", () => 
   const long = "x".repeat(4096);
   const history = Array.from({ length: 50 }, (_, index) => message(`${index}:${long}`));
   const kept = fitHistory(history);
-  // 50 messages de 4 Ko : seuls les deux derniers tiennent dans 12 000 caractères.
-  assert.equal(HISTORY_CHAR_BUDGET, 12_000);
-  assert.deepEqual(kept, history.slice(-2));
+  // 50 messages de 4 Ko : le dernier reste entier, les anciens sont abrégés à
+  // 2 000 caractères et seuls deux d’entre eux tiennent dans 6 000.
+  assert.equal(HISTORY_CHAR_BUDGET, 6_000);
+  assert.equal(HISTORY_MESSAGE_MAX, 2_000);
+  assert.equal(kept.length, 1);
+  assert.deepEqual(kept.at(-1), history.at(-1));
   assert.ok(kept.reduce((total, item) => total + item.content.length, 0) <= HISTORY_CHAR_BUDGET);
+  const shorter = Array.from({ length: 50 }, (_, index) => message(`${index}:${"x".repeat(2500)}`));
+  const clipped = fitHistory(shorter);
+  assert.equal(clipped.length, 2);
+  assert.equal(clipped[0].content, shorter[48].content.slice(0, HISTORY_MESSAGE_MAX) + " […]");
+  assert.deepEqual(clipped[1], shorter[49]);
 
   // Court, l’historique passe tel quel ; le dernier message reste même trop long.
   const short = [message("Bonjour"), message("Vous livrez ?")];
   assert.deepEqual(fitHistory(short), short);
   assert.deepEqual(fitHistory([message("a".repeat(20_000))]).length, 1);
   // On coupe au premier message qui dépasse : pas de trou dans la conversation.
-  const gap = [message("a"), message("b".repeat(11_000)), message("c".repeat(2_000))];
+  const gap = [message("a"), message("b".repeat(5_000)), message("c".repeat(5_000))];
   assert.deepEqual(fitHistory(gap), gap.slice(-1));
 });
 

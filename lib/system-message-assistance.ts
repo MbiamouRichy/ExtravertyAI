@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { AgentConfigSchema } from "./agent-config";
 import type { AiMeter } from "./ai-usage";
+import { OpenRouterBodyError, openRouterChat } from "./openrouter";
 
 export const SystemAssistanceInput = z.object({
   projectId: z.string().cuid(),
@@ -33,19 +34,15 @@ export async function generateSystemMessage(input: {
   const key = process.env.OPENROUTER_API_KEY;
   const model = process.env.OPENROUTER_MODEL;
   if (!key || !model) throw new Error("SYSTEM_ASSISTANCE_CONFIG_MISSING");
-  const response = await fetch(
-    "https://openrouter.ai/api/v1/chat/completions",
-    {
-      method: "POST",
-      redirect: "error",
-      signal: AbortSignal.timeout(45000),
-      headers: {
-        Authorization: `Bearer ${key}`,
-        "Content-Type": "application/json",
-        "X-Title": "ExtravertyAI",
-      },
-      body: JSON.stringify({
-        model,
+  let reply: Awaited<ReturnType<typeof openRouterChat>>;
+  try {
+    reply = await openRouterChat({
+      feature: "system_message",
+      model,
+      timeoutMs: 45_000,
+      // Bound the response before parsing so a provider cannot exhaust server memory.
+      maxBytes: 160_000,
+      body: {
         temperature: 0.2,
         max_tokens: 6000,
         reasoning: { enabled: false },
@@ -73,31 +70,16 @@ export async function generateSystemMessage(input: {
           { role: "system", content: SYSTEM_MESSAGE_EDITOR_PROMPT },
           { role: "user", content: JSON.stringify(input) },
         ],
-      }),
-    },
-  );
-  if (!response.ok) throw new Error("SYSTEM_ASSISTANCE_PROVIDER_ERROR");
-  // Bound the response before parsing so a provider cannot exhaust server memory.
-  const reader = response.body?.getReader();
-  if (!reader) throw new Error("SYSTEM_ASSISTANCE_INVALID_RESPONSE");
-  const chunks: Uint8Array[] = [];
-  let size = 0;
-  try {
-    for (;;) {
-      const { value, done } = await reader.read();
-      if (done) break;
-      size += value.byteLength;
-      if (size > 160000) {
-        await reader.cancel();
-        throw new Error("SYSTEM_ASSISTANCE_INVALID_RESPONSE");
-      }
-      chunks.push(value);
-    }
-  } finally {
-    reader.releaseLock();
+      },
+    });
+  } catch (error) {
+    if (error instanceof OpenRouterBodyError)
+      throw new Error("SYSTEM_ASSISTANCE_INVALID_RESPONSE");
+    throw error;
   }
-  const payload = JSON.parse(Buffer.concat(chunks).toString("utf8"));
-  await input.meter?.(payload, model);
+  const { status, payload, model: used } = reply;
+  if (status !== 200) throw new Error("SYSTEM_ASSISTANCE_PROVIDER_ERROR");
+  await input.meter?.(payload, used);
   const choice = payload?.choices?.[0];
   if (
     choice?.finish_reason !== "stop" ||

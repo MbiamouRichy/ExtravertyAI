@@ -6,14 +6,28 @@ import { promoteInterestingProspect } from "./pipeline";
 import { emitIntegrationEvent, integrationContact } from "./integration-events";
 import { plansWith } from "./plan-features";
 export { assessProspect } from "./instinct-decision";
+/** Messages lus par Instinct : les derniers échanges suffisent à classer. */
+export const INSTINCT_HISTORY_MESSAGES = 30;
+
 // A database lease coordinates workers. No network request is held inside a transaction.
 export async function runInstinctCycle(
   prisma: PrismaClient,
   assess = assessProspect,
+  options: {
+    /**
+     * Calme demandé après le dernier message du client : une rafale de
+     * messages n’est analysée qu’une fois. Le worker attend 30 s.
+     */
+    quietSeconds?: number;
+  } = {},
 ) {
   const token = randomUUID();
+  const quietSeconds = Math.max(0, Math.floor(options.quietSeconds ?? 0));
   // Offres qui incluent Instinct IA : les autres projets ne sont jamais analysés.
   const plans = plansWith("instinct");
+  // `needsModel` est faux quand seuls l’IA ou l’équipe ont écrit depuis la
+  // dernière analyse : elle reste valable et passe au dernier message sans
+  // nouvel appel au modèle.
   const [candidate] = await prisma.$queryRaw<
     Array<{
       id: string;
@@ -21,12 +35,19 @@ export async function runInstinctCycle(
       sourceId: string;
       version: number;
       goals: string;
+      needsModel: boolean;
     }>
   >`
     WITH candidate AS (
-      SELECT c.id, c."projectId", latest.id AS "sourceId", p."agentConfigVersion" AS version, p."agentSystemMessage" AS goals
+      SELECT c.id, c."projectId", latest.id AS "sourceId", p."agentConfigVersion" AS version, p."agentSystemMessage" AS goals, need."needsModel"
       FROM contact c JOIN project p ON p.id = c."projectId"
       CROSS JOIN LATERAL (SELECT m.id FROM message m WHERE m."contactId" = c.id AND m."projectId" = p.id ORDER BY m."createdAt" DESC, m.id DESC LIMIT 1) latest
+      CROSS JOIN LATERAL (SELECT m.id, m."createdAt" FROM message m WHERE m."contactId" = c.id AND m."projectId" = p.id AND m."senderType" = 'CLIENT'
+          AND (m.type = 'TEXT' OR (m.type IN ('AUDIO', 'IMAGE') AND m."extractionStatus" = 'COMPLETED' AND length(trim(m."extractedText")) > 0))
+        ORDER BY m."createdAt" DESC, m.id DESC LIMIT 1) client
+      CROSS JOIN LATERAL (SELECT (c."instinctClassification" IS NULL OR c."instinctConfigVersion" <> p."agentConfigVersion"
+          OR NOT EXISTS (SELECT 1 FROM message s WHERE s.id = c."instinctSourceId" AND s."projectId" = p.id
+            AND (s."createdAt", s.id) >= (client."createdAt", client.id))) AS "needsModel") need
       WHERE NOT p."deletionPending" AND p."agentQualifyLeads" AND p."agentSetupCompletedAt" IS NOT NULL
         AND p.plan::text = ANY(${plans}::text[])
         AND (p.status IN ('active', 'trialing') OR (p."automationPaused" AND p.status = 'paused' AND p."statusBeforePause" IN ('active', 'trialing')))
@@ -36,7 +57,7 @@ export async function runInstinctCycle(
         AND length(trim(p."agentSystemMessage")) > 0
         AND (c."instinctLeaseUntil" IS NULL OR c."instinctLeaseUntil" < clock_timestamp())
         AND (c."instinctClassification" IS NULL OR c."instinctSourceId" IS DISTINCT FROM latest.id OR c."instinctConfigVersion" <> p."agentConfigVersion")
-        AND EXISTS (SELECT 1 FROM message m WHERE m."contactId" = c.id AND m."projectId" = p.id AND m."senderType" = 'CLIENT' AND (m.type = 'TEXT' OR (m.type IN ('AUDIO', 'IMAGE') AND m."extractionStatus" = 'COMPLETED' AND length(trim(m."extractedText")) > 0)))
+        AND (NOT need."needsModel" OR client."createdAt" <= clock_timestamp() - ${quietSeconds}::int * interval '1 second')
         AND NOT EXISTS (SELECT 1 FROM message m WHERE m."contactId" = c.id AND m."projectId" = p.id AND m."extractionStatus" IN ('PENDING', 'PROCESSING'))
       ORDER BY c."instinctLeaseUntil" NULLS FIRST, c.id
       LIMIT 1 FOR UPDATE OF c SKIP LOCKED
@@ -44,6 +65,29 @@ export async function runInstinctCycle(
     UPDATE contact c SET "instinctLeaseToken" = ${token}, "instinctLeaseUntil" = clock_timestamp() + interval '2 minutes'
     FROM candidate a WHERE c.id = a.id RETURNING a.*`;
   if (!candidate) return null;
+  if (!candidate.needsModel) {
+    const kept = await prisma.contact.updateMany({
+      where: {
+        id: candidate.id,
+        projectId: candidate.projectId,
+        instinctLeaseToken: token,
+        instinctConfigVersion: candidate.version,
+        project: { agentConfigVersion: candidate.version },
+      },
+      data: {
+        instinctSourceId: candidate.sourceId,
+        instinctLeaseToken: null,
+        instinctLeaseUntil: null,
+      },
+    });
+    if (kept.count) return candidate.projectId;
+    // Réglages changés entre-temps : le contact repasse au prochain cycle.
+    await prisma.contact.updateMany({
+      where: { id: candidate.id, instinctLeaseToken: token },
+      data: { instinctLeaseToken: null, instinctLeaseUntil: null },
+    });
+    return null;
+  }
   try {
     const messages = await prisma.message.findMany({
       where: {
@@ -67,7 +111,7 @@ export async function runInstinctCycle(
         ],
       },
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-      take: 60,
+      take: INSTINCT_HISTORY_MESSAGES,
       select: {
         senderType: true,
         content: true,

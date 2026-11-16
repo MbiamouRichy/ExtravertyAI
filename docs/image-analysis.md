@@ -14,7 +14,10 @@ La clé `OPENROUTER_API_KEY` existante est réutilisée. Le modèle est choisi d
 3. `google/gemini-2.5-flash-lite`.
 
 Le modèle choisi doit accepter les images et les réponses JSON structurées.
-Aucun second modèle n’est appelé. Les erreurs temporaires sont réessayées au maximum
+Si Gemini est indisponible (délai, 429 ou 5xx), `OPENROUTER_FALLBACK_MODEL` lit l’image
+à sa place, avec les mêmes consignes ; il doit lui aussi accepter les images
+(voir [ai-fallback.md](ai-fallback.md)). Un refus n’est jamais transmis au secours.
+Les erreurs temporaires sont réessayées au maximum
 trois fois, avec délai croissant ; les erreurs de configuration, crédit, authentification
 ou refus explicite deviennent FAILED sans boucle de nouvelles tentatives.
 

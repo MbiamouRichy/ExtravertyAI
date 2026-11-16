@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { AiMeter } from "./ai-usage";
+import { openRouterChat } from "./openrouter";
 import {
   messageAiContent,
   hasExtractedText,
@@ -54,18 +55,11 @@ export async function generateConversationSummary(
   const key = process.env.OPENROUTER_API_KEY;
   const model = process.env.OPENROUTER_MODEL;
   if (!key || !model) throw new Error("SUMMARY_CONFIG_MISSING");
-  const response = await fetch(
-    "https://openrouter.ai/api/v1/chat/completions",
-    {
-      method: "POST",
-      signal: AbortSignal.timeout(30000),
-      headers: {
-        Authorization: `Bearer ${key}`,
-        "Content-Type": "application/json",
-        "X-Title": "ExtravertyAI",
-      },
-      body: JSON.stringify({
-        model,
+  const { status, payload, model: used } = await openRouterChat({
+    feature: "summary",
+    model,
+    timeoutMs: 30_000,
+    body: {
         temperature: 0.2,
         max_tokens: 3000,
         response_format: {
@@ -99,17 +93,14 @@ export async function generateConversationSummary(
           },
           { role: "user", content: JSON.stringify(history) },
         ],
-      }),
     },
-  );
-  if (!response.ok)
-    throw new Error(`SUMMARY_PROVIDER_ERROR_${response.status}`);
-  const payload = await response.json();
-  await meter?.(payload, model);
+  });
+  if (status !== 200) throw new Error(`SUMMARY_PROVIDER_ERROR_${status}`);
+  await meter?.(payload, used);
   const text: unknown = payload?.choices?.[0]?.message?.content;
   if (typeof text !== "string" || text.length > 16000)
     throw new Error("SUMMARY_INVALID_RESPONSE");
-  if (payload.choices[0].finish_reason === "length")
+  if (payload?.choices?.[0]?.finish_reason === "length")
     throw new Error("SUMMARY_TRUNCATED_RESPONSE");
   try {
     return ConversationSummarySchema.parse(

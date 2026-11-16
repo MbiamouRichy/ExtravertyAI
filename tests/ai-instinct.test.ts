@@ -305,6 +305,68 @@ test("the Instinct worker analyses Pro projects and never Starter ones", async (
   });
 });
 
+test("Instinct re-analyses only new client words, after a quiet moment", async () => {
+  await withTestDatabase(async (prisma) => {
+    const { id } = await createProject(prisma, { plan: "pro" });
+    await activateBilling(prisma, id);
+    await prisma.project.update({
+      where: { id },
+      data: { agentSetupCompletedAt: new Date(), agentSystemMessage: goals },
+    });
+    const { id: contactId } = await ingestText(prisma, id, "Je souhaite un devis pour mon site.");
+    const contact = () => prisma.contact.findUniqueOrThrow({ where: { id: contactId } });
+    let calls = 0;
+    const assess = async () => {
+      calls += 1;
+      return "interesting" as const;
+    };
+    // Une minute passe : l’ordre des messages est conservé.
+    const backdate = () =>
+      prisma.$executeRaw`UPDATE message SET "createdAt" = "createdAt" - interval '60 seconds' WHERE "contactId" = ${contactId}`;
+
+    // Juste après le message du client, le worker attend la fin de la rafale.
+    assert.equal(await runInstinctCycle(prisma, assess, { quietSeconds: 30 }), null);
+    assert.equal(calls, 0);
+    await backdate();
+    assert.equal(await runInstinctCycle(prisma, assess, { quietSeconds: 30 }), id);
+    assert.equal(calls, 1);
+
+    // L’IA répond : l’analyse reste valable, sans nouvel appel au modèle.
+    const reply = await prisma.message.create({
+      data: {
+        projectId: id,
+        contactId,
+        content: "Avec plaisir, quel type de site ?",
+        senderType: "BOT",
+        fromMe: true,
+        status: "SENT",
+        source: "ai",
+      },
+    });
+    assert.equal(await runInstinctCycle(prisma, assess, { quietSeconds: 30 }), id);
+    assert.equal(calls, 1);
+    const kept = await contact();
+    assert.equal(kept.instinctSourceId, reply.id);
+    assert.equal(kept.instinctClassification, "interesting");
+    assert.equal(kept.instinctLeaseToken, null);
+    assert.equal(
+      currentProspectClassification(
+        { ...kept, project: { plan: "pro", agentQualifyLeads: true, agentConfigVersion: 0 } },
+        reply.id,
+      ),
+      "interesting",
+    );
+    assert.equal(await runInstinctCycle(prisma, assess, { quietSeconds: 30 }), null);
+
+    // Le client écrit de nouveau : nouvelle analyse, une fois le calme revenu.
+    await ingestText(prisma, id, "Un site vitrine, pour janvier.");
+    assert.equal(await runInstinctCycle(prisma, assess, { quietSeconds: 30 }), null);
+    await backdate();
+    assert.equal(await runInstinctCycle(prisma, assess, { quietSeconds: 30 }), id);
+    assert.equal(calls, 2);
+  });
+});
+
 test("only current enabled assessments are exposed to reports", () => {
   const contact = {
     instinctClassification: "follow_up" as const,

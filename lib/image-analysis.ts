@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { AiMeter } from "./ai-usage";
-import { readLimitedBody, validateMediaBytes } from "./chat-media-server";
+import { validateMediaBytes } from "./chat-media-server";
+import { ModelIdSchema, OpenRouterBodyError, openRouterChat } from "./openrouter";
 
 export const IMAGE_ANALYSIS_VERSION = 1;
 export const DEFAULT_IMAGE_MODEL = "google/gemini-2.5-flash-lite";
@@ -11,7 +12,8 @@ const GeminiModelSchema = z
   .regex(/^google\/gemini-[a-zA-Z0-9._:-]+$/);
 export const ImageExtractionSchema = z.object({
   text: z.string().trim().min(1).max(60_000),
-  model: GeminiModelSchema,
+  // Gemini d’abord ; le modèle de secours peut aussi avoir lu l’image.
+  model: ModelIdSchema,
 });
 export const ImageAnalysisSchema = z
   .object({
@@ -53,19 +55,14 @@ export async function analyzeImage(
   if (!["image/jpeg", "image/png", "image/webp"].includes(media.mime))
     throw new ImageAnalysisError("IMAGE_INVALID_MEDIA", false);
   validateMediaBytes(media.bytes, media.mime);
-  const response = await fetch(
-    "https://openrouter.ai/api/v1/chat/completions",
-    {
-      method: "POST",
-      redirect: "error",
-      signal: AbortSignal.timeout(60_000),
-      headers: {
-        Authorization: "Bearer " + key,
-        "Content-Type": "application/json",
-        "X-Title": "ExtravertyAI",
-      },
-      body: JSON.stringify({
-        model,
+  let reply: Awaited<ReturnType<typeof openRouterChat>>;
+  try {
+    reply = await openRouterChat({
+      feature: "image",
+      model,
+      timeoutMs: 60_000,
+      maxBytes: 256_000,
+      body: {
         temperature: 0,
         max_tokens: 5000,
         response_format: {
@@ -116,18 +113,21 @@ export async function analyzeImage(
             ],
           },
         ],
-      }),
-    },
-  );
-  if (!response.ok)
+      },
+    });
+  } catch (error) {
+    if (error instanceof OpenRouterBodyError)
+      throw new ImageAnalysisError("IMAGE_INVALID_RESPONSE");
+    throw error;
+  }
+  const { status, payload, model: used } = reply;
+  if (status !== 200)
     throw new ImageAnalysisError(
-      "IMAGE_HTTP_" + response.status,
-      ![400, 401, 402, 403, 404, 413, 415, 422].includes(response.status),
+      "IMAGE_HTTP_" + status,
+      ![400, 401, 402, 403, 404, 413, 415, 422].includes(status),
     );
-  const raw = await readLimitedBody(response.body, 256_000);
   try {
-    const payload = JSON.parse(raw.toString());
-    await meter?.(payload, model);
+    await meter?.(payload, used);
     const choice = payload?.choices?.[0];
     if (choice?.message?.refusal || choice?.finish_reason === "content_filter")
       throw new ImageAnalysisError("IMAGE_REFUSED", false);
@@ -137,7 +137,7 @@ export async function analyzeImage(
     )
       throw new ImageAnalysisError("IMAGE_INVALID_RESPONSE");
     const analysis = ImageAnalysisSchema.parse(
-      JSON.parse(choice.message.content),
+      JSON.parse(choice.message.content as string),
     );
     const text = [
       "Description :\n" + analysis.description,
@@ -147,7 +147,7 @@ export async function analyzeImage(
         (analysis.uncertainties.join("\n") ||
           "Aucune signalée par le modèle ; extraction à vérifier en cas de doute."),
     ].join("\n\n");
-    return ImageExtractionSchema.parse({ text, model });
+    return ImageExtractionSchema.parse({ text, model: used });
   } catch (error) {
     if (error instanceof ImageAnalysisError) throw error;
     throw new ImageAnalysisError("IMAGE_INVALID_RESPONSE");

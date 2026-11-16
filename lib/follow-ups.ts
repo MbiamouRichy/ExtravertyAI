@@ -311,6 +311,7 @@ async function draftFollowUp(
       knowledge: knowledge.block,
       task: followUpInstruction(candidate.stage, days),
       meter: aiMeter(db, candidate.projectId, "follow_up"),
+      feature: "follow_up",
     },
   );
   const closing = splitConversationEnd(raw);

@@ -7,6 +7,7 @@ import {
   chunkText,
   countEntryWords,
   extractBlocks,
+  fitsKnowledgeBudget,
   formatKnowledgeBlock,
   normalizeSearchText,
   parseCsv,
@@ -176,6 +177,21 @@ test("knowledge base", { timeout: 180000 }, async (t) => {
       // Une entrée désactivée reste écartée, celles d’un autre projet aussi.
       assert.doesNotMatch(greeting.block, /Sneakers Urban/);
       assert.doesNotMatch(greeting.block, /Autre boutique/);
+    });
+
+    await t.test("a base that fits keeps one order whatever the question, for the provider cache", async () => {
+      await saveEntry(prisma, {
+        ...admin,
+        entry: { kind: "FAQ", title: "Horaires d’ouverture", content: "Du lundi au samedi, 9 h à 19 h.", price: null, stock: null },
+      });
+      const delivery = await knowledgeContext(prisma, project.id, "XAF", ["Vous livrez à Port-Gentil ?"]);
+      const hours = await knowledgeContext(prisma, project.id, "XAF", ["Quels sont vos horaires d’ouverture ?"]);
+      assert.ok(delivery.entries.length > 0 && hours.entries.length > 0);
+      assert.notDeepEqual(delivery.entries, hours.entries);
+      assert.equal(delivery.block, hours.block);
+      assert.ok(fitsKnowledgeBudget([], "XAF"));
+      const huge = { id: "x", kind: "TEXT" as const, title: "Long", content: "x".repeat(KNOWLEDGE_LIMITS.retrievalBudget), price: null, stock: null };
+      assert.equal(fitsKnowledgeBudget([huge], "XAF"), false);
     });
 
     await t.test("imported text is readable in order, by project admins only", async () => {

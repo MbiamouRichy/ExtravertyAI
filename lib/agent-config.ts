@@ -49,6 +49,15 @@ export const AGENT_TONES = [
     description: "Va à l’essentiel, sans détour.",
   },
 ] as const;
+/**
+ * Plafond de jetons d’une réponse, pour 100, 200 et 300 mots au plus : un mot
+ * français compte environ 1,5 jeton, avec une marge pour les marqueurs.
+ */
+export const REPLY_MAX_TOKENS: Record<AgentConfig["agentResponseLength"], number> = {
+  concise: 200,
+  balanced: 350,
+  detailed: 550,
+};
 export function systemMessageTemplate(name: string) {
   return `Tu représentes ${name}.\n\nMISSION\nAccueillir les prospects, comprendre leur besoin et les orienter vers un conseiller lorsque l’information nécessaire n’est pas disponible.\n\nINFORMATIONS SUR L’ENTREPRISE\nUtilise uniquement les informations vérifiées ajoutées ici par l’entreprise. Demande des précisions si elles manquent.\n\nRÈGLES COMMERCIALES\nNe confirme aucun prix, disponibilité, rendez-vous ou engagement sans information vérifiée. Ne demande jamais de mot de passe ou de données de carte bancaire.`;
 }
@@ -62,10 +71,11 @@ export function buildAgentSystemMessage(
     direct: "Adopte un ton direct et courtois.",
   };
   const lengths = {
-    concise: "Réponds en une à trois phrases, sauf nécessité.",
-    balanced: "Donne une réponse structurée, de longueur modérée.",
+    concise: "Réponds en une à trois phrases, sauf nécessité, et jamais en plus de 100 mots.",
+    balanced:
+      "Donne une réponse structurée de 200 mots au plus ; une question simple appelle une réponse courte.",
     detailed:
-      "Donne des explications détaillées quand la demande le justifie, dans la limite de 400 mots.",
+      "Donne des explications détaillées quand la demande le justifie, dans la limite de 300 mots ; une question simple appelle une réponse courte.",
   };
   return [
     `Tu es ${JSON.stringify(config.agentName)}, l'assistant IA de ${JSON.stringify(projectName)}. Présente-toi honnêtement comme un assistant IA si on te le demande.`,

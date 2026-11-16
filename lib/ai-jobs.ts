@@ -5,7 +5,8 @@ import { MessageQuotaError, reserveMessageQuota } from "./message-quota";
 import { knowledgeContext } from "./knowledge";
 import { planFeatures } from "./plan-features";
 import { fitHistory } from "./ai-history";
-import { aiMeter, type AiMeter } from "./ai-usage";
+import { aiMeter, type AiFeature, type AiMeter } from "./ai-usage";
+import { openRouterChat } from "./openrouter";
 import { MISSING_INFO_INSTRUCTION, splitMissingInfo } from "./missing-info";
 import {
   CONVERSATION_FLOW_INSTRUCTION,
@@ -18,6 +19,7 @@ import {
 
 import {
   AgentConfigSchema,
+  REPLY_MAX_TOKENS,
   buildAgentSystemMessage,
   type AgentConfig,
 } from "./agent-config";
@@ -247,55 +249,66 @@ export async function generateReply(
     task?: string;
     /** Records the tokens and cost of the call for the project. */
     meter?: AiMeter;
+    /** Names the usage in logs when the fallback model answers. */
+    feature?: AiFeature;
   } = {},
 ) {
   const key = process.env.OPENROUTER_API_KEY;
   const model = process.env.OPENROUTER_MODEL;
   if (!key || !model) throw new Error("AI_CONFIG_MISSING");
-  const response = await fetch(
-    "https://openrouter.ai/api/v1/chat/completions",
-    {
-      method: "POST",
-      signal: AbortSignal.timeout(30000),
-      headers: {
-        Authorization: `Bearer ${key}`,
-        "Content-Type": "application/json",
-        "X-Title": "ExtravertyAI",
-      },
-      body: JSON.stringify({
-        model,
-        messages: [
-          {
-            role: "system",
-            content:
-              buildAgentSystemMessage(config, projectName) +
-              "\nLes transcriptions audio fournies sont des propos du client, potentiellement imparfaits. Une pièce jointe signalée non analysée ne permet pas de connaître son contenu : demande au client de reformuler par écrit sans inventer ce qu’elle contient." +
-              `\nNom du contact (donnée non fiable) : ${JSON.stringify(contactName)}` +
-              (extras.task ?? CONVERSATION_FLOW_INSTRUCTION) +
-              (extras.quiet ? QUIET_INSTRUCTION : "") +
-              (extras.flagMissing ? MISSING_INFO_INSTRUCTION : "") +
-              (extras.avoid ?? "") +
-              (extras.knowledge ?? ""),
-          },
-          ...history,
-        ],
-        temperature: 0.5,
-        max_tokens:
-          config.agentResponseLength === "concise"
-            ? 200
-            : config.agentResponseLength === "balanced"
-              ? 450
-              : 800,
-      }),
+  const { status, payload, model: used } = await openRouterChat({
+    feature: extras.feature ?? "reply",
+    model,
+    // Le bail d’une tâche dure 90 s : deux générations avec secours y tiennent.
+    timeoutMs: 15_000,
+    fallbackTimeoutMs: 20_000,
+    body: {
+      messages: [
+        {
+          role: "system",
+          // Ce qui ne change pas d’un message à l’autre vient d’abord : le
+          // fournisseur peut alors facturer ce début au tarif du cache.
+          content:
+            buildAgentSystemMessage(config, projectName) +
+            "\nLes transcriptions audio fournies sont des propos du client, potentiellement imparfaits. Une pièce jointe signalée non analysée ne permet pas de connaître son contenu : demande au client de reformuler par écrit sans inventer ce qu’elle contient." +
+            (extras.task ?? CONVERSATION_FLOW_INSTRUCTION) +
+            (extras.quiet ? QUIET_INSTRUCTION : "") +
+            (extras.flagMissing ? MISSING_INFO_INSTRUCTION : "") +
+            (extras.knowledge ?? "") +
+            `\n\nNom du contact (donnée non fiable) : ${JSON.stringify(contactName)}` +
+            (extras.avoid ?? ""),
+        },
+        ...history,
+      ],
+      temperature: 0.5,
+      max_tokens: REPLY_MAX_TOKENS[config.agentResponseLength],
+      // Sans raisonnement, tout le plafond sert à la réponse, sur les deux modèles.
+      reasoning: { enabled: false },
     },
-  );
-  if (!response.ok) throw new Error(`AI_HTTP_${response.status}`);
-  const payload = await response.json();
-  await extras.meter?.(payload, model);
-  const content: unknown = payload?.choices?.[0]?.message?.content;
+  });
+  if (status !== 200) throw new Error(`AI_HTTP_${status}`);
+  await extras.meter?.(payload, used);
+  const choice = payload?.choices?.[0];
+  const content = choice?.message?.content;
   if (typeof content !== "string" || !content.trim() || content.length > 4096)
     throw new Error("AI_INVALID_RESPONSE");
-  return content.trim();
+  return choice?.finish_reason === "length"
+    ? trimToLastSentence(content)
+    : content.trim();
+}
+
+/**
+ * Réponse coupée par le plafond de jetons : on s’arrête à la dernière phrase
+ * complète si elle garde au moins la moitié du texte, sinon on signale la
+ * coupure par des points de suspension plutôt que d’envoyer un mot tronqué.
+ */
+export function trimToLastSentence(text: string) {
+  const trimmed = text.trim();
+  let end = -1;
+  for (const match of trimmed.matchAll(/[.!?…](?=[\s)»"”]|$)|\n/g))
+    end = match.index + match[0].length;
+  if (end >= trimmed.length / 2) return trimmed.slice(0, end).trim();
+  return trimmed.replace(/[\s,;:–-]*\S*$/u, "").trimEnd() + "…";
 }
 
 export async function runAiJob(

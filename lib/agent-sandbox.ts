@@ -97,6 +97,7 @@ export async function runAgentTest(
     flagMissing: true,
     quiet: project.aiQuietEnabled,
     meter: aiMeter(db, projectId, "sandbox"),
+    feature: "sandbox" as const,
   };
   // Même plafond de caractères d’historique qu’en production.
   const prompt = fitHistory(messages);

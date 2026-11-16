@@ -12,8 +12,9 @@ export const KNOWLEDGE_LIMITS = {
   webMaxBytes: 3 * 1024 * 1024,
   chunkSize: 800,
   retrievalTop: 12,
-  // Environ 10 000 tokens : une base courante tient entière dans chaque réponse.
-  retrievalBudget: 40000,
+  // Environ 4 000 tokens par réponse : une petite base tient entière, sinon les
+  // entrées les plus proches de la question passent d’abord.
+  retrievalBudget: 16000,
   contextEntries: 2000,
 } as const;
 
@@ -259,16 +260,30 @@ const KIND_LABEL: Record<KnowledgeKindId, string> = {
  * Reference block appended to the system prompt. Imported pages and PDFs are
  * untrusted: the model is told to treat them as data, never as instructions.
  */
+function entryBlock(entry: RetrievedEntry, currency: string) {
+  const details = [
+    entry.price !== null ? `Prix : ${formatDealValue(entry.price, currency)}` : "",
+    entry.stock !== null ? `Stock : ${entry.stock}` : "",
+  ].filter(Boolean);
+  return `[${KIND_LABEL[entry.kind]}] ${entry.title}\n${entry.content}${details.length ? `\n${details.join(" · ")}` : ""}`;
+}
+
+/** Vrai si toutes les entrées tiennent ensemble dans le bloc de référence. */
+export function fitsKnowledgeBudget(entries: RetrievedEntry[], currency: string): boolean {
+  let total = 0;
+  for (const entry of entries) {
+    total += entryBlock(entry, currency).length;
+    if (total > KNOWLEDGE_LIMITS.retrievalBudget) return false;
+  }
+  return true;
+}
+
 export function formatKnowledgeBlock(entries: RetrievedEntry[], currency: string): string {
   if (!entries.length) return "";
   let budget: number = KNOWLEDGE_LIMITS.retrievalBudget;
   const blocks: string[] = [];
   for (const entry of entries) {
-    const details = [
-      entry.price !== null ? `Prix : ${formatDealValue(entry.price, currency)}` : "",
-      entry.stock !== null ? `Stock : ${entry.stock}` : "",
-    ].filter(Boolean);
-    const block = `[${KIND_LABEL[entry.kind]}] ${entry.title}\n${entry.content}${details.length ? `\n${details.join(" · ")}` : ""}`;
+    const block = entryBlock(entry, currency);
     // Une entrée trop longue n’écarte pas les suivantes.
     if (block.length > budget) continue;
     budget -= block.length;

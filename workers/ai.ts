@@ -46,7 +46,8 @@ async function main() {
 async function instinctLoop() {
   while (!stopping) {
     try {
-      const projectId = await runInstinctCycle(prisma);
+      // Une rafale de messages du client n’est analysée qu’une fois.
+      const projectId = await runInstinctCycle(prisma, undefined, { quietSeconds: 30 });
       if (projectId) await notifyProject(projectId);
     } catch (error) {
       reportWorkerError("[ai-instinct] Cycle interrompu.", error);

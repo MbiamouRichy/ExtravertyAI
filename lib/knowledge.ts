@@ -15,6 +15,7 @@ import {
   chunkText,
   countEntryWords,
   entrySearchText,
+  fitsKnowledgeBudget,
   formatKnowledgeBlock,
   parseProductsCsv,
   wordsToPages,
@@ -537,17 +538,23 @@ export async function knowledgeContext(
   customerTexts: string[],
 ) {
   const entries = await retrieveKnowledge(db, projectId, customerTexts.slice(-3).join("\n"));
-  const rest = await db.knowledgeEntry.findMany({
-    where: { projectId, enabled: true, id: { notIn: entries.map((entry) => entry.id) } },
+  const all = await db.knowledgeEntry.findMany({
+    where: { projectId, enabled: true },
     orderBy: [{ updatedAt: "desc" }, { id: "asc" }],
     take: KNOWLEDGE_LIMITS.contextEntries,
     select: { id: true, kind: true, title: true, content: true, price: true, stock: true },
   });
-  rest.sort(
+  all.sort(
     (a, b) =>
       KIND_ORDER[a.kind] - KIND_ORDER[b.kind] ||
       (a.kind === "CHUNK" ? chunkPosition(a.title) - chunkPosition(b.title) : 0),
   );
+  // Base entière : toujours le même ordre, que le fournisseur peut garder en
+  // cache d’un message à l’autre. Trop grande : les entrées proches d’abord.
+  if (fitsKnowledgeBudget(all, currency))
+    return { block: formatKnowledgeBlock(all, currency), entries };
+  const found = new Set(entries.map((entry) => entry.id));
+  const rest = all.filter((entry) => !found.has(entry.id));
   return { block: formatKnowledgeBlock([...entries, ...rest], currency), entries };
 }
 

@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { AiMeter } from "./ai-usage";
+import { openRouterChat } from "./openrouter";
 import type { SummaryMessage } from "./conversation-summary";
 
 export const AssistanceInputSchema = z.discriminatedUnion("mode", [
@@ -29,18 +30,11 @@ export async function generateWritingAssistance(input: {
   const key = process.env.OPENROUTER_API_KEY;
   const model = process.env.OPENROUTER_MODEL;
   if (!key || !model) throw new Error("ASSISTANCE_CONFIG_MISSING");
-  const response = await fetch(
-    "https://openrouter.ai/api/v1/chat/completions",
-    {
-      method: "POST",
-      signal: AbortSignal.timeout(30000),
-      headers: {
-        Authorization: `Bearer ${key}`,
-        "Content-Type": "application/json",
-        "X-Title": "ExtravertyAI",
-      },
-      body: JSON.stringify({
-        model,
+  const { status, payload, model: used } = await openRouterChat({
+    feature: "writing",
+    model,
+    timeoutMs: 30_000,
+    body: {
         temperature: 0.3,
         max_tokens: 3000,
         response_format: {
@@ -73,13 +67,11 @@ export async function generateWritingAssistance(input: {
           },
           { role: "user", content: JSON.stringify(input) },
         ],
-      }),
     },
-  );
+  });
   // Le statut HTTP permet d’afficher une cause précise (clé, crédits, limite).
-  if (!response.ok) throw new Error(`ASSISTANCE_PROVIDER_${response.status}`);
-  const payload = await response.json();
-  await input.meter?.(payload, model);
+  if (status !== 200) throw new Error(`ASSISTANCE_PROVIDER_${status}`);
+  await input.meter?.(payload, used);
   const choice = payload?.choices?.[0];
   if (
     choice?.finish_reason === "length" ||
