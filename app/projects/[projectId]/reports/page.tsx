@@ -111,6 +111,7 @@ export default async function ReportsPage({
               <BillingPlanButton
                 projectId={projectId}
                 intent="upgrade"
+                plan="business"
                 variant="default"
                 label="Passer à l’offre Business"
               />

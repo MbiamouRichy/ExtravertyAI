@@ -2,6 +2,7 @@ import "dotenv/config";
 import { readFile } from "node:fs/promises";
 import { z } from "zod";
 import { workerDatabase } from "../workers/shared";
+import { TRIAL_MESSAGES } from "../lib/pricing";
 
 const Schema = z.array(
   z.object({
@@ -49,7 +50,8 @@ async function main() {
               : `cycle:${p.stripeSubscriptionId}:${Math.floor(row.startsAt.getTime() / 1000)}`;
           if (
             row.key !== expectedKey ||
-            (row.kind === "trialing" && row.limit !== 150)
+            // 150 : essais ouverts avant le passage à TRIAL_MESSAGES, qui gardent leur quota.
+            (row.kind === "trialing" && ![150, TRIAL_MESSAGES].includes(row.limit))
           )
             throw new Error("Invalid canonical billing key/limit");
           const current = await tx.quotaPeriod.findFirst({

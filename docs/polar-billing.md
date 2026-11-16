@@ -31,7 +31,7 @@ Ne jamais mélanger un jeton sandbox et un jeton de production : ils ne voient p
 À faire dans le sandbox et en production :
 
 - **Organization Settings → Subscriptions → Allow multiple subscriptions : activé.** Polar limite sinon un client à un abonnement actif, donc une adresse e-mail à un seul projet payant.
-- **Settings → Customer Portal : autoriser le changement d'offre.** Le bouton « Changer d'offre » ouvre ce portail.
+- **Settings → Customer Portal : désactiver le changement d'offre.** L'application le fait elle-même, projet par projet (formulaire « Changer d'offre » de la page Facturation), avec ses contrôles : droits, places d'équipe, titulaire du paiement. Le portail le permettrait sans ces contrôles, au milieu de tous les abonnements du client.
 - **Organization Settings → Subscriptions : proration sur « Prorate & charge now ».** Un changement d'offre s'applique tout de suite, et la différence est prélevée immédiatement. Sans ce réglage, un client pourrait monter en Business, consommer le quota, puis résilier avant la facture suivante sans payer la différence. Un prélèvement refusé fait passer l'abonnement en retard de paiement, et l'application suspend les envois.
 
 ## Droits du jeton
@@ -42,7 +42,7 @@ Ne jamais mélanger un jeton sandbox et un jeton de production : ils ne voient p
 
 ## Produits
 
-Chaque forfait est un abonnement mensuel en USD, au prix de `lib/pricing.ts`. Un prix différent bloque le paiement avant la création du projet. L'essai de 10 jours est demandé par l'application au moment du paiement.
+Chaque forfait est un abonnement mensuel en USD, au prix de `lib/pricing.ts`. Un prix différent bloque le paiement avant la création du projet. L'essai de 5 jours (100 messages) est demandé par l'application au moment du paiement.
 
 ## Webhook
 
@@ -56,11 +56,14 @@ L'application relit toujours l'abonnement chez Polar avant de l'appliquer. Les d
 
 | Fonction | Avec Polar |
 | --- | --- |
-| Paiement en retard | Le client met sa carte à jour dans le portail, puis Polar relance le paiement |
+| Changement d'offre | Formulaire de la page Facturation (`changeProjectPlan`). Offre supérieure : effet immédiat, différence prélevée tout de suite (`invoice`). Offre inférieure : au renouvellement (`next_period`), refusée si l'équipe dépasse les places de l'offre visée. Pendant l'essai : rien n'est prélevé et le quota d'essai ne change pas. Un changement programmé s'annule en choisissant de nouveau l'offre actuelle |
+| Portail Polar | Il couvre tout le compte du payeur : ses cartes et tous ses abonnements, un client Polar par adresse e-mail. Il ne s'ouvre donc qu'au titulaire du paiement lui-même (adresse vérifiée identique), sur ses réglages de paiement. Un membre Facturation ou un nouveau propriétaire n'y a pas accès |
+| Titulaire sans droits | Après un transfert de propriété, l'ancien propriétaire paie toujours. S'il n'a plus le droit de facturation sur le projet, l'offre ne peut plus être changée : le support reprend le paiement |
+| Paiement en retard | « Régulariser le paiement » ouvre le portail au titulaire, qui met sa carte à jour, puis Polar relance le paiement |
 | Résiliation | Bouton « Résilier l'abonnement » de l'application : en fin de période (essai compris, sans prélèvement), ou tout de suite si l'abonnement est impayé |
 | Résiliation programmée | « Renouveler le plan » l'annule directement |
 | Abonnement terminé | « Renouveler le plan » ouvre un nouveau paiement, sans nouvel essai |
-| Carte enregistrée | Non affichée dans l'application : le jeton d'organisation n'y a pas accès. Elle reste visible dans le portail |
+| Carte enregistrée | Marque, 4 derniers chiffres et expiration affichés au propriétaire et au rôle Facturation (`GET /v1/customers/{id}/payment-methods`, droit `customers:read`). Sinon, visible dans le portail |
 | Factures | Le PDF est généré à la première demande ; le client peut réessayer quelques instants après |
 
 ## Tests

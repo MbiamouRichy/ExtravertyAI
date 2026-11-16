@@ -31,6 +31,7 @@ import { reserveMessageQuota } from "../lib/message-quota";
 import { subscriptionStatus } from "../lib/billing-quota";
 import { syncPolarSubscription } from "../lib/billing-polar";
 import type { PolarSubscription } from "../lib/polar";
+import { TRIAL_MESSAGES } from "../lib/pricing";
 
 // Isolated PostgreSQL WASM database. Never reads DATABASE_URL or sends to any provider.
 test(
@@ -1120,19 +1121,21 @@ test(
           });
           assert.equal(activated.status, "trialing");
           assert.equal(activated.stripeSubscriptionId, sub.id);
-          assert.equal(activated.allMessagesCount, 150);
+          assert.equal(activated.allMessagesCount, TRIAL_MESSAGES);
           assert.equal(activated.messageCount, 0);
           assert.equal(activated.expiredAt?.getTime(), (start + 864000) * 1000);
           await client.$transaction((tx) => reserveMessageQuota(tx, p.id));
+          // Essai ouvert avant le passage à 100 messages : il garde son quota.
+          await client.quotaPeriod.updateMany({
+            where: { projectId: p.id, key: `trial:${sub.id}` },
+            data: { limit: 150 },
+          });
           await syncPolarSubscription(client, sub, 10);
-          assert.equal(
-            (
-              await client.quotaPeriod.findFirstOrThrow({
-                where: { projectId: p.id, isCurrent: true },
-              })
-            ).used,
-            1,
-          );
+          const trialPeriod = await client.quotaPeriod.findFirstOrThrow({
+            where: { projectId: p.id, isCurrent: true },
+          });
+          assert.equal(trialPeriod.used, 1);
+          assert.equal(trialPeriod.limit, 150);
           sub.status = "active";
           sub.current_period_end = iso(start + 2592000);
           await syncPolarSubscription(client, sub, 11);

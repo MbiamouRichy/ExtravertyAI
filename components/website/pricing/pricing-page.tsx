@@ -2,7 +2,12 @@
 import Link from "next/link";
 import { Check, Minus } from "lucide-react";
 
-import { PRICING_PLANS, formatMessageLimit } from "@/lib/pricing";
+import {
+  PRICING_PLANS,
+  TRIAL_DAYS,
+  TRIAL_MESSAGES,
+  formatMessageLimit,
+} from "@/lib/pricing";
 import { PLAN_FEATURES, type GatedFeature } from "@/lib/plan-features";
 import { Button } from "@/components/ui/button";
 import {
@@ -67,7 +72,7 @@ const comparison: { group: string; rows: { label: string; values: Cell[] }[] }[]
 const faqs = [
   {
     q: "Comment fonctionne l’essai gratuit ?",
-    a: "Chaque offre démarre par 10 jours d’essai. Une carte est demandée à l’inscription, mais aucun prélèvement n’a lieu avant la fin de l’essai et vous pouvez annuler avant.",
+    a: `Chaque offre démarre par ${TRIAL_DAYS} jours d’essai, limités à ${formatMessageLimit(TRIAL_MESSAGES)} messages. Une carte est demandée à l’inscription, mais aucun prélèvement n’a lieu avant la fin de l’essai et vous pouvez annuler avant.`,
   },
   {
     q: "Puis-je changer d’offre en cours de mois ?",

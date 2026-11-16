@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 
 import { LegalPage, type LegalSection } from "@/components/website/legal-page";
+import { TRIAL_DAYS, TRIAL_MESSAGES, formatMessageLimit } from "@/lib/pricing";
 
 export const metadata: Metadata = {
   title: "Conditions d’utilisation | ExtravertyAI",
@@ -27,7 +28,7 @@ export const metadata: Metadata = {
 export const dynamic = "force-static";
 
 const highlights = [
-  { icon: CalendarClock, title: "10 jours d’essai", text: "Annulez avant la fin : aucun prélèvement." },
+  { icon: CalendarClock, title: `${TRIAL_DAYS} jours d’essai`, text: "Annulez avant la fin : aucun prélèvement." },
   { icon: RefreshCw, title: "Sans engagement", text: "Abonnement mensuel, résiliable à tout moment." },
   { icon: ShieldAlert, title: "Connexion type WhatsApp Web", text: "Hors API officielle de Meta : un risque de restriction existe, que l’application limite." },
 ];
@@ -146,8 +147,8 @@ const sections: LegalSection[] = [
     title: "Essai gratuit",
     body: (
       <p>
-        Chaque nouvel abonnement peut bénéficier d’un essai gratuit de 10 jours,
-        limité à 150 messages. Un moyen de paiement est demandé au départ. Sans
+        Chaque nouvel abonnement peut bénéficier d’un essai gratuit de {TRIAL_DAYS} jours,
+        limité à {formatMessageLimit(TRIAL_MESSAGES)} messages. Un moyen de paiement est demandé au départ. Sans
         annulation avant la fin de l’essai, l’abonnement choisi démarre et le
         premier mois est prélevé automatiquement. Nous pouvons refuser un nouvel
         essai à un client qui en a déjà bénéficié.
@@ -309,7 +310,7 @@ export default function TermsPage() {
       eyebrowIcon={FileText}
       title="Conditions d’utilisation"
       intro="Les règles qui encadrent votre utilisation d’ExtravertyAI, écrites le plus simplement possible."
-      updatedLabel="13 novembre 2026"
+      updatedLabel="16 novembre 2026"
       updatedDate="2026-11-13"
       highlights={highlights}
       sections={sections}

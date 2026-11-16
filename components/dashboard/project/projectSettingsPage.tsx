@@ -32,10 +32,7 @@ import { WaitingTimeSettings } from "./waiting-time-settings";
 import { ProjectTimeZoneSettings } from "./project-time-zone-settings";
 import type { ProjectSettingsView } from "@/lib/settings-types";
 import { formatStorage } from "@/lib/storage-quota";
-import {
-  setProjectPaused,
-  openProjectBillingPortal,
-} from "@/app/actions/project-settings";
+import { setProjectPaused } from "@/app/actions/project-settings";
 import { DeleteProjectDialog } from "./delete-project-dialog";
 import { ReauthButton, useRecentSession } from "../user/recent-session";
 import { returnAnchor } from "@/lib/return-anchor";
@@ -133,19 +130,6 @@ export default function ProjectSettingsPage({
       setError(
         "La connexion a été interrompue. Actualisez pour vérifier le résultat.",
       );
-    } finally {
-      setPending("");
-    }
-  }
-  async function billing() {
-    setPending("billing");
-    setError("");
-    try {
-      const result = await openProjectBillingPortal(p.id);
-      if (result.success) window.location.assign(result.url);
-      else setError(result.error);
-    } catch {
-      setError("Le portail de facturation est indisponible.");
     } finally {
       setPending("");
     }
@@ -375,18 +359,12 @@ export default function ProjectSettingsPage({
                   </p>
                 </div>
                 {owner && (
-                  <Button
-                    disabled={!!pending}
-                    onClick={() => void billing()}
-                    variant="outline"
-                    size="lg"
-                  >
-                    {pending === "billing" ? (
-                      <Loader2 className="size-4 animate-spin" />
-                    ) : (
-                      <ArrowUpRight className="size-4" />
-                    )}{" "}
-                    Gérer mon abonnement
+                  // La facturation de ce projet seul, pas le portail Polar partagé.
+                  <Button variant="outline" size="lg" asChild>
+                    <Link href={`/projects/${p.id}/billing`}>
+                      <ArrowUpRight aria-hidden="true" className="size-4" />
+                      Gérer mon abonnement
+                    </Link>
                   </Button>
                 )}
               </div>

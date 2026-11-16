@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowUpRight, Loader2 } from "lucide-react";
+import { CreditCard, ExternalLink, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -13,11 +13,11 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import {
-  cancelProjectSubscription,
-  openProjectBillingPortal,
-} from "@/app/actions/project-settings";
+import { cancelProjectSubscription } from "@/app/actions/project-settings";
+import { openProjectPaymentSettings } from "@/app/actions/billing-plan";
+import type { PlanId } from "@/lib/pricing";
 import { BillingPlanButton } from "./billing-plan-button";
+import { ChangePlanDialog, type ChangePlanState } from "./change-plan-dialog";
 import { LocalBillingDate } from "./local-billing-date";
 import {
   ReauthButton,
@@ -36,32 +36,32 @@ export type BillingCancellation = {
   endsAt: Date | number | null | undefined;
 };
 
-/** Une action principale selon l'état de l'abonnement, et l'accès au portail. */
+/** Bloc Paiement de la page : moyen de paiement et facturation de ce projet. */
+export const PAYMENT_ANCHOR = "paiement";
+
+/**
+ * Une action principale selon l'état de l'abonnement, et l'accès au paiement
+ * de ce projet. « Changer d'offre » ouvre le formulaire du projet ; « Gérer le
+ * paiement » mène au bloc Paiement de cette page, pas au portail Polar.
+ */
 export function BillingActions({
   projectId,
   configured,
   needsCheckout = false,
   primary,
+  changePlan,
 }: {
   projectId: string;
   configured: boolean;
   /** Paiement initial jamais abouti : seule action utile, le reprendre. */
   needsCheckout?: boolean;
   primary: { intent: "renew" | "upgrade"; label: string } | null;
+  changePlan?: {
+    state: ChangePlanState;
+    defaultOpen?: boolean;
+    defaultPlan?: PlanId;
+  } | null;
 }) {
-  const [busy, setBusy] = useState(false);
-  async function openPortal() {
-    setBusy(true);
-    try {
-      const result = await openProjectBillingPortal(projectId);
-      if (result.success) window.location.assign(result.url);
-      else toast.error(result.error);
-    } catch {
-      toast.error("Le portail est temporairement indisponible. Réessayez.");
-    } finally {
-      setBusy(false);
-    }
-  }
   if (needsCheckout)
     return (
       <BillingPlanButton
@@ -75,21 +75,32 @@ export function BillingActions({
   // convention que les pieds de dialogue). Dès sm : en ligne, principale à droite.
   return (
     <div className="flex shrink-0 flex-col-reverse gap-2 sm:flex-row">
-      <Button
-        variant="outline"
-        className="h-auto min-h-10 whitespace-normal sm:min-h-9"
-        disabled={busy || !configured}
-        aria-busy={busy}
-        onClick={() => void openPortal()}
-      >
-        {busy ? (
-          <Loader2 aria-hidden="true" className="size-4 animate-spin motion-reduce:animate-none" />
-        ) : (
-          <ArrowUpRight aria-hidden="true" className="size-4" />
-        )}
-        Gérer le paiement
-      </Button>
-      {primary && (
+      {configured ? (
+        <Button
+          variant="outline"
+          className="h-auto min-h-10 whitespace-normal sm:min-h-9"
+          asChild
+        >
+          <a href={`#${PAYMENT_ANCHOR}`}>
+            <CreditCard aria-hidden="true" className="size-4" />
+            Gérer le paiement
+          </a>
+        </Button>
+      ) : (
+        <Button variant="outline" className="h-auto min-h-10 whitespace-normal sm:min-h-9" disabled>
+          <CreditCard aria-hidden="true" className="size-4" />
+          Gérer le paiement
+        </Button>
+      )}
+      {primary?.intent === "upgrade" && changePlan ? (
+        <ChangePlanDialog
+          state={changePlan.state}
+          defaultOpen={changePlan.defaultOpen}
+          defaultPlan={changePlan.defaultPlan}
+          label={primary.label}
+          className="min-h-10 sm:min-h-9"
+        />
+      ) : primary?.intent === "renew" && (
         <BillingPlanButton
           projectId={projectId}
           intent={primary.intent}
@@ -100,6 +111,45 @@ export function BillingActions({
         />
       )}
     </div>
+  );
+}
+
+/**
+ * Modification de la carte, chez Polar. Le portail couvre tout le compte du
+ * titulaire : seul celui-ci peut l'ouvrir, ce que le serveur revérifie.
+ */
+export function PaymentSettingsButton({ projectId }: { projectId: string }) {
+  const [busy, setBusy] = useState(false);
+  async function open() {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const result = await openProjectPaymentSettings(projectId);
+      if (result.success) {
+        window.location.assign(result.url);
+        return;
+      }
+      toast.error(result.error);
+    } catch {
+      toast.error("Le service de paiement est indisponible. Réessayez dans un instant.");
+    }
+    setBusy(false);
+  }
+  return (
+    <Button
+      variant="outline"
+      className="h-auto min-h-10 w-full whitespace-normal sm:min-h-9 sm:w-auto"
+      disabled={busy}
+      aria-busy={busy}
+      onClick={() => void open()}
+    >
+      {busy ? (
+        <Loader2 aria-hidden="true" className="size-4 animate-spin motion-reduce:animate-none" />
+      ) : (
+        <ExternalLink aria-hidden="true" className="size-4" />
+      )}
+      Modifier le moyen de paiement
+    </Button>
   );
 }
 

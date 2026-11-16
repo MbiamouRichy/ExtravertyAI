@@ -33,6 +33,7 @@ import {
 	SIGN_UP_INTENT_HEADER,
 } from "@/lib/sign-up";
 import { useHaptics } from "@/lib/webHaptics";
+import { TRIAL_DAYS } from "@/lib/pricing";
 import { AuthShowcase } from "./auth-showcase";
 import { EmailOtpStep } from "./email-otp-step";
 import { SignInSocialButton } from "./signInSocialButton";
@@ -111,7 +112,7 @@ export function AuthPage({ callbackUrl }: { callbackUrl?: string }) {
 
 	return (
 		<main className="relative md:min-h-screen h-full overflow-x-hidden lg:grid lg:grid-cols-2">
-			<AuthShowcase eyebrow="Essai gratuit · 10 jours" title="Votre assistant WhatsApp, prêt en quelques minutes." />
+			<AuthShowcase eyebrow={`Essai gratuit · ${TRIAL_DAYS} jours`} title="Votre assistant WhatsApp, prêt en quelques minutes." />
 			<div className="relative flex min-h-screen flex-col justify-center pt-8 lg:pt-0 px-4">
 				{/* Top Shades */}
 				<div

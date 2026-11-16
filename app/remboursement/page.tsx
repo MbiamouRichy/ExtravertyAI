@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 
 import { LegalPage, type LegalSection } from "@/components/website/legal-page";
+import { TRIAL_DAYS } from "@/lib/pricing";
 
 export const metadata: Metadata = {
   title: "Politique de remboursement | ExtravertyAI",
@@ -34,7 +35,7 @@ const sections: LegalSection[] = [
     title: "Pendant l’essai",
     body: (
       <p>
-        L’essai de 10 jours est gratuit. Si vous annulez avant sa fin, vous
+        L’essai de {TRIAL_DAYS} jours est gratuit. Si vous annulez avant sa fin, vous
         n’êtes pas débité. Sans annulation, le premier mois est prélevé à la fin
         de l’essai.
       </p>
@@ -125,7 +126,7 @@ export default function RefundPage() {
       eyebrowIcon={Receipt}
       title="Politique de remboursement"
       intro="Ce qui se passe si vous annulez, et dans quels cas nous vous remboursons."
-      updatedLabel="2 novembre 2026"
+      updatedLabel="16 novembre 2026"
       updatedDate="2026-11-02"
       highlights={highlights}
       sections={sections}

@@ -1,4 +1,4 @@
-import type { PlanId } from "./pricing";
+import { TRIAL_DAYS, type PlanId } from "./pricing";
 
 export { verifyWebhookSignature } from "./standard-webhook";
 
@@ -6,7 +6,7 @@ export type SandboxProvider = "polar" | "dodo";
 
 type Env = Record<string, string | undefined>;
 
-export const SANDBOX_TRIAL_DAYS = 10;
+export const SANDBOX_TRIAL_DAYS = TRIAL_DAYS;
 
 // Les URL sont figées : ce module ne peut jamais viser une API de production.
 const POLAR_CHECKOUTS_URL = "https://sandbox-api.polar.sh/v1/checkouts/";

@@ -50,16 +50,14 @@ import {
 import {
   PRICING_PLANS as PLANS,
   PLAN_CAPABILITIES,
+  TRIAL_DAYS,
+  TRIAL_MESSAGES,
   formatMessageLimit,
   formatPlanPrice,
   type PlanId,
 } from "@/lib/pricing";
 import { cn } from "@/lib/utils";
 
-// Trial terms enforced server-side (lib/polar trial_interval_count, billing-quota,
-// trial-eligibility: one trial per WhatsApp number).
-const TRIAL_DAYS = 10;
-const TRIAL_MESSAGES = 150;
 
 const countryNames = new Intl.DisplayNames(["fr"], { type: "region" });
 const phoneCountries = getCountries()

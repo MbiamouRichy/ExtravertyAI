@@ -1,5 +1,5 @@
 import type { PrismaClient } from "../src/generated/prisma/client";
-import type { PlanId } from "./pricing";
+import { TRIAL_MESSAGES, type PlanId } from "./pricing";
 import { consumeTrial } from "./trial-eligibility";
 
 export function subscriptionStatus(status: string) {
@@ -54,7 +54,11 @@ export async function applySubscriptionState(
   const mayOpen = trial || paidCycle;
   if (mayOpen && (!startsAt.getTime() || endsAt <= startsAt))
     throw new Error("INVALID_BILLING_PERIOD");
-  const limit = trial ? 150 : mayOpen ? paidMessageLimit(plan) : undefined;
+  const limit = trial
+    ? TRIAL_MESSAGES
+    : mayOpen
+      ? paidMessageLimit(plan)
+      : undefined;
   await prisma.$transaction(async (tx) => {
     await tx.$queryRaw`SELECT id FROM project WHERE id = ${projectId} FOR UPDATE`;
     const current = await tx.project.findUnique({ where: { id: projectId } });
@@ -137,7 +141,9 @@ export async function applySubscriptionState(
     const quota = period
       ? await tx.quotaPeriod.update({
           where: { id: period.id },
-          data: { isCurrent: true, startsAt, endsAt, limit },
+          // Un essai en cours garde le quota annoncé à son ouverture, même si
+          // l'offre d'essai change ensuite ; un cycle payé suit l'offre (montée).
+          data: { isCurrent: true, startsAt, endsAt, limit: trial ? period.limit : limit },
         })
       : await tx.quotaPeriod.create({
           data: {

@@ -8,6 +8,7 @@ import {
   summarizeEvent,
   verifyWebhookSignature,
 } from "../lib/payment-sandbox";
+import { TRIAL_DAYS } from "../lib/pricing";
 
 const input = {
   plan: "starter" as const,
@@ -33,16 +34,16 @@ function sign(body: string, id = "msg_1", at = timestamp) {
   return `v1,${signature}`;
 }
 
-test("both checkouts target only test environments with a 10-day trial", () => {
+test("both checkouts target only test environments with the app trial", () => {
   const polar = buildCheckoutRequest("polar", input, env);
   assert.equal(polar.url, "https://sandbox-api.polar.sh/v1/checkouts/");
   assert.deepEqual(polar.body.products, ["polar_product"]);
-  assert.equal(polar.body.trial_interval_count, 10);
+  assert.equal(polar.body.trial_interval_count, TRIAL_DAYS);
   assert.equal(polar.body.metadata.projectId, "sandbox_1");
 
   const dodo = buildCheckoutRequest("dodo", input, env);
   assert.equal(dodo.url, "https://test.dodopayments.com/checkouts");
-  assert.deepEqual(dodo.body.subscription_data, { trial_period_days: 10 });
+  assert.deepEqual(dodo.body.subscription_data, { trial_period_days: TRIAL_DAYS });
   assert.equal(dodo.body.metadata.projectId, "sandbox_1");
 });
 

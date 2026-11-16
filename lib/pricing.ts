@@ -74,6 +74,19 @@ export const PRICING_PLANS = [
 export type PricingPlan = (typeof PRICING_PLANS)[number];
 export type PlanId = PricingPlan["id"];
 
+/**
+ * Essai gratuit d'un nouvel abonnement. Source unique : le paiement Polar
+ * (durée) et le quota (messages) l'appliquent côté serveur, les pages
+ * l'annoncent avec ces mêmes valeurs.
+ */
+export const TRIAL_DAYS = 5;
+export const TRIAL_MESSAGES = 100;
+
+/** Rang d'une offre (Starter 0, Pro 1, Business 2) : sens d'un changement d'offre. */
+export function planRank(plan: PlanId) {
+  return PRICING_PLANS.findIndex((candidate) => candidate.id === plan);
+}
+
 export function resolvePlanId(value: unknown): PlanId {
   return PRICING_PLANS.find((plan) => plan.id === value)?.id ?? "starter";
 }

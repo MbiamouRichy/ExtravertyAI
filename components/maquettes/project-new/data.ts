@@ -95,8 +95,8 @@ export const SETUP_LIMITS = {
   urlMaxLength: 2048,
 } as const;
 
-// Trial terms enforced server-side (lib/polar trial_interval_count).
-export const TRIAL_DAYS = 10;
+// Essai appliqué côté serveur (lib/polar, billing-quota) : source unique lib/pricing.
+export { TRIAL_DAYS } from "@/lib/pricing";
 
 export const DESCRIPTION_EXAMPLES = [
   {

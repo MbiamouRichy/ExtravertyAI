@@ -93,13 +93,13 @@ Ouvre l'URL affichée et paie avec `4242 4242 4242 4242`, une date future et n'i
 
 Chaque événement s'affiche en JSON. `missing` liste les champs attendus par la synchronisation et absents de l'événement.
 
-Pour atteindre le premier prélèvement sans attendre 10 jours, ajoute `PAYMENT_SANDBOX_TRIAL_DAYS=1` à `.env`, puis crée un nouveau paiement. Garde le tunnel et l'écouteur actifs jusqu'à la fin de l'essai.
+Pour atteindre le premier prélèvement sans attendre 5 jours, ajoute `PAYMENT_SANDBOX_TRIAL_DAYS=1` à `.env`, puis crée un nouveau paiement. Garde le tunnel et l'écouteur actifs jusqu'à la fin de l'essai.
 
 Résultats Polar du 31 octobre 2026 : `subscription.active` arrive dès le début de l'essai, avec le statut `trialing`. Une commande `paid` arrive aussi à ce moment. Une migration devra donc se fier au statut et au montant, pas au seul nom de l'événement.
 
 | Scénario | Ce qu'il faut vérifier |
 | --- | --- |
-| Essai de 10 jours | Carte demandée, statut d'essai et fin d'essai corrects |
+| Essai de 5 jours | Carte demandée, statut d'essai et fin d'essai corrects |
 | `projectId` | Présent sur les événements d'abonnement : la doc Dodo ne le garantit pas |
 | Conversion et renouvellement | Nouvelle période et date de fin reçues |
 | Paiement refusé | Événement d'échec reçu, avec une période de grâce connue |

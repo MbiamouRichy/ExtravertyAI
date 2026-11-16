@@ -3,6 +3,7 @@ import { AccountButton } from "./account-button";
 import { ArrowRight, Check } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { TRIAL_DAYS } from "@/lib/pricing";
 
 import { ConversationSimulator } from "./conversation-simulator";
 import { Eyebrow, Serif } from "./primitives";
@@ -16,7 +17,7 @@ const HEADLINE: readonly { word: string; accent?: boolean }[] = [
   { word: "immédiate.", accent: true },
 ];
 
-const REASSURANCE = ["10 jours d’essai gratuit", "Prêt en 5 minutes", "Sans engagement"];
+const REASSURANCE = [`${TRIAL_DAYS} jours d’essai gratuit`, "Prêt en 5 minutes", "Sans engagement"];
 
 const SECTORS = ["E-commerce", "Beauté", "Restauration", "Immobilier", "Services"];
 

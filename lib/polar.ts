@@ -1,4 +1,4 @@
-import type { PlanId } from "./pricing";
+import { TRIAL_DAYS, type PlanId } from "./pricing";
 
 export type PolarSubscription = {
   id: string;
@@ -14,6 +14,8 @@ export type PolarSubscription = {
   trial_end: string | null;
   cancel_at_period_end: boolean;
   metadata: Record<string, unknown>;
+  /** Changement d'offre programmé au début de la période suivante. */
+  pending_update?: { product_id: string | null; applies_at: string } | null;
   customer?: {
     name?: string | null;
     email?: string | null;
@@ -117,7 +119,7 @@ export async function createPolarCheckout(input: {
       return_url: input.returnUrl,
       ...(input.trial === false
         ? {}
-        : { trial_interval: "day", trial_interval_count: 10 }),
+        : { trial_interval: "day", trial_interval_count: TRIAL_DAYS }),
       allow_discount_codes: false,
     },
   });
@@ -137,7 +139,23 @@ export function isPolarCheckoutUrl(value: string) {
   );
 }
 
-export async function createPolarPortalUrl(customerId: string, returnUrl: string) {
+/**
+ * Ouvre le portail Polar directement sur ses réglages de paiement (cartes,
+ * adresse de facturation) plutôt que sur la vue d'ensemble, qui liste tous
+ * les abonnements du client. Une adresse inattendue reste inchangée.
+ */
+export function polarPaymentSettingsUrl(portalUrl: string) {
+  const url = new URL(portalUrl);
+  const base = url.pathname.replace(/\/(overview\/?)?$/, "");
+  if (/^\/[^/]+\/portal$/.test(base)) url.pathname = `${base}/settings`;
+  return url.toString();
+}
+
+export async function createPolarPortalUrl(
+  customerId: string,
+  returnUrl: string,
+  page: "overview" | "payment" = "overview",
+) {
   const session = await polarRequest<{ customer_portal_url?: unknown }>(
     "/v1/customer-sessions/",
     {
@@ -150,7 +168,92 @@ export async function createPolarPortalUrl(customerId: string, returnUrl: string
     !isPolarCheckoutUrl(session.customer_portal_url)
   )
     throw new Error("POLAR_PORTAL_URL_INVALID");
-  return session.customer_portal_url;
+  return page === "payment"
+    ? polarPaymentSettingsUrl(session.customer_portal_url)
+    : session.customer_portal_url;
+}
+
+export type PolarProrationBehavior = "invoice" | "prorate" | "next_period";
+
+/** Change l'offre d'un abonnement ; Polar renvoie l'abonnement à jour. */
+export function changePolarSubscriptionProduct(
+  id: string,
+  productId: string,
+  proration: PolarProrationBehavior,
+) {
+  return polarRequest<PolarSubscription>(`/v1/subscriptions/${segment(id)}`, {
+    method: "PATCH",
+    body: { product_id: productId, proration_behavior: proration },
+  });
+}
+
+/** Annule un changement d'offre programmé pour la période suivante. */
+export function clearPolarPendingUpdate(id: string) {
+  return polarRequest<PolarSubscription>(`/v1/subscriptions/${segment(id)}`, {
+    method: "PATCH",
+    body: { pending_update: null },
+  });
+}
+
+export type PolarCustomer = {
+  id: string;
+  email: string;
+  email_verified?: boolean;
+  default_payment_method_id?: string | null;
+};
+
+export function getPolarCustomer(id: string) {
+  return polarRequest<PolarCustomer>(`/v1/customers/${segment(id)}`);
+}
+
+export type PolarCard = {
+  brand: string;
+  last4: string;
+  expMonth: number;
+  expYear: number;
+  wallet: string | null;
+};
+
+type PolarPaymentMethod = {
+  id: string;
+  type: string;
+  method_metadata?: {
+    brand?: unknown;
+    last4?: unknown;
+    exp_month?: unknown;
+    exp_year?: unknown;
+    wallet?: unknown;
+  };
+};
+
+/**
+ * Carte par défaut du client, réduite à ce qu'on peut afficher (marque,
+ * 4 derniers chiffres, expiration). Null sans carte enregistrée.
+ */
+export async function getPolarDefaultCard(customer: PolarCustomer) {
+  const { items } = await polarRequest<{ items: PolarPaymentMethod[] }>(
+    `/v1/customers/${segment(customer.id)}/payment-methods?limit=20`,
+  );
+  const method =
+    items.find((item) => item.id === customer.default_payment_method_id) ??
+    (items.length === 1 ? items[0] : undefined);
+  const meta = method?.type === "card" ? method.method_metadata : undefined;
+  if (
+    !meta ||
+    typeof meta.brand !== "string" ||
+    typeof meta.last4 !== "string" ||
+    !/^\d{4}$/.test(meta.last4) ||
+    !Number.isInteger(meta.exp_month) ||
+    !Number.isInteger(meta.exp_year)
+  )
+    return null;
+  return {
+    brand: meta.brand.slice(0, 20),
+    last4: meta.last4,
+    expMonth: meta.exp_month as number,
+    expYear: meta.exp_year as number,
+    wallet: typeof meta.wallet === "string" ? meta.wallet.slice(0, 20) : null,
+  } satisfies PolarCard;
 }
 
 /** Résiliation immédiate. Déjà révoqué ou introuvable : rien à annuler. */

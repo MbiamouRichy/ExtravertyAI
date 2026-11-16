@@ -25,7 +25,7 @@ Une requête HEAD sans session sur l'ancien webhook de paiement a reçu HTTP 302
 | Créer un projet avec un numéro de test inédit | Ouverture du paiement Polar du sandbox                         |
 | Quitter le paiement sans le terminer          | Projet « Inactif »                                             |
 | Payer avec la carte `4242 4242 4242 4242`     | Retour sur la Preview ; livraison du webhook en HTTP 200       |
-| Recharger `/projects` après le webhook        | « En essai », durée de 10 jours, quota initial de 150 messages |
+| Recharger `/projects` après le webhook        | « En essai », durée de 5 jours, quota initial de 100 messages |
 | Rejouer le même événement depuis Polar        | Statut conservé, consommation non remise à zéro                |
 | Accéder au projet d'un autre compte           | Aucun accès aux données                                        |
 | Refaire sur mobile                            | Actions accessibles et messages lisibles                       |
@@ -96,7 +96,7 @@ Documentation Vercel : https://vercel.com/docs/deployment-protection/methods-to-
 
 ## Résultats de cette vérification
 
-- 18 tests locaux réussis, dont le passage inactif → essai et le quota initial de 150 messages.
+- 18 tests locaux réussis, dont le passage inactif → essai et le quota initial de 100 messages.
 - Vérification TypeScript réussie.
 - 9 scénarios Playwright découverts (3 API, 3 navigateur sur ordinateur et sur mobile).
 - 3 tests API exécutés : bloqués par Vercel (connexion HTTP 302 ; webhooks HTTP 401).

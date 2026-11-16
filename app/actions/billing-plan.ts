@@ -1,0 +1,231 @@
+"use server";
+import { z } from "zod";
+import { revalidatePath } from "next/cache";
+import { getSession } from "@/lib/auth-server";
+import prisma from "@/lib/prisma";
+import type { Prisma } from "@/src/generated/prisma/client";
+import { SettingsError, requireProjectPermission } from "@/lib/project-settings";
+import { matchesPolarProduct } from "@/lib/checkout-price";
+import { planForPolarProduct, syncPolarSubscription } from "@/lib/billing-polar";
+import {
+  holderManagesBilling,
+  isPaymentHolder,
+  maskEmail,
+  planChange,
+} from "@/lib/billing-plan-change";
+import { teamSeats } from "@/lib/plan-features";
+import {
+  changePolarSubscriptionProduct,
+  clearPolarPendingUpdate,
+  createPolarPortalUrl,
+  getPolarCustomer,
+  getPolarProduct,
+  getPolarSubscription,
+  polarProductId,
+} from "@/lib/polar";
+import { PRICING_PLANS, planRank, pricingPlan, type PlanId } from "@/lib/pricing";
+
+const PLAN_IDS = PRICING_PLANS.map((plan) => plan.id) as [PlanId, ...PlanId[]];
+const ChangePlanInput = z.object({
+  projectId: z.string().cuid(),
+  plan: z.enum(PLAN_IDS, { error: "Choisissez une offre." }),
+});
+const ProjectId = z.string().cuid();
+
+const UNAVAILABLE = "Ce forfait est temporairement indisponible. Réessayez plus tard.";
+
+function publicError(error: unknown) {
+  if (error instanceof SettingsError) return error.message;
+  if (error instanceof z.ZodError)
+    return error.issues[0]?.message || "Données invalides.";
+  console.error("[billing] Opération de facturation non confirmée.", error);
+  return "L’opération n’a pas été confirmée. Réessayez après actualisation.";
+}
+
+async function currentUser() {
+  const session = await getSession();
+  if (!session?.user?.id) throw new SettingsError("Connexion requise.");
+  return session.user;
+}
+
+function planFromProduct(productId: string | null | undefined) {
+  if (!productId) return null;
+  try {
+    return planForPolarProduct(productId);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Change l'offre d'un projet sans passer par le portail Polar, qui montrerait
+ * tous les abonnements du client. Tout est revérifié ici : droits, appartenance
+ * de l'abonnement au projet, état, titulaire du paiement, places d'équipe.
+ */
+export async function changeProjectPlan(input: unknown) {
+  try {
+    const { projectId, plan } = ChangePlanInput.parse(input);
+    const user = await currentUser();
+    const result = await prisma.$transaction(
+      async (tx) => {
+        // Un changement à la fois par projet : double clic, deux onglets.
+        const [lock] = await tx.$queryRaw<{ locked: boolean }[]>`
+          SELECT pg_try_advisory_xact_lock(hashtext(${`plan-change:${projectId}`})) AS locked`;
+        if (!lock?.locked)
+          throw new SettingsError(
+            "Un changement d’offre est déjà en cours. Patientez quelques secondes.",
+          );
+        const { project } = await requireProjectPermission(
+          tx,
+          projectId,
+          user.id,
+          "billing.manage",
+        );
+        if (project.deletionPending)
+          throw new SettingsError("Ce projet est en cours de suppression.");
+        if (project.internal)
+          throw new SettingsError("Ce projet n’a pas d’abonnement.");
+        if (!project.stripeCustomerId || !project.stripeSubscriptionId)
+          throw new SettingsError(
+            "La facturation n’est pas encore activée pour ce projet.",
+          );
+        const current = await getPolarSubscription(project.stripeSubscriptionId);
+        const metadataProject = current.metadata?.projectId;
+        if (
+          current.customer_id !== project.stripeCustomerId ||
+          (typeof metadataProject === "string" && metadataProject !== project.id)
+        )
+          throw new SettingsError("L’abonnement n’a pas pu être vérifié.");
+        if (!["active", "trialing"].includes(current.status))
+          throw new SettingsError(
+            "Régularisez ou renouvelez l’abonnement avant de changer d’offre.",
+          );
+        if (current.cancel_at_period_end)
+          throw new SettingsError(
+            "Réactivez l’abonnement avant de changer d’offre.",
+          );
+        const from = planFromProduct(current.product_id);
+        if (!from) throw new SettingsError("L’abonnement n’a pas pu être vérifié.");
+        const holder = current.customer?.email;
+        if (!holder || !(await holderManagesBilling(tx, project.id, holder)))
+          throw new SettingsError(
+            `Ce projet est payé par ${holder ? maskEmail(holder) : "un autre compte"}, qui n’en gère plus la facturation. Contactez le support pour reprendre le paiement à votre nom.`,
+          );
+
+        const pending = planFromProduct(current.pending_update?.product_id);
+        const target = pricingPlan(plan);
+        if (plan === from) {
+          if (!pending) throw new SettingsError("C’est déjà l’offre de ce projet.");
+          await clearPolarPendingUpdate(current.id);
+          await audit(tx, project, user.id, "billing.plan_change_cancelled");
+          return {
+            message: `Changement annulé : le projet garde l’offre ${target.name}.`,
+            synced: null,
+          };
+        }
+        // Idempotent : le même changement déjà programmé ne repart pas.
+        if (pending === plan)
+          return {
+            message: `Le passage à l’offre ${target.name} est déjà prévu au prochain renouvellement.`,
+            synced: null,
+          };
+        const productId = polarProductId(plan);
+        if (!productId || !matchesPolarProduct(await getPolarProduct(productId), plan))
+          throw new SettingsError(UNAVAILABLE);
+        if (planRank(plan) < planRank(from)) {
+          const members = await tx.projectMembership.count({
+            where: { projectId: project.id },
+          });
+          if (members > teamSeats(plan))
+            throw new SettingsError(
+              `L’équipe compte ${members} utilisateurs et l’offre ${target.name} en comprend ${teamSeats(plan)}. Retirez des membres avant de changer d’offre.`,
+            );
+        }
+        const change = planChange(current.status, from, plan)!;
+        const updated = await changePolarSubscriptionProduct(
+          current.id,
+          productId,
+          change.proration,
+        );
+        await audit(tx, project, user.id, `billing.plan_changed.${from}.${plan}`);
+        return {
+          message:
+            change.kind === "upgrade"
+              ? `Offre ${target.name} activée. La différence au prorata est prélevée maintenant.`
+              : change.kind === "downgrade"
+                ? `Passage à l’offre ${target.name} prévu au prochain renouvellement.`
+                : `Offre ${target.name} choisie : elle démarrera à la fin de l’essai.`,
+          synced: {
+            subscription: updated,
+            watermark: project.billingEventCreated,
+            revision: project.billingRevision,
+          },
+        };
+      },
+      { maxWait: 5_000, timeout: 30_000 },
+    );
+    // Effet immédiat à l'écran ; le webhook Polar reste la source de vérité.
+    if (result.synced)
+      await syncPolarSubscription(
+        prisma,
+        result.synced.subscription,
+        result.synced.watermark,
+        projectId,
+        result.synced.revision,
+      ).catch((error) =>
+        console.error("[billing] Synchronisation après changement d’offre différée.", error),
+      );
+    revalidatePath(`/projects/${projectId}`, "layout");
+    revalidatePath("/projects");
+    return { success: true as const, message: result.message };
+  } catch (error) {
+    return { success: false as const, error: publicError(error) };
+  }
+}
+
+async function audit(
+  tx: Prisma.TransactionClient,
+  project: { id: string; settingsVersion: number },
+  actorId: string,
+  action: string,
+) {
+  await tx.settingsAudit.create({
+    data: { projectId: project.id, actorId, action, version: project.settingsVersion },
+  });
+}
+
+/**
+ * Moyen de paiement : le portail Polar couvre tout le compte client (toutes
+ * ses cartes et tous ses abonnements). Il ne s'ouvre donc qu'au titulaire
+ * lui-même, directement sur ses réglages de paiement, jamais à un autre membre.
+ */
+export async function openProjectPaymentSettings(projectId: string) {
+  try {
+    ProjectId.parse(projectId);
+    const user = await currentUser();
+    const { project } = await prisma.$transaction((tx) =>
+      requireProjectPermission(tx, projectId, user.id, "billing.manage"),
+    );
+    if (project.deletionPending)
+      throw new SettingsError("Ce projet est en cours de suppression.");
+    if (project.internal || !project.stripeCustomerId)
+      throw new SettingsError("La facturation n’est pas encore activée pour ce projet.");
+    const origin = process.env.NEXT_PUBLIC_APP_URL;
+    if (!origin) throw new SettingsError("Le paiement n’est pas configuré.");
+    const customer = await getPolarCustomer(project.stripeCustomerId);
+    if (customer.id !== project.stripeCustomerId)
+      throw new SettingsError("Le moyen de paiement n’a pas pu être vérifié.");
+    if (!user.emailVerified || !isPaymentHolder(user.email, customer.email))
+      throw new SettingsError(
+        `Seul le titulaire du moyen de paiement (${maskEmail(customer.email)}) peut le modifier, depuis son propre compte.`,
+      );
+    const url = await createPolarPortalUrl(
+      customer.id,
+      `${origin}/projects/${project.id}/billing#paiement`,
+      "payment",
+    );
+    return { success: true as const, url };
+  } catch (error) {
+    return { success: false as const, error: publicError(error) };
+  }
+}

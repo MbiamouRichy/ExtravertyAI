@@ -20,6 +20,7 @@ import {
   cancelPolarSubscription,
   createPolarCheckout,
   createPolarPortalUrl,
+  getPolarCustomer,
   getPolarOrder,
   getPolarProduct,
   getPolarSubscription,
@@ -29,6 +30,7 @@ import {
   resumePolarSubscription,
   revokePolarSubscription,
 } from "@/lib/polar";
+import { isPaymentHolder, maskEmail } from "@/lib/billing-plan-change";
 import { resolvePlanId } from "@/lib/pricing";
 import { syncWhatsAppSettings } from "@/lib/whatsapp-settings-sync";
 
@@ -221,7 +223,9 @@ export async function openProjectBillingPortal(
   try {
     Id.parse(projectId);
     z.enum(["manage", "renew", "upgrade"]).parse(intent);
-    const userId = await actor();
+    const session = await getSession();
+    const userId = session?.user?.id;
+    if (!userId) throw new SettingsError("Connexion requise.");
     const { project } = await prisma.$transaction((tx) =>
       requireProjectPermission(tx, projectId, userId, "billing.manage"),
     );
@@ -234,11 +238,15 @@ export async function openProjectBillingPortal(
     const origin = process.env.NEXT_PUBLIC_APP_URL;
     if (!origin)
       throw new SettingsError("Le portail de facturation n’est pas configuré.");
+    const billingUrl = `${origin}/projects/${project.id}/billing`;
+    // Le changement d'offre se fait dans l'application, projet par projet :
+    // le portail Polar montrerait tous les abonnements du client.
+    if (intent === "upgrade")
+      return { success: true as const, url: `${billingUrl}?offre=changer` };
     if (project.stripeSubscriptionId) {
       const current = await getPolarSubscription(project.stripeSubscriptionId);
       if (current.customer_id !== project.stripeCustomerId)
         throw new SettingsError("L’abonnement n’a pas pu être vérifié.");
-      const billingUrl = `${origin}/projects/${project.id}/billing`;
       if (intent === "renew" && current.cancel_at_period_end) {
         await resumePolarSubscription(current.id);
         return { success: true as const, url: billingUrl };
@@ -265,17 +273,21 @@ export async function openProjectBillingPortal(
         });
         return { success: true as const, url };
       }
-      if (
-        intent === "upgrade" &&
-        !["active", "trialing"].includes(current.status)
-      )
-        throw new SettingsError(
-          "Régularisez ou renouvelez l’abonnement avant de changer d’offre.",
-        );
     }
+    // Le portail couvre tout le compte Polar du payeur (ses cartes, tous ses
+    // abonnements) : seul le titulaire lui-même l'ouvre, jamais un autre membre.
+    const customer = await getPolarCustomer(project.stripeCustomerId);
+    if (customer.id !== project.stripeCustomerId)
+      throw new SettingsError("Le moyen de paiement n’a pas pu être vérifié.");
+    if (!session.user.emailVerified || !isPaymentHolder(session.user.email, customer.email))
+      throw new SettingsError(
+        `Seul le titulaire du paiement (${maskEmail(customer.email)}) peut ${intent === "renew" ? "le régulariser" : "le modifier"}, depuis son propre compte.`,
+      );
     const url = await createPolarPortalUrl(
-      project.stripeCustomerId,
-      `${origin}/projects/${project.id}/billing`,
+      customer.id,
+      `${billingUrl}#paiement`,
+      // Régularisation : la vue d'ensemble, où se relance le paiement en échec.
+      intent === "renew" ? "overview" : "payment",
     );
     return { success: true as const, url };
   } catch (error) {

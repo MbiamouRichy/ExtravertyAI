@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { type billingAccess } from "@/lib/billing-access";
+import { TRIAL_DAYS } from "@/lib/pricing";
 
 import { LocalBillingDate } from "./local-billing-date";
 import { BillingPlanButton } from "./billing-plan-button";
@@ -88,7 +89,7 @@ export function BillingNotice({
       ? "État de l’abonnement à vérifier"
       : titles[data.reason];
   const detail = needsCheckout
-    ? "Le paiement n’a pas abouti lors de la création du projet. Reprenez-le pour activer l’essai de 10 jours."
+    ? `Le paiement n’a pas abouti lors de la création du projet. Reprenez-le pour activer l’essai de ${TRIAL_DAYS} jours.`
     : data.reason === "active" && data.automationPaused
       ? "Votre abonnement reste actif ; les réponses automatiques sont en pause."
       : data.reason === "trialing"

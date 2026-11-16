@@ -274,7 +274,7 @@ async function isCheckoutPriceCurrent(plan: PlanId) {
   return matchesPolarProduct(await getPolarProduct(polarProductId(plan)!), plan);
 }
 
-/** Paiement d'abonnement, avec ou sans essai de 10 jours, pour un projet existant. */
+/** Paiement d'abonnement, avec ou sans essai gratuit, pour un projet existant. */
 async function createCheckoutUrl(input: {
   projectId: string;
   plan: PlanId;

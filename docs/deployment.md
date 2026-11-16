@@ -12,7 +12,7 @@ Les messages sortants incertains ne sont **jamais** renvoyés automatiquement. L
 
 ## Variables
 
-Utiliser `.env.example` pour les variables du parcours de messagerie ; conserver également les variables existantes d'authentification, stockage, e-mail et Polar de l'application. Le nom exact du modèle est `OPENROUTER_MODEL`. Les produits Polar doivent correspondre aux trois offres. Les plafonds proposés sont 1 000 / 3 000 / 10 000 messages sortants pour Starter / Pro / Business, essai de 150. Un plafond payé absent ou invalide bloque la création de période au lieu d'accorder un quota arbitraire.
+Utiliser `.env.example` pour les variables du parcours de messagerie ; conserver également les variables existantes d'authentification, stockage, e-mail et Polar de l'application. Le nom exact du modèle est `OPENROUTER_MODEL`. Les produits Polar doivent correspondre aux trois offres. Les plafonds proposés sont 1 000 / 3 000 / 10 000 messages sortants pour Starter / Pro / Business, essai de 100 (`TRIAL_MESSAGES`). Un plafond payé absent ou invalide bloque la création de période au lieu d'accorder un quota arbitraire.
 
 Une unité est réservée à l'admission d'un Message + OutboundJob. Une génération échouée ne consomme pas le quota d'envoi (elle peut cependant entraîner un coût fournisseur IA). Les réservations des jobs ensuite annulés/incertains ne sont pas remboursées automatiquement. Les changements de plafonds s'appliquent aux nouvelles périodes, pas rétroactivement.
 
@@ -47,7 +47,7 @@ Arrêter tous les anciens producteurs et les workers pendant cette étape. Relev
 ]
 ```
 
-Pour l'essai utiliser `trial:sub_REEL`, les dates réelles d'essai et 150. Les dates ci-dessus sont des exemples, pas des dates de reprise par défaut. Le script refuse les compteurs modifiés, périodes divergentes ou expirées. Il conserve la consommation, y compris si elle dépasse déjà le plafond.
+Pour l'essai utiliser `trial:sub_REEL`, les dates réelles d'essai et 100 (150 pour un essai ouvert avant le 16 novembre 2026). Les dates ci-dessus sont des exemples, pas des dates de reprise par défaut. Le script refuse les compteurs modifiés, périodes divergentes ou expirées. Il conserve la consommation, y compris si elle dépasse déjà le plafond.
 
 ```sh
 npx tsx scripts/bootstrap-quotas.ts manifest.json

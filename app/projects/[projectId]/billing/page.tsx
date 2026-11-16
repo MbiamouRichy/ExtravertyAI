@@ -7,17 +7,26 @@ import { Building2, CircleAlert, FileText } from "lucide-react";
 import { getSession } from "@/lib/auth-server";
 import prisma from "@/lib/prisma";
 import {
+  getPolarCustomer,
+  getPolarDefaultCard,
   getPolarSubscription,
   isEndedPolarSubscription,
   listPolarOrders,
+  type PolarCard,
   type PolarOrder,
   type PolarSubscription,
 } from "@/lib/polar";
+import { planForPolarProduct } from "@/lib/billing-polar";
+import { isPaymentHolder, maskEmail } from "@/lib/billing-plan-change";
+import { PRICING_PLANS, pricingPlan, resolvePlanId } from "@/lib/pricing";
+import { returnAnchor } from "@/lib/return-anchor";
 import { LocalBillingDate } from "@/components/dashboard/project/local-billing-date";
 import { billingStatusLabel, formatBillingAmount } from "@/lib/billing-display";
 import {
   BillingActions,
   BillingCancelSection,
+  PAYMENT_ANCHOR,
+  PaymentSettingsButton,
 } from "@/components/dashboard/project/billing-actions";
 import { BillingInvoiceButton } from "@/components/dashboard/project/billing-invoice-button";
 import { Badge } from "@/components/ui/badge";
@@ -93,6 +102,53 @@ function InternalBilling({
   );
 }
 
+const CARD_BRANDS: Record<string, string> = {
+  visa: "Visa",
+  mastercard: "Mastercard",
+  amex: "American Express",
+  discover: "Discover",
+  diners: "Diners Club",
+  jcb: "JCB",
+  unionpay: "UnionPay",
+  cartes_bancaires: "Cartes Bancaires",
+};
+
+function planOfProduct(productId: string | null | undefined) {
+  if (!productId) return null;
+  try {
+    return planForPolarProduct(productId);
+  } catch {
+    return null;
+  }
+}
+
+/** Carte enregistrée : marque, 4 derniers chiffres et expiration, rien de plus. */
+function CardSummary({ card }: { card: PolarCard }) {
+  const now = new Date();
+  const expired =
+    card.expYear < now.getUTCFullYear() ||
+    (card.expYear === now.getUTCFullYear() && card.expMonth < now.getUTCMonth() + 1);
+  return (
+    <>
+      <p className="font-medium">
+        {CARD_BRANDS[card.brand.toLowerCase()] ?? "Carte"}{" "}
+        <span className="tabular-nums">
+          <span aria-hidden="true">•••• </span>
+          <span className="sr-only">se terminant par </span>
+          {card.last4}
+        </span>
+      </p>
+      <p className={expired ? "text-destructive" : "text-muted-foreground"}>
+        {expired ? "Expirée depuis " : "Expire fin "}
+        <span className="tabular-nums">
+          {String(card.expMonth).padStart(2, "0")}/{card.expYear}
+        </span>
+        {card.wallet && " · portefeuille mobile"}
+      </p>
+    </>
+  );
+}
+
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "Facturation | ExtravertyAI",
@@ -132,9 +188,13 @@ export default async function BillingPage({
   if (!can(membership.role, "billing.view"))
     redirect(homePath(projectId, membership.role));
   const p = membership.project;
-  const quota = await prisma.quotaPeriod.findFirst({
-    where: { projectId, isCurrent: true },
-  });
+  const canManage = can(membership.role, "billing.manage");
+  const [quota, members] = await Promise.all([
+    prisma.quotaPeriod.findFirst({ where: { projectId, isCurrent: true } }),
+    canManage && !p.internal
+      ? prisma.projectMembership.count({ where: { projectId } })
+      : 0,
+  ]);
   if (p.internal) return <InternalBilling name={p.name} quota={quota} />;
   const ordersPage =
     typeof query.page === "string" && /^[1-9]\d{0,3}$/.test(query.page)
@@ -144,13 +204,31 @@ export default async function BillingPage({
   let orders: PolarOrder[] = [];
   let hasMore = false;
   let unavailable = false;
+  // Carte et titulaire : réservés aux rôles qui gèrent la facturation.
+  // card : null sans carte enregistrée, undefined si Polar ne l'a pas donnée.
+  let payment: { holder: string; card: PolarCard | null | undefined } | null = null;
   const configured = !!p.stripeCustomerId && !!p.stripeSubscriptionId;
   if (configured) {
+    const customerId = p.stripeCustomerId!;
+    const paymentLookup = canManage
+      ? getPolarCustomer(customerId)
+          .then(async (customer) =>
+            customer.id === customerId
+              ? {
+                  holder: customer.email,
+                  card: await getPolarDefaultCard(customer).catch(() => undefined),
+                }
+              : null,
+          )
+          .catch(() => null)
+      : Promise.resolve(null);
     try {
-      const [sub, history] = await Promise.all([
+      const [sub, history, paymentInfo] = await Promise.all([
         getPolarSubscription(p.stripeSubscriptionId!),
         listPolarOrders(p.stripeSubscriptionId!, ordersPage),
+        paymentLookup,
       ]);
+      payment = paymentInfo;
       if (
         sub.customer_id !== p.stripeCustomerId ||
         history.orders.some((order) => order.subscription_id !== sub.id)
@@ -181,7 +259,6 @@ export default async function BillingPage({
           endsAt,
         }
       : null;
-  const canManage = can(membership.role, "billing.manage");
   const renewal = !synced
     ? "À vérifier"
     : ended
@@ -201,6 +278,33 @@ export default async function BillingPage({
         : ["active", "trialing"].includes(status)
           ? { intent: "upgrade" as const, label: "Changer d’offre" }
           : { intent: "renew" as const, label: "Régulariser le paiement" };
+  const currentPlan = planOfProduct(subscription?.product_id) ?? resolvePlanId(p.plan);
+  const scheduled = planOfProduct(subscription?.pending_update?.product_id);
+  const pendingPlan = scheduled && scheduled !== currentPlan ? scheduled : null;
+  const pendingAt = pendingPlan ? (subscription?.pending_update?.applies_at ?? null) : null;
+  // « ?offre=changer » ou « ?offre=business » : lien d'une autre page vers ce formulaire.
+  const offer = typeof query.offre === "string" ? query.offre : null;
+  const requestedPlan = PRICING_PLANS.find((plan) => plan.id === offer)?.id;
+  const changePlan =
+    primary?.intent === "upgrade" && subscription
+      ? {
+          state: {
+            projectId,
+            projectName: p.name,
+            currentPlan,
+            status: status === "trialing" ? ("trialing" as const) : ("active" as const),
+            pendingPlan,
+            pendingAt,
+            periodEnd: periodEnd ?? null,
+            members,
+          },
+          defaultOpen: offer === "changer" || !!requestedPlan,
+          defaultPlan: requestedPlan,
+        }
+      : null;
+  const holder = payment?.holder ?? subscription?.customer?.email ?? null;
+  const isHolder =
+    !!session.user.emailVerified && isPaymentHolder(session.user.email, holder);
   const price = subscription
     ? formatBillingAmount(subscription.amount, subscription.currency)
     : null;
@@ -257,6 +361,7 @@ export default async function BillingPage({
             configured={!!p.stripeCustomerId}
             needsCheckout={needsInitialCheckout(p)}
             primary={primary}
+            changePlan={changePlan}
           />
         )}
       </header>
@@ -291,6 +396,20 @@ export default async function BillingPage({
               "Tarif à confirmer"
             )}
           </p>
+          {pendingPlan && (
+            <p role="status" className="mt-3 text-sm text-muted-foreground">
+              Passage à l’offre{" "}
+              <span className="font-medium text-foreground">{pricingPlan(pendingPlan).name}</span>{" "}
+              prévu {pendingAt ? (
+                <>
+                  le <LocalBillingDate value={pendingAt} dateOnly />
+                </>
+              ) : (
+                "au prochain renouvellement"
+              )}
+              .{canManage && " Pour l’annuler, choisissez de nouveau l’offre actuelle dans « Changer d’offre »."}
+            </p>
+          )}
         </div>
         <dl className="grid grid-cols-1 border-t max-sm:divide-y sm:grid-cols-3 sm:divide-x">
           <div className="px-4 py-3.5 sm:p-6">
@@ -350,13 +469,32 @@ export default async function BillingPage({
         <h2 id="details-title" className="text-sm font-medium">
           Paiement
         </h2>
-        <dl className="divide-y rounded-xl border bg-card text-sm">
+        <div
+          role="group"
+          aria-labelledby="details-title"
+          {...returnAnchor(PAYMENT_ANCHOR, "overflow-hidden rounded-xl border bg-card text-sm")}
+        >
+        <dl className="divide-y">
           <div className="flex flex-col gap-1 px-4 py-3.5 sm:flex-row sm:gap-6 sm:p-5">
             <dt className="text-muted-foreground sm:w-40 sm:shrink-0">Moyen de paiement</dt>
             <dd className="min-w-0">
-              <span className="text-muted-foreground">
-                Consultable et modifiable dans « Gérer le paiement ».
-              </span>
+              {!canManage ? (
+                <span className="text-muted-foreground">
+                  Visible par le propriétaire et le rôle Facturation.
+                </span>
+              ) : payment?.card ? (
+                <CardSummary card={payment.card} />
+              ) : (
+                <span className="text-muted-foreground">
+                  {!configured
+                    ? "Enregistré au premier paiement."
+                    : payment?.card === null
+                      ? "Aucune carte à afficher."
+                      : payment
+                        ? "Détail visible chez Polar, avec « Modifier le moyen de paiement »."
+                        : "Momentanément indisponible. Actualisez dans un instant."}
+                </span>
+              )}
             </dd>
           </div>
           <div className="flex flex-col gap-1 px-4 py-3.5 sm:flex-row sm:gap-6 sm:p-5">
@@ -364,7 +502,7 @@ export default async function BillingPage({
             <dd className="min-w-0">
               <p className="font-medium">{billingName || p.name}</p>
               <p className="break-all text-muted-foreground">
-                {billingEmail || "Adresse à renseigner dans « Gérer le paiement »"}
+                {billingEmail || "Adresse à renseigner avec le moyen de paiement"}
               </p>
               {billingAddress && (
                 <p className="mt-0.5 text-xs text-muted-foreground">
@@ -382,6 +520,17 @@ export default async function BillingPage({
             </dd>
           </div>
         </dl>
+        {canManage && synced && holder && (
+          <div className="flex flex-col gap-3 border-t px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:gap-6 sm:p-5">
+            <p className="min-w-0 max-w-md text-xs text-muted-foreground">
+              {isHolder
+                ? "La modification s’ouvre chez Polar, notre prestataire de paiement. Cette carte règle tous les projets que vous payez avec ce compte."
+                : `Seul le titulaire du paiement (${maskEmail(holder)}) peut modifier la carte, depuis son propre compte.`}
+            </p>
+            {isHolder && <PaymentSettingsButton projectId={projectId} />}
+          </div>
+        )}
+        </div>
         {!canManage && (
           <p className="text-xs text-muted-foreground">
             Seuls le propriétaire et le rôle Facturation peuvent modifier l’offre et le paiement.

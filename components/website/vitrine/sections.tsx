@@ -21,7 +21,7 @@ import {
 
 import { cn } from "@/lib/utils";
 import { signUpPlanHref } from "@/lib/auth-redirects";
-import { PRICING_PLANS, formatPlanPrice, projectPlanHref } from "@/lib/pricing";
+import { PRICING_PLANS, TRIAL_DAYS, formatPlanPrice, projectPlanHref } from "@/lib/pricing";
 import { Button } from "@/components/ui/button";
 
 import { AccountButton } from "./account-button";
@@ -405,7 +405,7 @@ export function PricingSection() {
             Des offres simples, <Serif>sans engagement.</Serif>
           </>
         }
-        description="10 jours d’essai gratuit, puis un abonnement mensuel. Changez d’offre ou arrêtez quand vous le souhaitez."
+        description={`${TRIAL_DAYS} jours d’essai gratuit, puis un abonnement mensuel. Changez d’offre ou arrêtez quand vous le souhaitez.`}
         aside={
           <Link
             href="/contact"

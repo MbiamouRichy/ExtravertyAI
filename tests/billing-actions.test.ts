@@ -5,6 +5,7 @@ import { runInNewContext } from "node:vm";
 import ts from "typescript";
 import { z } from "zod";
 import { isRecentSession } from "../lib/recent-session";
+import * as billingPlanChange from "../lib/billing-plan-change";
 class SettingsError extends Error {}
 function setup(
   options: {
@@ -16,6 +17,9 @@ function setup(
     cancelling?: boolean;
     /** Connexion de plus de 10 minutes. */
     staleLogin?: boolean;
+    /** Membre Facturation : le moyen de paiement est celui d'un autre compte. */
+    notHolder?: boolean;
+    unverified?: boolean;
   } = {},
 ) {
   const calls: unknown[] = [];
@@ -35,7 +39,11 @@ function setup(
         options.anonymous
           ? null
           : {
-              user: { id: "actor" },
+              user: {
+                id: "actor",
+                email: options.notHolder ? "billing@example.test" : "Owner@Example.test",
+                emailVerified: !options.unverified,
+              },
               session: {
                 createdAt: new Date(Date.now() - (options.staleLogin ? 11 : 1) * 60_000),
               },
@@ -87,8 +95,12 @@ function setup(
       cancelPolarSubscription: async (id: string) => void calls.push({ cancelAtPeriodEnd: id }),
       revokePolarSubscription: async (id: string) => void calls.push({ revoke: id }),
       resumePolarSubscription: async (id: string) => void calls.push({ resume: id }),
-      createPolarPortalUrl: async (customer: string, returnUrl: string) => {
-        calls.push({ portal: customer, returnUrl });
+      getPolarCustomer: async (id: string) => {
+        calls.push("customer");
+        return { id, email: "owner@example.test" };
+      },
+      createPolarPortalUrl: async (customer: string, returnUrl: string, page: string) => {
+        calls.push({ portal: customer, returnUrl, page });
         return "https://sandbox.polar.sh/portal/session";
       },
       createPolarCheckout: async (input: unknown) => {
@@ -99,6 +111,7 @@ function setup(
       getPolarProduct: async () => ({}),
     },
     "@/lib/checkout-price": { matchesPolarProduct: () => true },
+    "@/lib/billing-plan-change": billingPlanChange,
     "@/lib/pricing": { resolvePlanId: (plan: string) => plan },
   };
   const source = ts.transpileModule(
@@ -143,19 +156,44 @@ test("billing plan actions validate intent and require the project owner before 
   assert.equal((await s.call("unexpected")).success, false);
   assert.equal(s.calls.length, 0);
 });
-test("billing rejects a mismatched customer and opens only the project's customer portal", async () => {
-  const foreign = setup({ foreign: true });
-  assert.equal((await foreign.call("upgrade")).success, false);
-  assert.deepEqual(foreign.calls, ["retrieve"]);
+test("changing plan leads to the project's form, never to the shared Polar portal", async () => {
   const s = setup();
   const result = await s.call("upgrade");
-  assert.equal(result.url, "https://sandbox.polar.sh/portal/session");
-  sameCalls(s.calls, ["retrieve", { portal: "cus_ours", returnUrl: BILLING_URL }]);
+  assert.equal(result.url, `${BILLING_URL}?offre=changer`);
+  assert.equal(s.calls.length, 0);
 });
-test("an unpaid subscription must be settled before changing plan", async () => {
+test("billing rejects a mismatched customer and opens the payment settings to the holder only", async () => {
+  const foreign = setup({ foreign: true });
+  assert.equal((await foreign.call("manage")).success, false);
+  assert.deepEqual(foreign.calls, ["retrieve"]);
+  const s = setup();
+  const result = await s.call("manage");
+  assert.equal(result.url, "https://sandbox.polar.sh/portal/session");
+  sameCalls(s.calls, [
+    "retrieve",
+    "customer",
+    { portal: "cus_ours", returnUrl: `${BILLING_URL}#paiement`, page: "payment" },
+  ]);
+});
+test("a billing member or an unverified address cannot open the payer's whole Polar account", async () => {
+  for (const options of [{ notHolder: true }, { unverified: true }]) {
+    const s = setup(options);
+    const result = (await s.call("manage")) as { success: boolean; error?: string };
+    assert.equal(result.success, false);
+    assert.match(result.error ?? "", /titulaire du paiement \(o•••@example\.test\) peut le modifier/);
+    assert.deepEqual(s.calls, ["retrieve", "customer"]);
+  }
+});
+test("an unpaid subscription is settled by the holder in the portal overview", async () => {
   const s = setup({ status: "past_due" });
-  assert.equal((await s.call("upgrade")).success, false);
-  assert.deepEqual(s.calls, ["retrieve"]);
+  assert.equal((await s.call("renew")).success, true);
+  sameCalls(s.calls, [
+    "retrieve",
+    "customer",
+    { portal: "cus_ours", returnUrl: `${BILLING_URL}#paiement`, page: "overview" },
+  ]);
+  const member = setup({ status: "past_due", notHolder: true });
+  assert.equal((await member.call("renew")).success, false);
 });
 test("renewing an ended subscription revokes it and opens a paid checkout without trial", async () => {
   const s = setup({ status: "canceled" });

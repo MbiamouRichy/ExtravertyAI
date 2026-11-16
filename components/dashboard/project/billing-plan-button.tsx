@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import Link from "next/link";
 import { Loader2, RefreshCw, ArrowUpRight, CreditCard } from "lucide-react";
 import { toast } from "sonner";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
@@ -24,11 +25,19 @@ import {
   toCheckoutAttempt,
 } from "@/components/dashboard/project/number-verification";
 import { cn } from "@/lib/utils";
+import type { PlanId } from "@/lib/pricing";
 import { openProjectBillingPortal } from "@/app/actions/project-settings";
 import { resumeProjectCheckout } from "@/app/actions/checkout-actions";
+
+/** Formulaire de changement d'offre du projet, offre éventuellement présélectionnée. */
+export function changePlanHref(projectId: string, plan?: PlanId) {
+  return `/projects/${encodeURIComponent(projectId)}/billing?offre=${plan ?? "changer"}`;
+}
+
 export function BillingPlanButton({
   projectId,
   intent,
+  plan,
   disabled = false,
   size = "default",
   label,
@@ -38,6 +47,8 @@ export function BillingPlanButton({
 }: {
   projectId: string;
   intent: "renew" | "upgrade";
+  /** Offre présélectionnée dans le formulaire de changement. */
+  plan?: PlanId;
   /** Paiement initial jamais abouti : on repart sur un paiement Polar. */
   needsCheckout?: boolean;
   disabled?: boolean;
@@ -55,6 +66,29 @@ export function BillingPlanButton({
     number: string;
     withoutTrial: boolean;
   } | null>(null);
+  // Changement d'offre : le formulaire de ce projet, sur sa page Facturation.
+  if (intent === "upgrade" && !needsCheckout)
+    return (
+      <Button
+        size={size}
+        variant={variant ?? "outline"}
+        className={cn("h-auto min-h-9 whitespace-normal text-center", className)}
+        disabled={disabled}
+        asChild={!disabled}
+      >
+        {disabled ? (
+          <>
+            <ArrowUpRight aria-hidden="true" className="size-4" />
+            {label ?? "Changer d’offre"}
+          </>
+        ) : (
+          <Link href={changePlanHref(projectId, plan)}>
+            <ArrowUpRight aria-hidden="true" className="size-4" />
+            {label ?? "Changer d’offre"}
+          </Link>
+        )}
+      </Button>
+    );
   async function open(withoutTrial = false) {
     if (busy) return;
     setBusy(true);
@@ -199,6 +233,15 @@ export function BillingPlanMenuItem({
   intent: "renew" | "upgrade";
 }) {
   const [busy, setBusy] = useState(false);
+  if (intent === "upgrade")
+    return (
+      <DropdownMenuItem asChild>
+        <Link href={changePlanHref(projectId)}>
+          <ArrowUpRight className="size-4" />
+          Changer d’offre
+        </Link>
+      </DropdownMenuItem>
+    );
   return (
     <DropdownMenuItem
       disabled={busy}

@@ -8,7 +8,7 @@ Ce guide lève les trois points bloquants restants du [rapport de décision](dec
 
 Tout se fait sur le VPS Hostinger, sur Vercel, sur Cloudflare et chez Polar. **Aucun secret ne passe par Git, un ticket ou une conversation** : chaque mot de passe est tiré au hasard sur le VPS et copié directement là où il sert.
 
-Suivre les étapes dans l'ordre. Compter une demi-journée, plus 10 jours d'attente pour le premier prélèvement réel (étape 5.4).
+Suivre les étapes dans l'ordre. Compter une demi-journée, plus 5 jours d'attente pour le premier prélèvement réel (étape 5.4).
 
 ---
 
@@ -268,7 +268,7 @@ Tout doit être coché avant de continuer.
 
 1. Sur `https://www.extravertyai.com`, créer un compte avec une adresse à vous.
 2. Créer un projet et choisir Starter.
-3. Payer avec **votre propre carte**. L'essai de 10 jours démarre : la carte est enregistrée, mais rien n'est prélevé.
+3. Payer avec **votre propre carte**. L'essai de 5 jours démarre : la carte est enregistrée, mais rien n'est prélevé.
 4. Vérifier :
    - **dans Polar** : client et abonnement en essai, webhook livré en 200 (Webhooks → Deliveries) ;
    - **dans l'app** : projet actif, offre Starter, quota de 4 000 messages, e-mail de bienvenue ;
@@ -278,11 +278,11 @@ Tout doit être coché avant de continuer.
 
 Ce test prouve que l'argent arrive.
 
-1. **Laisser l'essai aller à son terme**, 10 jours plus tard. Vérifier :
+1. **Laisser l'essai aller à son terme**, 5 jours plus tard. Vérifier :
    - la commande `order.paid` de 15,99 $ et la facture dans Polar ;
    - le projet toujours actif dans l'app ;
    - le montant sur le solde Polar.
-2. Si vous ne voulez pas attendre 10 jours, faire en plus un achat direct, sans l'app : un lien de paiement créé dans le tableau de bord Polar pour le produit Starter, sans essai. L'app l'ignore, puisqu'il n'est rattaché à aucun projet. En revanche, il prouve que la carte est débitée et que le solde Polar augmente.
+2. Si vous ne voulez pas attendre 5 jours, faire en plus un achat direct, sans l'app : un lien de paiement créé dans le tableau de bord Polar pour le produit Starter, sans essai. L'app l'ignore, puisqu'il n'est rattaché à aucun projet. En revanche, il prouve que la carte est débitée et que le solde Polar augmente.
 3. Demander un premier versement (Payout) vers votre compte. Noter le délai et les frais réels jusqu'à l'arrivée de l'argent au Gabon. C'est la preuve demandée par le critère 3.
 4. Rembourser les achats d'essai depuis Polar. Vérifier que `order.refunded` est bien reçu.
 
@@ -291,7 +291,7 @@ Ce test prouve que l'argent arrive.
 1. Étapes 1 à 4 terminées, restauration testée (`RÉUSSI`).
 2. Étape 5.1 et 5.2 cochées.
 3. Fusionner `codex/preproduction` dans `master` et pousser. Vercel construit, migre la base de production puis publie. Le workflow déploie les workers de production après une sauvegarde.
-4. Étapes 5.3, puis 5.4 dans les 10 jours.
+4. Étapes 5.3, puis 5.4 dans les 5 jours.
 
 Pour revenir en arrière :
 - **sur Vercel** : **Deployments → … → Instant Rollback** vers le déploiement précédent ;

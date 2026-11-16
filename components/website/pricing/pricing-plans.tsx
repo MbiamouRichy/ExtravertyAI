@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { signUpPlanHref } from "@/lib/auth-redirects";
 import {
   PRICING_PLANS,
+  TRIAL_DAYS,
   formatMessageLimit,
   formatPlanPrice,
 } from "@/lib/pricing";
@@ -36,7 +37,7 @@ export function PricingPlans() {
             <span className="text-sm text-muted-foreground">/ mois</span>
           </p>
           <p className="mt-1 text-xs text-muted-foreground">
-            {formatMessageLimit(plan.messageLimit)} messages inclus · 10 jours d’essai
+            {formatMessageLimit(plan.messageLimit)} messages inclus · {TRIAL_DAYS} jours d’essai
           </p>
           <Button
             asChild

@@ -17,7 +17,7 @@ import {
   Users,
 } from "lucide-react";
 
-import { PRICING_PLANS, formatPlanPrice } from "@/lib/pricing";
+import { PRICING_PLANS, TRIAL_DAYS, formatPlanPrice } from "@/lib/pricing";
 import { Button } from "@/components/ui/button";
 import {
   Accordion,
@@ -163,7 +163,7 @@ export function LandingPage() {
                 </Button>
               </div>
               <ul className="mt-6 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs text-muted-foreground lg:justify-start">
-                {["10 jours d’essai gratuit", "Prêt en 5 minutes", "Sans engagement"].map(
+                {[`${TRIAL_DAYS} jours d’essai gratuit`, "Prêt en 5 minutes", "Sans engagement"].map(
                   (item) => (
                     <li key={item} className="flex items-center gap-1.5">
                       <Check aria-hidden="true" className="size-3.5 text-foreground" />
