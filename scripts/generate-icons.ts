@@ -82,21 +82,19 @@ async function save(file: string, data: Buffer, detail: string) {
 }
 
 async function main() {
-  // Carrés pleins : le logo occupe 64 % de la hauteur, sa diagonale tient
-  // donc dans le cercle que Chrome ou Google peuvent appliquer.
-  await save("public/apple-touch-icon.png", await icon({ size: 180, logo: 0.64 }), "180 × 180");
+  // Carrés pleins : le logo occupe 80 % de la hauteur. Sa silhouette (antenne
+  // centrée, coins du corps arrondis) reste dans le cercle que Chrome ou
+  // Google peuvent appliquer.
+  await save("public/apple-touch-icon.png", await icon({ size: 180, logo: 0.8 }), "180 × 180");
   for (const size of [192, 512]) {
-    await save(`public/android-chrome-${size}x${size}.png`, await icon({ size, logo: 0.64 }), `${size} × ${size}`);
+    await save(`public/android-chrome-${size}x${size}.png`, await icon({ size, logo: 0.8 }), `${size} × ${size}`);
   }
   // Zone sûre des icônes « maskable » : un cercle de 80 % du côté.
   await save("public/maskable-icon-512x512.png", await icon({ size: 512, logo: 0.54 }), "512 × 512");
 
-  // Favicon : carré arrondi, logo un peu plus grand aux plus petites tailles.
+  // Favicon : carré arrondi, logo sur 80 % de la hauteur.
   const favicons = await Promise.all(
-    FAVICON_SIZES.map(async (size) => ({
-      size,
-      png: await icon({ size, logo: size <= 32 ? 0.78 : 0.72, radius: 0.22 }),
-    })),
+    FAVICON_SIZES.map(async (size) => ({ size, png: await icon({ size, logo: 0.8, radius: 0.22 }) })),
   );
   await save("app/favicon.ico", ico(favicons), FAVICON_SIZES.join(", ") + " px");
 }
