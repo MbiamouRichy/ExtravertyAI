@@ -98,10 +98,15 @@ export function ChangePlanDialog({
   const submitting = form.formState.isSubmitting;
   const unchanged = selected === state.currentPlan && !state.pendingPlan;
 
+  // Fermeture par l'utilisateur : impossible pendant la confirmation.
   function close(next: boolean) {
     if (submitting) return;
-    setOpen(next);
-    if (next) return;
+    if (next) setOpen(true);
+    else dismiss();
+  }
+
+  function dismiss() {
+    setOpen(false);
     form.reset({ plan: initialPlan });
     // L'offre ne se rouvre pas à l'actualisation une fois le dialogue fermé.
     const url = new URL(window.location.href);
@@ -122,7 +127,7 @@ export function ChangePlanDialog({
         return;
       }
       toast.success(result.message);
-      close(false);
+      dismiss();
       router.refresh();
     } catch {
       toast.error("Le changement n’a pas été confirmé. Actualisez la page pour vérifier.");
