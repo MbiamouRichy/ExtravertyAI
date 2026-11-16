@@ -19,9 +19,12 @@ export const SITE_ALTERNATE_NAMES = [
 export const SITE_DESCRIPTION =
   "Automatisez votre support client WhatsApp avec ExtravertyAI. Réponses instantanées, augmentation des ventes et expérience client améliorée.";
 
-export const SITE_SOCIAL_PROFILES = [
-  "https://www.facebook.com/profile.php?id=61596607112511",
-];
+export const SITE_SOCIAL = {
+  facebook: "https://www.facebook.com/profile.php?id=61596607112511",
+  instagram: "https://www.instagram.com/extraverty_ai/",
+};
+
+export const SITE_SOCIAL_PROFILES = [SITE_SOCIAL.facebook, SITE_SOCIAL.instagram];
 
 export const SITE_CONTACT = {
   whatsapp: "https://wa.me/24176205629",

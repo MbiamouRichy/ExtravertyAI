@@ -2,7 +2,8 @@ import Link from "next/link";
 
 import { LogoIcon } from "@/components/logo";
 import { Button } from "@/components/ui/button";
-import { FacebookIcon, WhatsAppIcon } from "@/components/social-icon";
+import { FacebookIcon, InstagramIcon, WhatsAppIcon } from "@/components/social-icon";
+import { SITE_SOCIAL } from "@/lib/site";
 
 const columns = [
   {
@@ -51,12 +52,22 @@ export default function Footer() {
           <div className="flex gap-1">
             <Button asChild size="icon-sm" variant="outline">
               <a
-                href="https://www.facebook.com/profile.php?id=61596607112511"
+                href={SITE_SOCIAL.facebook}
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="ExtravertyAI sur Facebook"
               >
                 <FacebookIcon />
+              </a>
+            </Button>
+            <Button asChild size="icon-sm" variant="outline">
+              <a
+                href={SITE_SOCIAL.instagram}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="ExtravertyAI sur Instagram"
+              >
+                <InstagramIcon />
               </a>
             </Button>
             <Button asChild size="icon-sm" variant="outline">
