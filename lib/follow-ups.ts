@@ -17,6 +17,7 @@ import {
 import { knowledgeContext } from "./knowledge";
 import { messageAiContent } from "./message-ai-content";
 import { MessageQuotaError, reserveMessageQuota } from "./message-quota";
+import { messagesLeft } from "./message-credit";
 import { splitMissingInfo } from "./missing-info";
 import { planFeatures, plansWith, requirePlanFeature } from "./plan-features";
 import { SettingsError, requireProjectAdmin } from "./project-settings";
@@ -170,7 +171,7 @@ async function readyProjects(db: PrismaClient, now: Date) {
       instanceStatus: "connected",
       status: { in: ["active", "trialing"] },
     },
-    select: { id: true, plan: true, status: true, timeZone: true },
+    select: { id: true, plan: true, status: true, timeZone: true, extraCredit: true },
   });
   const open = projects.filter(
     (project) => nextSendingWindow(now, projectTimeZone(project.timeZone)).getTime() <= now.getTime(),
@@ -191,7 +192,7 @@ async function readyProjects(db: PrismaClient, now: Date) {
     }),
     db.quotaPeriod.findMany({
       where: { projectId: { in: ids }, isCurrent: true, startsAt: { lte: now }, endsAt: { gt: now } },
-      select: { projectId: true, kind: true, used: true, limit: true },
+      select: { projectId: true, kind: true, used: true, limit: true, extraUsed: true },
     }),
   ]);
   return open
@@ -204,8 +205,7 @@ async function readyProjects(db: PrismaClient, now: Date) {
       return (
         (sent?._count._all ?? 0) < planFeatures(project.plan).followUpDaily &&
         now.getTime() - last >= FOLLOW_UP_LIMITS.projectSpacingMs &&
-        !!period &&
-        period.used < period.limit
+        messagesLeft(period, project) > 0
       );
     })
     .map((project) => project.id);

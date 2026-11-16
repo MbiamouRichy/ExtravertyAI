@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { messageAiContent } from "./message-ai-content";
 import type { PrismaClient, Prisma } from "../src/generated/prisma/client";
 import { MessageQuotaError, reserveMessageQuota } from "./message-quota";
+import { messagesLeft } from "./message-credit";
 import { knowledgeContext } from "./knowledge";
 import { planFeatures } from "./plan-features";
 import { fitHistory } from "./ai-history";
@@ -180,7 +181,8 @@ export async function claimAiJob(prisma: PrismaClient) {
         endsAt: { gt: now },
       },
     });
-    if (!period || period.used >= period.limit) {
+    // Le crédit prépayé prolonge le quota d’une période payée.
+    if (!period || messagesLeft(period, context.project) <= 0) {
       await tx.aiJob.update({
         where: { id: job.id },
         data: {

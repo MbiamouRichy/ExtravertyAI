@@ -102,7 +102,7 @@ test("renewals, churn and trial conversions come from billing periods", () => {
   assert.equal(period.keys[11], "2026-10-01");
   assert.equal(dashboardPeriod("30d", NOW).keys.at(-1), "2026-10-26");
 
-  const cycle = (projectId: string, start: string, end: string, limit = 4000): BillingPeriodRow => ({
+  const cycle = (projectId: string, start: string, end: string, limit = 2500): BillingPeriodRow => ({
     projectId,
     key: `cycle:sub_${projectId}:${start}`,
     startsAt: at(start),
@@ -118,7 +118,7 @@ test("renewals, churn and trial conversions come from billing periods", () => {
     cycle("B", "2026-08-01", "2026-09-01"),
     cycle("B", "2026-09-06", "2026-12-06"),
     // C part en septembre : désabonnement.
-    cycle("C", "2026-08-15", "2026-09-15", 10000),
+    cycle("C", "2026-08-15", "2026-09-15", 8000),
     // D : échéance d'hier, paiement peut-être en cours, pas encore compté.
     cycle("D", "2026-09-25", "2026-10-25"),
     // Essais : E convertit avant la fin, F non.

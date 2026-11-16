@@ -288,7 +288,10 @@ export function BroadcastComposer({
   const showFallback = usesNameVariable(content);
   const count = estimate.state === "ready" ? estimate.count : null;
   const monthlyLeft = Math.max(0, usage.monthly.limit - usage.monthly.used - usage.monthly.reserved);
-  const quotaLeft = usage.quota ? Math.max(0, usage.quota.limit - usage.quota.used) : null;
+  // Le crédit prépayé prolonge le quota ; le serveur revérifie au lancement.
+  const quotaLeft = usage.quota
+    ? Math.max(0, usage.quota.limit - usage.quota.used) + (usage.quota.extra ?? 0)
+    : null;
   const overLimit = count !== null && (count > usage.recipientsLimit || count > monthlyLeft || (quotaLeft !== null && count > quotaLeft));
 
   return (
@@ -643,7 +646,12 @@ export function BroadcastComposer({
           <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
             <li>Au plus {number(usage.recipientsLimit)} contacts par diffusion.</li>
             <li>{number(monthlyLeft)} messages de diffusion restants ce mois-ci.</li>
-            {quotaLeft !== null && <li>{number(quotaLeft)} messages restants sur votre quota.</li>}
+            {quotaLeft !== null && (
+              <li>
+                {number(quotaLeft)} messages restants sur votre quota
+                {usage.quota?.extra ? `, dont ${number(usage.quota.extra)} payés par votre crédit` : ""}.
+              </li>
+            )}
           </ul>
           {overLimit && (
             <p role="alert" className="mt-3 text-xs text-destructive">

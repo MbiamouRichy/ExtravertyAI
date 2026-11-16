@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { syncPolarSubscription } from "@/lib/billing-polar";
-import { getPolarSubscription } from "@/lib/polar";
+import { syncMessageCreditOrder } from "@/lib/message-credit";
+import { getPolarOrder, getPolarSubscription } from "@/lib/polar";
 import { verifyWebhookSignature } from "@/lib/standard-webhook";
 
 export const runtime = "nodejs";
@@ -30,6 +31,14 @@ export async function POST(req: Request) {
       : event.type?.startsWith("order.")
         ? event.data?.subscription_id
         : undefined;
+    // Achat unique : une recharge de messages, relue chez Polar avant d'être créditée.
+    const creditOrderId =
+      event.type?.startsWith("order.") && !event.data?.subscription_id
+        ? event.data?.id
+        : undefined;
+    if (typeof creditOrderId === "string" && creditOrderId) {
+      await syncMessageCreditOrder(prisma, await getPolarOrder(creditOrderId));
+    }
     if (subscriptionId) {
       // L'état relu chez Polar rend les doublons et le désordre sans effet.
       const subscription = await getPolarSubscription(subscriptionId);

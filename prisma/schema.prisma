@@ -118,6 +118,9 @@ model QuotaPeriod {
   endsAt     DateTime
   limit      Int
   used       Int           @default(0)
+  // Messages envoyés au-delà de `limit`, payés par le crédit prépayé du projet.
+  // Plafonnés à `limit` par période (lib/message-quota.ts).
+  extraUsed  Int           @default(0)
   isCurrent  Boolean       @default(true)
 
   jobs       OutboundJob[]
@@ -181,6 +184,10 @@ model Project {
   plan                 Plan           @default(starter)
   messageCount         Int            @default(0)
   allMessagesCount     Int            @default(0)
+  // Crédit prépayé pour les messages au-delà du quota, en dix-millièmes de
+  // dollar (lib/message-credit.ts). Crédité par le webhook Polar seulement.
+  extraCredit          Int            @default(0)
+  creditPurchases      MessageCreditPurchase[]
 
   pairingCodeRequestedAt  DateTime?
   // --- 💳 FACTURATION (POLAR) ---
@@ -681,6 +688,25 @@ model ProviderReceipt {
   @@unique([projectId, providerId])
   @@index([resolved, createdAt])
   @@map("provider_receipt")
+}
+
+// Recharge de messages payée chez Polar : une ligne par commande, pour ne
+// jamais créditer deux fois et pour retirer un remboursement.
+model MessageCreditPurchase {
+  id        String   @id @default(cuid())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  orderId   String   @unique
+  productId String
+  plan      Plan
+  // Montants en dix-millièmes de dollar, hors taxes.
+  credit    Int
+  refunded  Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([projectId, createdAt])
+  @@map("message_credit_purchase")
 }
 
 model SettingsAudit {

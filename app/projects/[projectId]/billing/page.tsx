@@ -18,7 +18,13 @@ import {
 } from "@/lib/polar";
 import { planForPolarProduct } from "@/lib/billing-polar";
 import { isPaymentHolder, maskEmail } from "@/lib/billing-plan-change";
-import { PRICING_PLANS, pricingPlan, resolvePlanId } from "@/lib/pricing";
+import {
+  EXTRA_PACK_MESSAGES,
+  PRICING_PLANS,
+  formatPlanPrice,
+  pricingPlan,
+  resolvePlanId,
+} from "@/lib/pricing";
 import { returnAnchor } from "@/lib/return-anchor";
 import { LocalBillingDate } from "@/components/dashboard/project/local-billing-date";
 import { billingStatusLabel, formatBillingAmount } from "@/lib/billing-display";
@@ -31,6 +37,14 @@ import {
 import { BillingInvoiceButton } from "@/components/dashboard/project/billing-invoice-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { MessageCreditButton } from "@/components/dashboard/project/message-credit-button";
+import {
+  MAX_CREDIT_PACKS,
+  creditCents,
+  creditPackUnits,
+  extraMessageCost,
+  polarCreditProductId,
+} from "@/lib/message-credit";
 
 /**
  * Projet interne d'ExtravertyAI : ni abonnement ni facture. Seul le quota
@@ -180,6 +194,9 @@ export default async function BillingPage({
           stripeSubscriptionId: true,
           stripeCurrentPeriodEnd: true,
           internal: true,
+          extraCredit: true,
+          automationPaused: true,
+          statusBeforePause: true,
         },
       },
     },
@@ -189,11 +206,19 @@ export default async function BillingPage({
     redirect(homePath(projectId, membership.role));
   const p = membership.project;
   const canManage = can(membership.role, "billing.manage");
-  const [quota, members] = await Promise.all([
+  const [quota, members, purchases] = await Promise.all([
     prisma.quotaPeriod.findFirst({ where: { projectId, isCurrent: true } }),
     canManage && !p.internal
       ? prisma.projectMembership.count({ where: { projectId } })
       : 0,
+    p.internal
+      ? []
+      : prisma.messageCreditPurchase.findMany({
+          where: { projectId },
+          orderBy: { createdAt: "desc" },
+          take: 5,
+          select: { id: true, orderId: true, credit: true, refunded: true, createdAt: true },
+        }),
   ]);
   if (p.internal) return <InternalBilling name={p.name} quota={quota} />;
   const ordersPage =
@@ -358,6 +383,18 @@ export default async function BillingPage({
       />
     ),
   }));
+  // Messages au-delà du quota : crédit prépayé, décompté au tarif de l'offre.
+  const creditPlan = pricingPlan(p.plan);
+  const perMessage = extraMessageCost(p.plan);
+  const creditMessages = Math.floor(p.extraCredit / perMessage);
+  const paidPeriod =
+    p.status === "active" ||
+    (p.automationPaused && p.status === "paused" && p.statusBeforePause === "active");
+  const creditOffered = !!polarCreditProductId(creditPlan.id);
+  const creditFull =
+    p.extraCredit + creditPackUnits(creditPlan.id) > MAX_CREDIT_PACKS * creditPackUnits(creditPlan.id);
+  const packLabel = `Acheter ${EXTRA_PACK_MESSAGES.toLocaleString("fr-FR")} messages · ${formatPlanPrice(creditPlan.extraPackCents)}`;
+  const showCredit = creditOffered || p.extraCredit > 0 || purchases.length > 0;
   const firstPage = ordersPage === 1;
   const nextHref = `/projects/${projectId}/billing?page=${ordersPage + 1}`;
 
@@ -462,6 +499,11 @@ export default async function BillingPage({
                     style={{ width: `${usedRatio * 100}%` }}
                   />
                 </div>
+                {quota.extraUsed > 0 && (
+                  <p className="mt-1.5 text-xs text-muted-foreground tabular-nums">
+                    + {quota.extraUsed.toLocaleString("fr-FR")} payés par le crédit
+                  </p>
+                )}
                 <p className="mt-2 text-xs text-muted-foreground">
                   {quota.endsAt <= new Date() ? (
                     <span className="text-destructive">
@@ -481,6 +523,83 @@ export default async function BillingPage({
           </div>
         </dl>
       </section>
+
+      {showCredit && (
+        <section aria-labelledby="credit-title" className="space-y-3">
+          <h2 id="credit-title" className="text-sm font-medium">
+            Messages supplémentaires
+          </h2>
+          <div className="overflow-hidden rounded-xl border bg-card text-sm">
+            <div className="flex flex-col gap-3 px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:gap-6 sm:p-5">
+              <div className="min-w-0">
+                <p className="font-medium tabular-nums">
+                  {formatBillingAmount(creditCents(p.extraCredit), "usd")} de crédit
+                  <span className="font-normal text-muted-foreground">
+                    {" "}· ≈ {creditMessages.toLocaleString("fr-FR")} messages
+                  </span>
+                </p>
+                <p className="mt-1 max-w-md text-xs text-muted-foreground">
+                  Une fois le quota du mois atteint, chaque message est payé par ce crédit :{" "}
+                  {formatPlanPrice(creditPlan.extraPackCents)} les{" "}
+                  {EXTRA_PACK_MESSAGES.toLocaleString("fr-FR")} avec l’offre {creditPlan.name}, jusqu’à{" "}
+                  {quota ? quota.limit.toLocaleString("fr-FR") : "un quota"} messages de plus par
+                  période. Le crédit n’expire pas ; il ne sert pas pendant l’essai.
+                </p>
+                {query.recharge === "ok" && (
+                  <p role="status" className="mt-2 text-xs text-foreground">
+                    Paiement reçu : le crédit s’affiche ici dès que Polar le confirme. Actualisez
+                    dans un instant.
+                  </p>
+                )}
+              </div>
+              {canManage && creditOffered && (
+                <div className="flex shrink-0 flex-col gap-1.5 sm:items-end">
+                  <MessageCreditButton
+                    projectId={projectId}
+                    label={packLabel}
+                    disabled={!paidPeriod || creditFull}
+                  />
+                  {(!paidPeriod || creditFull) && (
+                    <p className="text-xs text-muted-foreground">
+                      {creditFull
+                        ? "Crédit maximal atteint."
+                        : p.status === "trialing"
+                          ? "Disponible après l’essai."
+                          : "Disponible avec un abonnement à jour."}
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+            {purchases.length > 0 && (
+              <ul aria-label="Recharges récentes" className="divide-y border-t">
+                {purchases.map((purchase) => (
+                  <li
+                    key={purchase.id}
+                    className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 px-4 py-2.5 sm:px-5"
+                  >
+                    <p className="min-w-0">
+                      <LocalBillingDate value={purchase.createdAt} dateOnly shortMonth />
+                      <span className="text-muted-foreground tabular-nums">
+                        {" "}· {formatBillingAmount(creditCents(purchase.credit), "usd")}
+                        {purchase.refunded > 0 &&
+                          (purchase.refunded >= purchase.credit ? " · remboursée" : " · remboursée en partie")}
+                      </span>
+                    </p>
+                    <div className="-mr-2.5">
+                      <BillingInvoiceButton
+                        projectId={projectId}
+                        orderId={purchase.orderId}
+                        label="Télécharger la facture de cette recharge en PDF"
+                      />
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </section>
+      )}
 
       <section aria-labelledby="details-title" className="space-y-3">
         <h2 id="details-title" className="text-sm font-medium">

@@ -3,14 +3,15 @@ export const PRICING_PLANS = [
     id: "starter",
     name: "Starter",
     priceCents: 1599,
-    messageLimit: 4000,
+    messageLimit: 2500,
+    extraPackCents: 800,
     users: 2,
     storage: "500 Mo",
     description: "Pour automatiser vos premiers échanges clients.",
     highlighted: false,
     features: [
       "2 utilisateurs · 1 numéro WhatsApp",
-      "4 000 messages par mois",
+      "2 500 messages par mois, puis 8 $ les 1 000",
       "Réponses textuelles uniquement",
       "Assistant disponible 24 h/24, 7 j/7",
       "Statistiques sur 30 jours",
@@ -23,7 +24,8 @@ export const PRICING_PLANS = [
     id: "pro",
     name: "Pro",
     priceCents: 3999,
-    messageLimit: 10000,
+    messageLimit: 8000,
+    extraPackCents: 600,
     users: 4,
     storage: "1,2 Go",
     description:
@@ -31,7 +33,7 @@ export const PRICING_PLANS = [
     highlighted: true,
     features: [
       "4 utilisateurs · 1 numéro WhatsApp",
-      "10 000 messages par mois",
+      "8 000 messages par mois, puis 6 $ les 1 000",
       "Texte et compréhension des notes vocales",
       "Assistant disponible 24 h/24, 7 j/7",
       "Statistiques sur 90 jours",
@@ -49,6 +51,7 @@ export const PRICING_PLANS = [
     name: "Business",
     priceCents: 9900,
     messageLimit: 25000,
+    extraPackCents: 500,
     users: 10,
     storage: "3 Go",
     description: "Pour les équipes qui pilotent leurs ventes sur WhatsApp.",
@@ -56,7 +59,7 @@ export const PRICING_PLANS = [
     // Le pipeline en 4e position : la carte d'accueil n'affiche que les quatre premières lignes.
     features: [
       "10 utilisateurs · 1 numéro WhatsApp",
-      "25 000 messages par mois",
+      "25 000 messages par mois, puis 5 $ les 1 000",
       "Texte, notes vocales et compréhension des images",
       "Pipeline de prospects et relances automatiques",
       "Assistant disponible 24 h/24, 7 j/7",
@@ -81,6 +84,12 @@ export type PlanId = PricingPlan["id"];
  */
 export const TRIAL_DAYS = 5;
 export const TRIAL_MESSAGES = 100;
+
+/**
+ * Messages au-delà du quota mensuel : recharge prépayée de EXTRA_PACK_MESSAGES
+ * messages au prix `extraPackCents` de l’offre (lib/message-credit.ts).
+ */
+export const EXTRA_PACK_MESSAGES = 1000;
 
 /** Rang d'une offre (Starter 0, Pro 1, Business 2) : sens d'un changement d'offre. */
 export function planRank(plan: PlanId) {

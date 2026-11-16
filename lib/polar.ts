@@ -1,3 +1,4 @@
+import { CREDIT_ORDER_KIND } from "./message-credit";
 import { TRIAL_DAYS, type PlanId } from "./pricing";
 
 export type PolarSubscription = {
@@ -50,6 +51,12 @@ export type PolarOrder = {
   subscription_id: string | null;
   created_at: string;
   invoice_number: string | null;
+  product_id?: string | null;
+  /** Montant hors taxes après réduction, en centimes. */
+  net_amount?: number;
+  /** Montant remboursé hors taxes, en centimes. */
+  refunded_amount?: number;
+  metadata?: Record<string, unknown>;
 };
 
 export class PolarApiError extends Error {
@@ -120,6 +127,31 @@ export async function createPolarCheckout(input: {
       ...(input.trial === false
         ? {}
         : { trial_interval: "day", trial_interval_count: TRIAL_DAYS }),
+      allow_discount_codes: false,
+    },
+  });
+  if (typeof checkout.url !== "string" || !isPolarCheckoutUrl(checkout.url))
+    throw new Error("POLAR_CHECKOUT_URL_INVALID");
+  return checkout.url;
+}
+
+/** Paiement unique d’une recharge de messages (lib/message-credit.ts). */
+export async function createPolarCreditCheckout(input: {
+  productId: string;
+  projectId: string;
+  plan: PlanId;
+  email: string;
+  successUrl: string;
+  returnUrl: string;
+}) {
+  const checkout = await polarRequest<{ url?: unknown }>("/v1/checkouts/", {
+    method: "POST",
+    body: {
+      products: [input.productId],
+      customer_email: input.email,
+      metadata: { projectId: input.projectId, plan: input.plan, kind: CREDIT_ORDER_KIND },
+      success_url: input.successUrl,
+      return_url: input.returnUrl,
       allow_discount_codes: false,
     },
   });

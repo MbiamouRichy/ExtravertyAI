@@ -337,7 +337,7 @@ export async function cancelProjectSubscription(projectId: string) {
   }
 }
 
-/** Facture PDF d'une commande, limitée à l'abonnement du projet. */
+/** Facture PDF d'une commande, limitée à l'abonnement et aux recharges du projet. */
 export async function openProjectInvoice(projectId: string, orderId: string) {
   try {
     Id.parse(projectId);
@@ -348,8 +348,16 @@ export async function openProjectInvoice(projectId: string, orderId: string) {
     );
     if (!project.stripeSubscriptionId)
       throw new SettingsError("Cette facture n’est pas disponible.");
+    // Une recharge appartient au projet si le webhook l'y a créditée.
+    const credit = await prisma.messageCreditPurchase.findFirst({
+      where: { orderId, projectId: project.id },
+      select: { id: true },
+    });
     const order = await getPolarOrder(orderId);
-    if (order.subscription_id !== project.stripeSubscriptionId)
+    const owned = credit
+      ? !order.subscription_id
+      : order.subscription_id === project.stripeSubscriptionId;
+    if (!owned || order.id !== orderId)
       throw new SettingsError("Cette facture n’est pas disponible.");
     const url = await polarInvoiceUrl(order.id);
     if (!url)

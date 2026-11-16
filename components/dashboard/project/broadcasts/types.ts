@@ -23,7 +23,8 @@ export type BroadcastUsageView = {
   monthly: { used: number; reserved: number; limit: number };
   daily: { used: number; limit: number };
   recipientsLimit: number;
-  quota: { used: number; limit: number } | null;
+  /** `extra` : messages hors quota encore couverts par le crédit prépayé. */
+  quota: { used: number; limit: number; extra: number } | null;
   /** Offset of the project's zone, e.g. « UTC+1 »: the sending hours are local to it. */
   sendingZone: string;
 };

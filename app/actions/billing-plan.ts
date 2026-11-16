@@ -23,7 +23,14 @@ import {
   getPolarSubscription,
   polarProductId,
 } from "@/lib/polar";
-import { PRICING_PLANS, planRank, pricingPlan, type PlanId } from "@/lib/pricing";
+import { PRICING_PLANS, planRank, pricingPlan, resolvePlanId, type PlanId } from "@/lib/pricing";
+import { createPolarCreditCheckout } from "@/lib/polar";
+import {
+  MAX_CREDIT_PACKS,
+  creditPackUnits,
+  matchesPolarCreditProduct,
+  polarCreditProductId,
+} from "@/lib/message-credit";
 
 const PLAN_IDS = PRICING_PLANS.map((plan) => plan.id) as [PlanId, ...PlanId[]];
 const ChangePlanInput = z.object({
@@ -178,6 +185,57 @@ export async function changeProjectPlan(input: unknown) {
     revalidatePath(`/projects/${projectId}`, "layout");
     revalidatePath("/projects");
     return { success: true as const, message: result.message };
+  } catch (error) {
+    return { success: false as const, error: publicError(error) };
+  }
+}
+
+/**
+ * Recharge de messages au tarif de l'offre du projet : paiement unique chez
+ * Polar. Rien n'est crédité ici ; seul le webhook, après relecture de la
+ * commande payée, crédite le projet.
+ */
+export async function buyMessageCredit(projectId: unknown) {
+  try {
+    const id = ProjectId.parse(projectId);
+    const user = await currentUser();
+    const { project } = await prisma.$transaction((tx) =>
+      requireProjectPermission(tx, id, user.id, "billing.manage"),
+    );
+    if (project.deletionPending)
+      throw new SettingsError("Ce projet est en cours de suppression.");
+    if (project.internal || !project.stripeSubscriptionId)
+      throw new SettingsError("La facturation n’est pas encore activée pour ce projet.");
+    const paid =
+      project.status === "active" ||
+      (project.automationPaused &&
+        project.status === "paused" &&
+        project.statusBeforePause === "active");
+    if (!paid)
+      throw new SettingsError(
+        project.status === "trialing"
+          ? "Les messages supplémentaires s’achètent après l’essai."
+          : "Régularisez ou renouvelez l’abonnement avant d’acheter des messages.",
+      );
+    const plan = resolvePlanId(project.plan);
+    if (project.extraCredit + creditPackUnits(plan) > MAX_CREDIT_PACKS * creditPackUnits(plan))
+      throw new SettingsError("Votre crédit de messages est déjà au maximum.");
+    const productId = polarCreditProductId(plan);
+    if (!productId || !matchesPolarCreditProduct(await getPolarProduct(productId), plan))
+      throw new SettingsError(UNAVAILABLE);
+    const origin = process.env.NEXT_PUBLIC_APP_URL;
+    if (!origin || !user.email) throw new SettingsError("Le paiement n’est pas configuré.");
+    const billingUrl = `${origin}/projects/${project.id}/billing`;
+    const url = await createPolarCreditCheckout({
+      productId,
+      projectId: project.id,
+      plan,
+      email: user.email,
+      successUrl: `${billingUrl}?recharge=ok`,
+      returnUrl: billingUrl,
+    });
+    await audit(prisma, project, user.id, `billing.credit_checkout.${plan}`);
+    return { success: true as const, url };
   } catch (error) {
     return { success: false as const, error: publicError(error) };
   }

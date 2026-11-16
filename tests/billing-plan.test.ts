@@ -6,6 +6,7 @@ import ts from "typescript";
 import { z } from "zod";
 import * as billingPlanChange from "../lib/billing-plan-change";
 import * as pricing from "../lib/pricing";
+import * as messageCredit from "../lib/message-credit";
 import * as planFeatures from "../lib/plan-features";
 import { getPolarDefaultCard, polarPaymentSettingsUrl } from "../lib/polar";
 
@@ -185,6 +186,7 @@ function setup(options: Options = {}) {
     "@/lib/billing-plan-change": billingPlanChange,
     "@/lib/plan-features": planFeatures,
     "@/lib/pricing": pricing,
+    "@/lib/message-credit": messageCredit,
     "@/lib/polar": {
       getPolarSubscription: async () => {
         calls.push("retrieve");

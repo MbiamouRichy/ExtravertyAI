@@ -17,6 +17,7 @@ import {
 import { chatContactName } from "./chat-privacy";
 import { maskContactPhone } from "./contact-details";
 import { MessageQuotaError, reserveMessageQuota } from "./message-quota";
+import { extraMessagesLeft } from "./message-credit";
 import {
   planAllows,
   planFeatures,
@@ -119,7 +120,7 @@ export async function broadcastUsage(
   const features = planFeatures(project.plan);
   const period = await currentPeriod(db, projectId, now);
   const periodStart = period?.startsAt ?? new Date(now.getTime() - 30 * 86_400_000);
-  const [monthly, daily, reserved] = await Promise.all([
+  const [monthly, daily, reserved, credit] = await Promise.all([
     db.message.count({ where: { projectId, source: "broadcast", createdAt: { gte: periodStart } } }),
     db.message.count({
       where: { projectId, source: "broadcast", createdAt: { gte: localDayStart(now, project.timeZone) } },
@@ -128,12 +129,23 @@ export async function broadcastUsage(
     db.broadcastRecipient.count({
       where: { state: "PENDING", broadcast: { projectId, status: { in: [...ACTIVE_STATUSES] } } },
     }),
+    db.project.findUnique({ where: { id: projectId }, select: { extraCredit: true } }),
   ]);
   return {
     monthly: { used: monthly, reserved, limit: features.broadcastMonthly },
     daily: { used: daily, limit: features.broadcastDaily },
     recipientsLimit: features.broadcastRecipients,
-    quota: period ? { used: period.used, limit: period.limit } : null,
+    // « extra » : messages hors quota que le crédit prépayé couvre encore.
+    quota: period
+      ? {
+          used: period.used,
+          limit: period.limit,
+          extra: extraMessagesLeft(period, {
+            plan: project.plan,
+            extraCredit: credit?.extraCredit ?? 0,
+          }),
+        }
+      : null,
     /** Offset of the project's zone (« UTC+1 »): the sending hours are local to it. */
     sendingZone: utcOffsetLabel(projectTimeZone(project.timeZone), now),
   };
@@ -229,9 +241,12 @@ export async function createBroadcast(db: PrismaClient, input: BroadcastInput) {
           `Il vous reste ${Math.max(0, monthlyLeft).toLocaleString("fr-FR")} messages de diffusion ce mois-ci pour ${contacts.length.toLocaleString("fr-FR")} contacts ciblés.`,
         );
       }
-      if (usage.quota && contacts.length > usage.quota.limit - usage.quota.used) {
+      const quotaLeft = usage.quota
+        ? Math.max(0, usage.quota.limit - usage.quota.used) + usage.quota.extra
+        : null;
+      if (quotaLeft !== null && contacts.length > quotaLeft) {
         throw new BroadcastError(
-          `Votre quota de messages ne suffit pas : ${Math.max(0, usage.quota.limit - usage.quota.used).toLocaleString("fr-FR")} restants pour ${contacts.length.toLocaleString("fr-FR")} contacts.`,
+          `Votre quota de messages ne suffit pas : ${quotaLeft.toLocaleString("fr-FR")} restants pour ${contacts.length.toLocaleString("fr-FR")} contacts.`,
         );
       }
 

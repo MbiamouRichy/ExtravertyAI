@@ -30,9 +30,9 @@ const DEVICES = ["mobile", "mobile", "mobile", "mobile", "desktop", "desktop", "
 const PAGES = ["/", "/", "/", "/tarifs", "/tarifs", "/sign-up", "/sign-in", "/projects", "/projects/:id/chat", "/projects/:id/analytics", "/apropos", "/contact"];
 const REFERRERS = ["google.com", "google.com", "facebook.com", "facebook.com", "l.instagram.com", "t.co", "linkedin.com", "wa.me"];
 const PLANS = [
-  { plan: "starter", limit: 4000 },
-  { plan: "starter", limit: 4000 },
-  { plan: "pro", limit: 10000 },
+  { plan: "starter", limit: 2500 },
+  { plan: "starter", limit: 2500 },
+  { plan: "pro", limit: 8000 },
   { plan: "business", limit: 25000 },
 ] as const;
 const FEEDBACK = [

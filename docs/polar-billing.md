@@ -23,6 +23,9 @@ Les anciennes variables `BILLING_PROVIDER` et `STRIPE_*` ne servent plus et peuv
 | `POLAR_STARTER_PRODUCT_ID` | Produit Starter |
 | `POLAR_PRO_PRODUCT_ID` | Produit Pro |
 | `POLAR_BUSINESS_PRODUCT_ID` | Produit Business |
+| `POLAR_STARTER_CREDIT_PRODUCT_ID` | Recharge Starter (facultatif) |
+| `POLAR_PRO_CREDIT_PRODUCT_ID` | Recharge Pro (facultatif) |
+| `POLAR_BUSINESS_CREDIT_PRODUCT_ID` | Recharge Business (facultatif) |
 
 Ne jamais mélanger un jeton sandbox et un jeton de production : ils ne voient pas les mêmes données.
 
@@ -43,6 +46,27 @@ Ne jamais mélanger un jeton sandbox et un jeton de production : ils ne voient p
 ## Produits
 
 Chaque forfait est un abonnement mensuel en USD, au prix de `lib/pricing.ts`. Un prix différent bloque le paiement avant la création du projet. L'essai de 5 jours (100 messages) est demandé par l'application au moment du paiement.
+
+## Messages supplémentaires
+
+Au-delà du quota mensuel (2 500, 8 000 ou 25 000 messages), un projet payant continue d’envoyer grâce à un crédit prépayé. Une recharge vaut 1 000 messages au tarif de l’offre : 8 $ en Starter, 6 $ en Pro, 5 $ en Business (`extraPackCents` de `lib/pricing.ts`).
+
+**Produits à créer**, dans le sandbox puis en production : trois produits à **achat unique** (pas d’abonnement), en USD, à prix fixe de 8 $, 6 $ et 5 $. Ne pas y ajouter de prix à l’usage. Renseigner leurs identifiants dans `POLAR_*_CREDIT_PRODUCT_ID` sur Vercel. Un prix différent, un produit archivé ou récurrent rend l’achat indisponible. Sans ces variables, le bouton n’apparaît pas et l’envoi s’arrête au quota, comme avant.
+
+**Pourquoi pas une facturation à l’usage Polar.** Les compteurs Polar sont tenus par client, et un client Polar (une adresse e-mail) paie souvent plusieurs projets, avec des offres différentes. L’usage d’un projet pourrait être facturé sur l’abonnement d’un autre, ou deux fois. Avec une recharge, rien n’est dû après coup.
+
+**Règles appliquées par le serveur** (`lib/message-credit.ts`, `lib/message-quota.ts`) :
+
+- le crédit est une somme, en dix-millièmes de dollar, et non un nombre de messages. Chaque message hors quota en retire le tarif de l’offre du moment. Changer d’offre ne le dévalue pas, et acheter en Business pour envoyer en Starter ne rapporte rien ;
+- il n’est utilisé qu’une fois le quota de la période épuisé, sur une période payée, jamais pendant l’essai ;
+- au plus le quota de l’offre en messages supplémentaires par période. Ce plafond borne le coût d’une boucle ;
+- au plus 10 recharges d’avance par projet ;
+- l’achat (`buyMessageCredit`) exige le droit Facturation et un abonnement payé à jour ;
+- seul le webhook crédite : il relit la commande chez Polar, vérifie le produit, le projet (`metadata.projectId`) et le statut payé, puis crédite le montant hors taxes, une seule fois par commande (`message_credit_purchase`) ;
+- un remboursement retire la part remboursée du crédit restant, sans descendre sous zéro ;
+- le crédit n’expire pas. Il est perdu avec la suppression du projet.
+
+Une recharge achetée hors de l’application (lien Polar direct) n’a pas de projet : elle est journalisée et doit être remboursée par le support.
 
 ## Webhook
 
