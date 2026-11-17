@@ -229,6 +229,11 @@ model Project {
   agentHumanHandover Boolean @default(true)
   agentSetupCompletedAt DateTime?
   agentConfigVersion Int @default(0)
+  // Fiche de l'entreprise saisie au début de la configuration (lib/business-profile.ts) :
+  // activité, secteur, objectifs WhatsApp et identifiant de l'entrée « Informations »
+  // qui porte le site web et les réseaux sociaux. Validée par Zod à l'écriture et à
+  // la lecture ; null tant qu'elle n'a pas été remplie. Le nom reste `name`.
+  businessProfile Json?
   automationPaused Boolean @default(false)
   statusBeforePause ProjectStatus?
   deletionPending Boolean @default(false)

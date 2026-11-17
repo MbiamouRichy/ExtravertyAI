@@ -4,10 +4,12 @@ import {
   useId,
   useRef,
   useState,
+  useSyncExternalStore,
   useTransition,
+  type FormEvent,
   type ReactNode,
 } from "react";
-import { Controller, useForm, useWatch, type Control } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   ArrowLeft,
@@ -17,29 +19,28 @@ import {
   Loader2,
   Power,
   ShieldCheck,
-  Undo2,
-  Wand2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  Field,
-  FieldDescription,
-  FieldError,
-  FieldLabel,
-} from "@/components/ui/field";
 import {
   activateAgentSetup,
   saveAgentDraft,
 } from "@/app/actions/project-settings";
-import { assistSystemMessage } from "@/app/actions/assist-system-message";
+import { saveBusinessProfile } from "@/app/actions/business-profile";
 import {
   AGENT_DEFAULTS,
   AgentConfigSchema,
-  systemMessageTemplate,
+  AgentDraftSchema,
   type AgentConfig,
 } from "@/lib/agent-config";
+import {
+  BUSINESS_STEP_FIELDS,
+  BusinessProfileFormSchema,
+  BusinessProfileSchema,
+  normalizeLinks,
+  type BusinessProfile,
+  type BusinessProfileInput,
+} from "@/lib/business-profile";
 import { cn } from "@/lib/utils";
 import {
   AgentBehaviorFields,
@@ -50,13 +51,25 @@ import {
   type AgentFieldUpdate,
 } from "../agent-fields";
 import { SandboxChat } from "../knowledge/agent-sandbox";
+import { CompanyFields, GoalsFields } from "./business-fields";
+import { InstructionsField } from "./instructions-field";
 
-type StepId = "profile" | "mission" | "knowledge" | "test";
+type StepId = "company" | "goals" | "profile" | "mission" | "knowledge" | "test";
 
 const STEP_COPY: Record<
   StepId,
   { label: string; title: string; description: string }
 > = {
+  company: {
+    label: "Entreprise",
+    title: "Votre entreprise",
+    description: "L’essentiel pour que votre assistant la présente avec justesse.",
+  },
+  goals: {
+    label: "Objectifs",
+    title: "Qu’attendez-vous de WhatsApp ?",
+    description: "Ce que votre assistant doit prendre en charge.",
+  },
   profile: {
     label: "Profil",
     title: "Présentez votre assistant",
@@ -65,8 +78,7 @@ const STEP_COPY: Record<
   mission: {
     label: "Mission",
     title: "Que doit-il faire ?",
-    description:
-      "Votre activité, ce qu’il doit faire pour vos clients et ce qu’il ne doit jamais promettre.",
+    description: "Ses instructions, rédigées à partir de votre entreprise.",
   },
   knowledge: {
     label: "Connaissances",
@@ -82,8 +94,8 @@ const STEP_COPY: Record<
   },
 };
 
-/** Champs validés avant de quitter chaque étape du formulaire. */
-const STEP_FIELDS = {
+/** Champs de l’agent validés avant de quitter chaque étape. */
+const AGENT_STEP_FIELDS = {
   profile: [
     "agentName",
     "agentTone",
@@ -99,24 +111,37 @@ const STEP_FIELDS = {
   ],
 } as const satisfies Record<string, readonly (keyof AgentConfig)[]>;
 
-const MAX_INSTRUCTIONS = 12000;
-const REWRITE_COOLDOWN_MS = 30_000;
+const noopSubscribe = () => () => {};
 
-/** Configuration validée et sérialisée : sert à éviter les enregistrements inutiles. */
-function snapshot(value: unknown) {
-  const parsed = AgentConfigSchema.safeParse(value);
+const isBusinessStep = (id: StepId): id is "company" | "goals" =>
+  id === "company" || id === "goals";
+const isAgentStep = (id: StepId): id is "profile" | "mission" =>
+  id === "profile" || id === "mission";
+
+/** Brouillon validé et sérialisé : évite les enregistrements inutiles. */
+function agentSnapshot(value: unknown) {
+  const parsed = AgentDraftSchema.safeParse(value);
   return parsed.success ? JSON.stringify(parsed.data) : null;
 }
 
-function greeting(config: AgentConfig, projectName: string) {
+/** Fiche telle que le serveur l’enregistrera (liens vides ou en double ignorés). */
+function businessSnapshot(value: unknown) {
+  const parsed = BusinessProfileSchema.safeParse(value);
+  if (!parsed.success) return null;
+  const { website, socials, ...rest } = parsed.data;
+  const links = normalizeLinks({ website, socials: socials.map((social) => social.url) });
+  return JSON.stringify({ ...rest, links });
+}
+
+function greeting(config: AgentConfig, companyName: string) {
   const name = config.agentName.trim() || "votre assistant";
   if (config.agentLanguage === "en")
-    return `Hello, I'm ${name}, the AI assistant for ${projectName}. How can I help you?`;
+    return `Hello, I'm ${name}, the AI assistant for ${companyName}. How can I help you?`;
   if (config.agentTone === "direct")
     return `Bonjour, je suis ${name}. Quel est votre besoin ?`;
   if (config.agentTone === "professional")
-    return `Bonjour, je suis ${name}, l’assistant IA de ${projectName}. Comment puis-je vous renseigner ?`;
-  return `Bonjour et bienvenue chez ${projectName} ! Je suis ${name}, votre assistant IA. Comment puis-je vous aider ?`;
+    return `Bonjour, je suis ${name}, l’assistant IA de ${companyName}. Comment puis-je vous renseigner ?`;
+  return `Bonjour et bienvenue chez ${companyName} ! Je suis ${name}, votre assistant IA. Comment puis-je vous aider ?`;
 }
 
 function Progress({
@@ -134,7 +159,10 @@ function Progress({
 }) {
   return (
     <nav aria-label="Étapes de configuration">
-      <ol className={cn("grid gap-2", steps.length === 4 ? "grid-cols-4" : "grid-cols-3")}>
+      <ol
+        className="grid gap-1.5 sm:gap-2"
+        style={{ gridTemplateColumns: `repeat(${steps.length}, minmax(0, 1fr))` }}
+      >
         {steps.map((id, index) => {
           const current = index === step;
           const done = index < step;
@@ -150,8 +178,8 @@ function Progress({
               />
               <span
                 className={cn(
-                  // Téléphone : barres seules, l’étape est écrite sous la progression.
-                  "mt-2 flex min-w-0 items-center gap-1 text-xs max-sm:sr-only",
+                  // Téléphone et tablette : barres seules, l’étape est écrite sous la progression.
+                  "mt-2 flex min-w-0 items-center gap-1 text-xs max-md:sr-only",
                   current ? "font-medium text-foreground" : "text-muted-foreground",
                 )}
               >
@@ -167,7 +195,7 @@ function Progress({
                   type="button"
                   disabled={disabled}
                   onClick={() => onSelect(index)}
-                  className="block w-full rounded-sm text-left outline-none focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed"
+                  className="block w-full rounded-sm py-1 text-left outline-none focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed"
                 >
                   {content}
                   <span className="sr-only">
@@ -175,7 +203,7 @@ function Progress({
                   </span>
                 </button>
               ) : (
-                <div>
+                <div className="py-1">
                   {content}
                   {!current && <span className="sr-only"> (à venir)</span>}
                 </div>
@@ -193,45 +221,69 @@ export function AgentSetup({
   projectName,
   initial,
   version,
+  business,
+  businessReady,
+  logoUrl,
   knowledge,
   sandbox,
   instinctAvailable,
 }: {
   projectId: string;
   projectName: string;
+  /** Logo actuel du projet (`projectLogoUrl`), ou null. */
+  logoUrl: string | null;
   initial: AgentConfig;
   version: number;
+  /** Fiche enregistrée, ou nom du projet seul au premier passage. */
+  business: BusinessProfileInput;
+  /** Fiche complète : les étapes suivantes sont accessibles d’emblée. */
+  businessReady: boolean;
   /** Étape facultative : outils de la base de connaissances. */
   knowledge: ReactNode | null;
   sandbox: { remaining: number; suggestions: readonly string[] };
   /** L’offre inclut Instinct IA (lu côté serveur dans `PLAN_FEATURES`). */
   instinctAvailable: boolean;
 }) {
-  const formId = useId();
+  const businessFormId = useId();
+  const agentFormId = useId();
   const steps: StepId[] = knowledge
-    ? ["profile", "mission", "knowledge", "test"]
-    : ["profile", "mission", "test"];
+    ? ["company", "goals", "profile", "mission", "knowledge", "test"]
+    : ["company", "goals", "profile", "mission", "test"];
   const [step, setStep] = useState(0);
-  const [reached, setReached] = useState(0);
+  // Retour dans le parcours : les étapes déjà remplies restent accessibles.
+  const [reached, setReached] = useState(() =>
+    !businessReady
+      ? 0
+      : AgentConfigSchema.safeParse(initial).success
+        ? steps.length - 1
+        : steps.indexOf("mission"),
+  );
   const [savedVersion, setSavedVersion] = useState(version);
   const [saving, setSaving] = useState(false);
+  const [generating, setGenerating] = useState(false);
   const [activating, startActivation] = useTransition();
   const [error, setError] = useState("");
   const [tested, setTested] = useState(false);
-  const lastSaved = useRef<string | null>(snapshot(initial));
+  const lastAgent = useRef<string | null>(agentSnapshot(initial));
+  const lastBusiness = useRef<string | null>(businessSnapshot(business));
   const heading = useRef<HTMLHeadingElement>(null);
   const mounted = useRef(false);
 
-  const form = useForm<AgentConfig>({
-    resolver: zodResolver(AgentConfigSchema),
+  const businessForm = useForm<BusinessProfileInput, unknown, BusinessProfile>({
+    resolver: zodResolver(BusinessProfileFormSchema),
     defaultValues: {
-      ...AGENT_DEFAULTS,
-      ...initial,
-      agentSystemMessage:
-        initial.agentSystemMessage || systemMessageTemplate(projectName),
+      ...business,
+      // Un champ de réseau social prêt à remplir.
+      socials: business.socials.length ? business.socials : [{ url: "" }],
     },
   });
+  const form = useForm<AgentConfig>({
+    resolver: zodResolver(AgentConfigSchema),
+    defaultValues: { ...AGENT_DEFAULTS, ...initial },
+  });
   const config = useWatch({ control: form.control }) as AgentConfig;
+  const companyName =
+    useWatch({ control: businessForm.control, name: "companyName" }).trim() || projectName;
   const update: AgentFieldUpdate = (key, value) => {
     setError("");
     form.setValue(key, value, { shouldDirty: true, shouldValidate: true });
@@ -239,7 +291,23 @@ export function AgentSetup({
   const fields = { control: form.control, onChange: update };
 
   const current = steps[step];
-  const busy = saving || activating;
+  // Avant l’hydratation, « Continuer » soumettrait le formulaire en GET natif et
+  // placerait la fiche dans l’URL : tout reste désactivé jusque-là.
+  const hydrated = useSyncExternalStore(
+    noopSubscribe,
+    () => true,
+    () => false,
+  );
+  const busy = saving || activating || generating || !hydrated;
+
+  // Un champ signalé à « Continuer » se revalide à chaque saisie : l’erreur
+  // disparaît dès qu’elle est corrigée, sans alerte prématurée ailleurs.
+  useEffect(() => {
+    const subscription = businessForm.watch((_values, { name }) => {
+      if (name && businessForm.getFieldState(name).invalid) void businessForm.trigger(name);
+    });
+    return () => subscription.unsubscribe();
+  }, [businessForm]);
 
   // Nouvelle étape : le titre reçoit le focus (lecteurs d’écran, clavier).
   useEffect(() => {
@@ -252,28 +320,27 @@ export function AgentSetup({
     window.scrollTo({ top: 0, behavior: reduce ? "auto" : "smooth" });
   }, [step]);
 
-  /** Brouillon enregistré côté serveur : l’agent reste silencieux sur WhatsApp. */
-  async function saveDraft() {
-    const parsed = AgentConfigSchema.safeParse(form.getValues());
-    if (!parsed.success) {
-      setError(parsed.error.issues[0]?.message ?? "Vérifiez la configuration.");
+  /** Fiche enregistrée côté serveur ; les liens rejoignent les connaissances. */
+  async function saveBusiness() {
+    const values = businessForm.getValues();
+    const next = businessSnapshot(values);
+    if (next === null) {
+      setError("Vérifiez les informations de votre entreprise.");
       return false;
     }
-    const next = JSON.stringify(parsed.data);
-    if (next === lastSaved.current) return true;
+    if (next === lastBusiness.current) return true;
     setSaving(true);
     try {
-      const result = await saveAgentDraft({
-        projectId,
-        expectedVersion: savedVersion,
-        config: parsed.data,
-      });
+      const result = await saveBusinessProfile({ projectId, profile: values });
       if (!result.success) {
         setError(result.error);
         return false;
       }
-      setSavedVersion(result.version);
-      lastSaved.current = next;
+      lastBusiness.current = next;
+      // Un nouveau nom fait avancer la version de l’agent, comme dans les réglages.
+      // Une modification d’un autre membre reste détectée au prochain brouillon.
+      if (result.renamed) setSavedVersion((value) => value + 1);
+      if (result.linksChanged) toast.success("Liens enregistrés dans vos connaissances.");
       return true;
     } catch {
       setError("La connexion a été interrompue. Réessayez.");
@@ -283,20 +350,59 @@ export function AgentSetup({
     }
   }
 
+  /** Brouillon de l’agent : il reste silencieux sur WhatsApp. Renvoie l’erreur éventuelle. */
+  async function saveDraft(): Promise<string | null> {
+    const parsed = AgentDraftSchema.safeParse(form.getValues());
+    if (!parsed.success) {
+      const message = parsed.error.issues[0]?.message ?? "Vérifiez la configuration.";
+      setError(message);
+      return message;
+    }
+    const next = JSON.stringify(parsed.data);
+    if (next === lastAgent.current) return null;
+    setSaving(true);
+    try {
+      const result = await saveAgentDraft({
+        projectId,
+        expectedVersion: savedVersion,
+        config: parsed.data,
+      });
+      if (!result.success) {
+        setError(result.error);
+        return result.error;
+      }
+      setSavedVersion(result.version);
+      lastAgent.current = next;
+      return null;
+    } catch {
+      const message = "La connexion a été interrompue. Réessayez.";
+      setError(message);
+      return message;
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function go(target: number) {
     if (busy || target === step || target < 0 || target >= steps.length) return;
     setError("");
     if (target > step) {
-      // Chaque étape de formulaire franchie est validée, puis le brouillon enregistré.
+      // Chaque étape de formulaire franchie est validée, puis enregistrée.
       for (const [index, id] of steps.entries()) {
         if (index >= target) break;
-        if (id !== "profile" && id !== "mission") continue;
-        if (!(await form.trigger([...STEP_FIELDS[id]], { shouldFocus: index === step }))) {
+        const focus = { shouldFocus: index === step };
+        const valid = isBusinessStep(id)
+          ? await businessForm.trigger([...BUSINESS_STEP_FIELDS[id]], focus)
+          : isAgentStep(id)
+            ? await form.trigger([...AGENT_STEP_FIELDS[id]], focus)
+            : true;
+        if (!valid) {
           if (index !== step) setStep(index);
           return;
         }
       }
-      if (!(await saveDraft())) return;
+      if (!(await saveBusiness())) return;
+      if ((await saveDraft()) !== null) return;
     }
     setStep(target);
     setReached((value) => Math.max(value, target));
@@ -305,7 +411,7 @@ export function AgentSetup({
   function activate() {
     setError("");
     startActivation(async () => {
-      if (!(await saveDraft())) return;
+      if ((await saveDraft()) !== null) return;
       // En cas de succès, le serveur redirige vers la messagerie.
       const result = await activateAgentSetup({ projectId });
       if (result?.success === false) setError(result.error);
@@ -313,7 +419,15 @@ export function AgentSetup({
   }
 
   const copy = STEP_COPY[current];
-  const formStep = current === "profile" || current === "mission";
+  const formId = isBusinessStep(current)
+    ? businessFormId
+    : isAgentStep(current)
+      ? agentFormId
+      : undefined;
+  const submit = (event: FormEvent) => {
+    event.preventDefault();
+    void go(step + 1);
+  };
 
   return (
     <div className="flex flex-col">
@@ -333,7 +447,7 @@ export function AgentSetup({
           <h1
             ref={heading}
             tabIndex={-1}
-            className="mt-2 text-3xl leading-tight outline-none sm:text-4xl"
+            className="mt-2 text-3xl leading-tight text-balance outline-none sm:text-4xl"
           >
             {copy.title}
           </h1>
@@ -344,15 +458,25 @@ export function AgentSetup({
       </header>
 
       <div className="mt-8 min-w-0">
-        {formStep && (
-          <form
-            id={formId}
-            noValidate
-            onSubmit={(event) => {
-              event.preventDefault();
-              void go(step + 1);
-            }}
-          >
+        {isBusinessStep(current) && (
+          <form id={businessFormId} noValidate onSubmit={submit}>
+            <fieldset disabled={busy} className="min-w-0 space-y-8">
+              {current === "company" ? (
+                <CompanyFields
+                  control={businessForm.control}
+                  projectId={projectId}
+                  companyName={companyName}
+                  logoUrl={logoUrl}
+                />
+              ) : (
+                <GoalsFields control={businessForm.control} />
+              )}
+            </fieldset>
+          </form>
+        )}
+
+        {isAgentStep(current) && (
+          <form id={agentFormId} noValidate onSubmit={submit}>
             <fieldset disabled={busy} className="min-w-0 space-y-8">
               {current === "profile" && (
                 <>
@@ -367,7 +491,7 @@ export function AgentSetup({
                         aria-live="polite"
                         className="min-w-0 rounded-2xl rounded-bl-sm bg-background px-3 py-2 text-sm leading-relaxed shadow-xs"
                       >
-                        {greeting(config, projectName)}
+                        {greeting(config, companyName)}
                         {config.agentUseEmojis && " 👋"}
                       </blockquote>
                       <figcaption className="sr-only">
@@ -390,8 +514,11 @@ export function AgentSetup({
                   <InstructionsField
                     projectId={projectId}
                     control={form.control}
-                    config={config}
+                    value={config.agentSystemMessage}
+                    disabled={busy}
                     onChange={(value) => update("agentSystemMessage", value)}
+                    onPersist={saveDraft}
+                    onGeneratingChange={setGenerating}
                   />
                   <AgentBehaviorFields
                     {...fields}
@@ -473,10 +600,10 @@ export function AgentSetup({
               </Button>
             ) : (
               <Button
-                type={formStep ? "submit" : "button"}
-                form={formStep ? formId : undefined}
+                type={formId ? "submit" : "button"}
+                form={formId}
                 disabled={busy}
-                onClick={formStep ? undefined : () => void go(step + 1)}
+                onClick={formId ? undefined : () => void go(step + 1)}
                 className="min-w-0 max-sm:flex-1"
               >
                 {saving && (
@@ -490,126 +617,5 @@ export function AgentSetup({
         </div>
       </div>
     </div>
-  );
-}
-
-/**
- * Instructions de l’agent, éditées sur place. « Améliorer » passe par la même
- * action serveur que la page Assistant IA (droits, quota et délai vérifiés).
- */
-function InstructionsField({
-  projectId,
-  control,
-  config,
-  onChange,
-}: {
-  projectId: string;
-  control: Control<AgentConfig>;
-  config: AgentConfig;
-  onChange: (value: string) => void;
-}) {
-  const [rewriting, setRewriting] = useState(false);
-  const [previous, setPrevious] = useState<string | null>(null);
-  const availableAt = useRef(0);
-  const length = config.agentSystemMessage.length;
-
-  async function rewrite() {
-    if (rewriting) return;
-    if (Date.now() < availableAt.current) {
-      toast.info("Patientez 30 secondes entre deux demandes à l’IA.");
-      return;
-    }
-    availableAt.current = Date.now() + REWRITE_COOLDOWN_MS;
-    setRewriting(true);
-    const draft = config.agentSystemMessage;
-    try {
-      const result = await assistSystemMessage({
-        projectId,
-        config,
-        mode: "rewrite",
-      });
-      if (!result.success) {
-        toast.error(result.error);
-        return;
-      }
-      setPrevious(draft);
-      onChange(result.systemMessage);
-      toast.success("Instructions améliorées. Relisez-les avant de continuer.");
-    } catch {
-      toast.error("L’IA est indisponible. Votre texte est conservé.");
-    } finally {
-      setRewriting(false);
-    }
-  }
-
-  return (
-    <Controller
-      name="agentSystemMessage"
-      control={control}
-      render={({ field, fieldState }) => (
-        <Field data-invalid={fieldState.invalid}>
-          <div className="flex flex-wrap items-end justify-between gap-2">
-            <FieldLabel htmlFor="agent-instructions">Instructions</FieldLabel>
-            <div className="flex items-center gap-1">
-              {previous !== null && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  disabled={rewriting}
-                  onClick={() => {
-                    onChange(previous);
-                    setPrevious(null);
-                  }}
-                >
-                  <Undo2 data-icon="inline-start" />
-                  Annuler
-                </Button>
-              )}
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={rewriting || config.agentSystemMessage.trim().length < 40}
-                onClick={() => void rewrite()}
-              >
-                {rewriting ? (
-                  <Loader2 data-icon="inline-start" className="animate-spin motion-reduce:animate-none" />
-                ) : (
-                  <Wand2 data-icon="inline-start" />
-                )}
-                {rewriting ? "Amélioration…" : "Améliorer avec l’IA"}
-              </Button>
-            </div>
-          </div>
-          <FieldDescription id="agent-instructions-description">
-            Remplacez les exemples par votre activité, vos offres et vos
-            limites. Ne promettez rien qui ne soit pas vérifié.
-          </FieldDescription>
-          <Textarea
-            {...field}
-            id="agent-instructions"
-            value={field.value}
-            onChange={(event) => onChange(event.target.value)}
-            disabled={rewriting}
-            maxLength={MAX_INSTRUCTIONS}
-            spellCheck
-            autoComplete="off"
-            aria-invalid={fieldState.invalid}
-            aria-describedby="agent-instructions-description agent-instructions-count agent-instructions-error"
-            className="min-h-72 max-h-[60dvh] resize-y text-base leading-relaxed sm:text-sm"
-          />
-          <div className="flex items-start justify-between gap-3">
-            <FieldError id="agent-instructions-error" errors={[fieldState.error]} />
-            <p
-              id="agent-instructions-count"
-              className="ml-auto shrink-0 font-mono text-xs tabular-nums text-muted-foreground"
-            >
-              {length.toLocaleString("fr-FR")} / 12 000
-            </p>
-          </div>
-        </Field>
-      )}
-    />
   );
 }
