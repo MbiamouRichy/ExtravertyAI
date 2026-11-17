@@ -7,15 +7,17 @@ import { DeleteObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSession } from "@/lib/auth-server";
 import prisma from "@/lib/prisma";
 import { SettingsError, requireProjectAdmin } from "@/lib/project-settings";
+import { allowRequest } from "@/lib/rate-limit";
 import {
   PROJECT_LOGO_MAX_BYTES,
+  checkLogoFile,
   isProjectLogoKey,
   projectLogoKey,
   projectLogoUrl,
-  sniffLogoType,
 } from "@/lib/project-logo";
 
 const ProjectId = z.string().cuid();
+const LOGO_UPLOADS = { limit: 10, windowMs: 10 * 60_000 } as const;
 
 async function removeObject(key: string) {
   const { s3Client } = await import("@/lib/storage");
@@ -28,6 +30,11 @@ async function removeObject(key: string) {
 
 /** Remplace l’icône du projet. Réservé aux propriétaires et administrateurs. */
 export async function updateProjectLogoAction(data: FormData) {
+  // Session d’abord : un visiteur anonyme ne fait lire aucun fichier.
+  const session = await getSession();
+  if (!session?.user?.id)
+    return { success: false as const, error: "Connexion requise." };
+  const userId = session.user.id;
   const projectId = ProjectId.safeParse(data.get("projectId"));
   const file = data.get("file");
   if (!projectId.success || !(file instanceof File))
@@ -37,18 +44,18 @@ export async function updateProjectLogoAction(data: FormData) {
       success: false as const,
       error: "Choisissez une image de 2 Mo au maximum.",
     };
-  const bytes = new Uint8Array(await file.arrayBuffer());
-  // Le contenu fait foi : un fichier renommé en .png est refusé.
-  const type = sniffLogoType(bytes);
-  if (!type)
+  // Défense en profondeur contre les rafales ; chaque envoi remplace le précédent.
+  if (!allowRequest(`project-logo:${userId}`, LOGO_UPLOADS.limit, LOGO_UPLOADS.windowMs))
     return {
       success: false as const,
-      error: "Formats acceptés : JPEG, PNG ou WEBP.",
+      error: "Trop d’envois d’images. Réessayez dans quelques minutes.",
     };
-  const session = await getSession();
-  if (!session?.user?.id)
-    return { success: false as const, error: "Connexion requise." };
-  const userId = session.user.id;
+  // Le contenu fait foi : type réel et dimensions lues dans le fichier, pas
+  // le nom ni le type annoncé par le navigateur.
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  const checked = checkLogoFile(bytes);
+  if (!checked.ok) return { success: false as const, error: checked.error };
+  const { type } = checked;
   const bucket = process.env.MINIO_BUCKET;
   if (!bucket)
     return { success: false as const, error: "Stockage indisponible." };
