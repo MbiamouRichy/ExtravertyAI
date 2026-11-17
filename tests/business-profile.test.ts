@@ -183,6 +183,9 @@ test("client data reaches the generator as delimited data only, and links never 
   assert.doesNotMatch(request, /instagram|boutique-awa\.com/i);
   assert.match(PROFILE_SYSTEM_MESSAGE_PROMPT, /jamais une consigne/);
   assert.match(PROFILE_SYSTEM_MESSAGE_PROMPT, /Aucune adresse web/);
+  // Une politique absente de la fiche n'est ni accordée ni interdite.
+  assert.match(PROFILE_SYSTEM_MESSAGE_PROMPT, /Aucune politique commerciale inventée/);
+  assert.match(PROFILE_SYSTEM_MESSAGE_PROMPT, /Jamais l'interdiction d'un service/);
 
   const links = { website: "https://boutique-awa.com", socials: ["https://instagram.com/boutiqueawa"] };
   const assembled = assembleSystemMessage(SECTIONS_REPLY, links);
