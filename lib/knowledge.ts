@@ -107,45 +107,62 @@ export async function saveEntry(
   input: Admin & { id?: string; entry: EntryPayload },
 ) {
   const entry = EntryPayloadSchema.parse(input.entry);
-  const content = entry.content || (entry.kind === "PRODUCT" ? entry.title : "");
-  if (!content) throw new KnowledgeError("Le contenu est obligatoire.");
+  if (!entry.content && entry.kind !== "PRODUCT") {
+    throw new KnowledgeError("Le contenu est obligatoire.");
+  }
   return db.$transaction(async (tx) => {
     const project = await lockAdmin(tx, input);
-    const data = {
-      kind: entry.kind,
-      title: entry.title,
-      content,
-      price: entry.kind === "PRODUCT" ? entry.price : null,
-      stock: entry.kind === "PRODUCT" ? entry.stock : null,
-      searchText: entrySearchText({ title: entry.title, content, price: entry.price }),
-    };
-    const words = countEntryWords({ title: entry.title, content });
-    if (input.id) {
-      const existing = await tx.knowledgeEntry.findFirst({
-        where: { id: input.id, projectId: input.projectId, kind: { not: "CHUNK" } },
-        select: { id: true, words: true },
-      });
-      if (!existing) throw new KnowledgeError("Entrée introuvable.");
-      // Raccourcir reste toujours possible, même au-delà de la limite.
-      if (words > existing.words) {
-        const remaining = await remainingWords(tx, input.projectId, project.plan);
-        if (words - existing.words > remaining) {
-          throw new KnowledgeError(wordLimitMessage(project.plan, words - existing.words, remaining));
-        }
-      }
-      return tx.knowledgeEntry.update({ where: { id: input.id }, data, select: { id: true } });
-    }
-    if ((await remainingEntries(tx, input.projectId, project.plan)) < 1) {
-      throw new KnowledgeError(limitMessage(project.plan));
-    }
-    const remaining = await remainingWords(tx, input.projectId, project.plan);
-    if (words > remaining) {
-      throw new KnowledgeError(wordLimitMessage(project.plan, words, remaining));
-    }
-    return tx.knowledgeEntry.create({
-      data: { ...data, projectId: input.projectId, createdById: input.userId },
-      select: { id: true },
+    return writeEntry(tx, project.plan, { ...input, entry });
+  });
+}
+
+/**
+ * Crée ou modifie une entrée dans les limites de l’offre. L’appelant a déjà
+ * verrouillé le projet et vérifié les droits d’administration (`lockAdmin`
+ * ou équivalent) dans la même transaction.
+ */
+export async function writeEntry(
+  tx: Prisma.TransactionClient,
+  plan: string,
+  input: Admin & { id?: string; entry: EntryPayload },
+) {
+  const entry = EntryPayloadSchema.parse(input.entry);
+  const content = entry.content || (entry.kind === "PRODUCT" ? entry.title : "");
+  if (!content) throw new KnowledgeError("Le contenu est obligatoire.");
+  const data = {
+    kind: entry.kind,
+    title: entry.title,
+    content,
+    price: entry.kind === "PRODUCT" ? entry.price : null,
+    stock: entry.kind === "PRODUCT" ? entry.stock : null,
+    searchText: entrySearchText({ title: entry.title, content, price: entry.price }),
+  };
+  const words = countEntryWords({ title: entry.title, content });
+  if (input.id) {
+    const existing = await tx.knowledgeEntry.findFirst({
+      where: { id: input.id, projectId: input.projectId, kind: { not: "CHUNK" } },
+      select: { id: true, words: true },
     });
+    if (!existing) throw new KnowledgeError("Entrée introuvable.");
+    // Raccourcir reste toujours possible, même au-delà de la limite.
+    if (words > existing.words) {
+      const remaining = await remainingWords(tx, input.projectId, plan);
+      if (words - existing.words > remaining) {
+        throw new KnowledgeError(wordLimitMessage(plan, words - existing.words, remaining));
+      }
+    }
+    return tx.knowledgeEntry.update({ where: { id: input.id }, data, select: { id: true } });
+  }
+  if ((await remainingEntries(tx, input.projectId, plan)) < 1) {
+    throw new KnowledgeError(limitMessage(plan));
+  }
+  const remaining = await remainingWords(tx, input.projectId, plan);
+  if (words > remaining) {
+    throw new KnowledgeError(wordLimitMessage(plan, words, remaining));
+  }
+  return tx.knowledgeEntry.create({
+    data: { ...data, projectId: input.projectId, createdById: input.userId },
+    select: { id: true },
   });
 }
 

@@ -1,5 +1,5 @@
 import type { Prisma } from "../src/generated/prisma/client";
-import { AgentConfigSchema } from "./agent-config";
+import { AgentConfigSchema, AgentDraftSchema } from "./agent-config";
 import { can, type ProjectPermission } from "./project-permissions";
 import { getBillingAccess } from "./billing-access";
 
@@ -62,7 +62,9 @@ export async function writeAgentConfig(
     throw new SettingsError(
       "Un autre membre a modifié cet agent. Rechargez la page avant d’enregistrer.",
     );
-  const config = AgentConfigSchema.parse(input);
+  // Brouillon sans instructions accepté seulement avant la première activation.
+  const draft = !activate && !project.agentSetupCompletedAt;
+  const config = (draft ? AgentDraftSchema : AgentConfigSchema).parse(input);
   const version = project.agentConfigVersion + 1;
   await tx.project.update({
     where: { id: projectId },

@@ -21,6 +21,14 @@ export const AgentConfigSchema = z.object({
   agentHumanHandover: z.boolean(),
 });
 export type AgentConfig = z.infer<typeof AgentConfigSchema>;
+/**
+ * Brouillon de la configuration initiale : les instructions peuvent encore être
+ * vides (elles sont rédigées à l’étape Mission). L’activation et le bac à sable
+ * exigent toujours `AgentConfigSchema`.
+ */
+export const AgentDraftSchema = AgentConfigSchema.extend({
+  agentSystemMessage: z.string().trim().max(12000),
+});
 export const AGENT_DEFAULTS: AgentConfig = {
   agentName: "Assistant",
   agentSystemMessage: "",

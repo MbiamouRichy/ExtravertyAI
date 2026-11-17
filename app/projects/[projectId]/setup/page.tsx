@@ -10,6 +10,8 @@ import { AGENT_DEFAULTS, type AgentConfig } from "@/lib/agent-config";
 import { knowledgeOverview } from "@/lib/knowledge";
 import { sandboxUsage } from "@/lib/agent-sandbox";
 import { planAllows } from "@/lib/plan-features";
+import { profileReady } from "@/lib/business-profile";
+import { loadBusinessProfile } from "@/lib/business-profile-store";
 import { ProjectIcon } from "@/components/dashboard/project/project-icon";
 import { projectLogoUrl } from "@/lib/project-logo";
 import { AgentSetup } from "@/components/dashboard/project/setup/agent-setup";
@@ -97,9 +99,10 @@ export default async function AgentSetupPage({
     ]),
   ) as AgentConfig;
   // Réservé OWNER/ADMIN côté serveur ; null si l’accès a changé entre-temps.
-  const [knowledge, usage] = await Promise.all([
+  const [knowledge, usage, business] = await Promise.all([
     knowledgeOverview(prisma, projectId, session.user.id),
     sandboxUsage(prisma, projectId, p.plan),
+    loadBusinessProfile(prisma, p),
   ]);
   const entryView = (
     entry: NonNullable<typeof knowledge>["entries"][number],
@@ -139,6 +142,9 @@ export default async function AgentSetupPage({
         projectName={p.name}
         initial={initial}
         version={p.agentConfigVersion}
+        business={business.profile}
+        businessReady={profileReady(business.stored)}
+        logoUrl={projectLogoUrl(p.id, p.logoKey)}
         instinctAvailable={planAllows(p.plan, "instinct")}
         sandbox={{
           remaining: usage.remaining,

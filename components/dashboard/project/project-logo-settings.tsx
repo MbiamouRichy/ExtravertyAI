@@ -19,11 +19,14 @@ export function ProjectLogoSettings({
   name,
   logoUrl,
   disabled,
+  optional,
 }: {
   projectId: string;
   name: string;
   logoUrl: string | null;
   disabled?: boolean;
+  /** Parcours de configuration : le logo peut attendre. */
+  optional?: boolean;
 }) {
   const router = useRouter();
   const input = useRef<HTMLInputElement>(null);
@@ -87,7 +90,10 @@ export function ProjectLogoSettings({
       />
       <div className="min-w-0 flex-1 space-y-2.5 sm:flex sm:items-center sm:justify-between sm:gap-4 sm:space-y-0">
         <div className="min-w-0">
-          <p className="text-sm font-medium">Logo</p>
+          <p className="text-sm font-medium">
+            Logo
+            {optional && <span className="font-normal text-muted-foreground"> · facultatif</span>}
+          </p>
           <p id={descriptionId} className="mt-0.5 text-xs text-muted-foreground">
             PNG, JPEG ou WEBP · 2 Mo max.
           </p>
