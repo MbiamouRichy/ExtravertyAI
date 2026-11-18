@@ -87,10 +87,10 @@ export default function TeamLoading() {
                   <div className="flex h-5 items-center max-sm:col-span-3 max-sm:mt-2.5">
                     <Skeleton className={`h-3 max-w-full ${email}`} />
                   </div>
-                  <div className="mt-1.5 flex items-center gap-2.5 max-sm:col-span-3 sm:mt-0.5">
-                    <Skeleton className="h-5 w-20 rounded-full sm:hidden" />
-                    <Skeleton className="h-3 w-16" />
-                    <Skeleton className="h-3 w-20" />
+                  <div className="mt-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 max-sm:col-span-3 sm:mt-0.5">
+                    <Skeleton className="h-5 w-20 shrink-0 rounded-full sm:hidden" />
+                    <Skeleton className="h-3 w-16 shrink-0" />
+                    <Skeleton className="h-3 w-20 shrink-0" />
                   </div>
                   {assignable && (
                     <Skeleton className="col-span-3 mt-2.5 h-8 rounded-md sm:hidden" />

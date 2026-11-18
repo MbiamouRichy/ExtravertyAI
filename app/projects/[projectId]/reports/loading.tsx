@@ -122,7 +122,7 @@ export default function ReportsLoading() {
                   </div>
                   <Skeleton className="h-3 w-full" />
                 </div>
-                <Skeleton className="h-8 w-44 rounded-md" />
+                <Skeleton className="h-8 w-44 max-w-full rounded-md" />
               </div>
             </div>
           ))}
@@ -149,18 +149,20 @@ export default function ReportsLoading() {
             <SectionHeaderSkeleton title="w-24" meta="w-36" />
             <div className="divide-y rounded-2xl border px-4">
               {[0, 1].map((item) => (
-                <div key={item} className="flex items-center gap-3 py-3">
+                <div key={item} className="flex min-w-0 items-center gap-3 py-3">
                   <Skeleton className="size-8 shrink-0 rounded-full" />
                   <div className="min-w-0 flex-1 space-y-1.5">
-                    <div className="flex items-center justify-between gap-3">
-                      <Skeleton className="h-3.5 w-28" />
-                      <Skeleton className="h-3 w-20" />
+                    {/* Rôle à droite du nom, ou dessous s'il manque de place. */}
+                    <div className="flex min-w-0 flex-wrap items-center justify-between gap-x-3 gap-y-1.5">
+                      <Skeleton className="h-3.5 w-28 max-w-full" />
+                      <Skeleton className="h-3 w-20 shrink-0" />
                     </div>
                     <Skeleton className="h-3 w-44 max-w-full" />
                   </div>
                 </div>
               ))}
             </div>
+            <Skeleton className="mt-4 h-8 w-32" />
           </div>
         </div>
       </div>

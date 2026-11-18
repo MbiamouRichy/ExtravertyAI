@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { PrismaClient } from "../src/generated/prisma/client";
+import { AGENT_INSTRUCTIONS_MAX } from "./agent-config";
 import { aiMeter, type AiMeter } from "./ai-usage";
 import { getBillingAccess } from "./billing-access";
 import {
@@ -22,7 +23,7 @@ import { reserveSystemAssistance } from "./system-assistance-limits";
  * (`buildAgentSystemMessage`) : le texte produit ne porte que ce qui est
  * propre à l’entreprise et à son secteur.
  */
-export const GENERATED_MESSAGE_LIMITS = { min: 300, max: 6000 } as const;
+export const GENERATED_MESSAGE_LIMITS = { min: 300, max: AGENT_INSTRUCTIONS_MAX } as const;
 
 const DATA_TAG = "fiche_entreprise";
 
@@ -62,7 +63,7 @@ FORME
 - Simple, clair, précis et complet avec le moins de mots possible. Chaque élément est une phrase courte, sans puce, sans numéro, sans titre, sans markdown. Aucune répétition d'une section à l'autre, aucun remplissage.
 - Un champ JSON par section, chacun une liste d'éléments (liste vide si rien d'utile) :
 ${SECTIONS.map(({ key, rule }) => `${key} : ${rule}`).join("\n")}
-- Entre 600 et 2 500 caractères au total.`;
+- Entre 600 et 1 800 caractères au total, jamais plus de 2 000.`;
 
 /** Bornes larges : le surplus est coupé à l’assemblage plutôt que refusé. */
 export const GeneratedSectionsSchema = z
@@ -138,11 +139,20 @@ const refusesOffer = (item: string) => OFFER_REFUSAL.test(item) && !/\bsans\b/i.
  * Assemble les sections avec des titres fixes et des puces « - ». Chaque
  * élément est nettoyé ; celui qui cite un lien parle du lien, il disparaît en
  * entier, comme une limite qui refuse une offre. Les sections vides sont omises.
+ * Au-delà de `budget` caractères, les derniers éléments des listes les plus
+ * longues sont retirés (jamais le contexte ni la première mission) plutôt que
+ * de refuser la réponse.
  */
-export function assembleSystemMessage(sections: GeneratedSections, links: BusinessLinks) {
+export function assembleSystemMessage(
+  sections: GeneratedSections,
+  links: BusinessLinks,
+  budget: number = GENERATED_MESSAGE_LIMITS.max,
+) {
   const patterns = linkPatterns(links);
-  return SECTIONS.flatMap(({ key, title, max }) => {
-    const items = sections[key]
+  const kept = SECTIONS.map(({ key, title, max }) => ({
+    key,
+    title,
+    items: sections[key]
       .map((item) =>
         cleanText(item)
           .replace(/\s+/g, " ")
@@ -155,11 +165,29 @@ export function assembleSystemMessage(sections: GeneratedSections, links: Busine
           !patterns.some((pattern) => pattern.test(item)) &&
           !(key === "limites" && refusesOffer(item)),
       )
-      .slice(0, max);
-    if (!items.length) return [];
-    const body = key === "contexte" ? items.join(" ") : items.map((item) => `- ${item}`).join("\n");
-    return [`${title}\n${body}`];
-  }).join("\n\n");
+      .slice(0, max),
+  }));
+  const render = () =>
+    kept
+      .filter(({ items }) => items.length)
+      .map(({ key, title, items }) =>
+        `${title}\n${key === "contexte" ? items.join(" ") : items.map((item) => `- ${item}`).join("\n")}`,
+      )
+      .join("\n\n");
+  let message = render();
+  while (message.length > budget) {
+    // À égalité, les dernières sections passent avant la mission.
+    let longest: (typeof kept)[number] | undefined;
+    for (const section of [...kept].reverse()) {
+      const floor = section.key === "contexte" ? Infinity : section.key === "mission" ? 1 : 0;
+      if (section.items.length > floor && section.items.length > (longest?.items.length ?? 0))
+        longest = section;
+    }
+    if (!longest) break;
+    longest.items.pop();
+    message = render();
+  }
+  return message;
 }
 
 export async function generateProfileSystemMessage(

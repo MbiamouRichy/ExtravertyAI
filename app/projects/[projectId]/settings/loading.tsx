@@ -51,9 +51,9 @@ export default function SettingsLoading() {
             <Skeleton className="h-3 w-24" />
             <Skeleton className="h-9 w-64 max-w-full" />
             <div className="flex flex-wrap gap-2">
-              <Skeleton className="h-6 w-36 rounded-full" />
-              <Skeleton className="h-6 w-28 rounded-full" />
-              <Skeleton className="h-6 w-44 rounded-full" />
+              <Skeleton className="h-6 w-36 shrink-0 rounded-full" />
+              <Skeleton className="h-6 w-28 shrink-0 rounded-full" />
+              <Skeleton className="h-6 w-44 max-w-full shrink-0 rounded-full" />
             </div>
           </div>
           <div className="grid grid-cols-1 gap-2 min-[400px]:grid-cols-2 sm:flex">
@@ -125,9 +125,9 @@ export default function SettingsLoading() {
                 <CardHeading width="w-44" />
                 <Skeleton className="h-10 w-full rounded-md sm:w-52" />
               </div>
-              <div className="mb-3 flex justify-between gap-4">
-                <Skeleton className="h-4 w-48" />
-                <Skeleton className="h-4 w-24" />
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5">
+                <Skeleton className="h-4 w-48 max-w-full shrink-0" />
+                <Skeleton className="h-4 w-24 shrink-0" />
               </div>
               <Skeleton className="h-2.5 w-full rounded-full" />
               {/* « Messages envoyés », puis les trois chiffres alignés. */}

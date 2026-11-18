@@ -1,6 +1,13 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { AGENT_DEFAULTS } from "../lib/agent-config";
+import {
+  AGENT_DEFAULTS,
+  AGENT_INSTRUCTIONS_MAX,
+  AgentConfigInputSchema,
+  AgentConfigSchema,
+  AgentDraftSchema,
+} from "../lib/agent-config";
+import { SystemAssistanceInput } from "../lib/system-message-assistance";
 import {
   BusinessProfileFormSchema,
   BusinessProfileSchema,
@@ -507,6 +514,62 @@ test("generation reads the saved profile, checks rights and billing, and reserve
   });
 });
 
+test("instructions are written within 2 000 characters while longer saved ones still run", () => {
+  const agent = { ...AGENT_DEFAULTS, agentName: "Nova" };
+  const at = (length: number) => ({ ...agent, agentSystemMessage: "Instructions. ".padEnd(length, "x") });
+  assert.equal(AGENT_INSTRUCTIONS_MAX, 2000);
+  assert.equal(AgentConfigInputSchema.safeParse(at(2000)).success, true);
+  const tooLong = AgentConfigInputSchema.safeParse(at(2001));
+  assert.equal(tooLong.success, false);
+  assert.match(tooLong.error?.issues[0]?.message ?? "", /^2\s000 caractères maximum/);
+  assert.equal(AgentDraftSchema.safeParse(at(2001)).success, false);
+  assert.equal(AgentDraftSchema.safeParse({ ...agent, agentSystemMessage: "" }).success, true);
+  // Lecture tolérante : un agent enregistré avant la limite continue de répondre.
+  assert.equal(AgentConfigSchema.safeParse(at(5000)).success, true);
+  assert.equal(AgentConfigSchema.safeParse(at(12001)).success, false);
+  // L’assistance peut recevoir ce texte pour le condenser.
+  const draft = { projectId: "cmabcdefghijklmnopqrstuvw", mode: "rewrite", config: at(5000) };
+  assert.equal(SystemAssistanceInput.safeParse(draft).success, true);
+});
+
+test("assembled instructions fit the budget, trimming the longest later sections first", () => {
+  const links = { website: null, socials: [] };
+  const sentence = (label: string, index: number) =>
+    `${label} ${index + 1} : ${"une consigne précise et détaillée ".repeat(3).trim()}.`;
+  const list = (label: string, count: number) => Array.from({ length: count }, (_, index) => sentence(label, index));
+  const sections = {
+    contexte: ["Tu représentes Boutique Awa, prêt-à-porter féminin à Libreville."],
+    mission: list("Mission", 6),
+    deroule: list("Étape", 8),
+    a_recueillir: list("Information", 8),
+    limites: list("Limite", 6),
+    conseiller: list("Situation", 6),
+  };
+  const full = assembleSystemMessage(sections, links, Infinity);
+  assert.ok(full.length > AGENT_INSTRUCTIONS_MAX);
+
+  const fitted = assembleSystemMessage(sections, links);
+  assert.ok(fitted.length <= AGENT_INSTRUCTIONS_MAX, `${fitted.length} caractères`);
+  assert.ok(fitted.length > AGENT_INSTRUCTIONS_MAX - 200, "seul le nécessaire est retiré");
+  assert.ok(fitted.startsWith("CONTEXTE\nTu représentes Boutique Awa"));
+  const kept = (label: string) =>
+    [...fitted.matchAll(new RegExp(`^- ${label} (\\d+) :`, "gm"))].map((match) => Number(match[1]));
+  const labels = ["Mission", "Étape", "Information", "Limite", "Situation"];
+  const counts = labels.map((label) => kept(label).length);
+  // Les listes les plus longues raccourcissent d’abord, jusqu’à s’équilibrer ;
+  // à égalité, la mission passe après les sections suivantes.
+  assert.ok(Math.max(...counts) - Math.min(...counts) <= 1, counts.join(", "));
+  assert.equal(counts[0], Math.max(...counts));
+  assert.ok(counts.every((count) => count > 0));
+  // Seuls les derniers éléments de chaque liste sont retirés.
+  for (const label of labels)
+    assert.deepEqual(kept(label), Array.from({ length: kept(label).length }, (_, index) => index + 1));
+
+  // Budget minuscule : le contexte reste entier et la mission garde un élément.
+  const tight = assembleSystemMessage(sections, links, 300);
+  assert.match(tight, /^CONTEXTE\nTu représentes Boutique Awa[^\n]+\n\nMISSION\n- Mission 1 :[^\n]+$/);
+});
+
 test("the setup draft may wait for its instructions, never an activated agent", { timeout: 180000 }, async () => {
   await withTestDatabase(async (prisma) => {
     const shop = await trialProject(prisma);
@@ -522,6 +585,16 @@ test("the setup draft may wait for its instructions, never an activated agent", 
     await assert.rejects(prisma.$transaction((tx) => activateAgent(tx, shop.id, owner.id)), /Terminez/);
     // La page Assistant IA (activation directe) exige des instructions.
     await assert.rejects(prisma.$transaction((tx) => writeAgentConfig(tx, shop.id, owner.id, 1, draft)));
+    // 2 000 caractères au plus, en brouillon comme à l’activation.
+    const tooLong = { ...draft, agentSystemMessage: LONG_MESSAGE.padEnd(2001, ".") };
+    for (const activate of [false, true])
+      await assert.rejects(
+        prisma.$transaction((tx) => writeAgentConfig(tx, shop.id, owner.id, 1, tooLong, { activate })),
+        /2\s000 caractères maximum/,
+      );
+    // Un brouillon enregistré avant la limite doit être raccourci avant l’activation.
+    await prisma.project.update({ where: { id: shop.id }, data: { agentSystemMessage: tooLong.agentSystemMessage } });
+    await assert.rejects(prisma.$transaction((tx) => activateAgent(tx, shop.id, owner.id)), /Terminez/);
     const complete = { ...draft, agentSystemMessage: LONG_MESSAGE };
     await prisma.$transaction((tx) => writeAgentConfig(tx, shop.id, owner.id, 1, complete, { activate: false }));
     assert.equal(await prisma.$transaction((tx) => activateAgent(tx, shop.id, owner.id)), true);

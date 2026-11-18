@@ -26,11 +26,11 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { assistSystemMessage } from "@/app/actions/assist-system-message";
-import type { AgentConfig } from "@/lib/agent-config";
+import { AGENT_INSTRUCTIONS_MAX, type AgentConfig } from "@/lib/agent-config";
 import type { AutosaveStatus as SaveStatus } from "@/lib/autosave-queue";
 import { cn } from "@/lib/utils";
 
-const MAX_LENGTH = 12000;
+const MAX_LENGTH = AGENT_INSTRUCTIONS_MAX;
 
 /** Statut compact, toujours visible : l’éditeur n’a plus de bouton « Terminé ». */
 function SaveIndicator({
@@ -233,7 +233,7 @@ export function SystemMessageDialog({
                   className="shrink-0 text-xs tabular-nums text-muted-foreground"
                   aria-label={`${length} caractères sur ${MAX_LENGTH}`}
                 >
-                  · {length.toLocaleString("fr-FR")} / 12 000
+                  · {length.toLocaleString("fr-FR")} / {MAX_LENGTH.toLocaleString("fr-FR")}
                 </span>
               </div>
             </div>

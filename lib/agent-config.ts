@@ -1,15 +1,29 @@
 import { z } from "zod";
 
-export const AgentConfigSchema = z.object({
-  agentName: z.string().trim().min(2, "Donnez un nom à votre agent.").max(60),
-  agentSystemMessage: z
+/** Longueur maximale des instructions de l’entreprise, à l’enregistrement. */
+export const AGENT_INSTRUCTIONS_MAX = 2000;
+/**
+ * Ancienne limite, pour la lecture seulement : des instructions plus longues
+ * déjà enregistrées restent valides (réponses WhatsApp, relances, bac à sable)
+ * jusqu’à leur prochaine modification, qui devra les ramener à 2 000.
+ */
+const STORED_INSTRUCTIONS_MAX = 12000;
+const TOO_LONG = `${AGENT_INSTRUCTIONS_MAX.toLocaleString("fr-FR")} caractères maximum : raccourcissez vos instructions.`;
+
+const instructions = (max: number) =>
+  z
     .string()
     .trim()
     .min(
       40,
       "Décrivez votre activité et la mission de l’agent (40 caractères minimum).",
     )
-    .max(12000),
+    .max(max, TOO_LONG);
+
+/** Configuration enregistrée, telle qu’elle est relue. Pour écrire : `AgentConfigInputSchema`. */
+export const AgentConfigSchema = z.object({
+  agentName: z.string().trim().min(2, "Donnez un nom à votre agent.").max(60),
+  agentSystemMessage: instructions(STORED_INSTRUCTIONS_MAX),
   agentTone: z.enum(["warm", "professional", "direct"]),
   agentResponseLength: z.enum(["concise", "balanced", "detailed"]),
   agentLanguage: z.enum(["auto", "fr", "en"]),
@@ -21,13 +35,17 @@ export const AgentConfigSchema = z.object({
   agentHumanHandover: z.boolean(),
 });
 export type AgentConfig = z.infer<typeof AgentConfigSchema>;
+/** Toute écriture (formulaires, actions serveur) : instructions de 2 000 caractères au plus. */
+export const AgentConfigInputSchema = AgentConfigSchema.extend({
+  agentSystemMessage: instructions(AGENT_INSTRUCTIONS_MAX),
+});
 /**
  * Brouillon de la configuration initiale : les instructions peuvent encore être
  * vides (elles sont rédigées à l’étape Mission). L’activation et le bac à sable
- * exigent toujours `AgentConfigSchema`.
+ * exigent toujours une configuration complète.
  */
 export const AgentDraftSchema = AgentConfigSchema.extend({
-  agentSystemMessage: z.string().trim().max(12000),
+  agentSystemMessage: z.string().trim().max(AGENT_INSTRUCTIONS_MAX, TOO_LONG),
 });
 export const AGENT_DEFAULTS: AgentConfig = {
   agentName: "Assistant",

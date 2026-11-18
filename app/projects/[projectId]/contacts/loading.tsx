@@ -27,10 +27,10 @@ export default function ContactsLoading() {
         {/* Répartition */}
         <div className="grid grid-cols-3 divide-x rounded-2xl border bg-card">
           {[0, 1, 2].map((stat) => (
-            <div key={stat} className="flex items-center gap-3 px-3 py-4 sm:px-6">
+            <div key={stat} className="flex min-w-0 items-center gap-3 px-3 py-4 sm:px-6">
               <Skeleton className="hidden size-9 shrink-0 rounded-lg sm:block" />
-              <div className="space-y-2">
-                <Skeleton className="h-3 w-12 sm:w-24" />
+              <div className="min-w-0 space-y-2">
+                <Skeleton className="h-3 w-12 max-w-full sm:w-24" />
                 <Skeleton className="h-6 w-10" />
               </div>
             </div>
@@ -38,84 +38,89 @@ export default function ContactsLoading() {
         </div>
 
         <div className="overflow-hidden rounded-2xl border bg-card">
-          {/* Filtres et tri */}
+          {/* Filtres et tri : les filtres passent à la ligne comme les vrais. */}
           <div className="flex flex-col gap-3 border-b p-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
-            <div className="flex items-center gap-1.5">
-              <Skeleton className="h-8 w-14 rounded-full" />
-              <Skeleton className="h-8 w-24 rounded-full" />
-              <Skeleton className="h-8 w-16 rounded-full" />
-              <Skeleton className="ml-2 h-3 w-16" />
+            <div className="flex flex-wrap items-center gap-1">
+              <Skeleton className="h-8 w-12 shrink-0 rounded-full" />
+              <Skeleton className="h-8 w-26 shrink-0 rounded-full" />
+              <Skeleton className="h-8 w-18 shrink-0 rounded-full" />
+              <Skeleton className="ml-2 h-3 w-16 shrink-0" />
             </div>
-            <Skeleton className="h-9 w-full rounded-lg sm:w-52" />
+            <Skeleton className="h-9 w-full shrink-0 sm:w-52" />
           </div>
 
-          <div className="space-y-4 p-4 sm:p-5">
+          <div className="min-w-0 space-y-4 p-4 sm:p-5">
+            {/* Recherche et colonnes : icône seule sur mobile. */}
             <div className="flex items-center justify-between gap-3">
-              <Skeleton className="h-9 w-full rounded-lg sm:max-w-sm" />
-              <Skeleton className="size-9 shrink-0 rounded-lg" />
+              <Skeleton className="h-10 min-w-0 flex-1 sm:max-w-sm" />
+              <Skeleton className="h-10 w-10 shrink-0 sm:w-28" />
             </div>
 
-            {/* Mobile : cartes */}
-            <div className="-mx-4 divide-y border-y md:hidden sm:-mx-5">
-              {Array.from({ length: 4 }, (_, row) => (
-                <div key={row} className="@container space-y-3 px-4 py-3 sm:px-5">
-                  <div className="flex items-center gap-3">
-                    <Skeleton className="size-8 shrink-0 rounded-full" />
-                    <div className="min-w-0 flex-1 space-y-1.5">
-                      <Skeleton className="h-4 w-32 max-w-full" />
-                      <Skeleton className="h-3 w-24 max-w-full" />
+            {/* Mobile : liste */}
+            <ul className="-mx-4 divide-y overflow-hidden border-y md:hidden sm:-mx-5">
+              {Array.from({ length: 6 }, (_, row) => (
+                <li key={row} className="flex min-w-0 gap-3 px-4 py-3 sm:px-5">
+                  <Skeleton className="size-10 shrink-0 rounded-full" />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-start gap-2">
+                      <div className="min-w-0 flex-1 space-y-1.5 pt-0.5">
+                        <Skeleton className="h-4 w-36 max-w-full" />
+                        <Skeleton className="h-3 w-28 max-w-full" />
+                      </div>
+                      <Skeleton className="-mr-2 -mt-1.5 size-9 shrink-0 rounded-full" />
                     </div>
-                    <Skeleton className="size-8 shrink-0 rounded-full" />
+                    <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+                      <Skeleton className="h-4 w-20 shrink-0 rounded-sm" />
+                      <Skeleton className="h-3.5 w-24 shrink-0" />
+                    </div>
                   </div>
-                  <div className="flex items-center justify-between gap-2">
-                    <Skeleton className="h-3 w-16" />
-                    <Skeleton className="h-5 w-24 rounded-full" />
-                  </div>
-                  <div className="flex flex-col items-stretch gap-2 border-t border-border/60 pt-3 @[16rem]:flex-row @[16rem]:items-center @[16rem]:justify-between">
-                    <Skeleton className="h-3 w-28" />
-                    <Skeleton className="h-10 rounded-md @[16rem]:h-9 @[16rem]:w-28" />
-                  </div>
-                </div>
+                </li>
               ))}
-            </div>
+            </ul>
 
-            {/* Bureau : tableau */}
-            <div className="hidden overflow-hidden rounded-xl border md:block">
-              <div className="grid grid-cols-[2fr_1.4fr_1.2fr_1.1fr_1fr_6rem] gap-4 border-b bg-muted/30 px-4 py-3">
-                {[20, 28, 24, 20, 18, 14].map((width, index) => (
-                  <Skeleton
-                    key={index}
-                    className="h-3"
-                    style={{ width: `${width * 4}px` }}
-                  />
-                ))}
+            {/* Tablette : identité, prise en charge et actions ; grand écran :
+                toutes les colonnes, comme le vrai tableau. */}
+            <div className="hidden overflow-hidden rounded-xl border bg-card md:block">
+              <div className="grid grid-cols-[minmax(0,1fr)_8rem_8.25rem] items-center gap-4 border-b bg-muted/40 px-4 py-3.5 xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1.2fr)_8rem_minmax(0,0.9fr)_minmax(0,0.9fr)_8.25rem]">
+                <Skeleton className="h-3 w-16 max-w-full" />
+                <Skeleton className="hidden h-3 w-28 max-w-full xl:block" />
+                <Skeleton className="h-3 w-24 max-w-full" />
+                <Skeleton className="hidden h-3 w-20 max-w-full xl:block" />
+                <Skeleton className="hidden h-3 w-16 max-w-full xl:block" />
+                <Skeleton className="ml-auto h-3 w-14 max-w-full" />
               </div>
               {Array.from({ length: 8 }, (_, row) => (
                 <div
                   key={row}
-                  className="grid grid-cols-[2fr_1.4fr_1.2fr_1.1fr_1fr_6rem] items-center gap-4 border-b px-4 py-3 last:border-b-0"
+                  className="grid grid-cols-[minmax(0,1fr)_8rem_8.25rem] items-center gap-4 border-b px-4 py-3 last:border-b-0 xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1.2fr)_8rem_minmax(0,0.9fr)_minmax(0,0.9fr)_8.25rem]"
                 >
-                  <div className="flex items-center gap-3">
+                  <div className="flex min-w-0 items-center gap-3">
                     <Skeleton className="size-8 shrink-0 rounded-full" />
-                    <Skeleton className="h-4 w-32" />
+                    <div className="min-w-0 flex-1 space-y-1.5">
+                      <Skeleton className="h-4 w-36 max-w-full" />
+                      <Skeleton className="h-3 w-28 max-w-full xl:hidden" />
+                    </div>
                   </div>
-                  <Skeleton className="h-3.5 w-28" />
-                  <Skeleton className="h-7 w-28 rounded-lg" />
-                  <Skeleton className="h-5 w-24 rounded-sm" />
-                  <Skeleton className="h-3 w-20" />
+                  <Skeleton className="hidden h-3.5 w-32 max-w-full xl:block" />
+                  <Skeleton className="h-8 w-32 max-w-full rounded-full" />
+                  <Skeleton className="hidden h-4 w-20 max-w-full rounded-sm xl:block" />
+                  <Skeleton className="hidden h-3 w-20 max-w-full xl:block" />
                   <div className="flex justify-end gap-1">
-                    <Skeleton className="size-8 rounded-lg" />
-                    <Skeleton className="size-8 rounded-lg" />
+                    <Skeleton className="size-10 shrink-0 rounded-md" />
+                    <Skeleton className="size-10 shrink-0 rounded-md" />
+                    <Skeleton className="size-10 shrink-0 rounded-md" />
                   </div>
                 </div>
               ))}
             </div>
 
-            <div className="flex items-center justify-between">
-              <Skeleton className="h-3 w-28" />
-              <div className="flex gap-2">
-                <Skeleton className="h-8 w-20 rounded-lg" />
-                <Skeleton className="h-8 w-20 rounded-lg" />
+            {/* Pagination : le total au-dessus des flèches sur mobile. */}
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <Skeleton className="h-4 w-24" />
+              <div className="flex w-full items-center gap-2 sm:w-auto">
+                <Skeleton className="mr-auto h-4 w-24 sm:mr-0" />
+                <Skeleton className="size-9 shrink-0" />
+                <Skeleton className="size-9 shrink-0" />
               </div>
             </div>
           </div>

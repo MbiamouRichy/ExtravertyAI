@@ -1,5 +1,5 @@
 import type { Prisma } from "../src/generated/prisma/client";
-import { AgentConfigSchema, AgentDraftSchema } from "./agent-config";
+import { AgentConfigInputSchema, AgentDraftSchema } from "./agent-config";
 import { can, type ProjectPermission } from "./project-permissions";
 import { getBillingAccess } from "./billing-access";
 
@@ -64,7 +64,7 @@ export async function writeAgentConfig(
     );
   // Brouillon sans instructions accepté seulement avant la première activation.
   const draft = !activate && !project.agentSetupCompletedAt;
-  const config = (draft ? AgentDraftSchema : AgentConfigSchema).parse(input);
+  const config = (draft ? AgentDraftSchema : AgentConfigInputSchema).parse(input);
   const version = project.agentConfigVersion + 1;
   await tx.project.update({
     where: { id: projectId },
@@ -97,7 +97,8 @@ export async function activateAgent(
   if (project.agentSetupCompletedAt) return false;
   const access = await getBillingAccess(tx, projectId);
   if (!access.allowed) throw new SettingsError(access.message);
-  if (!AgentConfigSchema.safeParse(project).success)
+  // Activer revient à valider les instructions : 2 000 caractères au plus.
+  if (!AgentConfigInputSchema.safeParse(project).success)
     throw new SettingsError(
       "Terminez la configuration de votre agent avant de l’activer.",
     );

@@ -6,12 +6,12 @@ export default function BroadcastsLoading() {
   return (
     <PageLoading label="Chargement des diffusions…" className="mx-auto w-full max-w-5xl p-4 sm:p-6 lg:p-8">
       <div className="space-y-6">
-        <header className="flex items-start justify-between gap-3">
+        <header className="flex flex-wrap items-start justify-between gap-3">
           <div className="space-y-1.5">
             <Skeleton className="h-8 w-36" />
             <Skeleton className="h-4 w-32" />
           </div>
-          <Skeleton className="h-9 w-40" />
+          <Skeleton className="h-9 w-40 shrink-0" />
         </header>
         <div className="space-y-4">
           <Skeleton className="h-9 w-56" />

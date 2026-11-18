@@ -1232,8 +1232,10 @@ export default function WhatsappWorkspace({
     }
   }
 
+  // Fiche ancrée dès 2xl seulement : en dessous, avec la barre latérale ouverte,
+  // elle laisserait moins de 400 px à la conversation.
   function openContact() {
-    if (window.matchMedia("(min-width: 80rem)").matches) setPanelOpen(true);
+    if (window.matchMedia("(min-width: 96rem)").matches) setPanelOpen(true);
     else setSheetOpen(true);
   }
 
@@ -1263,10 +1265,10 @@ export default function WhatsappWorkspace({
           current === activeClient.id ? null : activeClient.id,
         )
       }
-      className={cn("shrink-0", panelOpen && "xl:hidden")}
+      className={cn("shrink-0", panelOpen && "2xl:hidden")}
     >
       <Sparkles aria-hidden="true" />
-      Résumé IA
+      <span className="@max-sm/composer:sr-only">Résumé IA</span>
     </Button>
   ) : null;
   const composerToggle = (
@@ -1620,13 +1622,15 @@ export default function WhatsappWorkspace({
           </p>
         </div>
       )}
-      <div className="flex min-h-0 w-full flex-1 overflow-hidden">
+      {/* Deux colonnes selon la place réelle (barre latérale ouverte ou non),
+          pas selon l’écran : sous 672 px, une seule à la fois, comme sur mobile. */}
+      <div className="@container/chat-workspace flex min-h-0 w-full flex-1 overflow-hidden">
         {/* Liste des conversations */}
         <aside
           aria-label="Conversations"
           className={cn(
-            "w-full min-h-0 shrink-0 flex-col overflow-hidden border-r bg-background md:w-64 lg:w-80 xl:w-[22rem]",
-            mobileChat ? "hidden md:flex" : "flex",
+            "w-full min-h-0 shrink-0 flex-col overflow-hidden border-r bg-background @2xl/chat-workspace:w-64 @5xl/chat-workspace:w-80 @6xl/chat-workspace:w-[22rem]",
+            mobileChat ? "hidden @2xl/chat-workspace:flex" : "flex",
           )}
         >
           <header className="space-y-2 border-b px-3 py-3">
@@ -2038,18 +2042,19 @@ export default function WhatsappWorkspace({
           aria-label="Conversation active"
           className={cn(
             "relative min-h-0 min-w-0 flex-1 flex-col overflow-hidden",
-            mobileChat ? "flex" : "hidden md:flex",
+            mobileChat ? "flex" : "hidden @2xl/chat-workspace:flex",
           )}
         >
           {activeClient ? (
             <>
-              <header className="chat-floating-header relative z-10 flex shrink-0 items-center gap-2 border-b border-border bg-background px-2 py-2 sm:gap-3 sm:px-5 sm:py-3">
+              {/* Avatar et libellés selon la largeur de l’en-tête lui-même. */}
+              <header className="chat-floating-header @container/chat-header relative z-10 flex shrink-0 items-center gap-2 border-b border-border bg-background px-2 py-2 sm:gap-3 sm:px-5 sm:py-3">
                 <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
                   <Button
                     type="button"
                     variant="ghost"
                     size="icon"
-                    className="shrink-0 md:hidden"
+                    className="shrink-0 @2xl/chat-workspace:hidden"
                     onClick={goBack}
                     aria-label="Revenir aux conversations"
                   >
@@ -2062,7 +2067,7 @@ export default function WhatsappWorkspace({
                     aria-label={`Voir la fiche de ${activeClient.name}`}
                     className="flex min-w-0 flex-1 items-center gap-2 rounded-lg p-1 text-left outline-none hover:bg-muted/60 focus-visible:ring-3 focus-visible:ring-ring/50 sm:gap-3"
                   >
-                    <span className="relative hidden shrink-0 sm:flex md:hidden lg:flex">
+                    <span className="relative hidden shrink-0 @md/chat-header:flex">
                       <Avatar className="size-9">
                         {activeClient.avatarUrl && (
                           <AvatarImage src={activeClient.avatarUrl} alt="" className="object-cover" />
@@ -2096,7 +2101,7 @@ export default function WhatsappWorkspace({
                           >
                             <span
                               aria-hidden="true"
-                              className="size-1.5 shrink-0 rounded-full bg-emerald-500 sm:hidden md:block lg:hidden"
+                              className="size-1.5 shrink-0 rounded-full bg-emerald-500 @md/chat-header:hidden"
                             />
                             <span className="truncate @max-[9.5rem]:sr-only">
                               {PRESENCE_LABEL[activePresence]}
@@ -2117,10 +2122,15 @@ export default function WhatsappWorkspace({
                         >
                           <InstinctBadge
                             classification={activeClient.prospectClassification}
+                            // Seuils = largeur du badge complet (160 px pour
+                            // « Prospect intéressant ») : en dessous, icône seule.
                             labelClassName={
                               activePresence
                                 ? "@max-[20rem]:sr-only"
-                                : "@max-[8.5rem]:sr-only"
+                                : activeClient.prospectClassification ===
+                                    "interesting"
+                                  ? "@max-[10.5rem]:sr-only"
+                                  : "@max-[8.5rem]:sr-only"
                             }
                           />
                         </span>
@@ -2145,7 +2155,7 @@ export default function WhatsappWorkspace({
                       )}
                       <Label
                         htmlFor="chat-ai-toggle"
-                        className="hidden cursor-pointer text-xs sm:block md:hidden xl:block"
+                        className="hidden cursor-pointer text-xs @xl/chat-header:block"
                       >
                         Assistant IA
                       </Label>
@@ -2189,7 +2199,7 @@ export default function WhatsappWorkspace({
                     <DropdownMenuContent align="end" className="w-56">
                       {/* Grand écran : bascule la colonne ; sinon ouvre le panneau latéral. */}
                       <DropdownMenuItem
-                        className="hidden xl:flex"
+                        className="hidden 2xl:flex"
                         onSelect={() => setPanelOpen((value) => !value)}
                       >
                         {panelOpen ? <PanelRightClose /> : <PanelRightOpen />}
@@ -2198,7 +2208,7 @@ export default function WhatsappWorkspace({
                           : "Afficher la fiche contact"}
                       </DropdownMenuItem>
                       <DropdownMenuItem
-                        className="xl:hidden"
+                        className="2xl:hidden"
                         onSelect={() => setSheetOpen(true)}
                       >
                         <UserRound />
@@ -2262,7 +2272,7 @@ export default function WhatsappWorkspace({
                         type="button"
                         variant="ghost"
                         size="icon"
-                        className="hidden xl:inline-flex"
+                        className="hidden 2xl:inline-flex"
                         aria-pressed={panelOpen}
                         aria-label={
                           panelOpen
@@ -2483,7 +2493,7 @@ export default function WhatsappWorkspace({
                 hidden={summaryOpen}
                 className="chat-floating-composer relative z-10 shrink-0 bg-background px-3 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-5 sm:pt-4"
               >
-                <div className="mx-auto max-w-4xl">
+                <div className="@container/composer mx-auto max-w-4xl">
                   {composerMode === "note" && (
                     <InternalNoteComposer
                       key={`note-${activeClient.id}`}
@@ -2553,7 +2563,7 @@ export default function WhatsappWorkspace({
         {activeClient && panelOpen && (
           <aside
             aria-label="Fiche contact"
-            className="hidden w-80 shrink-0 overflow-y-auto border-l bg-background xl:block"
+            className="hidden w-80 shrink-0 overflow-y-auto border-l bg-background 2xl:block"
           >
             <ChatContactPanel
               projectId={project.id}
@@ -2581,7 +2591,7 @@ export default function WhatsappWorkspace({
         <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
           <SheetContent
             side="right"
-            className="w-full overflow-y-auto sm:max-w-sm xl:hidden"
+            className="w-full overflow-y-auto sm:max-w-sm 2xl:hidden"
           >
             <SheetHeader className="sr-only">
               <SheetTitle>Fiche de {activeClient.name}</SheetTitle>
