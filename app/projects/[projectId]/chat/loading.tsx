@@ -13,11 +13,11 @@ export default function ChatLoading() {
       label="Chargement de la messagerie…"
       className="flex chat-viewport min-h-0 w-full flex-col overflow-hidden bg-background"
     >
-      {/* Même conteneur que la page : deux colonnes dès 768 px d'espace de
+      {/* Même conteneur que la page : deux colonnes dès 672 px d'espace de
           travail réel (barre latérale déduite), une seule en dessous. */}
       <div className="@container/chat-workspace flex min-h-0 w-full flex-1 overflow-hidden">
         {/* Liste des conversations */}
-        <div className="flex w-full min-h-0 shrink-0 flex-col overflow-hidden border-r bg-background @3xl/chat-workspace:w-64 @5xl/chat-workspace:w-80 @6xl/chat-workspace:w-[22rem]">
+        <div className="flex w-full min-h-0 shrink-0 flex-col overflow-hidden border-r bg-background @2xl/chat-workspace:w-64 @5xl/chat-workspace:w-80 @6xl/chat-workspace:w-[22rem]">
           <div className="space-y-2 border-b px-3 py-3">
             <div className="flex h-9 items-center gap-2 rounded-md border px-2.5">
               <Skeleton className="size-4 rounded-full" />
@@ -41,7 +41,7 @@ export default function ChatLoading() {
         </div>
 
         {/* Conversation active */}
-        <div className="hidden min-h-0 min-w-0 flex-1 flex-col overflow-hidden @3xl/chat-workspace:flex">
+        <div className="hidden min-h-0 min-w-0 flex-1 flex-col overflow-hidden @2xl/chat-workspace:flex">
           {/* Mêmes seuils que l'en-tête réel, mesurés sur sa propre largeur :
               avatar dès 448 px, « Résoudre » dès 512, « Assistant IA » dès 576. */}
           <div className="@container/chat-header flex shrink-0 items-center gap-3 border-b bg-background px-5 py-3">

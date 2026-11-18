@@ -1623,14 +1623,14 @@ export default function WhatsappWorkspace({
         </div>
       )}
       {/* Deux colonnes selon la place réelle (barre latérale ouverte ou non),
-          pas selon l’écran : sous 768 px, une seule à la fois, comme sur mobile. */}
+          pas selon l’écran : sous 672 px, une seule à la fois, comme sur mobile. */}
       <div className="@container/chat-workspace flex min-h-0 w-full flex-1 overflow-hidden">
         {/* Liste des conversations */}
         <aside
           aria-label="Conversations"
           className={cn(
-            "w-full min-h-0 shrink-0 flex-col overflow-hidden border-r bg-background @3xl/chat-workspace:w-64 @5xl/chat-workspace:w-80 @6xl/chat-workspace:w-[22rem]",
-            mobileChat ? "hidden @3xl/chat-workspace:flex" : "flex",
+            "w-full min-h-0 shrink-0 flex-col overflow-hidden border-r bg-background @2xl/chat-workspace:w-64 @5xl/chat-workspace:w-80 @6xl/chat-workspace:w-[22rem]",
+            mobileChat ? "hidden @2xl/chat-workspace:flex" : "flex",
           )}
         >
           <header className="space-y-2 border-b px-3 py-3">
@@ -2042,7 +2042,7 @@ export default function WhatsappWorkspace({
           aria-label="Conversation active"
           className={cn(
             "relative min-h-0 min-w-0 flex-1 flex-col overflow-hidden",
-            mobileChat ? "flex" : "hidden @3xl/chat-workspace:flex",
+            mobileChat ? "flex" : "hidden @2xl/chat-workspace:flex",
           )}
         >
           {activeClient ? (
@@ -2054,7 +2054,7 @@ export default function WhatsappWorkspace({
                     type="button"
                     variant="ghost"
                     size="icon"
-                    className="shrink-0 @3xl/chat-workspace:hidden"
+                    className="shrink-0 @2xl/chat-workspace:hidden"
                     onClick={goBack}
                     aria-label="Revenir aux conversations"
                   >
