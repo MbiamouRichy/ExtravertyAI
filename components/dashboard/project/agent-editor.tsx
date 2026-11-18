@@ -7,7 +7,8 @@ import { useAutosave } from "@/hooks/use-autosave";
 import { saveAgentConfiguration } from "@/app/actions/project-settings";
 import {
   AGENT_DEFAULTS,
-  AgentConfigSchema,
+  AGENT_INSTRUCTIONS_MAX,
+  AgentConfigInputSchema,
   systemMessageTemplate,
   type AgentConfig,
 } from "@/lib/agent-config";
@@ -54,7 +55,7 @@ export function AgentEditor({
   instinctAvailable: boolean;
 }) {
   const form = useForm<AgentConfig>({
-    resolver: zodResolver(AgentConfigSchema),
+    resolver: zodResolver(AgentConfigInputSchema),
     defaultValues: {
       ...AGENT_DEFAULTS,
       ...initial,
@@ -81,7 +82,7 @@ export function AgentEditor({
   const update: AgentFieldUpdate = (key, value) => {
     setLastEdited(key);
     form.setValue(key, value, { shouldDirty: true, shouldValidate: true });
-    const parsed = AgentConfigSchema.safeParse(form.getValues());
+    const parsed = AgentConfigInputSchema.safeParse(form.getValues());
     if (!parsed.success) {
       autosave.queue.invalidate();
       void form.trigger();
@@ -136,7 +137,7 @@ export function AgentEditor({
                 error={fieldState.error}
               />
               <p id="agent-system-description" className="sr-only">
-                {config.agentSystemMessage.length} caractères sur 12 000
+                {config.agentSystemMessage.length} caractères sur {AGENT_INSTRUCTIONS_MAX}
               </p>
               <FieldError id="agent-system-error" errors={[fieldState.error]} />
             </Field>

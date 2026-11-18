@@ -25,10 +25,15 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { generateSystemMessageFromProfile } from "@/app/actions/business-profile";
-import { AgentConfigSchema, type AgentConfig } from "@/lib/agent-config";
+import {
+  AGENT_INSTRUCTIONS_MAX,
+  AgentConfigInputSchema,
+  type AgentConfig,
+} from "@/lib/agent-config";
 import { cn } from "@/lib/utils";
 
-const MAX_INSTRUCTIONS = 12000;
+const MAX_INSTRUCTIONS = AGENT_INSTRUCTIONS_MAX;
+const MAX_LABEL = MAX_INSTRUCTIONS.toLocaleString("fr-FR");
 const GENERATE_COOLDOWN_MS = 30_000;
 const LINKS_NOTE = "Site web et réseaux sociaux : enregistrés à part, inutile de les ajouter.";
 
@@ -123,27 +128,73 @@ export function InstructionsField({
       control={control}
       render={({ field, fieldState }) => (
         <Field data-invalid={fieldState.invalid} className="gap-3">
-          <div className="flex min-h-8 items-center justify-between gap-3">
-            <FieldTitle id="agent-instructions-label">Instructions</FieldTitle>
-            {previous !== null ? (
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                disabled={locked}
-                onClick={() => void undo()}
-                className="-mr-2"
-              >
-                <Undo2 data-icon="inline-start" />
-                Rétablir l’ancien texte
-              </Button>
-            ) : (
-              !empty && (
-                <span className="font-mono text-xs tabular-nums text-muted-foreground">
-                  {value.length.toLocaleString("fr-FR")} / 12 000
+          {/* Actions en tête du bloc : à droite du titre sur ordinateur ; sur
+              téléphone, sur leur propre ligne, à parts égales. */}
+          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+            <div className="flex min-h-8 min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+              <FieldTitle id="agent-instructions-label">Instructions</FieldTitle>
+              {!empty && (
+                <span
+                  className={cn(
+                    "font-mono text-xs tabular-nums text-muted-foreground",
+                    value.length > MAX_INSTRUCTIONS && "text-destructive",
+                  )}
+                >
+                  {value.length.toLocaleString("fr-FR")} / {MAX_LABEL}
                 </span>
-              )
-            )}
+              )}
+              {previous !== null && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="xs"
+                  disabled={locked}
+                  onClick={() => void undo()}
+                >
+                  <Undo2 data-icon="inline-start" />
+                  Rétablir<span className="sr-only"> l’ancien texte</span>
+                </Button>
+              )}
+            </div>
+            <div className="flex w-full gap-2 sm:ml-auto sm:w-auto">
+              <Button
+                ref={editButton}
+                type="button"
+                variant="outline"
+                disabled={locked}
+                onClick={() => setEditing(true)}
+                className="min-w-0 flex-1 sm:flex-none"
+              >
+                <Pencil data-icon="inline-start" />
+                Modifier
+              </Button>
+              <Button
+                ref={generateButton}
+                type="button"
+                variant={empty ? "default" : "outline"}
+                disabled={locked}
+                onClick={() => void generate()}
+                className="min-w-0 flex-1 sm:flex-none"
+              >
+                {generating ? (
+                  <Loader2
+                    data-icon="inline-start"
+                    className="animate-spin motion-reduce:animate-none"
+                  />
+                ) : (
+                  <Sparkles data-icon="inline-start" />
+                )}
+                {generating ? (
+                  "Rédaction…"
+                ) : (
+                  <>
+                    Générer
+                    {/* Très petits écrans : libellé court, nom complet lu. */}
+                    <span className="max-[400px]:sr-only">&nbsp;avec l’IA</span>
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
 
           {/* Cible du focus quand la validation échoue ; lisible au clavier. */}
@@ -180,7 +231,7 @@ export function InstructionsField({
                 )}
               </div>
             ) : empty ? (
-              <div className="flex flex-col items-center px-6 py-10 text-center">
+              <div className="flex flex-col items-center px-6 py-8 text-center">
                 <span className="flex size-10 items-center justify-center rounded-full bg-muted">
                   <Sparkles aria-hidden="true" className="size-4" />
                 </span>
@@ -190,51 +241,20 @@ export function InstructionsField({
                 </p>
               </div>
             ) : (
-              <p className="max-h-[min(28rem,55dvh)] overflow-y-auto p-4 text-sm leading-relaxed whitespace-pre-wrap break-words">
+              <p className="max-h-[min(15rem,40dvh)] overflow-y-auto p-4 text-sm leading-relaxed whitespace-pre-wrap break-words">
                 {value}
               </p>
             )}
           </div>
           <FieldError id="agent-instructions-error" errors={[fieldState.error]} />
 
-          <div className="flex flex-col gap-3 sm:flex-row-reverse sm:items-center sm:justify-between">
-            <div className="grid grid-cols-2 gap-2 sm:flex sm:shrink-0">
-              <Button
-                ref={editButton}
-                type="button"
-                variant="outline"
-                disabled={locked}
-                onClick={() => setEditing(true)}
-              >
-                <Pencil data-icon="inline-start" />
-                Modifier
-              </Button>
-              <Button
-                ref={generateButton}
-                type="button"
-                variant={empty ? "default" : "outline"}
-                disabled={locked}
-                onClick={() => void generate()}
-              >
-                {generating ? (
-                  <Loader2
-                    data-icon="inline-start"
-                    className="animate-spin motion-reduce:animate-none"
-                  />
-                ) : (
-                  <Sparkles data-icon="inline-start" />
-                )}
-                {generating ? "Rédaction…" : "Générer avec l’IA"}
-              </Button>
-            </div>
-            <p
-              id="agent-instructions-note"
-              className="flex items-start gap-1.5 text-xs text-muted-foreground"
-            >
-              <Info aria-hidden="true" className="mt-px size-3.5 shrink-0" />
-              {LINKS_NOTE}
-            </p>
-          </div>
+          <p
+            id="agent-instructions-note"
+            className="flex items-start gap-1.5 text-xs text-muted-foreground"
+          >
+            <Info aria-hidden="true" className="mt-px size-3.5 shrink-0" />
+            {LINKS_NOTE}
+          </p>
 
           <InstructionsEditor
             open={editing}
@@ -253,9 +273,9 @@ export function InstructionsField({
   );
 }
 
-/** Même règle que la configuration de l’agent : 40 à 12 000 caractères. */
+/** Même règle que l’enregistrement de l’agent : 40 à 2 000 caractères. */
 const EditorSchema = z.object({
-  instructions: AgentConfigSchema.shape.agentSystemMessage,
+  instructions: AgentConfigInputSchema.shape.agentSystemMessage,
 });
 type EditorValues = z.infer<typeof EditorSchema>;
 
@@ -288,7 +308,7 @@ function InstructionsEditor({
       onDone={() => onOpenChange(false)}
       // Sur téléphone, le clavier ne s’ouvre qu’au toucher du texte.
       autoFocus={!isMobile}
-      className={isMobile ? "px-4 pb-4" : undefined}
+      fill={isMobile}
     />
   ) : null;
 
@@ -307,10 +327,18 @@ function InstructionsEditor({
   }
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
-      <DrawerContent className="max-h-[96dvh]" onCloseAutoFocus={onCloseAutoFocus}>
-        <DrawerHeader className="text-left">
-          <DrawerTitle>{title}</DrawerTitle>
-          <DrawerDescription>{description}</DrawerDescription>
+      {/* Hauteur fixe : le texte occupe l’espace libre. Clavier ouvert, vaul
+          ramène le tiroir au-dessus de lui et l’en-tête se fait discret. */}
+      <DrawerContent
+        className="h-[92dvh] data-[vaul-drawer-direction=bottom]:max-h-[92dvh]"
+        onCloseAutoFocus={onCloseAutoFocus}
+      >
+        <DrawerHeader className="shrink-0 text-left group-has-[textarea:focus]/drawer-content:pb-2">
+          <DrawerTitle className="text-lg leading-snug tracking-normal">{title}</DrawerTitle>
+          {/* Toujours lue par les lecteurs d’écran, masquée pendant la saisie. */}
+          <DrawerDescription className="group-has-[textarea:focus]/drawer-content:sr-only">
+            {description}
+          </DrawerDescription>
         </DrawerHeader>
         {form}
       </DrawerContent>
@@ -323,13 +351,14 @@ function InstructionsForm({
   onSave,
   onDone,
   autoFocus,
-  className,
+  fill,
 }: {
   value: string;
   onSave: (value: string) => Promise<string | null>;
   onDone: () => void;
   autoFocus: boolean;
-  className?: string;
+  /** Tiroir mobile : le texte prend toute la hauteur restante. */
+  fill: boolean;
 }) {
   const form = useForm<EditorValues>({
     resolver: zodResolver(EditorSchema),
@@ -354,7 +383,10 @@ function InstructionsForm({
   return (
     <form
       noValidate
-      className={cn("flex min-h-0 flex-col gap-4", className)}
+      className={cn(
+        "flex min-h-0 flex-col gap-4",
+        fill && "flex-1 gap-3 px-4 pb-[max(1rem,env(safe-area-inset-bottom))]",
+      )}
       onSubmit={(event) => {
         // Le formulaire du parcours est un ancêtre React (portail) : il ne doit
         // pas recevoir cette soumission.
@@ -366,7 +398,7 @@ function InstructionsForm({
         name="instructions"
         control={form.control}
         render={({ field, fieldState }) => (
-          <Field data-invalid={fieldState.invalid} className="min-h-0">
+          <Field data-invalid={fieldState.invalid} className={cn("min-h-0", fill && "flex-1 gap-2")}>
             <FieldLabel htmlFor="agent-instructions-editor" className="sr-only">
               Instructions
             </FieldLabel>
@@ -381,21 +413,28 @@ function InstructionsForm({
               autoComplete="off"
               aria-invalid={fieldState.invalid}
               aria-describedby="agent-instructions-editor-count agent-instructions-editor-error"
-              className="field-sizing-fixed h-[min(28rem,50dvh)] resize-none text-base leading-relaxed sm:text-sm"
+              className={cn(
+                "field-sizing-fixed resize-none text-base leading-relaxed sm:text-sm",
+                fill ? "min-h-24 flex-1" : "h-[min(22rem,45dvh)]",
+              )}
             />
-            <div className="flex items-start justify-between gap-3">
+            <div className="flex shrink-0 items-start justify-between gap-3">
               <FieldError id="agent-instructions-editor-error" errors={[fieldState.error]} />
               <p
                 id="agent-instructions-editor-count"
-                className="ml-auto shrink-0 font-mono text-xs tabular-nums text-muted-foreground"
+                className={cn(
+                  "ml-auto shrink-0 font-mono text-xs tabular-nums text-muted-foreground",
+                  // Texte enregistré avant la limite : à raccourcir.
+                  field.value.length > MAX_INSTRUCTIONS && "text-destructive",
+                )}
               >
-                {field.value.length.toLocaleString("fr-FR")} / 12 000
+                {field.value.length.toLocaleString("fr-FR")} / {MAX_LABEL}
               </p>
             </div>
           </Field>
         )}
       />
-      <div className="grid grid-cols-2 gap-2 sm:flex sm:justify-end">
+      <div className="grid shrink-0 grid-cols-2 gap-2 sm:flex sm:justify-end">
         <Button type="button" variant="outline" disabled={saving} onClick={onDone}>
           Annuler
         </Button>

@@ -79,7 +79,7 @@ test("system-message generation uses configured model, bounded tokens and reject
     await assert.rejects(generateSystemMessage(input));
     content = "invalid JSON";
     await assert.rejects(generateSystemMessage(input));
-    content = JSON.stringify({ systemMessage: "x".repeat(12001) });
+    content = JSON.stringify({ systemMessage: "x".repeat(2001) });
     await assert.rejects(generateSystemMessage(input));
     globalThis.fetch = async () => new Response("x".repeat(160001));
     await assert.rejects(generateSystemMessage(input));

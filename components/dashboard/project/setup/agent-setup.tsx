@@ -29,7 +29,7 @@ import {
 import { saveBusinessProfile } from "@/app/actions/business-profile";
 import {
   AGENT_DEFAULTS,
-  AgentConfigSchema,
+  AgentConfigInputSchema,
   AgentDraftSchema,
   type AgentConfig,
 } from "@/lib/agent-config";
@@ -254,7 +254,7 @@ export function AgentSetup({
   const [reached, setReached] = useState(() =>
     !businessReady
       ? 0
-      : AgentConfigSchema.safeParse(initial).success
+      : AgentConfigInputSchema.safeParse(initial).success
         ? steps.length - 1
         : steps.indexOf("mission"),
   );
@@ -278,7 +278,7 @@ export function AgentSetup({
     },
   });
   const form = useForm<AgentConfig>({
-    resolver: zodResolver(AgentConfigSchema),
+    resolver: zodResolver(AgentConfigInputSchema),
     defaultValues: { ...AGENT_DEFAULTS, ...initial },
   });
   const config = useWatch({ control: form.control }) as AgentConfig;

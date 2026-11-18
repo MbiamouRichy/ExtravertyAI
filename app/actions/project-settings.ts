@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth-server";
 import prisma from "@/lib/prisma";
 import { isRecentSession } from "@/lib/recent-session";
-import { AgentConfigSchema, AgentDraftSchema } from "@/lib/agent-config";
+import { AgentConfigInputSchema, AgentDraftSchema } from "@/lib/agent-config";
 import {
   SettingsError,
   activateAgent,
@@ -87,7 +87,7 @@ async function saveAgent(input: unknown, activate: boolean) {
         expectedVersion: Version,
         // Brouillon : `writeAgentConfig` exige des instructions complètes dès
         // que l’agent a été activé.
-        config: activate ? AgentConfigSchema : AgentDraftSchema,
+        config: activate ? AgentConfigInputSchema : AgentDraftSchema,
       })
       .parse(input);
     const userId = await actor();

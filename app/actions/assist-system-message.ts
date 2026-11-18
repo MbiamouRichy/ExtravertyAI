@@ -17,7 +17,7 @@ export async function assistSystemMessage(input: unknown) {
     const parsed = SystemAssistanceInput.safeParse(input);
     if (!parsed.success)
       throw new SettingsError(
-        "Vérifiez le nom de l’agent et la longueur du message (12 000 caractères maximum).",
+        "Vérifiez le nom de l’agent et la longueur du message.",
       );
     const session = await getSession({ fresh: true });
     if (!session?.user.id)
