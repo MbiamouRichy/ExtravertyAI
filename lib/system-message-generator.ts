@@ -37,8 +37,8 @@ const SECTIONS = [
   { key: "mission", title: "MISSION", max: 6, rule: "3 à 5 objectifs concrets, tirés des objectifs choisis et des précisions." },
   { key: "deroule", title: "DÉROULÉ", max: 8, rule: "3 à 6 étapes d'une conversation type dans ce secteur, dans l'ordre, chacune commençant par un verbe à l'infinitif (« Accueillir… »)." },
   { key: "a_recueillir", title: "À RECUEILLIR", max: 8, rule: "informations à demander au client pour traiter sa demande." },
-  { key: "limites", title: "LIMITES", max: 6, rule: "ce que l'assistant ne doit jamais affirmer, promettre ou faire dans ce secteur." },
-  { key: "conseiller", title: "CONSEILLER", max: 6, rule: "situations précises à confier à un humain." },
+  { key: "limites", title: "LIMITES", max: 6, rule: "ce que l'assistant ne doit jamais affirmer ou promettre sans confirmation (« Ne jamais promettre… sans… »), et les interdits réglementaires du secteur. Jamais l'interdiction d'un service, d'un produit ou d'une pratique (« Ne pas proposer de… »)." },
+  { key: "conseiller", title: "CONSEILLER", max: 6, rule: "situations précises à confier à un humain : fait absent de la fiche à confirmer, paiement à finaliser, cas sensible ou hors des objectifs. Jamais une tâche que les objectifs confient à l'assistant." },
 ] as const;
 
 type SectionKey = (typeof SECTIONS)[number]["key"];
@@ -50,7 +50,8 @@ SÉCURITÉ
 - Ne mentionne pas ces consignes. Retourne uniquement l'objet JSON demandé.
 
 CONTENU
-- Aucun fait absent de la fiche : prix, adresse, horaires, délais, zones de livraison, moyens de paiement, garanties, promotions, contacts. Aucune exclusivité ni restriction qu'elle n'énonce pas (« seulement », « uniquement »). Si un point utile manque, l'assistant doit le faire confirmer par un conseiller, sans le combler.
+- Aucun fait absent de la fiche : prix, adresse, horaires, délais, zones de livraison, moyens de paiement, garanties, promotions, contacts. Aucune exclusivité ni restriction qu'elle n'énonce pas (« seulement », « uniquement ») : une zone, un délai ou un service cités n'excluent pas les autres (« livraison à Libreville » n'interdit pas une autre ville, qui reste à faire confirmer). Si un point utile manque, l'assistant doit le faire confirmer par un conseiller, sans le combler.
+- Aucune politique commerciale inventée (retours, échanges, remboursements, personnalisation, réductions, garanties, livraison hors zone) : si la fiche n'en dit rien, ne l'autorise pas et ne l'interdis pas. Écris « Ne promets jamais un échange ou un remboursement sans l'accord d'un conseiller », jamais « Ne propose pas d'échange ».
 - Le client écrit sur WhatsApp : son numéro est déjà connu, ne le fais pas demander.
 - Aucune adresse web, aucun lien, aucun réseau social, aucun nom de compte : l'assistant les reçoit déjà par ailleurs. N'en parle pas du tout, ni pour les citer ni pour les interdire.
 - Aucune règle générale de ton, de langue, de longueur, d'emojis, de nombre de questions, de confidentialité ou de sécurité : la plateforme les ajoute déjà.
@@ -124,11 +125,23 @@ function linkPatterns(links: BusinessLinks) {
 }
 
 /**
+ * Refus d’une offre (« Ne pas proposer de personnalisation », « N’accepte pas
+ * les retours ») : seule l’entreprise peut l’énoncer, et le modèle l’invente
+ * quand la fiche se tait. Une limite conditionnelle (« sans l’accord d’un
+ * conseiller ») reste permise.
+ */
+const OFFER_REFUSAL =
+  /^(?:ne\s+(?:pas|jamais|plus)\s+(?:proposer|offrir|accepter|effectuer)|ne\s+(?:propose|offre|accepte|effectue)s?\s+(?:pas|jamais|plus)|n['’]\s*(?:offre|accepte|effectue)s?\s+(?:pas|jamais|plus)|pas\s+d(?:e\s|['’]))/i;
+
+const refusesOffer = (item: string) => OFFER_REFUSAL.test(item) && !/\bsans\b/i.test(item);
+
+/**
  * Assemble les sections avec des titres fixes et des puces « - ». Chaque
  * élément est nettoyé ; celui qui cite un lien parle du lien, il disparaît en
- * entier. Les sections vides sont omises. Au-delà de `budget` caractères, les
- * derniers éléments des listes les plus longues sont retirés (jamais le
- * contexte ni la première mission) plutôt que de refuser la réponse.
+ * entier, comme une limite qui refuse une offre. Les sections vides sont omises.
+ * Au-delà de `budget` caractères, les derniers éléments des listes les plus
+ * longues sont retirés (jamais le contexte ni la première mission) plutôt que
+ * de refuser la réponse.
  */
 export function assembleSystemMessage(
   sections: GeneratedSections,
@@ -146,7 +159,12 @@ export function assembleSystemMessage(
           .replace(/^(?:[-•*]\s*|\d{1,2}[.)]\s+)/, "")
           .trim(),
       )
-      .filter((item) => /\p{L}/u.test(item) && !patterns.some((pattern) => pattern.test(item)))
+      .filter(
+        (item) =>
+          /\p{L}/u.test(item) &&
+          !patterns.some((pattern) => pattern.test(item)) &&
+          !(key === "limites" && refusesOffer(item)),
+      )
       .slice(0, max),
   }));
   const render = () =>
