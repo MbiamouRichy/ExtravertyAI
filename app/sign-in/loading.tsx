@@ -19,7 +19,7 @@ export default function SignInLoading() {
       <p role="status" className="sr-only">
         Chargement de la connexion…
       </p>
-      <div aria-hidden="true" className="flex flex-col px-4 py-6 sm:px-10">
+      <div aria-hidden="true" className="flex min-w-0 flex-col px-4 py-6 sm:px-10">
         <AuthTopBarSkeleton />
 
         <div className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center py-8 sm:py-12">

@@ -11,15 +11,20 @@ function SectionTitle({ width = "w-44" }: { width?: string }) {
 function ChartCard({
   children,
   className = "",
+  aside,
 }: {
   children: ReactNode;
   className?: string;
+  aside?: ReactNode;
 }) {
   return (
     <div className={`min-w-0 rounded-xl border bg-card ${className}`}>
-      <div className="space-y-1.5 px-4 pt-4 pb-3 sm:px-5">
-        <Skeleton className="h-4 w-44 max-w-full" />
-        <Skeleton className="h-3 w-64 max-w-full" />
+      <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2 px-4 pt-4 pb-3 sm:px-5">
+        <div className="min-w-0 space-y-1.5">
+          <Skeleton className="h-4 w-44 max-w-full" />
+          <Skeleton className="h-3 w-64 max-w-full" />
+        </div>
+        {aside && <div className="shrink-0">{aside}</div>}
       </div>
       <div className="px-4 pb-4 sm:px-5">{children}</div>
     </div>
@@ -174,31 +179,70 @@ export default function AnalyticsLoading() {
             <ChartCard>
               <Rows />
             </ChartCard>
-            <ChartCard>
-              <Skeleton className="mb-3 h-9 w-full rounded-md sm:max-w-xs" />
-              {/* Fiches bord à bord, comme la liste réelle sur carte étroite. */}
-              <div className="-mx-4 divide-y border-t sm:-mx-5">
-                {Array.from({ length: 4 }, (_, row) => (
-                  <div key={row} className="space-y-3 px-4 py-3 sm:px-5">
-                    <div className="flex items-center gap-3">
-                      <Skeleton className="size-9 shrink-0 rounded-full" />
-                      <div className="min-w-0 flex-1 space-y-1.5">
-                        <Skeleton className="h-3.5 w-32 max-w-full" />
-                        <Skeleton className="h-3 w-20 max-w-full" />
+            <ChartCard aside={<Skeleton className="h-8 w-36" />}>
+              {/* Même requête de conteneur que la carte réelle : fiches sur
+                  carte étroite, tableau dès que la carte est assez large. */}
+              <div className="@container/top-contacts space-y-3">
+                <Skeleton className="h-9 w-full @md/top-contacts:max-w-xs" />
+                <ul className="-mx-4 divide-y border-t sm:-mx-5 @4xl/top-contacts:hidden">
+                  {Array.from({ length: 4 }, (_, row) => (
+                    <li key={row} className="space-y-3 px-4 py-3 sm:px-5">
+                      <div className="flex items-center gap-3">
+                        <Skeleton className="size-9 shrink-0 rounded-full" />
+                        <div className="min-w-0 flex-1 space-y-1.5">
+                          <Skeleton className="h-3.5 w-32 max-w-full" />
+                          <Skeleton className="h-3 w-20 max-w-full" />
+                        </div>
+                        <Skeleton className="h-8 w-24 shrink-0 @max-xs/top-contacts:size-9" />
                       </div>
-                      <Skeleton className="size-9 shrink-0 rounded-md @xl:h-8 @xl:w-28" />
+                      <div className="grid grid-cols-2 gap-2">
+                        <Skeleton className="h-9 rounded-lg" />
+                        <Skeleton className="h-9 rounded-lg" />
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Skeleton className="h-5 w-24 shrink-0" />
+                        <Skeleton className="h-5 w-20 shrink-0" />
+                        <Skeleton className="ml-auto h-3 w-16 shrink-0" />
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+                <div className="hidden overflow-hidden rounded-xl border @4xl/top-contacts:block">
+                  {Array.from({ length: 6 }, (_, row) => (
+                    <div
+                      key={row}
+                      className="grid grid-cols-[2rem_minmax(0,1.8fr)_minmax(0,0.7fr)_minmax(0,0.7fr)_minmax(0,1fr)_6.5rem] items-center gap-4 border-b px-2 last:border-b-0 first:h-10 not-first:py-2.5 @5xl/top-contacts:grid-cols-[2rem_minmax(0,1.8fr)_minmax(0,0.7fr)_minmax(0,0.7fr)_minmax(0,1fr)_minmax(0,1fr)_6.5rem]"
+                    >
+                      {row === 0 ? (
+                        <>
+                          <span />
+                          <Skeleton className="h-3 w-14 max-w-full" />
+                          <Skeleton className="ml-auto h-3 w-12 max-w-full" />
+                          <Skeleton className="ml-auto h-3 w-14 max-w-full" />
+                          <Skeleton className="hidden h-3 w-24 max-w-full @5xl/top-contacts:block" />
+                          <Skeleton className="h-3 w-16 max-w-full" />
+                          <span />
+                        </>
+                      ) : (
+                        <>
+                          <Skeleton className="h-3 w-4" />
+                          <div className="flex min-w-0 items-center gap-3">
+                            <Skeleton className="size-8 shrink-0 rounded-full" />
+                            <div className="min-w-0 flex-1 space-y-1.5">
+                              <Skeleton className="h-3.5 w-32 max-w-full" />
+                              <Skeleton className="h-3 w-20 max-w-full" />
+                            </div>
+                          </div>
+                          <Skeleton className="ml-auto h-3.5 w-8 max-w-full" />
+                          <Skeleton className="ml-auto h-3.5 w-8 max-w-full" />
+                          <Skeleton className="hidden h-3 w-20 max-w-full @5xl/top-contacts:block" />
+                          <Skeleton className="h-5 w-24 max-w-full" />
+                          <Skeleton className="ml-auto h-8 w-24 max-w-full" />
+                        </>
+                      )}
                     </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <Skeleton className="h-9 rounded-lg" />
-                      <Skeleton className="h-9 rounded-lg" />
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Skeleton className="h-5 w-24 rounded-md" />
-                      <Skeleton className="h-5 w-20 rounded-md" />
-                      <Skeleton className="ml-auto h-3 w-16" />
-                    </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
             </ChartCard>
           </div>
