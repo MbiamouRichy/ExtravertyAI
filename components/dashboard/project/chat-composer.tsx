@@ -903,7 +903,9 @@ export function ChatComposer({
                               ) : (
                                 <WandSparkles aria-hidden="true" />
                               )}
-                              <span className="hidden sm:inline">Améliorer</span>
+                              <span className="hidden @xs/composer:inline">
+                                Améliorer
+                              </span>
                             </Button>
                           </TooltipTrigger>
                           <TooltipContent>
@@ -913,22 +915,25 @@ export function ChatComposer({
                           </TooltipContent>
                         </Tooltip>
                       )}
-                      <span
-                        aria-hidden="true"
-                        className="ml-auto mr-1.5 hidden items-center gap-1 text-[11px] text-muted-foreground lg:flex"
-                      >
-                        <Kbd>Shift</Kbd>+<Kbd>Entrée</Kbd> nouvelle ligne
-                      </span>
-                      <SendButton
-                        className="max-lg:ml-auto"
-                        label={isSending ? "Envoi en cours" : "Envoyer le message"}
-                        sending={isSending}
-                        disabled={
-                          (!draft.trim() && !pending.length) ||
-                          isSending ||
-                          uploading
-                        }
-                      />
+                      {/* Raccourci clavier : grand écran et compositeur assez large
+                          (@container/composer), sinon il rognerait l’envoi. */}
+                      <div className="ml-auto flex shrink-0 items-center gap-1.5">
+                        <span
+                          aria-hidden="true"
+                          className="hidden items-center gap-1 whitespace-nowrap text-[11px] text-muted-foreground lg:@lg/composer:flex"
+                        >
+                          <Kbd>Shift</Kbd>+<Kbd>Entrée</Kbd> nouvelle ligne
+                        </span>
+                        <SendButton
+                          label={isSending ? "Envoi en cours" : "Envoyer le message"}
+                          sending={isSending}
+                          disabled={
+                            (!draft.trim() && !pending.length) ||
+                            isSending ||
+                            uploading
+                          }
+                        />
+                      </div>
                     </div>
                     <p id="chat-composer-help" className="sr-only">
                       Entrée pour envoyer, Maj et Entrée pour une nouvelle

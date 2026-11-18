@@ -13,9 +13,11 @@ export default function ChatLoading() {
       label="Chargement de la messagerie…"
       className="flex chat-viewport min-h-0 w-full flex-col overflow-hidden bg-background"
     >
-      <div className="flex min-h-0 w-full flex-1 overflow-hidden">
+      {/* Même conteneur que la page : deux colonnes dès 768 px d'espace de
+          travail réel (barre latérale déduite), une seule en dessous. */}
+      <div className="@container/chat-workspace flex min-h-0 w-full flex-1 overflow-hidden">
         {/* Liste des conversations */}
-        <div className="flex w-full min-h-0 shrink-0 flex-col overflow-hidden border-r bg-background md:w-64 lg:w-80 xl:w-[22rem]">
+        <div className="flex w-full min-h-0 shrink-0 flex-col overflow-hidden border-r bg-background @3xl/chat-workspace:w-64 @5xl/chat-workspace:w-80 @6xl/chat-workspace:w-[22rem]">
           <div className="space-y-2 border-b px-3 py-3">
             <div className="flex h-9 items-center gap-2 rounded-md border px-2.5">
               <Skeleton className="size-4 rounded-full" />
@@ -39,13 +41,12 @@ export default function ChatLoading() {
         </div>
 
         {/* Conversation active */}
-        <div className="hidden min-h-0 min-w-0 flex-1 flex-col overflow-hidden md:flex">
-          {/* Colonne visible dès md : à 768 px, elle ne fait que 256 px de
-              large. Mêmes variantes que l'en-tête réel (avatar dès lg,
-              libellé de l'interrupteur dès xl, « Résoudre » en icône seule). */}
-          <div className="flex shrink-0 items-center gap-3 border-b bg-background px-5 py-3">
+        <div className="hidden min-h-0 min-w-0 flex-1 flex-col overflow-hidden @3xl/chat-workspace:flex">
+          {/* Mêmes seuils que l'en-tête réel, mesurés sur sa propre largeur :
+              avatar dès 448 px, « Résoudre » dès 512, « Assistant IA » dès 576. */}
+          <div className="@container/chat-header flex shrink-0 items-center gap-3 border-b bg-background px-5 py-3">
             <div className="flex min-w-0 flex-1 items-center gap-3 overflow-hidden p-1">
-              <Skeleton className="hidden size-9 shrink-0 rounded-full lg:block" />
+              <Skeleton className="hidden size-9 shrink-0 rounded-full @md/chat-header:block" />
               <div className="@container min-w-0 flex-1 space-y-1.5">
                 <div className="flex min-w-0 items-center gap-2">
                   <Skeleton className="h-4 w-full max-w-36" />
@@ -58,12 +59,13 @@ export default function ChatLoading() {
               {/* Interrupteur « Assistant IA » */}
               <div className="flex h-8 shrink-0 items-center gap-2 rounded-lg border px-2.5">
                 <Skeleton className="size-4 rounded-sm" />
-                <Skeleton className="hidden h-3 w-20 xl:block" />
+                <Skeleton className="hidden h-3 w-20 @xl/chat-header:block" />
                 <Skeleton className="h-3.5 w-6 rounded-full" />
               </div>
-              {/* Résoudre · menu */}
-              <Skeleton className="h-8 w-9 shrink-0 lg:w-24" />
+              {/* Résoudre · menu · fiche contact (ancrée dès 2xl) */}
+              <Skeleton className="h-8 w-9 shrink-0 @lg/chat-header:w-24" />
               <Skeleton className="size-9 shrink-0" />
+              <Skeleton className="hidden size-9 shrink-0 2xl:block" />
             </div>
           </div>
 
@@ -73,7 +75,7 @@ export default function ChatLoading() {
           </div>
 
           <div className="shrink-0 bg-background px-5 pb-3 pt-4">
-            <div className="mx-auto max-w-4xl">
+            <div className="@container/composer mx-auto max-w-4xl">
               {/* Suggestions IA : le libellé se tronque, le bouton reste entier. */}
               <div className="mb-2 flex items-center justify-between gap-2">
                 <Skeleton className="h-2.5 w-full max-w-24" />
@@ -89,21 +91,22 @@ export default function ChatLoading() {
                   <Skeleton className="h-4 w-40 max-w-full" />
                 </div>
                 <div className="flex min-w-0 items-center gap-0.5 px-1.5 pb-1.5">
-                  {[0, 1].map((index) => (
+                  {/* Pièce jointe · émoji · vocal */}
+                  {[0, 1, 2].map((index) => (
                     <div key={index} className="flex size-8 shrink-0 items-center justify-center">
                       <Skeleton className="size-4 rounded-full" />
                     </div>
                   ))}
-                  {/* « Améliorer » */}
+                  {/* « Améliorer » : libellé dès 320 px de compositeur. */}
                   <div className="ml-0.5 flex h-8 shrink-0 items-center gap-1.5 px-2">
                     <Skeleton className="size-4 rounded-full" />
-                    <Skeleton className="h-3 w-12" />
+                    <Skeleton className="hidden h-3 w-12 @xs/composer:block" />
                   </div>
-                  {/* Raccourci clavier : seulement s'il reste de la place. */}
-                  <div className="ml-auto mr-1.5 hidden min-w-0 justify-end lg:flex">
-                    <Skeleton className="h-3 w-40 max-w-full" />
+                  {/* Raccourci clavier (grand écran et compositeur de 512 px) puis envoi. */}
+                  <div className="ml-auto flex shrink-0 items-center gap-1.5">
+                    <Skeleton className="hidden h-3 w-40 lg:@lg/composer:block" />
+                    <Skeleton className="size-8 shrink-0 rounded-lg" />
                   </div>
-                  <Skeleton className="size-8 shrink-0 rounded-lg max-lg:ml-auto" />
                 </div>
               </div>
             </div>
@@ -111,7 +114,7 @@ export default function ChatLoading() {
         </div>
 
         {/* Fiche contact */}
-        <div className="hidden w-80 shrink-0 flex-col gap-6 overflow-hidden border-l bg-background p-5 xl:flex">
+        <div className="hidden w-80 shrink-0 flex-col gap-6 overflow-hidden border-l bg-background p-5 2xl:flex">
           <div className="flex flex-col items-center gap-2">
             <Skeleton className="size-16 rounded-full" />
             <Skeleton className="mt-1 h-5 w-32" />

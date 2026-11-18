@@ -84,7 +84,8 @@ export function ResolveConversationButton({
           ) : (
             <CircleCheck aria-hidden="true" />
           )}
-          <span className="hidden lg:inline">
+          {/* Selon la largeur de l’en-tête de conversation (@container/chat-header). */}
+          <span className="hidden @lg/chat-header:inline">
             {resolved ? "Rouvrir" : "Résoudre"}
           </span>
         </Button>
@@ -428,7 +429,8 @@ export function ComposerModeToggle({
           onClick={() => onChange("reply")}
         >
           <MessageSquare aria-hidden="true" />
-          Répondre
+          {/* Compositeur très étroit : icône seule, le nom reste lu. */}
+          <span className="@max-xs/composer:sr-only">Répondre</span>
         </Button>
       )}
       <Button
