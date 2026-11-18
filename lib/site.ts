@@ -21,7 +21,7 @@ export const SITE_DESCRIPTION =
 
 export const SITE_SOCIAL = {
   facebook: "https://www.facebook.com/profile.php?id=61596607112511",
-  instagram: "https://www.instagram.com/extraverty_ai/",
+  instagram: "https://www.instagram.com/extraverty_ia",
 };
 
 export const SITE_SOCIAL_PROFILES = [SITE_SOCIAL.facebook, SITE_SOCIAL.instagram];
