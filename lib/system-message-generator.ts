@@ -36,7 +36,7 @@ const SECTIONS = [
   { key: "mission", title: "MISSION", max: 6, rule: "3 à 5 objectifs concrets, tirés des objectifs choisis et des précisions." },
   { key: "deroule", title: "DÉROULÉ", max: 8, rule: "3 à 6 étapes d'une conversation type dans ce secteur, dans l'ordre, chacune commençant par un verbe à l'infinitif (« Accueillir… »)." },
   { key: "a_recueillir", title: "À RECUEILLIR", max: 8, rule: "informations à demander au client pour traiter sa demande." },
-  { key: "limites", title: "LIMITES", max: 6, rule: "ce que l'assistant ne doit jamais affirmer ou promettre sans confirmation, et les interdits réglementaires du secteur. Jamais l'interdiction d'un service, d'un produit ou d'une pratique." },
+  { key: "limites", title: "LIMITES", max: 6, rule: "ce que l'assistant ne doit jamais affirmer ou promettre sans confirmation (« Ne jamais promettre… sans… »), et les interdits réglementaires du secteur. Jamais l'interdiction d'un service, d'un produit ou d'une pratique (« Ne pas proposer de… »)." },
   { key: "conseiller", title: "CONSEILLER", max: 6, rule: "situations précises à confier à un humain : fait absent de la fiche à confirmer, paiement à finaliser, cas sensible ou hors des objectifs. Jamais une tâche que les objectifs confient à l'assistant." },
 ] as const;
 
@@ -124,9 +124,20 @@ function linkPatterns(links: BusinessLinks) {
 }
 
 /**
+ * Refus d’une offre (« Ne pas proposer de personnalisation », « N’accepte pas
+ * les retours ») : seule l’entreprise peut l’énoncer, et le modèle l’invente
+ * quand la fiche se tait. Une limite conditionnelle (« sans l’accord d’un
+ * conseiller ») reste permise.
+ */
+const OFFER_REFUSAL =
+  /^(?:ne\s+(?:pas|jamais|plus)\s+(?:proposer|offrir|accepter|effectuer)|ne\s+(?:propose|offre|accepte|effectue)s?\s+(?:pas|jamais|plus)|n['’]\s*(?:offre|accepte|effectue)s?\s+(?:pas|jamais|plus)|pas\s+d(?:e\s|['’]))/i;
+
+const refusesOffer = (item: string) => OFFER_REFUSAL.test(item) && !/\bsans\b/i.test(item);
+
+/**
  * Assemble les sections avec des titres fixes et des puces « - ». Chaque
  * élément est nettoyé ; celui qui cite un lien parle du lien, il disparaît en
- * entier. Les sections vides sont omises.
+ * entier, comme une limite qui refuse une offre. Les sections vides sont omises.
  */
 export function assembleSystemMessage(sections: GeneratedSections, links: BusinessLinks) {
   const patterns = linkPatterns(links);
@@ -138,7 +149,12 @@ export function assembleSystemMessage(sections: GeneratedSections, links: Busine
           .replace(/^(?:[-•*]\s*|\d{1,2}[.)]\s+)/, "")
           .trim(),
       )
-      .filter((item) => /\p{L}/u.test(item) && !patterns.some((pattern) => pattern.test(item)))
+      .filter(
+        (item) =>
+          /\p{L}/u.test(item) &&
+          !patterns.some((pattern) => pattern.test(item)) &&
+          !(key === "limites" && refusesOffer(item)),
+      )
       .slice(0, max);
     if (!items.length) return [];
     const body = key === "contexte" ? items.join(" ") : items.map((item) => `- ${item}`).join("\n");

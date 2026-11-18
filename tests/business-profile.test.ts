@@ -205,6 +205,34 @@ test("client data reaches the generator as delimited data only, and links never 
   // Un élément qui cite un lien ou un compte disparaît en entier.
   assert.doesNotMatch(assembled, /https?:|www\.|boutique-awa|instagram|@boutiqueawa|^- (?:-|\d)|^-\s*$/im);
   assert.doesNotMatch(assembleSystemMessage({ ...SECTIONS_REPLY, limites: [] }, links), /LIMITES/);
+  // Une limite qui refuse une offre disparaît ; une limite conditionnelle ou réglementaire reste.
+  const limits = assembleSystemMessage(
+    {
+      ...SECTIONS_REPLY,
+      limites: [
+        "Ne pas proposer de personnalisation des chaussures.",
+        "- Ne pas proposer de retours ou d'échanges, sauf si confirmé par un conseiller.",
+        "Ne propose pas de livraison hors de Libreville.",
+        "N’accepte pas les retours.",
+        "Pas de personnalisation.",
+        "Ne jamais promettre un échange ou un remboursement sans l'accord d'un conseiller.",
+        "Ne jamais proposer une remise sans l'accord d'un conseiller.",
+        "Ne jamais poser de diagnostic ni prescrire de traitement.",
+        "Ne pas gérer les paiements directement.",
+      ],
+    },
+    links,
+  );
+  assert.match(
+    limits,
+    /\n\nLIMITES\n- Ne jamais promettre un échange ou un remboursement sans l'accord d'un conseiller\.\n- Ne jamais proposer une remise sans l'accord d'un conseiller\.\n- Ne jamais poser de diagnostic ni prescrire de traitement\.\n- Ne pas gérer les paiements directement\.\n\nCONSEILLER\n/,
+  );
+  assert.doesNotMatch(limits, /personnalisation|hors de Libreville|N’accepte/);
+  // Le même refus reste permis ailleurs : confier la demande à un conseiller n'est pas l'interdire.
+  assert.match(
+    assembleSystemMessage({ ...SECTIONS_REPLY, conseiller: ["Pas de réponse fiable sur un retour : le confier."] }, links),
+    /CONSEILLER\n- Pas de réponse fiable sur un retour : le confier\./,
+  );
 
   const original = globalThis.fetch;
   const env = { key: process.env.OPENROUTER_API_KEY, model: process.env.OPENROUTER_MODEL, fallback: process.env.OPENROUTER_FALLBACK_MODEL };
