@@ -3,7 +3,9 @@
  *   - public/og-image.png : image de partage des liens (1200 × 630),
  *     déclarée dans les métadonnées `openGraph` et `twitter` du site ;
  *   - docs/visuels/couverture-facebook.png : couverture de la page Facebook
- *     (1640 × 624), à téléverser à la main sur Facebook.
+ *     (1640 × 624), à téléverser à la main sur Facebook ;
+ *   - docs/visuels/pub-carre.png et pub-story.png : visuels publicitaires
+ *     Facebook et Instagram (1080 × 1080 et 1080 × 1920).
  *
  * Les couleurs sont lues dans app/globals.css (thème shadcn/ui), les logos
  * dans public/, et les polices du site (Bricolage Grotesque, Crimson Text
@@ -22,11 +24,34 @@ import { chromium } from "playwright";
 import sharp from "sharp";
 
 type Theme = "light" | "dark";
-type VisualId = "og-image" | "facebook-cover";
+type VisualId = string;
+
+// Calendrier des publications : une par jour, contenu dans POSTS plus bas.
+const POST_DATES = [
+  "2026-11-19",
+  "2026-11-20",
+  "2026-11-21",
+  "2026-11-22",
+  "2026-11-23",
+  "2026-11-24",
+  "2026-11-25",
+  "2026-11-26",
+] as const;
+type PostDate = (typeof POST_DATES)[number];
 
 const OUTPUTS: readonly { id: VisualId; file: string; width: number; height: number; theme: Theme }[] = [
   { id: "og-image", file: "public/og-image.png", width: 1200, height: 630, theme: "dark" },
   { id: "facebook-cover", file: "docs/visuels/couverture-facebook.png", width: 1640, height: 624, theme: "dark" },
+  { id: "ad-square", file: "docs/visuels/pub-carre.png", width: 1080, height: 1080, theme: "dark" },
+  { id: "ad-story", file: "docs/visuels/pub-story.png", width: 1080, height: 1920, theme: "dark" },
+  // Publications Facebook et Instagram (4:5), une par jour : voir POSTS.
+  ...POST_DATES.map((date) => ({
+    id: `post-${date}`,
+    file: `docs/visuels/publications/${date}.png`,
+    width: 1080,
+    height: 1350,
+    theme: "dark" as Theme,
+  })),
 ];
 
 // Origine fictive : toutes ses requêtes sont servies depuis le disque.
@@ -193,9 +218,252 @@ function facebookCover(theme: Theme, logo: string) {
   </section>`;
 }
 
+// Conversation de démonstration des publicités : un client écrit tard le
+// soir, l’assistant répond aussitôt. Aucun chiffre commercial réel.
+function adConversation(scale: number) {
+  const px = (value: number) => `${Math.round(value * scale)}px`;
+  return `
+    <div style="display: flex; flex-direction: column; gap: ${px(16)};">
+      <div class="bubble client" style="align-self: flex-start; max-width: 78%; font-size: ${px(26)}; padding: ${px(22)} ${px(28)}; border-radius: ${px(28)}; border-bottom-left-radius: ${px(10)};">
+        Bonsoir&nbsp;! Vous livrez à Libreville ce week&#8209;end&nbsp;?
+        <span class="meta" style="justify-content: flex-end; margin-top: ${px(8)}; font-size: ${px(18)};">23:12</span>
+      </div>
+      <div class="bubble ai" style="align-self: flex-end; max-width: 82%; font-size: ${px(26)}; padding: ${px(22)} ${px(28)}; border-radius: ${px(28)}; border-bottom-right-radius: ${px(10)};">
+        <span class="meta eyebrow" style="margin-bottom: ${px(8)}; color: inherit; letter-spacing: 0.08em; font-size: ${px(18)};">${icon(SPARKLES, Math.round(20 * scale))} IA · répondu aussitôt</span>
+        Oui, nous livrons samedi et dimanche. Je note votre adresse pour la commande&nbsp;?
+        <span class="meta" style="justify-content: flex-end; margin-top: ${px(8)}; font-size: ${px(18)};">23:12 ${icon(CHECK_CHECK, Math.round(20 * scale))}</span>
+      </div>
+    </div>`;
+}
+
+const AD_HEADLINE = `Vos clients écrivent à 23&nbsp;h.<br>Votre IA leur répond <em class="serif">tout&nbsp;de&nbsp;suite.</em>`;
+const AD_HEADLINE_STORY = `Vos clients écrivent<br>à 23&nbsp;h. Votre IA<br>leur répond<br><em class="serif">tout&nbsp;de&nbsp;suite.</em>`;
+
+// Publicité carrée (fil Facebook et Instagram, 1080 × 1080).
+function adSquare(theme: Theme, logo: string) {
+  return `
+  <section class="visual ${theme}" data-visual="ad-square" data-theme="${theme}"
+    style="width: 1080px; height: 1080px; padding: 72px 72px 76px;">
+    <div class="grid" style="mask-image: radial-gradient(ellipse 80% 70% at 85% 0%, black, transparent);"></div>
+    <div class="row" style="justify-content: space-between;">
+      <span class="row" style="gap: 14px;">
+        <img src="${logo}" alt="" style="height: 56px;">
+        <span class="brand" style="font-size: 36px;">ExtravertyAI</span>
+      </span>
+      <span class="pill muted" style="padding: 8px 20px; font-size: 20px;">extravertyai.com</span>
+    </div>
+    <p class="eyebrow" style="margin-top: 64px; font-size: 20px;">Assistant IA pour WhatsApp</p>
+    <p class="heading" style="margin-top: 20px; font-size: 68px;">${AD_HEADLINE}</p>
+    <div style="margin-top: auto;">${adConversation(1)}</div>
+    <ul class="row muted" style="margin-top: 44px; gap: 28px; font-size: 20px; white-space: nowrap; list-style: none;">
+      ${PROMISES.map((item) => `<li class="row" style="gap: 10px;"><span class="row strong">${icon(CHECK, 22)}</span>${item}</li>`).join("")}
+    </ul>
+  </section>`;
+}
+
+// Publicité verticale (Stories et Reels, 1080 × 1920). Instagram recouvre
+// environ 250 px en haut (profil) et 340 px en bas (bouton d’action) : le
+// contenu reste entre ces deux bandes.
+function adStory(theme: Theme, logo: string) {
+  return `
+  <section class="visual ${theme}" data-visual="ad-story" data-theme="${theme}"
+    style="width: 1080px; height: 1920px; padding: 270px 80px 360px;">
+    <div class="grid" style="mask-image: radial-gradient(ellipse 90% 60% at 50% 35%, black, transparent);"></div>
+    <span class="row" style="gap: 16px;">
+      <img src="${logo}" alt="" style="height: 64px;">
+      <span class="brand" style="font-size: 42px;">ExtravertyAI</span>
+    </span>
+    <p class="eyebrow" style="margin-top: 72px; font-size: 24px;">Assistant IA pour WhatsApp</p>
+    <p class="heading" style="margin-top: 24px; font-size: 92px;">${AD_HEADLINE_STORY}</p>
+    <div style="margin-top: auto;">${adConversation(1.2)}</div>
+    <ul class="muted" style="margin-top: 56px; display: flex; flex-direction: column; gap: 18px; font-size: 28px; list-style: none;">
+      ${PROMISES.map((item) => `<li class="row" style="gap: 14px;"><span class="row strong">${icon(CHECK, 28)}</span>${item}</li>`).join("")}
+    </ul>
+  </section>`;
+}
+
+// ── Publications quotidiennes (1080 × 1350) ─────────────────────────────────
+// Chaque argument vient du site (accueil, FAQ, lib/pricing.ts) : aucune
+// promesse ni chiffre qui n’y figure pas. Les conversations sont des exemples.
+
+const bubble = (side: "client" | "ai", text: string, time: string, label?: string) =>
+  side === "client"
+    ? `<div class="bubble client" style="align-self: flex-start; max-width: 80%; font-size: 26px; padding: 22px 28px; border-radius: 28px; border-bottom-left-radius: 10px;">
+        ${text}
+        <span class="meta" style="justify-content: flex-end; margin-top: 8px; font-size: 18px;">${time}</span>
+      </div>`
+    : `<div class="bubble ai" style="align-self: flex-end; max-width: 84%; font-size: 26px; padding: 22px 28px; border-radius: 28px; border-bottom-right-radius: 10px;">
+        <span class="meta eyebrow" style="margin-bottom: 8px; color: inherit; letter-spacing: 0.08em; font-size: 18px;">${icon(SPARKLES, 20)} ${label ?? "IA · répondu aussitôt"}</span>
+        ${text}
+        <span class="meta" style="justify-content: flex-end; margin-top: 8px; font-size: 18px;">${time} ${icon(CHECK_CHECK, 20)}</span>
+      </div>`;
+
+const conversation = (...bubbles: string[]) =>
+  `<div style="display: flex; flex-direction: column; gap: 16px;">${bubbles.join("")}</div>`;
+
+const checklist = (items: readonly string[]) => `
+  <ul style="display: flex; flex-direction: column; gap: 22px; list-style: none; font-size: 34px; line-height: 1.35;">
+    ${items.map((item) => `<li class="row" style="gap: 18px; align-items: flex-start;"><span class="row strong" style="margin-top: 4px;">${icon(CHECK, 32)}</span><span>${item}</span></li>`).join("")}
+  </ul>`;
+
+const steps = (items: readonly [string, string][]) => `
+  <ol style="display: flex; flex-direction: column; gap: 18px; list-style: none;">
+    ${items
+      .map(
+        ([title, text], index) => `
+      <li class="pill" style="display: flex; gap: 28px; align-items: center; border-radius: 24px; padding: 26px 30px;">
+        <span class="heading" style="font-size: 54px; min-width: 70px;">0${index + 1}</span>
+        <span><span class="brand" style="display: block; font-size: 30px;">${title}</span>
+        <span class="muted" style="display: block; margin-top: 6px; font-size: 22px; line-height: 1.4;">${text}</span></span>
+      </li>`,
+      )
+      .join("")}
+  </ol>`;
+
+const quote = (text: string) =>
+  `<p class="pill" style="border-radius: 28px; padding: 40px 44px; font-size: 34px; line-height: 1.45;">${text}</p>`;
+
+const voiceNote = (duration: string, time: string) => `
+  <div class="bubble client" style="align-self: flex-start; width: 62%; font-size: 22px; padding: 22px 28px; border-radius: 28px; border-bottom-left-radius: 10px;">
+    <span class="row" style="gap: 16px;">
+      <svg width="34" height="34" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+      <span class="row" style="gap: 5px; height: 40px; flex: 1;">
+        ${[10, 22, 34, 18, 28, 40, 24, 14, 30, 36, 20, 12, 26, 32, 16, 22, 10, 18]
+          .map((h) => `<span style="width: 6px; height: ${h}px; border-radius: 9999px; background: currentColor; opacity: 0.7;"></span>`)
+          .join("")}
+      </span>
+      <span class="muted">${duration}</span>
+    </span>
+    <span class="meta" style="justify-content: flex-end; margin-top: 8px; font-size: 18px;">${time}</span>
+  </div>`;
+
+const toggleCard = () => `
+  <div class="pill" style="border-radius: 28px; padding: 30px 34px;">
+    <div class="row" style="justify-content: space-between;">
+      <span>
+        <span class="brand" style="display: block; font-size: 30px;">Conversation · Client Libreville</span>
+        <span class="muted" style="display: block; margin-top: 6px; font-size: 22px;">Réponses automatiques</span>
+      </span>
+      <span class="row" style="width: 96px; height: 52px; border-radius: 9999px; background: var(--muted); border: 1px solid var(--border); padding: 5px;">
+        <span style="width: 40px; height: 40px; border-radius: 9999px; background: var(--muted-foreground);"></span>
+      </span>
+    </div>
+    <p class="muted" style="margin-top: 22px; font-size: 22px; line-height: 1.45;">IA désactivée : vous répondez vous-même, l’assistant reprend quand vous le rallumez.</p>
+  </div>`;
+
+const priceRows = (rows: readonly [string, string, string][]) => `
+  <div style="display: flex; flex-direction: column; gap: 14px;">
+    ${rows
+      .map(
+        ([name, price, detail], index) => `
+      <div class="${index === 1 ? "bubble ai" : "pill"}" style="display: flex; justify-content: space-between; align-items: center; border-radius: 24px; padding: 26px 32px; ${index === 1 ? "box-shadow: none;" : ""}">
+        <span><span class="brand" style="display: block; font-size: 32px;">${name}</span>
+        <span style="display: block; margin-top: 6px; font-size: 20px; opacity: 0.75;">${detail}</span></span>
+        <span class="heading" style="font-size: 44px; white-space: nowrap;">${price}<span style="font-family: 'Roboto Mono', monospace; font-weight: 400; font-size: 20px; letter-spacing: normal;"> /mois</span></span>
+      </div>`,
+      )
+      .join("")}
+  </div>`;
+
+const POSTS: Record<PostDate, { eyebrow: string; heading: string; body: string; note?: string }> = {
+  "2026-11-19": {
+    eyebrow: "Nouveau · Assistant IA pour WhatsApp",
+    heading: `Chaque message mérite une réponse <em class="serif">immédiate.</em>`,
+    body: checklist([
+      "Réponse en quelques secondes, avec vos prix et votre ton",
+      "Jour et nuit, même le week&#8209;end",
+      "Sans changer de numéro WhatsApp",
+    ]),
+  },
+  "2026-11-20": {
+    eyebrow: "Comment ça marche",
+    heading: `Opérationnel avant votre <em class="serif">prochain café.</em>`,
+    body: steps([
+      ["Scannez un QR code", "Votre numéro reste le vôtre, vos clients ne voient aucune différence."],
+      ["Décrivez votre activité", "Vos prix, vos règles et votre ton : l’assistant les apprend en quelques minutes."],
+      ["L’assistant répond", "Il qualifie, et vous alerte quand un humain doit intervenir."],
+    ]),
+  },
+  "2026-11-21": {
+    eyebrow: "Samedi soir",
+    heading: `Votre boutique ferme. <em class="serif">Pas votre WhatsApp.</em>`,
+    body: conversation(
+      bubble("client", "Bonsoir&nbsp;! La robe noire est encore disponible en taille&nbsp;M&nbsp;?", "21:04"),
+      bubble("ai", "Oui, il en reste une en M. Je vous la mets de côté jusqu’à lundi&nbsp;?", "21:04"),
+    ),
+  },
+  "2026-11-22": {
+    eyebrow: "Question fréquente",
+    heading: `Mes clients sauront-ils qu’ils parlent <em class="serif">à une IA&nbsp;?</em>`,
+    body: quote(
+      "Vous choisissez le ton et la signature de l’assistant. Nous recommandons la transparence&nbsp;: il peut se présenter et proposer un conseiller humain à tout moment.",
+    ),
+  },
+  "2026-11-23": {
+    eyebrow: "Reprise en main",
+    heading: `L’IA travaille. <em class="serif">Vous décidez.</em>`,
+    body: toggleCard(),
+    note: "Un interrupteur par conversation, ou une pause générale depuis les réglages.",
+  },
+  "2026-11-24": {
+    eyebrow: "Notes vocales",
+    heading: `Vos clients préfèrent <em class="serif">parler&nbsp;?</em>`,
+    body: conversation(
+      voiceNote("0:18", "12:41"),
+      bubble("ai", "Bien reçu&nbsp;: deux pagnes wax, livraison à Owendo demain. Je vous confirme le total&nbsp;?", "12:41", "IA · note vocale comprise"),
+    ),
+    note: "Compréhension des notes vocales incluse dans les offres Pro et Business.",
+  },
+  "2026-11-25": {
+    eyebrow: "Sécurité",
+    heading: `Vos données restent <em class="serif">les vôtres.</em>`,
+    body: checklist([
+      "Chaque espace est cloisonné, aucune donnée partagée entre clients",
+      "Des permissions fines pour chaque membre de l’équipe",
+      "Contacts et conversations exportables en CSV",
+      "Supprimez un projet ou votre compte à tout moment",
+    ]),
+  },
+  "2026-11-26": {
+    eyebrow: "Offres",
+    heading: `Essayez 5 jours, <em class="serif">gratuitement.</em>`,
+    body: priceRows([
+      ["Starter", "15,99 $", "2 500 messages · réponses texte"],
+      ["Pro", "39,99 $", "8 000 messages · notes vocales"],
+      ["Business", "99 $", "25 000 messages · notes vocales et images"],
+    ]),
+    note: "100 messages inclus pendant l’essai.",
+  },
+};
+
+function post(date: PostDate) {
+  return (theme: Theme, logo: string) => {
+    const { eyebrow, heading, body, note } = POSTS[date];
+    return `
+  <section class="visual ${theme}" data-visual="post-${date}" data-theme="${theme}"
+    style="width: 1080px; height: 1350px; padding: 72px 72px 64px;">
+    <div class="grid" style="mask-image: radial-gradient(ellipse 85% 60% at 85% 0%, black, transparent);"></div>
+    <div class="row" style="justify-content: space-between;">
+      <span class="row" style="gap: 14px;">
+        <img src="${logo}" alt="" style="height: 56px;">
+        <span class="brand" style="font-size: 36px;">ExtravertyAI</span>
+      </span>
+      <span class="pill muted" style="padding: 8px 20px; font-size: 20px;">extravertyai.com</span>
+    </div>
+    <p class="eyebrow" style="margin-top: 80px; font-size: 22px;">${eyebrow}</p>
+    <p class="heading" style="margin-top: 26px; font-size: 104px; text-wrap: balance;">${heading}</p>
+    <div style="margin-top: auto;">${body}</div>
+    ${note ? `<p class="muted" style="margin-top: 32px; font-size: 21px;">${note}</p>` : ""}
+  </section>`;
+  };
+}
+
 const RENDER: Record<VisualId, (theme: Theme, logo: string) => string> = {
   "og-image": ogImage,
   "facebook-cover": facebookCover,
+  "ad-square": adSquare,
+  "ad-story": adStory,
+  ...Object.fromEntries(POST_DATES.map((date) => [`post-${date}`, post(date)])),
 };
 
 async function main() {
