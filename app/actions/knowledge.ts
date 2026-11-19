@@ -19,11 +19,16 @@ import {
 } from "@/lib/knowledge";
 import { removeKnowledgeFile } from "@/lib/knowledge-extract";
 import { KNOWLEDGE_LIMITS } from "@/lib/knowledge-shared";
+import { CurrencySchema } from "@/lib/pipeline-shared";
 
 type Failure = { success: false; error: string };
 
 const Project = z.object({ projectId: z.string().cuid() });
-const SaveSchema = Project.extend({ id: z.string().cuid().optional(), entry: EntryPayloadSchema });
+const SaveSchema = Project.extend({
+  id: z.string().cuid().optional(),
+  entry: EntryPayloadSchema,
+  currency: CurrencySchema.optional(),
+});
 const EntryTarget = Project.extend({ id: z.string().cuid() });
 const ToggleSchema = EntryTarget.extend({ enabled: z.boolean() });
 const CsvSchema = Project.extend({
@@ -61,7 +66,7 @@ async function run<S extends z.ZodType, T>(
 export async function saveKnowledgeEntryAction(input: z.input<typeof SaveSchema>) {
   return run(SaveSchema, input, "enregistrer l’entrée", async (data, userId) => {
     const saved = await saveEntry(prisma, { ...data, userId });
-    return { id: saved.id };
+    return { id: saved.id, currencyChanged: saved.currencyChanged };
   });
 }
 

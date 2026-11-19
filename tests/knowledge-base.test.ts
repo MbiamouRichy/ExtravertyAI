@@ -34,6 +34,7 @@ import {
   activateBilling,
   createProject,
   createUser,
+  ingestText,
   withTestDatabase,
 } from "./helpers/database";
 
@@ -399,5 +400,67 @@ test("knowledge base", { timeout: 180000 }, async (t) => {
       assert.equal(failed.status, "FAILED");
       assert.equal(failed.errorCode, "UNSUPPORTED_TYPE");
     });
+  });
+});
+
+test("the product form switches the project currency, keeping the typed figures", { timeout: 180000 }, async () => {
+  await withTestDatabase(async (prisma) => {
+    const project = await createProject(prisma, { plan: "business" });
+    const owner = await createUser(prisma);
+    const member = await createUser(prisma);
+    await addMember(prisma, project.id, owner.id, "OWNER");
+    await addMember(prisma, project.id, member.id, "AGENT");
+    const admin = { projectId: project.id, userId: owner.id };
+    const product = (title: string, price: number | null) =>
+      ({ kind: "PRODUCT", title, content: "", price, stock: null }) as const;
+    const state = async () => ({
+      currency: (await prisma.project.findUniqueOrThrow({ where: { id: project.id } })).currency,
+      prices: (
+        await prisma.knowledgeEntry.findMany({ where: { projectId: project.id, kind: "PRODUCT" }, orderBy: { title: "asc" } })
+      ).map((entry) => entry.price),
+      deal: (await prisma.contact.findUniqueOrThrow({ where: { id: contact.id } })).dealValue,
+    });
+
+    const contact = await ingestText(prisma, project.id, "Bonjour");
+    await prisma.contact.update({ where: { id: contact.id }, data: { dealValue: 250000 } });
+    const sneakers = await saveEntry(prisma, { ...admin, entry: product("A · Sneakers", 45000) });
+    assert.equal(sneakers.currencyChanged, false);
+    // Même devise : rien ne bouge.
+    const same = await saveEntry(prisma, { ...admin, entry: product("B · Sac", 12000), currency: "XAF" });
+    assert.equal(same.currencyChanged, false);
+    assert.deepEqual(await state(), { currency: "XAF", prices: [45000, 12000], deal: 250000 });
+
+    // Un membre sans droits d’administration ne change rien.
+    await assert.rejects(
+      saveEntry(prisma, { projectId: project.id, userId: member.id, entry: product("C · Ceinture", 990), currency: "EUR" }),
+      SettingsError,
+    );
+    // Une information ne porte pas de devise : elle est ignorée.
+    await saveEntry(prisma, {
+      ...admin,
+      entry: { kind: "FAQ", title: "Livrez-vous ?", content: "Oui.", price: null, stock: null },
+      currency: "EUR",
+    });
+    assert.equal((await state()).currency, "XAF");
+
+    // Vers l’euro : les chiffres saisis restent (45 000 XAF → 45 000,00 €), en centimes.
+    const euro = await saveEntry(prisma, { ...admin, entry: product("C · Ceinture", 4990), currency: "EUR" });
+    assert.equal(euro.currencyChanged, true);
+    assert.deepEqual(await state(), { currency: "EUR", prices: [4500000, 1200000, 4990], deal: 25000000 });
+
+    // Retour au franc CFA : arrondi au plus proche (12,50 € → 13, 49,90 € → 50).
+    await prisma.knowledgeEntry.update({ where: { id: sneakers.id }, data: { price: 1250 } });
+    await prisma.contact.update({ where: { id: contact.id }, data: { dealValue: 12549 } });
+    const back = await saveEntry(prisma, { ...admin, id: same.id, entry: product("B · Sac", 15000), currency: "XAF" });
+    assert.equal(back.currencyChanged, true);
+    assert.deepEqual(await state(), { currency: "XAF", prices: [13, 15000, 50], deal: 125 });
+
+    // Un montant qui dépasserait le maximum dans la nouvelle devise bloque tout.
+    await prisma.contact.update({ where: { id: contact.id }, data: { dealValue: 30_000_000 } });
+    await assert.rejects(
+      saveEntry(prisma, { ...admin, entry: product("D · Montre", 9900), currency: "EUR" }),
+      /dépasse .*maximum en EUR/,
+    );
+    assert.deepEqual(await state(), { currency: "XAF", prices: [13, 15000, 50], deal: 30_000_000 });
   });
 });

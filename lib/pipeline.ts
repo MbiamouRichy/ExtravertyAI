@@ -2,6 +2,7 @@ import type { PrismaClient, Prisma } from "../src/generated/prisma/client";
 import { chatContactName } from "./chat-privacy";
 import { planAllows, requirePlanFeature } from "./plan-features";
 import { requireProjectAdmin } from "./project-settings";
+import { applyProjectCurrency } from "./project-currency";
 import { emitIntegrationEvent, integrationContact } from "./integration-events";
 import { rolesWith } from "./project-permissions";
 import {
@@ -110,13 +111,10 @@ export async function setProjectCurrency(
   db: PrismaClient,
   input: { projectId: string; userId: string; currency: (typeof CURRENCIES)[number] },
 ) {
-  await db.$transaction(async (tx) => {
+  return db.$transaction(async (tx) => {
     const { project } = await requireProjectAdmin(tx, input.projectId, input.userId);
     requirePlanFeature(project.plan, "pipeline");
-    await tx.project.update({
-      where: { id: input.projectId },
-      data: { currency: input.currency },
-    });
+    return applyProjectCurrency(tx, input.projectId, input.currency);
   });
 }
 

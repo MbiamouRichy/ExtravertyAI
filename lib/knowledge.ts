@@ -8,6 +8,7 @@ import { StorageQuotaError, releaseStorage, reserveStorage } from "./storage-quo
 import { SafeFetchError, parsePublicUrl } from "./safe-fetch";
 import { MAX_DEAL_VALUE } from "./pipeline-shared";
 import { can } from "./project-permissions";
+import { applyProjectCurrency, type ProjectCurrency } from "./project-currency";
 import {
   KNOWLEDGE_LIMITS,
   buildSearchQuery,
@@ -102,9 +103,14 @@ export function wordLimitMessage(plan: string, needed: number, remaining: number
 /* Entries                                                                     */
 /* -------------------------------------------------------------------------- */
 
+/**
+ * `currency` (produit seulement) : devise dans laquelle le prix a été saisi.
+ * Si elle diffère de celle du projet, tout le projet bascule avant
+ * l’enregistrement, sans conversion (`applyProjectCurrency`).
+ */
 export async function saveEntry(
   db: PrismaClient,
-  input: Admin & { id?: string; entry: EntryPayload },
+  input: Admin & { id?: string; entry: EntryPayload; currency?: ProjectCurrency },
 ) {
   const entry = EntryPayloadSchema.parse(input.entry);
   if (!entry.content && entry.kind !== "PRODUCT") {
@@ -112,7 +118,12 @@ export async function saveEntry(
   }
   return db.$transaction(async (tx) => {
     const project = await lockAdmin(tx, input);
-    return writeEntry(tx, project.plan, { ...input, entry });
+    const currencyChanged =
+      entry.kind === "PRODUCT" && input.currency
+        ? await applyProjectCurrency(tx, input.projectId, input.currency)
+        : false;
+    const saved = await writeEntry(tx, project.plan, { ...input, entry });
+    return { ...saved, currencyChanged };
   });
 }
 

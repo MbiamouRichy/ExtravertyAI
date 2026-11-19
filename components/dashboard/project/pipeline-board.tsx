@@ -235,7 +235,7 @@ export function PipelineBoard({
                   currency: value as (typeof CURRENCIES)[number],
                 });
                 if (!result.success) toast.error(result.error);
-                else toast.success(`Devise : ${value}. Les montants existants ne sont pas convertis.`);
+                else toast.success(`Devise : ${value}. Les montants gardent leurs chiffres, sans conversion.`);
                 startTransition(() => router.refresh());
               })
             }

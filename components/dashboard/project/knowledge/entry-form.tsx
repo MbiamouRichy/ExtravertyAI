@@ -1,7 +1,7 @@
 "use client";
 
 import { useId, useState } from "react";
-import { Controller, useForm } from "react-hook-form";
+import { Controller, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
@@ -24,16 +24,23 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
 import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupInput,
-  InputGroupText,
-} from "@/components/ui/input-group";
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { saveKnowledgeEntryAction } from "@/app/actions/knowledge";
 import { KNOWLEDGE_LIMITS } from "@/lib/knowledge-shared";
-import { currencyDigits, parseDealValue } from "@/lib/pipeline-shared";
+import {
+  CURRENCIES,
+  CurrencySchema,
+  currencyDigits,
+  parseDealValue,
+} from "@/lib/pipeline-shared";
 import { cn } from "@/lib/utils";
 import type { KnowledgeEntryView } from "./types";
 
@@ -71,15 +78,24 @@ function plainAmount(minor: number | null, currency: string) {
   return new Intl.NumberFormat("fr-FR", { maximumFractionDigits: digits }).format(minor / 10 ** digits);
 }
 
-function buildSchema(kind: EditableKind, currency: string) {
-  const amountValid = (value: string) => {
-    try {
-      parseDealValue(value, currency);
-      return true;
-    } catch {
-      return false;
-    }
-  };
+type Currency = (typeof CURRENCIES)[number];
+
+const isCurrency = (value: string): value is Currency =>
+  (CURRENCIES as readonly string[]).includes(value);
+
+const pricePlaceholder = (currency: string) => (currencyDigits(currency) > 0 ? "49,90" : "45 000");
+
+function amountValid(value: string, currency: string) {
+  try {
+    parseDealValue(value, currency);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// Le prix se lit dans la devise choisie à côté : la vérification porte sur les deux.
+function buildSchema(kind: EditableKind) {
   return z.object({
     title: z
       .string()
@@ -94,11 +110,19 @@ function buildSchema(kind: EditableKind, currency: string) {
             .trim()
             .min(1, "Ce champ est obligatoire.")
             .max(KNOWLEDGE_LIMITS.contentMax, `${KNOWLEDGE_LIMITS.contentMax} caractères au maximum.`),
-    price: z.string().trim().max(20).refine(amountValid, "Prix invalide, par exemple 45 000."),
+    price: z.string().trim().max(20),
+    currency: CurrencySchema,
     stock: z
       .string()
       .trim()
       .regex(/^\d{0,9}$/, "Saisissez un nombre entier, ou laissez vide."),
+  }).superRefine((values, ctx) => {
+    if (!amountValid(values.price, values.currency))
+      ctx.addIssue({
+        code: "custom",
+        path: ["price"],
+        message: `Prix invalide, par exemple ${pricePlaceholder(values.currency)}.`,
+      });
   });
 }
 
@@ -121,16 +145,20 @@ export function EntryFormDialog({
 }) {
   const id = useId();
   const copy = COPY[kind];
-  const schema = buildSchema(kind, currency);
+  const schema = buildSchema(kind);
+  const projectCurrency: Currency = isCurrency(currency) ? currency : "XAF";
   const form = useForm<z.input<typeof schema>, unknown, z.output<typeof schema>>({
     resolver: zodResolver(schema),
     defaultValues: {
       title: entry?.title ?? "",
       content: entry && !(kind === "PRODUCT" && entry.content === entry.title) ? entry.content : "",
-      price: plainAmount(entry?.price ?? null, currency),
+      price: plainAmount(entry?.price ?? null, projectCurrency),
+      currency: projectCurrency,
       stock: entry?.stock?.toString() ?? "",
     },
   });
+  const selectedCurrency = useWatch({ control: form.control, name: "currency" });
+  const currencySwitch = kind === "PRODUCT" && selectedCurrency !== projectCurrency;
   const [saving, setSaving] = useState(false);
 
   async function submit(values: z.output<typeof schema>) {
@@ -142,16 +170,24 @@ export function EntryFormDialog({
         kind,
         title: values.title,
         content: values.content,
-        price: kind === "PRODUCT" ? parseDealValue(values.price, currency) : null,
+        price: kind === "PRODUCT" ? parseDealValue(values.price, values.currency) : null,
         stock: kind === "PRODUCT" && values.stock ? Number(values.stock) : null,
       },
+      // Toujours envoyée : le prix est lu dans cette devise, même si un autre
+      // membre a changé celle du projet depuis l’ouverture du formulaire.
+      currency: kind === "PRODUCT" ? values.currency : undefined,
     });
     setSaving(false);
     if (!result.success) {
       toast.error(result.error);
       return;
     }
-    toast.success(entry ? "Modifications enregistrées" : "Entrée ajoutée à la base de connaissances");
+    toast.success(
+      entry ? "Modifications enregistrées" : "Entrée ajoutée à la base de connaissances",
+      result.currencyChanged
+        ? { description: `Tous les prix du projet sont désormais en ${values.currency}, sans conversion.` }
+        : undefined,
+    );
     form.reset();
     onOpenChange(false);
     onSaved();
@@ -185,56 +221,95 @@ export function EntryFormDialog({
               )}
             />
             {kind === "PRODUCT" && (
-              <div className="grid grid-cols-2 gap-3">
-                <Controller
-                  name="price"
-                  control={form.control}
-                  render={({ field, fieldState }) => (
-                    <Field data-invalid={fieldState.invalid}>
-                      <FieldLabel htmlFor={`${id}-price`}>
-                        Prix
-                        <OptionalHint />
-                      </FieldLabel>
-                      <InputGroup>
-                        <InputGroupInput
+              // Deux colonnes dès 288 px de formulaire : le prix, plus large, garde
+              // la place du sélecteur de devise ; en dessous, l’une sous l’autre.
+              <div className="@container">
+                <div className="grid gap-3 @2xs:grid-cols-[3fr_2fr]">
+                  <Controller
+                    name="price"
+                    control={form.control}
+                    render={({ field, fieldState }) => (
+                      <Field data-invalid={fieldState.invalid}>
+                        <FieldLabel htmlFor={`${id}-price`}>
+                          Prix
+                          <OptionalHint />
+                        </FieldLabel>
+                        <InputGroup>
+                          <InputGroupInput
+                            {...field}
+                            id={`${id}-price`}
+                            inputMode="decimal"
+                            autoComplete="off"
+                            aria-invalid={fieldState.invalid}
+                            placeholder={pricePlaceholder(selectedCurrency)}
+                            className="min-w-0 tabular-nums"
+                          />
+                          <InputGroupAddon align="inline-end">
+                            <Controller
+                              name="currency"
+                              control={form.control}
+                              render={({ field: currencyField }) => (
+                                <Select
+                                  name={currencyField.name}
+                                  value={currencyField.value}
+                                  onValueChange={currencyField.onChange}
+                                  disabled={saving}
+                                >
+                                  <SelectTrigger
+                                    ref={currencyField.ref}
+                                    onBlur={currencyField.onBlur}
+                                    size="sm"
+                                    aria-label="Devise du prix"
+                                    aria-describedby={currencySwitch ? `${id}-currency-help` : undefined}
+                                    className="h-7 gap-0.5 border-0 bg-transparent px-1.5 py-0 font-mono text-xs shadow-none dark:bg-transparent dark:hover:bg-accent [&_svg]:size-3"
+                                  >
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent align="end" className="min-w-24">
+                                    {CURRENCIES.map((code) => (
+                                      <SelectItem key={code} value={code} className="font-mono text-xs">
+                                        {code}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              )}
+                            />
+                          </InputGroupAddon>
+                        </InputGroup>
+                        {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                      </Field>
+                    )}
+                  />
+                  <Controller
+                    name="stock"
+                    control={form.control}
+                    render={({ field, fieldState }) => (
+                      <Field data-invalid={fieldState.invalid}>
+                        <FieldLabel htmlFor={`${id}-stock`}>
+                          Stock
+                          <OptionalHint />
+                        </FieldLabel>
+                        <Input
                           {...field}
-                          id={`${id}-price`}
-                          inputMode="decimal"
+                          id={`${id}-stock`}
+                          inputMode="numeric"
                           autoComplete="off"
                           aria-invalid={fieldState.invalid}
-                          placeholder="45 000"
+                          placeholder="Non suivi"
                           className="tabular-nums"
                         />
-                        <InputGroupAddon align="inline-end">
-                          <InputGroupText className="font-mono text-xs">{currency}</InputGroupText>
-                        </InputGroupAddon>
-                      </InputGroup>
-                      {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
-                    </Field>
-                  )}
-                />
-                <Controller
-                  name="stock"
-                  control={form.control}
-                  render={({ field, fieldState }) => (
-                    <Field data-invalid={fieldState.invalid}>
-                      <FieldLabel htmlFor={`${id}-stock`}>
-                        Stock
-                        <OptionalHint />
-                      </FieldLabel>
-                      <Input
-                        {...field}
-                        id={`${id}-stock`}
-                        inputMode="numeric"
-                        autoComplete="off"
-                        aria-invalid={fieldState.invalid}
-                        placeholder="Non suivi"
-                        className="tabular-nums"
-                      />
-                      {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
-                    </Field>
-                  )}
-                />
+                        {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                      </Field>
+                    )}
+                  />
+                </div>
+                {currencySwitch && (
+                  <FieldDescription id={`${id}-currency-help`} className="mt-2 text-xs">
+                    Tous les prix du projet passeront en {selectedCurrency}. Les montants
+                    gardent leurs chiffres, sans conversion.
+                  </FieldDescription>
+                )}
               </div>
             )}
             <Controller
