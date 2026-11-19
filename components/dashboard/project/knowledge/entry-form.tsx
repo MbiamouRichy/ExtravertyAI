@@ -39,6 +39,7 @@ import {
   CURRENCIES,
   CurrencySchema,
   currencyDigits,
+  formatAmountInput,
   parseDealValue,
 } from "@/lib/pipeline-shared";
 import { cn } from "@/lib/utils";
@@ -71,12 +72,6 @@ function OptionalHint() {
 }
 
 const nearLimit = (value: string) => value.length > KNOWLEDGE_LIMITS.contentMax * 0.8;
-
-function plainAmount(minor: number | null, currency: string) {
-  if (minor === null) return "";
-  const digits = currencyDigits(currency);
-  return new Intl.NumberFormat("fr-FR", { maximumFractionDigits: digits }).format(minor / 10 ** digits);
-}
 
 type Currency = (typeof CURRENCIES)[number];
 
@@ -152,7 +147,7 @@ export function EntryFormDialog({
     defaultValues: {
       title: entry?.title ?? "",
       content: entry && !(kind === "PRODUCT" && entry.content === entry.title) ? entry.content : "",
-      price: plainAmount(entry?.price ?? null, projectCurrency),
+      price: formatAmountInput(entry?.price ?? null, projectCurrency),
       currency: projectCurrency,
       stock: entry?.stock?.toString() ?? "",
     },

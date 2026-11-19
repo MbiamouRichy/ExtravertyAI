@@ -43,13 +43,28 @@ export function currencyDigits(currency: string): number {
   );
 }
 
+/** Cents in full as soon as there are any: « 49,90 € », but « 45 000 € ». */
+function fractionDigits(minor: number, digits: number) {
+  return minor % 10 ** digits === 0 ? 0 : digits;
+}
+
 export function formatDealValue(minor: number, currency: string): string {
   const digits = currencyDigits(currency);
   return new Intl.NumberFormat("fr-FR", {
     style: "currency",
     currency,
     maximumFractionDigits: digits,
-    minimumFractionDigits: 0,
+    minimumFractionDigits: fractionDigits(minor, digits),
+  }).format(minor / 10 ** digits);
+}
+
+/** Editable amount, without currency symbol: « 150 000 » or « 1 250,50 ». */
+export function formatAmountInput(minor: number | null, currency: string): string {
+  if (minor === null) return "";
+  const digits = currencyDigits(currency);
+  return new Intl.NumberFormat("fr-FR", {
+    maximumFractionDigits: digits,
+    minimumFractionDigits: fractionDigits(minor, digits),
   }).format(minor / 10 ** digits);
 }
 

@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   PipelineError,
   currencyDigits,
+  formatAmountInput,
   formatDealValue,
   keptPipelineCount,
   movePipelineStage,
@@ -34,6 +35,12 @@ test("deal amounts follow the currency's minor unit", () => {
   }
   assert.throws(() => parseDealValue("3000000000", "XAF"), /trop élevé/);
   assert.match(formatDealValue(150000, "XAF"), /150\s000\sFCFA/);
+  // Centimes affichés en entier dès qu'il y en a.
+  assert.match(formatDealValue(4990, "EUR"), /^49,90\s€$/);
+  assert.match(formatDealValue(4500000, "EUR"), /^45\s000\s€$/);
+  assert.equal(formatAmountInput(125050, "EUR").replace(/\s/g, " "), "1 250,50");
+  assert.equal(formatAmountInput(150000, "XAF").replace(/\s/g, " "), "150 000");
+  assert.equal(formatAmountInput(null, "XAF"), "");
 });
 
 test("lead pipeline", { timeout: 120000 }, async (t) => {

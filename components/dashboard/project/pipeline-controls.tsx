@@ -31,20 +31,11 @@ import { movePipelineStageAction, setDealValueAction } from "@/app/actions/pipel
 import {
   PIPELINE_STAGES,
   currencyDigits,
+  formatAmountInput as editableAmount,
   formatDealValue,
   parseDealValue,
   type PipelineStageId,
 } from "@/lib/pipeline-shared";
-
-/** Plain editable amount, without currency symbol: « 150 000 » or « 1 250,5 ». */
-function editableAmount(minor: number | null, currency: string): string {
-  if (minor === null) return "";
-  const digits = currencyDigits(currency);
-  return new Intl.NumberFormat("fr-FR", {
-    maximumFractionDigits: digits,
-    useGrouping: true,
-  }).format(minor / 10 ** digits);
-}
 
 export function StageSelect({
   projectId,
