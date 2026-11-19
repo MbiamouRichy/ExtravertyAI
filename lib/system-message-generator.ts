@@ -37,7 +37,7 @@ const SECTIONS = [
   { key: "mission", title: "MISSION", max: 6, rule: "3 à 5 objectifs concrets, tirés des objectifs choisis et des précisions." },
   { key: "deroule", title: "DÉROULÉ", max: 8, rule: "3 à 6 étapes d'une conversation type dans ce secteur, dans l'ordre, chacune commençant par un verbe à l'infinitif (« Accueillir… »)." },
   { key: "a_recueillir", title: "À RECUEILLIR", max: 8, rule: "informations à demander au client pour traiter sa demande." },
-  { key: "limites", title: "LIMITES", max: 6, rule: "ce que l'assistant ne doit jamais affirmer ou promettre sans confirmation (« Ne jamais promettre… sans… »), et les interdits réglementaires du secteur. Jamais l'interdiction d'un service, d'un produit ou d'une pratique (« Ne pas proposer de… »)." },
+  { key: "limites", title: "LIMITES", max: 6, rule: "le premier élément cantonne l'assistant à l'activité de l'entreprise, sur ce modèle : « Ne parle que de [ce que propose l'entreprise] : décline poliment tout sujet sans rapport, comme le sport ou la cryptomonnaie, et ramène la conversation vers [ses offres]. » Ne cite pas en exemple un sujet qui relève de son activité. Ensuite, ce que l'assistant ne doit jamais affirmer ou promettre sans confirmation (« Ne jamais promettre… sans… »), et les interdits réglementaires du secteur. Jamais l'interdiction d'un service, d'un produit ou d'une pratique (« Ne pas proposer de… »)." },
   { key: "conseiller", title: "CONSEILLER", max: 6, rule: "situations précises à confier à un humain : fait absent de la fiche à confirmer, paiement à finaliser, cas sensible ou hors des objectifs. Jamais une tâche que les objectifs confient à l'assistant." },
 ] as const;
 
@@ -54,7 +54,7 @@ CONTENU
 - Aucune politique commerciale inventée (retours, échanges, remboursements, personnalisation, réductions, garanties, livraison hors zone) : si la fiche n'en dit rien, ne l'autorise pas et ne l'interdis pas. Écris « Ne promets jamais un échange ou un remboursement sans l'accord d'un conseiller », jamais « Ne propose pas d'échange ».
 - Le client écrit sur WhatsApp : son numéro est déjà connu, ne le fais pas demander.
 - Aucune adresse web, aucun lien, aucun réseau social, aucun nom de compte : l'assistant les reçoit déjà par ailleurs. N'en parle pas du tout, ni pour les citer ni pour les interdire.
-- Aucune règle générale de ton, de langue, de longueur, d'emojis, de nombre de questions, de confidentialité ou de sécurité : la plateforme les ajoute déjà.
+- Aucune règle générale de ton, de langue, de longueur, d'emojis, de nombre de questions, de confidentialité ou de sécurité : la plateforme les ajoute déjà. Seule exception : la première limite, qui écarte les sujets sans rapport avec l'entreprise.
 - Mission tirée des objectifs choisis et des précisions. Vocabulaire, questions de découverte et limites conformes aux pratiques des meilleurs professionnels du secteur (exemples : santé, aucun diagnostic ni traitement ; finance, aucun conseil d'investissement ni rendement promis ; immobilier, aucune garantie d'obtention ; restauration, allergènes à faire confirmer). Hors de ces domaines réglementés, conseiller, recommander, comparer et proposer une alternative font partie du rôle de l'assistant : ne les interdis pas et ne les confie pas à un humain.
 - L'assistant ne fait que converser : il recueille et récapitule, il n'enregistre, ne réserve, n'encaisse et ne transfère rien lui-même.
 
@@ -136,23 +136,51 @@ const OFFER_REFUSAL =
 const refusesOffer = (item: string) => OFFER_REFUSAL.test(item) && !/\bsans\b/i.test(item);
 
 /**
+ * Limite de sujet : l’assistant ne parle que de l’entreprise. Le modèle la
+ * rédige en tête des limites ; si elle manque, le serveur ajoute `offTopicRule`.
+ */
+const OFF_TOPIC = /sans\s+(?:aucun\s+)?rapport|hors[\s-]sujets?\b/i;
+
+// Exemples cités par défaut, sauf s’ils relèvent de l’activité décrite.
+const OFF_TOPIC_EXAMPLES = [
+  { label: "le sport", related: /sport|fitness|football|basket/i },
+  { label: "la cryptomonnaie", related: /crypto|bitcoin|blockchain/i },
+];
+
+export function offTopicRule(profile: Pick<StoredBusinessProfile, "description" | "goalDetails">) {
+  const text = `${profile.description} ${profile.goalDetails}`;
+  const examples = OFF_TOPIC_EXAMPLES.filter(({ related }) => !related.test(text)).map(
+    ({ label }) => label,
+  );
+  const list = examples.length ? `, comme ${examples.join(" ou ")},` : "";
+  return `Ne parle que de l'activité de l'entreprise : décline poliment tout sujet sans rapport${list} et ramène la conversation vers ses offres.`;
+}
+
+/** La limite de sujet passe en tête des limites ; à défaut, `fallback` la remplace. */
+function withTopicLimit(items: string[], fallback?: string) {
+  const index = items.findIndex((item) => OFF_TOPIC.test(item));
+  if (index >= 0) return [items[index], ...items.filter((_, position) => position !== index)];
+  return fallback ? [fallback, ...items] : items;
+}
+
+/**
  * Assemble les sections avec des titres fixes et des puces « - ». Chaque
  * élément est nettoyé ; celui qui cite un lien parle du lien, il disparaît en
  * entier, comme une limite qui refuse une offre. Les sections vides sont omises.
+ * La limite de sujet passe en tête des limites, ou `topicRule` la remplace.
  * Au-delà de `budget` caractères, les derniers éléments des listes les plus
- * longues sont retirés (jamais le contexte ni la première mission) plutôt que
- * de refuser la réponse.
+ * longues sont retirés (jamais le contexte, la première mission ni la limite
+ * de sujet) plutôt que de refuser la réponse.
  */
 export function assembleSystemMessage(
   sections: GeneratedSections,
   links: BusinessLinks,
   budget: number = GENERATED_MESSAGE_LIMITS.max,
+  topicRule?: string,
 ) {
   const patterns = linkPatterns(links);
-  const kept = SECTIONS.map(({ key, title, max }) => ({
-    key,
-    title,
-    items: sections[key]
+  const kept = SECTIONS.map(({ key, title, max }) => {
+    const items = sections[key]
       .map((item) =>
         cleanText(item)
           .replace(/\s+/g, " ")
@@ -164,9 +192,13 @@ export function assembleSystemMessage(
           /\p{L}/u.test(item) &&
           !patterns.some((pattern) => pattern.test(item)) &&
           !(key === "limites" && refusesOffer(item)),
-      )
-      .slice(0, max),
-  }));
+      );
+    return {
+      key,
+      title,
+      items: (key === "limites" ? withTopicLimit(items, topicRule) : items).slice(0, max),
+    };
+  });
   const render = () =>
     kept
       .filter(({ items }) => items.length)
@@ -179,7 +211,13 @@ export function assembleSystemMessage(
     // À égalité, les dernières sections passent avant la mission.
     let longest: (typeof kept)[number] | undefined;
     for (const section of [...kept].reverse()) {
-      const floor = section.key === "contexte" ? Infinity : section.key === "mission" ? 1 : 0;
+      const floor =
+        section.key === "contexte"
+          ? Infinity
+          : section.key === "mission" ||
+              (section.key === "limites" && OFF_TOPIC.test(section.items[0] ?? ""))
+            ? 1
+            : 0;
       if (section.items.length > floor && section.items.length > (longest?.items.length ?? 0))
         longest = section;
     }
@@ -246,7 +284,12 @@ export async function generateProfileSystemMessage(
     throw new Error("SYSTEM_GENERATION_INVALID_RESPONSE");
   const parsed = GeneratedSectionsSchema.safeParse(safeJson(choice.message.content));
   if (!parsed.success) throw new Error("SYSTEM_GENERATION_INVALID_RESPONSE");
-  const message = assembleSystemMessage(parsed.data, input.links);
+  const message = assembleSystemMessage(
+    parsed.data,
+    input.links,
+    GENERATED_MESSAGE_LIMITS.max,
+    offTopicRule(input.profile),
+  );
   if (
     !message.startsWith("CONTEXTE\n") ||
     !message.includes("\n\nMISSION\n") ||

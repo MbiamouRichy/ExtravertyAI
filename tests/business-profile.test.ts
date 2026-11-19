@@ -30,6 +30,7 @@ import {
   generateProjectSystemMessage,
   assembleSystemMessage,
   generationRequest,
+  offTopicRule,
 } from "../lib/system-message-generator";
 import type { PrismaClient, ProjectStatus } from "../src/generated/prisma/client";
 import { addMember, createUser, withTestDatabase } from "./helpers/database";
@@ -270,7 +271,12 @@ test("client data reaches the generator as delimited data only, and links never 
       },
     };
     const message = await generateProfileSystemMessage(input);
-    assert.equal(message, assembled);
+    // La réponse n'écarte pas les sujets sans rapport : le serveur ajoute la limite en tête.
+    assert.equal(message, assembleSystemMessage(SECTIONS_REPLY, links, undefined, offTopicRule(input.profile)));
+    assert.match(
+      message,
+      /\n\nLIMITES\n- Ne parle que de l'activité de l'entreprise : décline poliment tout sujet sans rapport, comme le sport ou la cryptomonnaie, et ramène la conversation vers ses offres\.\n- Ne jamais garantir un prix/,
+    );
     assert.deepEqual(metered, ["google/gemini-test"]);
 
     reason = "length";
@@ -568,6 +574,54 @@ test("assembled instructions fit the budget, trimming the longest later sections
   // Budget minuscule : le contexte reste entier et la mission garde un élément.
   const tight = assembleSystemMessage(sections, links, 300);
   assert.match(tight, /^CONTEXTE\nTu représentes Boutique Awa[^\n]+\n\nMISSION\n- Mission 1 :[^\n]+$/);
+});
+
+test("the generated instructions keep the assistant on the company's business", () => {
+  const links = { website: null, socials: [] };
+  const base = {
+    contexte: ["Tu représentes Boutique Awa, prêt-à-porter féminin à Libreville."],
+    mission: ["Répondre aux questions sur les articles."],
+    deroule: [],
+    a_recueillir: [],
+    conseiller: [],
+  };
+  const limitsOf = (message: string) => message.split("\n\nLIMITES\n")[1]?.split("\n\n")[0]?.split("\n") ?? [];
+  // Le modèle est tenu d'écrire cette limite en premier, en l'adaptant à l'entreprise.
+  assert.match(PROFILE_SYSTEM_MESSAGE_PROMPT, /limites : le premier élément cantonne l'assistant à l'activité de l'entreprise/);
+  assert.match(PROFILE_SYSTEM_MESSAGE_PROMPT, /comme le sport ou la cryptomonnaie/);
+
+  // Rédigée par le modèle plus loin dans la liste : elle remonte en tête, sans doublon.
+  const own = "Ne parle que de mode féminine : décline poliment tout sujet sans rapport, comme le sport ou la cryptomonnaie.";
+  const fallback = offTopicRule({ description: PROFILE.description, goalDetails: "" });
+  assert.deepEqual(
+    limitsOf(
+      assembleSystemMessage(
+        { ...base, limites: ["Ne jamais promettre un délai non documenté.", own] },
+        links,
+        undefined,
+        fallback,
+      ),
+    ),
+    [`- ${own}`, "- Ne jamais promettre un délai non documenté."],
+  );
+  // Absente : le serveur l'ajoute ; sans règle de secours, rien ne change.
+  assert.deepEqual(limitsOf(assembleSystemMessage({ ...base, limites: [] }, links, undefined, fallback)), [
+    `- ${fallback}`,
+  ]);
+  assert.doesNotMatch(assembleSystemMessage({ ...base, limites: [] }, links), /LIMITES/);
+  // Un exemple qui relève de l'activité n'est pas cité.
+  assert.equal(
+    offTopicRule({ description: "Magasin d'articles de sport et de fitness à Libreville.", goalDetails: "" }),
+    "Ne parle que de l'activité de l'entreprise : décline poliment tout sujet sans rapport, comme la cryptomonnaie, et ramène la conversation vers ses offres.",
+  );
+  assert.equal(
+    offTopicRule({ description: "Club de football et formation en blockchain.", goalDetails: "" }),
+    "Ne parle que de l'activité de l'entreprise : décline poliment tout sujet sans rapport et ramène la conversation vers ses offres.",
+  );
+  // Budget serré : les autres limites partent, celle-ci reste.
+  const long = Array.from({ length: 6 }, (_, index) => `Limite ${index + 1} : ${"consigne précise ".repeat(12).trim()}.`);
+  const tight = assembleSystemMessage({ ...base, limites: long }, links, 400, fallback);
+  assert.deepEqual(limitsOf(tight), [`- ${fallback}`]);
 });
 
 test("the setup draft may wait for its instructions, never an activated agent", { timeout: 180000 }, async () => {
