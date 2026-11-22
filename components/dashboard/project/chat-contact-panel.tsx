@@ -210,74 +210,77 @@ export function ChatContactPanel({
 
   return (
     <div className="flex flex-col divide-y px-5 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
-      <header className="flex min-w-0 items-center gap-3 py-5">
-        <span className="relative shrink-0">
-          <Avatar className="size-11">
-            {client.avatarUrl && <AvatarImage src={client.avatarUrl} alt="" className="object-cover" />}
-            <AvatarFallback className="font-heading text-sm font-semibold">
-              {getInitials(client.name)}
-            </AvatarFallback>
-          </Avatar>
-          {presence && (
-            <span
-              aria-hidden="true"
-              className="absolute -right-0.5 -bottom-0.5 size-3.5 rounded-full border-2 border-background bg-emerald-500"
-            />
-          )}
-        </span>
-        <div className="min-w-0 flex-1">
-          <p className="truncate font-heading text-base font-semibold">{client.name}</p>
-          {presence && (
-            <p role="status" className="text-xs text-emerald-600 dark:text-emerald-400">
-              {PRESENCE_LABEL[presence]}
-            </p>
-          )}
-          {details?.maskedPhone && (
-            <div className="flex items-center gap-1 text-xs text-muted-foreground">
-              <span className="font-mono tabular-nums" aria-label="Numéro masqué">
-                {details.maskedPhone}
-              </span>
-              {canCopyPhone && (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon-xs"
-                      disabled={copyState === "busy"}
-                      onClick={() => void copyPhone()}
-                      aria-label="Copier le numéro complet"
-                    >
-                      {copyState === "busy" ? (
-                        <Loader2
-                          aria-hidden="true"
-                          className="animate-spin motion-reduce:animate-none"
-                        />
-                      ) : copyState === "done" ? (
-                        <Check aria-hidden="true" />
-                      ) : (
-                        <Copy aria-hidden="true" />
-                      )}
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>Copier le numéro complet</TooltipContent>
-                </Tooltip>
-              )}
-            </div>
-          )}
-        </div>
-      </header>
+      {/* Identité et informations relevées : un seul bloc, sans séparateur. */}
+      <div className="pb-4">
+        <header className="flex min-w-0 items-center gap-3 pt-5 pb-3">
+          <span className="relative shrink-0">
+            <Avatar className="size-11">
+              {client.avatarUrl && <AvatarImage src={client.avatarUrl} alt="" className="object-cover" />}
+              <AvatarFallback className="font-heading text-sm font-semibold">
+                {getInitials(client.name)}
+              </AvatarFallback>
+            </Avatar>
+            {presence && (
+              <span
+                aria-hidden="true"
+                className="absolute -right-0.5 -bottom-0.5 size-3.5 rounded-full border-2 border-background bg-emerald-500"
+              />
+            )}
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="truncate font-heading text-base font-semibold">{client.name}</p>
+            {presence && (
+              <p role="status" className="text-xs text-emerald-600 dark:text-emerald-400">
+                {PRESENCE_LABEL[presence]}
+              </p>
+            )}
+            {details?.maskedPhone && (
+              <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                <span className="font-mono tabular-nums" aria-label="Numéro masqué">
+                  {details.maskedPhone}
+                </span>
+                {canCopyPhone && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-xs"
+                        disabled={copyState === "busy"}
+                        onClick={() => void copyPhone()}
+                        aria-label="Copier le numéro complet"
+                      >
+                        {copyState === "busy" ? (
+                          <Loader2
+                            aria-hidden="true"
+                            className="animate-spin motion-reduce:animate-none"
+                          />
+                        ) : copyState === "done" ? (
+                          <Check aria-hidden="true" />
+                        ) : (
+                          <Copy aria-hidden="true" />
+                        )}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Copier le numéro complet</TooltipContent>
+                  </Tooltip>
+                )}
+              </div>
+            )}
+          </div>
+        </header>
 
-      {captureEnabled && (
-        <ProspectCaptureSection
-          key={`capture-${client.id}`}
-          projectId={projectId}
-          contactId={client.id}
-          contactName={client.name}
-          capture={capture}
-          onChanged={onCaptureChanged ?? onContactChanged}
-        />
-      )}
+        {captureEnabled && (
+          <ProspectCaptureSection
+            key={`capture-${client.id}`}
+            projectId={projectId}
+            contactId={client.id}
+            contactName={client.name}
+            capture={capture}
+            onChanged={onCaptureChanged ?? onContactChanged}
+          />
+        )}
+      </div>
 
       <section aria-label="Suivi de la conversation" className="py-4">
         <dl className="space-y-1">

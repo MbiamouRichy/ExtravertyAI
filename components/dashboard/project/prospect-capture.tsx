@@ -278,7 +278,7 @@ export function ProspectCaptureSection({ projectId, contactId, contactName, capt
   const fields = capture?.fields ?? [];
   const titleId = `capture-${contactId}`;
   return (
-    <section aria-labelledby={titleId} className="py-5">
+    <section aria-labelledby={titleId}>
       <h2 id={titleId} className="sr-only">
         Informations relevées par l’IA
       </h2>
@@ -306,7 +306,7 @@ export function ProspectCaptureSection({ projectId, contactId, contactName, capt
         </>
       ) : (
         <p className="rounded-xl border border-dashed px-3 py-3 text-xs leading-relaxed text-muted-foreground">
-          Rien de relevé pour l’instant. Le nom, l’e-mail, la ville ou l’adresse que
+          Aucune information supplémentaire sur ce prospect pour l’instant. Le nom, l’e-mail, la ville ou l’adresse que
           donne le prospect apparaîtront ici.
         </p>
       )}
