@@ -39,8 +39,10 @@ const DetailsSchema = z.object({
     .trim()
     .max(HELP_FEEDBACK_COMMENT_MAX, `${HELP_FEEDBACK_COMMENT_MAX} caractères au maximum.`),
 });
-type DetailsValues = z.infer<typeof DetailsSchema>;
-const DEFAULTS: DetailsValues = { reason: "", comment: "" };
+// Saisie : motif vide tant que rien n’est coché ; après validation, un motif connu.
+type DetailsInput = z.input<typeof DetailsSchema>;
+type DetailsValues = z.output<typeof DetailsSchema>;
+const DEFAULTS: DetailsInput = { reason: "", comment: "" };
 const COUNTER_FROM = Math.floor(HELP_FEEDBACK_COMMENT_MAX * 0.8);
 
 type Step = "vote" | "details" | "thanks";
@@ -55,7 +57,7 @@ export function HelpFeedback({ articleSlug }: { articleSlug: string }) {
   const [step, setStep] = useState<Step>("vote");
   const [vote, setVote] = useState<boolean | null>(null);
   const [voting, setVoting] = useState(false);
-  const form = useForm<DetailsValues>({ resolver: zodResolver(DetailsSchema), defaultValues: DEFAULTS });
+  const form = useForm<DetailsInput, unknown, DetailsValues>({ resolver: zodResolver(DetailsSchema), defaultValues: DEFAULTS });
   const comment = useWatch({ control: form.control, name: "comment" });
   const submitting = form.formState.isSubmitting;
 
