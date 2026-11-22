@@ -5,6 +5,7 @@ import { aiMeter } from "./ai-usage";
 import { promoteInterestingProspect } from "./pipeline";
 import { emitIntegrationEvent, integrationContact } from "./integration-events";
 import { plansWith } from "./plan-features";
+import { createAiObservation } from "./posthog-ai";
 export { assessProspect } from "./instinct-decision";
 /** Messages lus par Instinct : les derniers échanges suffisent à classer. */
 export const INSTINCT_HISTORY_MESSAGES = 30;
@@ -124,6 +125,7 @@ export async function runInstinctCycle(
       candidate.goals,
       messages.reverse(),
       aiMeter(prisma, candidate.projectId, "instinct"),
+      createAiObservation(candidate.id, { spanName: "prospect_classification" }),
     );
     const saved = await prisma.$transaction(async (tx) => {
       const before = await tx.contact.findUnique({

@@ -4,6 +4,7 @@ import { getBillingAccess } from "./billing-access";
 import { Prisma, type PrismaClient } from "../src/generated/prisma/client";
 import { readProviderMedia, readStoredMedia } from "./chat-media-server";
 import { mediaFeature, planAllows, plansWith } from "./plan-features";
+import { createAiObservation } from "./posthog-ai";
 import {
   analyzeImage,
   ImageAnalysisError,
@@ -155,13 +156,16 @@ export async function runMessageExtraction(
       return;
     }
     const media = await load(job);
+    const observation = createAiObservation(job.contactId, {
+      spanName: job.type === "IMAGE" ? "image_analysis" : "audio_transcription",
+    });
     const result =
       job.type === "IMAGE"
         ? ImageExtractionSchema.parse(
-            await analyze(media, aiMeter(prisma, job.projectId, "image")),
+            await analyze(media, aiMeter(prisma, job.projectId, "image"), observation),
           )
         : TranscriptSchema.parse(
-            await transcribe(media, aiMeter(prisma, job.projectId, "audio")),
+            await transcribe(media, aiMeter(prisma, job.projectId, "audio"), observation),
           );
     await prisma.$transaction(async (tx) => {
       await tx.$queryRaw`SELECT id FROM project WHERE id = ${job.projectId} FOR UPDATE`;

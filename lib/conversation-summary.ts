@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { AiMeter } from "./ai-usage";
 import { openRouterChat } from "./openrouter";
+import type { AiObservation } from "./posthog-ai";
 import {
   messageAiContent,
   hasExtractedText,
@@ -51,6 +52,7 @@ export function prepareSummaryHistory(messages: SummaryMessage[]) {
 export async function generateConversationSummary(
   history: SummaryMessage[],
   meter?: AiMeter,
+  observation?: AiObservation,
 ) {
   const key = process.env.OPENROUTER_API_KEY;
   const model = process.env.OPENROUTER_MODEL;
@@ -59,6 +61,7 @@ export async function generateConversationSummary(
     feature: "summary",
     model,
     timeoutMs: 30_000,
+    observation,
     body: {
         temperature: 0.2,
         max_tokens: 3000,

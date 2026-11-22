@@ -9,6 +9,7 @@ import { runProspectCaptureCycle } from "../lib/prospect-capture";
 import { runFollowUpTick } from "../lib/follow-ups";
 import { claimKnowledgeSource, runKnowledgeSource } from "../lib/knowledge";
 import { knowledgeExtractors } from "../lib/knowledge-extract";
+import { shutdownAiObservability } from "../lib/posthog-ai";
 import {
   claimMessageExtraction,
   runMessageExtraction,
@@ -128,6 +129,7 @@ Promise.all([
     process.exitCode = 1;
   })
   .finally(async () => {
+    await shutdownAiObservability();
     await flushWorkerMonitoring();
     await prisma.$disconnect();
   });

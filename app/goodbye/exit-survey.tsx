@@ -5,6 +5,7 @@ import { Controller, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Check, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import posthog from "posthog-js";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -65,6 +66,7 @@ export function ExitSurvey({
       toast.error(result.error, { position: "top-center" });
       return;
     }
+    posthog.capture("account_exit_survey_submitted", { reason: values.reason });
     setSent(true);
   }
 

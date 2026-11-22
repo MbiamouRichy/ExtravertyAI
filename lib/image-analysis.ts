@@ -2,6 +2,7 @@ import { z } from "zod";
 import type { AiMeter } from "./ai-usage";
 import { validateMediaBytes } from "./chat-media-server";
 import { ModelIdSchema, OpenRouterBodyError, openRouterChat } from "./openrouter";
+import type { AiObservation } from "./posthog-ai";
 
 export const IMAGE_ANALYSIS_VERSION = 1;
 export const DEFAULT_IMAGE_MODEL = "google/gemini-2.5-flash-lite";
@@ -48,6 +49,7 @@ export function imageAnalysisModel() {
 export async function analyzeImage(
   media: { bytes: Buffer; mime: string },
   meter?: AiMeter,
+  observation?: AiObservation,
 ) {
   const key = process.env.OPENROUTER_API_KEY;
   if (!key) throw new ImageAnalysisError("IMAGE_CONFIG_MISSING", false);
@@ -62,6 +64,7 @@ export async function analyzeImage(
       model,
       timeoutMs: 60_000,
       maxBytes: 256_000,
+      observation,
       body: {
         temperature: 0,
         max_tokens: 5000,

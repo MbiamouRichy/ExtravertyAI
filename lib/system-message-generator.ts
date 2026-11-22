@@ -13,6 +13,7 @@ import {
 } from "./business-profile";
 import { loadBusinessProfile } from "./business-profile-store";
 import { OpenRouterBodyError, openRouterChat } from "./openrouter";
+import { createAiObservation, type AiObservation } from "./posthog-ai";
 import { SettingsError, requireProjectAdmin } from "./project-settings";
 import { reserveSystemAssistance } from "./system-assistance-limits";
 
@@ -229,7 +230,7 @@ export function assembleSystemMessage(
 }
 
 export async function generateProfileSystemMessage(
-  input: GenerationInput & { links: BusinessLinks; meter?: AiMeter },
+  input: GenerationInput & { links: BusinessLinks; meter?: AiMeter; observation?: AiObservation },
 ) {
   const model = process.env.OPENROUTER_MODEL;
   if (!process.env.OPENROUTER_API_KEY || !model)
@@ -242,6 +243,7 @@ export async function generateProfileSystemMessage(
       timeoutMs: 45_000,
       // Réponse bornée avant lecture : un fournisseur ne peut pas saturer la mémoire.
       maxBytes: 64_000,
+      observation: input.observation,
       body: {
         temperature: 0.3,
         max_tokens: 3000,
@@ -338,6 +340,11 @@ export async function generateProjectSystemMessage(
         socials: profile.socials.map((social) => social.url),
       },
       meter: aiMeter(db, input.projectId, "system_message"),
+      observation: createAiObservation(input.projectId, {
+        distinctId: input.userId,
+        spanName: "profile_system_message",
+        flush: true,
+      }),
     });
 
     // Droits relus après l’appel : un membre retiré entre-temps ne reçoit rien.

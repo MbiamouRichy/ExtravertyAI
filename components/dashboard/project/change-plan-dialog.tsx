@@ -6,6 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { ArrowUpRight, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import posthog from "posthog-js";
 import { changeProjectPlan } from "@/app/actions/billing-plan";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -126,6 +127,14 @@ export function ChangePlanDialog({
         toast.error(result.error);
         return;
       }
+      posthog.capture("subscription_plan_changed", {
+        change_kind:
+          values.plan === state.currentPlan && state.pendingPlan
+            ? "cancel_scheduled"
+            : (planChange(state.status, state.currentPlan, values.plan)?.kind ??
+              "unknown"),
+        target_plan: values.plan,
+      });
       toast.success(result.message);
       dismiss();
       router.refresh();

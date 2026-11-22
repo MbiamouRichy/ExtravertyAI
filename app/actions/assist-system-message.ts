@@ -9,6 +9,7 @@ import {
 } from "@/lib/system-message-assistance";
 import { reserveSystemAssistance } from "@/lib/system-assistance-limits";
 import { aiMeter } from "@/lib/ai-usage";
+import { createAiObservation } from "@/lib/posthog-ai";
 
 export async function assistSystemMessage(input: unknown) {
   let reservationId: string | undefined;
@@ -43,6 +44,11 @@ export async function assistSystemMessage(input: unknown) {
       config,
       projectName: reservation.projectName,
       meter: aiMeter(prisma, projectId, "system_message"),
+      observation: createAiObservation(projectId, {
+        distinctId: session.user.id,
+        spanName: "system_message_assistance",
+        flush: true,
+      }),
     });
     const current = await prisma.$transaction((tx) =>
       requireProjectAdmin(tx, projectId, session.user.id),

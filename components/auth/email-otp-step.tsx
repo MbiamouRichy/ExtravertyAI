@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
+import posthog from "posthog-js";
 import * as z from "zod";
 import { Eye, EyeOff, KeySquareIcon, Loader, Plus, X } from "lucide-react";
 
@@ -189,6 +190,13 @@ export function EmailOtpStep({
       }
       playHaptic("success");
       toast.success(copy.success, { position: "top-center" });
+      if (purpose === "sign-up") {
+        posthog.capture("account_created", {
+          password_added: withPassword,
+        });
+      } else if (purpose === "sign-in") {
+        posthog.capture("user_signed_in", { auth_method: "email_otp" });
+      }
       await onVerified({ password: withPassword ? password : undefined });
     } catch {
       playHaptic("error");

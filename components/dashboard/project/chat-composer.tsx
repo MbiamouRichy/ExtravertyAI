@@ -25,6 +25,7 @@ import {
 import { useAudioRecorder } from "@/hooks/use-audio-recorder";
 import { loadDraftFiles, saveDraftFiles } from "@/lib/chat-drafts";
 import { toast } from "sonner";
+import posthog from "posthog-js";
 import { assistWriting } from "@/app/actions/assistWriting";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -493,6 +494,10 @@ export function ChatComposer({
         return;
       }
       setProposal({ mode, replies: result.replies, draft });
+      posthog.capture("ai_writing_assistance_completed", {
+        assistance_mode: mode,
+        suggestion_count: result.replies.length,
+      });
     } catch {
       if (id === requestId.current)
         toast.error("L’assistance IA est indisponible. Réessayez.");
@@ -518,7 +523,9 @@ export function ChatComposer({
           return;
         const queue = pendingRef.current.filter((item) => item.attachment);
         if (!queue.length) {
-          await onSend(content);
+          const result = await onSend(content);
+          if (result === "accepted" || result === "uncertain")
+            posthog.capture("chat_message_sent", { message_format: "text" });
           return;
         }
         // Un message WhatsApp par pièce jointe, dans l’ordre des vignettes ;
@@ -533,6 +540,10 @@ export function ChatComposer({
             item.attachment,
           );
           if (result !== "accepted" && result !== "uncertain") break;
+          posthog.capture("chat_message_sent", {
+            message_format: item.attachment?.type.toLowerCase() ?? "attachment",
+            delivery_status: result,
+          });
           discard(item.id);
           sent += 1;
           if (result === "uncertain") break;

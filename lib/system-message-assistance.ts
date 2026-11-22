@@ -2,6 +2,7 @@ import { z } from "zod";
 import { AGENT_INSTRUCTIONS_MAX, AgentConfigSchema } from "./agent-config";
 import type { AiMeter } from "./ai-usage";
 import { OpenRouterBodyError, openRouterChat } from "./openrouter";
+import type { AiObservation } from "./posthog-ai";
 
 export const SystemAssistanceInput = z.object({
   projectId: z.string().cuid(),
@@ -32,6 +33,7 @@ export async function generateSystemMessage(input: {
   projectName: string;
   config: z.infer<typeof SystemAssistanceInput>["config"];
   meter?: AiMeter;
+  observation?: AiObservation;
 }) {
   const key = process.env.OPENROUTER_API_KEY;
   const model = process.env.OPENROUTER_MODEL;
@@ -44,6 +46,7 @@ export async function generateSystemMessage(input: {
       timeoutMs: 45_000,
       // Bound the response before parsing so a provider cannot exhaust server memory.
       maxBytes: 160_000,
+      observation: input.observation,
       body: {
         temperature: 0.2,
         max_tokens: 6000,

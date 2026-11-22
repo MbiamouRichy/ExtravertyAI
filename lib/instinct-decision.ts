@@ -2,6 +2,7 @@ import { z } from "zod";
 import { hasExtractedText, messageAiContent } from "./message-ai-content";
 import type { SummaryMessage } from "./conversation-summary";
 import type { AiMeter } from "./ai-usage";
+import { captureAiGeneration, type AiObservation } from "./posthog-ai";
 
 export const INSTINCT_MODELS = {
   primary: "typesafe/jev-1.13",
@@ -74,7 +75,9 @@ async function requestDecision(
   state: object,
   key: string,
   meter?: AiMeter,
+  observation?: AiObservation,
 ) {
+  const startedAt = performance.now();
   const response = await fetch("https://openrouter.ai/api/alpha/decisions", {
     method: "POST",
     redirect: "error",
@@ -88,6 +91,12 @@ async function requestDecision(
   });
   if (!response.ok) {
     // Never log provider error bodies: they can echo conversation content.
+    await captureAiGeneration(observation, {
+      model,
+      status: response.status,
+      latencyMs: performance.now() - startedAt,
+      error: `HTTP_${response.status}`,
+    });
     if (response.status === 413) throw new ContextLimitError();
     if (response.status === 400 || response.status === 422) {
       const error = (await response.text()).slice(0, 4000);
@@ -101,11 +110,17 @@ async function requestDecision(
     }
     throw new Error("INSTINCT_PROVIDER_ERROR");
   }
-  const payload: unknown = await response.json();
+  const payload = (await response.json()) as Record<string, unknown>;
   await meter?.(payload, model);
   const result = z
     .object({ answers: z.object({ classification: AnswerSchema }) })
     .parse(payload);
+  await captureAiGeneration(observation, {
+    model,
+    output: payload,
+    status: response.status,
+    latencyMs: performance.now() - startedAt,
+  });
   return result.answers.classification.choice;
 }
 
@@ -113,6 +128,7 @@ export async function assessProspect(
   goals: string,
   history: SummaryMessage[],
   meter?: AiMeter,
+  observation?: AiObservation,
 ): Promise<InstinctClassification> {
   // Media placeholders are not client evidence. Keep complete text messages,
   // including the latest refusal; never truncate content to fit the cheaper model.
@@ -137,13 +153,13 @@ export async function assessProspect(
   const state = { goals, history: usefulHistory };
   const model = selectInstinctModel(state);
   try {
-    return await requestDecision(model, state, key, meter);
+    return await requestDecision(model, state, key, meter, observation);
   } catch (error) {
     if (
       model === INSTINCT_MODELS.primary &&
       error instanceof ContextLimitError
     ) {
-      return requestDecision(INSTINCT_MODELS.overflow, state, key, meter);
+      return requestDecision(INSTINCT_MODELS.overflow, state, key, meter, observation);
     }
     throw error;
   }

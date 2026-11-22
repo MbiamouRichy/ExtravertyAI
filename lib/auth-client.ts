@@ -1,5 +1,8 @@
+"use client";
+
 import { createAuthClient } from "better-auth/react";
 import { emailOTPClient } from "better-auth/client/plugins";
+import posthog from "posthog-js";
 
 import { clearChatDrafts } from "./chat-drafts";
 
@@ -7,7 +10,10 @@ import { clearChatDrafts } from "./chat-drafts";
 // messagerie gardés sur l’appareil sont effacés.
 const fetchOptions = {
   onSuccess(context: { request: { url: string | URL } }) {
-    if (String(context.request.url).includes("/sign-out")) void clearChatDrafts();
+    if (String(context.request.url).includes("/sign-out")) {
+      posthog.reset();
+      void clearChatDrafts();
+    }
   },
 };
 

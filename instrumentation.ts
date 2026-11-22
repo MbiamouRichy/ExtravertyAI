@@ -7,8 +7,14 @@ import {
   errorTrackingRelease,
 } from "./lib/error-tracking/options";
 import { parseDsn } from "./lib/error-tracking/tunnel";
+import { emitPostHogLog } from "./lib/posthog-logs";
 
 export function register() {
+  if (process.env.NEXT_RUNTIME === "nodejs")
+    emitPostHogLog("server_instrumentation_registered", {
+      runtime: "nextjs",
+    });
+
   const dsn = parseDsn(process.env.ERROR_TRACKING_DSN);
   if (!dsn) return;
   Sentry.init(

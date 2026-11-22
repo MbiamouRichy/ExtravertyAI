@@ -6,6 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { m } from "motion/react";
 import { ArrowRight, Building2, Check, UserRound } from "lucide-react";
 import { toast } from "sonner";
+import posthog from "posthog-js";
 
 import { cn } from "@/lib/utils";
 import { WhatsAppIcon } from "@/components/social-icon";
@@ -57,6 +58,7 @@ export function ContactComposer() {
 
   function onSubmit(values: ContactFormValues) {
     const url = `${WHATSAPP_CHAT_URL}?text=${encodeURIComponent(buildWhatsAppMessage(values))}`;
+    posthog.capture("contact_message_prepared", { contact_need: values.need });
     // With a "noopener" feature window.open always returns null, which would
     // also send this tab to WhatsApp; the opener is cut right after instead.
     const opened = window.open(url, "_blank");

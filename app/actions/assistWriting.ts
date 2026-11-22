@@ -11,6 +11,7 @@ import {
 import { getBillingAccess } from "@/lib/billing-access";
 import { knowledgeContext } from "@/lib/knowledge";
 import { aiMeter } from "@/lib/ai-usage";
+import { createAiObservation } from "@/lib/posthog-ai";
 import { z } from "zod";
 
 /** Message clair selon la cause, sans exposer de détail technique sensible. */
@@ -163,6 +164,11 @@ export async function assistWriting(input: unknown) {
           ? contact.project.agentSystemMessage.slice(0, 12000) + knowledge.block
           : "",
       meter: aiMeter(prisma, projectId, "writing"),
+      observation: createAiObservation(contactId, {
+        distinctId: session.user.id,
+        spanName: "writing_assistance",
+        flush: true,
+      }),
     });
     const current = await authorizedContact();
     if (!current || (current.aiActive && !current.project.automationPaused))

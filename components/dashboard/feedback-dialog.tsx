@@ -6,6 +6,7 @@ import { Controller, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
+import posthog from "posthog-js";
 import {
   Bug,
   CircleCheck,
@@ -124,6 +125,10 @@ export function FeedbackDialog() {
         toast.error(result.error);
         return;
       }
+      posthog.capture("product_feedback_submitted", {
+        feedback_kind: values.kind,
+        allows_follow_up: values.contactOk,
+      });
       setSent(true);
     } catch {
       toast.error("Connexion interrompue. Votre message n’a pas été envoyé.");

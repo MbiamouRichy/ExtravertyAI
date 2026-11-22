@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { AiMeter } from "./ai-usage";
 import { openRouterChat } from "./openrouter";
+import type { AiObservation } from "./posthog-ai";
 import type { SummaryMessage } from "./conversation-summary";
 
 export const AssistanceInputSchema = z.discriminatedUnion("mode", [
@@ -26,6 +27,7 @@ export async function generateWritingAssistance(input: {
   history: SummaryMessage[];
   instructions: string;
   meter?: AiMeter;
+  observation?: AiObservation;
 }) {
   const key = process.env.OPENROUTER_API_KEY;
   const model = process.env.OPENROUTER_MODEL;
@@ -34,6 +36,7 @@ export async function generateWritingAssistance(input: {
     feature: "writing",
     model,
     timeoutMs: 30_000,
+    observation: input.observation,
     body: {
         temperature: 0.3,
         max_tokens: 3000,

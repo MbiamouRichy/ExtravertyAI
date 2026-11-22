@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { AiFeature } from "./ai-usage";
+import { captureAiGeneration, type AiObservation } from "./posthog-ai";
 
 /**
  * Complétions OpenRouter partagées par les fonctions IA, avec un modèle de
@@ -119,9 +120,11 @@ async function attempt(
   body: Record<string, unknown>,
   timeoutMs: number,
   maxBytes: number,
+  observation?: AiObservation,
 ): Promise<Outcome> {
   const key = process.env.OPENROUTER_API_KEY;
   if (!key) return { unavailable: false, error: new Error("OPENROUTER_CONFIG_MISSING") };
+  const startedAt = performance.now();
   try {
     const response = await fetch(OPENROUTER_CHAT_URL, {
       method: "POST",
@@ -137,6 +140,12 @@ async function attempt(
     if (!response.ok) {
       // Jamais lu ni journalisé : le corps d’erreur peut citer la conversation.
       await response.body?.cancel().catch(() => undefined);
+      await captureAiGeneration(observation, {
+        model,
+        status: response.status,
+        latencyMs: performance.now() - startedAt,
+        error: `HTTP_${response.status}`,
+      });
       const result = { status: response.status, payload: undefined, model };
       return UNAVAILABLE_STATUSES.has(response.status)
         ? { unavailable: true, reason: `HTTP_${response.status}`, result }
@@ -147,14 +156,32 @@ async function attempt(
       payload = JSON.parse(await readLimited(response.body, maxBytes));
     } catch (error) {
       if (isTimeout(error)) throw error;
+      await captureAiGeneration(observation, {
+        model,
+        status: response.status,
+        latencyMs: performance.now() - startedAt,
+        error: "INVALID_RESPONSE",
+      });
       return { unavailable: false, error: new OpenRouterBodyError() };
     }
+    await captureAiGeneration(observation, {
+      model,
+      output: payload,
+      status: response.status,
+      latencyMs: performance.now() - startedAt,
+    });
     const result = { status: 200, payload, model };
     return payload && typeof payload === "object" && interrupted(payload)
       ? { unavailable: true, reason: "PROVIDER_ERROR", result }
       : { unavailable: false, result };
   } catch (error) {
-    return { unavailable: true, reason: isTimeout(error) ? "TIMEOUT" : "NETWORK", error };
+    const reason = isTimeout(error) ? "TIMEOUT" : "NETWORK";
+    await captureAiGeneration(observation, {
+      model,
+      latencyMs: performance.now() - startedAt,
+      error: reason,
+    });
+    return { unavailable: true, reason, error };
   }
 }
 
@@ -199,16 +226,17 @@ export async function openRouterChat(request: {
   timeoutMs: number;
   fallbackTimeoutMs?: number;
   maxBytes?: number;
+  observation?: AiObservation;
 }): Promise<ChatResult> {
   const maxBytes = request.maxBytes ?? 256_000;
   const backup = fallbackModel(request.model);
   const backupTimeout = request.fallbackTimeoutMs ?? request.timeoutMs;
   const open = !!backup && breakerFor(request.model).openUntil > Date.now();
   if (backup && open) {
-    const rescue = await attempt(backup, request.body, backupTimeout, maxBytes);
+    const rescue = await attempt(backup, request.body, backupTimeout, maxBytes, request.observation);
     if (answered(rescue)) return rescue.result!;
   }
-  const main = await attempt(request.model, request.body, request.timeoutMs, maxBytes);
+  const main = await attempt(request.model, request.body, request.timeoutMs, maxBytes, request.observation);
   if (!main.unavailable) {
     breakerFor(request.model).failures = [];
     breakerFor(request.model).openUntil = 0;
@@ -221,7 +249,7 @@ export async function openRouterChat(request: {
     reason: main.reason,
     fallback: backup,
   });
-  const rescue = await attempt(backup, request.body, backupTimeout, maxBytes);
+  const rescue = await attempt(backup, request.body, backupTimeout, maxBytes, request.observation);
   if (answered(rescue)) return rescue.result!;
   console.warn("[ai] Le modèle de secours n’a pas répondu non plus.", {
     feature: request.feature,

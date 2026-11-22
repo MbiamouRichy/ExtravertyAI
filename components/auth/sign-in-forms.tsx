@@ -10,6 +10,7 @@ import {
   type RefCallBack,
 } from "react-hook-form";
 import { toast } from "sonner";
+import posthog from "posthog-js";
 import * as z from "zod";
 import {
   AtSignIcon,
@@ -231,6 +232,7 @@ export function PasswordSignInForm({
           onSuccess: () => {
             playHaptic("success");
             toast.success("Connexion réussie.", { position: "top-center" });
+            posthog.capture("user_signed_in", { auth_method: "password" });
             leaving = true;
             void enterSignedInApp(callbackUrl);
           },

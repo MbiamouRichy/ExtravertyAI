@@ -11,12 +11,15 @@ import {
   errorTrackingRelease,
 } from "../lib/error-tracking/options";
 import { parseDsn } from "../lib/error-tracking/tunnel";
+import { emitPostHogLog, shutdownPostHogLogs } from "../lib/posthog-logs";
 
 const REPORT_INTERVAL_MS = 10 * 60 * 1000;
 const lastReport = new Map<string, { at: number; skipped: number }>();
 let enabled = false;
 
 export function initWorkerMonitoring(worker: string) {
+  emitPostHogLog("worker_monitoring_started", { worker });
+
   const dsn = parseDsn(process.env.ERROR_TRACKING_DSN);
   if (!dsn) return;
   Sentry.init({
@@ -52,4 +55,5 @@ export function reportWorkerError(message: string, error: unknown) {
 /** À l’arrêt : laisse partir les derniers événements. */
 export async function flushWorkerMonitoring() {
   if (enabled) await Sentry.flush(3000).catch(() => false);
+  await shutdownPostHogLogs();
 }

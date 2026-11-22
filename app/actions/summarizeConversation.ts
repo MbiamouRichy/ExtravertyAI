@@ -15,6 +15,7 @@ import {
   generateConversationSummary,
   prepareSummaryHistory,
 } from "@/lib/conversation-summary";
+import { createAiObservation } from "@/lib/posthog-ai";
 
 const InputSchema = z.object({
   projectId: z.string().cuid(),
@@ -101,6 +102,11 @@ export async function summarizeConversation(input: unknown) {
         generateConversationSummary(
           history,
           aiMeter(prisma, projectId, "summary"),
+          createAiObservation(contactId, {
+            distinctId: session.user.id,
+            spanName: "conversation_summary",
+            flush: true,
+          }),
         ),
     );
     // Membership or plan may have changed while the provider was responding.

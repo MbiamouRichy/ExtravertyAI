@@ -8,6 +8,7 @@ import { planFeatures } from "./plan-features";
 import { fitHistory } from "./ai-history";
 import { aiMeter, type AiFeature, type AiMeter } from "./ai-usage";
 import { openRouterChat } from "./openrouter";
+import { createAiObservation, type AiObservation } from "./posthog-ai";
 import { MISSING_INFO_INSTRUCTION, splitMissingInfo } from "./missing-info";
 import {
   CONVERSATION_FLOW_INSTRUCTION,
@@ -253,6 +254,8 @@ export async function generateReply(
     meter?: AiMeter;
     /** Names the usage in logs when the fallback model answers. */
     feature?: AiFeature;
+    /** Groups every model attempt for this reply turn. */
+    observation?: AiObservation;
   } = {},
 ) {
   const key = process.env.OPENROUTER_API_KEY;
@@ -264,6 +267,7 @@ export async function generateReply(
     // Le bail d’une tâche dure 90 s : deux générations avec secours y tiennent.
     timeoutMs: 15_000,
     fallbackTimeoutMs: 20_000,
+    observation: extras.observation,
     body: {
       messages: [
         {
@@ -381,6 +385,7 @@ export async function runAiJob(
       flagMissing: true,
       quiet: job.project.aiQuietEnabled,
       meter: aiMeter(prisma, job.projectId, "reply"),
+      observation: createAiObservation(job.contactId, { spanName: "agent_reply" }),
     };
     let draft = readDraft(
       await generate(prompt, job.project.name, contactName, config, extras),

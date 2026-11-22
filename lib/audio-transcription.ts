@@ -2,6 +2,7 @@ import { z } from "zod";
 import type { AiMeter } from "./ai-usage";
 import { MEDIA_TYPES } from "./chat-media";
 import { readLimitedBody, validateMediaBytes } from "./chat-media-server";
+import { captureAiGeneration, type AiObservation } from "./posthog-ai";
 
 export const TRANSCRIPTION_MODELS = [
   "openai/whisper-large-v3-turbo",
@@ -23,6 +24,7 @@ export class TranscriptionError extends Error {
 export async function transcribeAudio(
   media: { bytes: Buffer; mime: string },
   meter?: AiMeter,
+  observation?: AiObservation,
 ) {
   const key = process.env.OPENROUTER_API_KEY;
   if (!key) throw new TranscriptionError("TRANSCRIPTION_CONFIG_MISSING", false);
@@ -32,6 +34,7 @@ export async function transcribeAudio(
   const format = MEDIA_TYPES[media.mime];
   let lastError = new TranscriptionError("TRANSCRIPTION_FAILED");
   for (const model of TRANSCRIPTION_MODELS) {
+    const startedAt = performance.now();
     try {
       const response = await fetch(
         "https://openrouter.ai/api/v1/audio/transcriptions",
@@ -53,6 +56,12 @@ export async function transcribeAudio(
       );
       if (!response.ok) {
         // Account/auth errors affect both models. Do not spend another request.
+        await captureAiGeneration(observation, {
+          model,
+          status: response.status,
+          latencyMs: performance.now() - startedAt,
+          error: `HTTP_${response.status}`,
+        });
         const accountError = [401, 402, 403].includes(response.status);
         throw new TranscriptionError(
           "TRANSCRIPTION_HTTP_" + response.status,
@@ -61,6 +70,15 @@ export async function transcribeAudio(
       }
       const bytes = await readLimitedBody(response.body, 512_000);
       const payload = JSON.parse(bytes.toString());
+      await captureAiGeneration(observation, {
+        model,
+        output: {
+          ...payload,
+          choices: [{ message: { role: "assistant", content: payload?.text } }],
+        },
+        status: response.status,
+        latencyMs: performance.now() - startedAt,
+      });
       await meter?.(payload, model);
       return TranscriptSchema.parse({ text: payload?.text, model });
     } catch (error) {
