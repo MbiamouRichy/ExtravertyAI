@@ -6,6 +6,7 @@ import useSWR from "swr";
 import Link from "next/link";
 import {
   Bell,
+  Check,
   CheckCheck,
   MessageSquare,
   TriangleAlert,
@@ -159,8 +160,7 @@ function TabCount({ value, active }: { value: number; active: boolean }) {
 export function Notifications() {
   const [open, setOpen] = useState(false);
   const [unreadOnly, setUnreadOnly] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [saveError, setSaveError] = useState("");
+  const [announcement, setAnnouncement] = useState("");
   const feed = useSWR<NotificationFeed>(
     "/api/notifications",
     async (url: string) => {
@@ -181,11 +181,53 @@ export function Notifications() {
     const pending = timers.current;
     return () => pending.forEach((timer) => window.clearTimeout(timer));
   }, []);
-  const items = (feed.data?.items ?? []).filter(
-    (item) => !hidden.includes(item.key),
-  );
+  // Lectures envoyées : affichées tout de suite, annulées si l’enregistrement
+  // échoue. La version compte : un nouveau message sur la même conversation
+  // reste non lu.
+  const [readLocally, setReadLocally] = useState<Record<string, string>>({});
+  // Ordre figé tant que le panneau est ouvert : une notification marquée comme
+  // lue ne saute pas en bas de la liste (ni ne perd le focus clavier).
+  const [frozenOrder, setFrozenOrder] = useState<string[] | null>(null);
+  const listRef = useRef<HTMLUListElement>(null);
+  const unreadTabRef = useRef<HTMLButtonElement>(null);
+  const focusAfterRead = useRef<string | null>(null);
+  const items = (feed.data?.items ?? [])
+    .filter((item) => !hidden.includes(item.key))
+    .map((item) =>
+      !item.read && readLocally[item.key] === item.version
+        ? { ...item, read: true }
+        : item,
+    );
+  if (frozenOrder) {
+    const rank = new Map(frozenOrder.map((key, index) => [key, index]));
+    // Les notifications arrivées panneau ouvert passent en tête.
+    items.sort((a, b) => (rank.get(a.key) ?? -1) - (rank.get(b.key) ?? -1));
+  }
   const unread = items.filter((item) => !item.read);
   const visible = unreadOnly ? unread : items;
+  // Le bouton « Marquer comme lue » disparaît après usage : le focus est
+  // replacé une fois la liste mise à jour.
+  useEffect(() => {
+    const key = focusAfterRead.current;
+    if (key === null) return;
+    focusAfterRead.current = null;
+    const target = key
+      ? listRef.current?.querySelector<HTMLElement>(
+          `[data-notification-key="${CSS.escape(key)}"]`,
+        )
+      : unreadTabRef.current;
+    target?.focus();
+  });
+  function changeOpen(next: boolean) {
+    setOpen(next);
+    setFrozenOrder(next ? items.map((item) => item.key) : null);
+  }
+  function announce(message: string) {
+    // Un message identique ne serait pas relu par les lecteurs d’écran.
+    setAnnouncement((current) =>
+      current === message ? message + " " : message,
+    );
+  }
   async function commitDismiss(item: AppNotification) {
     timers.current.delete(item.key);
     try {
@@ -224,28 +266,58 @@ export function Notifications() {
     });
   }
   async function markRead(selected: AppNotification[]) {
-    if (!selected.length || saving) return;
-    setSaving(true);
-    setSaveError("");
+    // Déjà lues (ou en cours d’envoi) : rien à renvoyer, même au double clic.
+    const pending = selected.filter((item) => !item.read);
+    if (!pending.length) return;
+    setReadLocally((current) => ({
+      ...current,
+      ...Object.fromEntries(pending.map((item) => [item.key, item.version])),
+    }));
     try {
       const response = await fetch("/api/notifications", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         keepalive: true,
         body: JSON.stringify({
-          items: selected.map(({ key, version }) => ({ key, version })),
+          items: pending.map(({ key, version }) => ({ key, version })),
         }),
       });
       if (!response.ok) throw new Error();
-      await feed.mutate();
+      void feed.mutate();
     } catch {
-      setSaveError("La lecture n’a pas été enregistrée. Réessayez.");
-    } finally {
-      setSaving(false);
+      setReadLocally((current) => {
+        const next = { ...current };
+        for (const item of pending)
+          if (next[item.key] === item.version) delete next[item.key];
+        return next;
+      });
+      toast.error(
+        pending.length > 1
+          ? "Les notifications n’ont pas été marquées comme lues. Réessayez."
+          : "La notification n’a pas été marquée comme lue. Réessayez.",
+      );
     }
   }
+  function markAllRead() {
+    announce(
+      unread.length > 1
+        ? unread.length + " notifications marquées comme lues"
+        : "Notification marquée comme lue",
+    );
+    void markRead(unread);
+  }
+  function markOneRead(item: AppNotification, index: number) {
+    // Le focus reste sur la notification, ou passe à la voisine quand le
+    // filtre « Non lues » la retire de la liste.
+    const next = unreadOnly
+      ? (visible[index + 1] ?? visible[index - 1])
+      : item;
+    focusAfterRead.current = next?.key ?? "";
+    announce("Notification marquée comme lue");
+    void markRead([item]);
+  }
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={changeOpen}>
       <PopoverTrigger asChild>
         <Button
           size="icon-sm"
@@ -276,16 +348,18 @@ export function Notifications() {
         <div className="flex items-center justify-between gap-2 border-b p-4">
           <h2 className="text-sm font-semibold">Notifications</h2>
           <Button
-            size="icon"
+            size="sm"
             variant="ghost"
-            disabled={saving || !unread.length}
-            aria-label="Tout marquer comme lu"
-            title="Tout marquer comme lu"
-            onClick={() => void markRead(unread)}
+            disabled={!unread.length}
+            onClick={markAllRead}
           >
-            <CheckCheck />
+            <CheckCheck data-icon="inline-start" />
+            Tout marquer comme lu
           </Button>
         </div>
+        <p role="status" className="sr-only">
+          {announcement}
+        </p>
         <div className="flex gap-2 px-4 py-2">
           <Button
             size="sm"
@@ -297,6 +371,7 @@ export function Notifications() {
             <TabCount value={items.length} active={!unreadOnly} />
           </Button>
           <Button
+            ref={unreadTabRef}
             size="sm"
             variant={unreadOnly ? "secondary" : "ghost"}
             aria-pressed={unreadOnly}
@@ -306,11 +381,6 @@ export function Notifications() {
             <TabCount value={unread.length} active={unreadOnly} />
           </Button>
         </div>
-        {saveError && (
-          <p role="alert" className="px-4 pb-2 text-xs text-destructive">
-            {saveError}
-          </p>
-        )}
         <div className="max-h-[min(55dvh,28rem)] overflow-y-auto overscroll-contain">
           {feed.error ? (
             <div role="alert" className="space-y-3 p-6 text-center text-sm">
@@ -347,21 +417,22 @@ export function Notifications() {
               </p>
             </div>
           ) : (
-            <ul className="space-y-1 p-2">
-              {visible.map((item) => (
-                <li key={item.key} className="group/item relative">
+            <ul ref={listRef} className="space-y-1 p-2">
+              {visible.map((item, index) => (
+                <li key={item.key} className="group/item">
                   <SwipeToDismiss
                     disabled={item.kind === "alert"}
                     onDismiss={() => dismiss(item)}
                   >
                   <Link
                     href={item.href}
+                    data-notification-key={item.key}
                     onClick={() => {
-                      if (!item.read) void markRead([item]);
-                      setOpen(false);
+                      void markRead([item]);
+                      changeOpen(false);
                     }}
                     className={cn(
-                      "group flex items-start gap-3 rounded-xl p-3 text-sm transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
+                      "group flex items-start gap-3 rounded-xl p-3 pr-11 text-sm transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
                       !item.read && "bg-primary/5",
                     )}
                   >
@@ -376,7 +447,12 @@ export function Notifications() {
                       <span className="block truncate text-[11px] text-muted-foreground">
                         {item.projectName}
                       </span>
-                      <span className="block wrap-anywhere font-semibold leading-snug">
+                      <span
+                        className={cn(
+                          "block wrap-anywhere leading-snug",
+                          item.read ? "font-medium" : "font-semibold",
+                        )}
+                      >
                         {item.title}
                       </span>
                       <span className="block line-clamp-2 text-xs leading-relaxed text-muted-foreground">
@@ -402,26 +478,50 @@ export function Notifications() {
                       aria-hidden
                       className="mt-1 size-4 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100"
                     />
-                    {!item.read && (
-                      <span className="mt-2 size-2 shrink-0 rounded-full bg-primary">
-                        <span className="sr-only">Non lue</span>
-                      </span>
-                    )}
+                    {!item.read && <span className="sr-only">Non lue</span>}
                   </Link>
+                  {/* Hors du lien (pas de bouton dans un lien), mais dans la
+                      couche qui glisse pour suivre la notification. */}
+                  <div className="pointer-events-none absolute inset-y-2 right-1.5 flex flex-col items-center justify-between">
+                    {!item.read ? (
+                      // Le point « non lue » devient une coche au survol : un
+                      // toucher suffit sur mobile, sans ouvrir la notification.
+                      <Button
+                        type="button"
+                        size="icon-sm"
+                        variant="ghost"
+                        aria-label={`Marquer la notification « ${item.title} » comme lue`}
+                        title="Marquer comme lue"
+                        onClick={() => markOneRead(item, index)}
+                        className="pointer-events-auto"
+                      >
+                        <span
+                          aria-hidden="true"
+                          className="size-2 rounded-full bg-primary group-hover/button:hidden group-focus-visible/button:hidden"
+                        />
+                        <Check
+                          aria-hidden="true"
+                          className="hidden text-primary group-hover/button:block group-focus-visible/button:block"
+                        />
+                      </Button>
+                    ) : (
+                      <span />
+                    )}
+                    {/* Alternative au glissement : souris et clavier. */}
+                    {item.kind !== "alert" && (
+                      <Button
+                        type="button"
+                        size="icon-xs"
+                        variant="ghost"
+                        aria-label={`Supprimer la notification « ${item.title} »`}
+                        onClick={() => dismiss(item)}
+                        className="pointer-events-auto opacity-0 transition-opacity group-hover/item:opacity-100 focus-visible:opacity-100"
+                      >
+                        <X />
+                      </Button>
+                    )}
+                  </div>
                   </SwipeToDismiss>
-                  {/* Alternative au glissement : souris et clavier. */}
-                  {item.kind !== "alert" && (
-                    <Button
-                      type="button"
-                      size="icon-xs"
-                      variant="ghost"
-                      aria-label={`Supprimer la notification « ${item.title} »`}
-                      onClick={() => dismiss(item)}
-                      className="absolute right-2 bottom-2 opacity-0 transition-opacity group-hover/item:opacity-100 focus-visible:opacity-100"
-                    >
-                      <X />
-                    </Button>
-                  )}
                 </li>
               ))}
             </ul>

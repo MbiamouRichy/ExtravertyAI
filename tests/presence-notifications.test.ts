@@ -102,6 +102,21 @@ test("presence and notifications respect members, tabs, expiry and read versions
       ownerFeed.items.some((n) => n.key === "quota:p"),
       true,
     );
+    // Marquer une seule notification comme lue laisse les autres non lues.
+    const quota = ownerFeed.items.find((n) => n.key === "quota:p");
+    assert.ok(quota);
+    await readNotifications(client, "owner", [quota]);
+    const ownerAfterRead = await notificationFeed(client, "owner");
+    assert.equal(
+      ownerAfterRead.items.find((n) => n.key === "quota:p")?.read,
+      true,
+    );
+    assert.ok(
+      ownerAfterRead.items
+        .filter((n) => n.key !== "quota:p")
+        .every((n) => !n.read),
+      "reading one notification leaves the others unread",
+    );
     await readNotifications(client, "member", feed.items);
     assert.equal(
       (await notificationFeed(client, "member")).items[0].read,
