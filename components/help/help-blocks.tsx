@@ -39,9 +39,11 @@ export function HelpInline({ text }: { text: string }) {
             );
           case "ui":
             return (
+              // Libellé d’interface : sur une ligne dès sm ; plus étroit, un libellé long passe à la ligne
+              // en gardant son cadre sur chaque morceau au lieu d’élargir la page.
               <span
                 key={index}
-                className="rounded-md border bg-muted px-1.5 py-px text-[0.92em] font-medium whitespace-nowrap text-foreground"
+                className="box-decoration-clone rounded-md border bg-muted px-1.5 py-px text-[0.92em] font-medium text-foreground sm:whitespace-nowrap"
               >
                 {token.value}
               </span>
