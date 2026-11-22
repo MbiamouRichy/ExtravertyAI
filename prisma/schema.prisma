@@ -484,6 +484,8 @@ model User {
   presence UserPresence[]
   productFeedback ProductFeedback[]
   handledProductFeedback ProductFeedback[] @relation("ProductFeedbackHandledBy")
+  helpFeedback HelpFeedback[]
+  handledHelpFeedback HelpFeedback[] @relation("HelpFeedbackHandledBy")
   notificationReceipts NotificationReceipt[]
   id            String    @id
   name          String
@@ -1001,6 +1003,50 @@ enum ProductFeedbackStatus {
   IN_PROGRESS
   DONE
   ARCHIVED
+}
+
+// Pourquoi un article du centre d'aide n'a pas aidé son lecteur.
+enum HelpFeedbackReason {
+  UNCLEAR         // pas assez clair
+  MISSING_STEP    // une étape manque
+  SCREEN_MISMATCH // ne correspond pas à l'écran
+  OTHER
+}
+
+enum HelpFeedbackStatus {
+  NEW
+  DONE
+  ARCHIVED
+}
+
+// Vote « Cet article vous a-t-il aidé ? » du centre d'aide public (/aide).
+// Un vote par visiteur, par article et par jour : visitorHash change chaque
+// jour (HMAC du jour, de l'IP et du navigateur), sans IP ni identifiant durable.
+// Un nouveau clic le même jour remplace le vote au lieu d'en ajouter un.
+model HelpFeedback {
+  id          String              @id @default(cuid())
+  articleSlug String
+  helpful     Boolean
+  reason      HelpFeedbackReason?
+  comment     String?             @db.Text
+  visitorHash String
+  // Lecteur connecté, le cas échéant : de quoi le recontacter.
+  userId      String?
+  user        User?               @relation(fields: [userId], references: [id], onDelete: SetNull)
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+  // Suivi par l'équipe dans le back-office (/admin/aide).
+  status       HelpFeedbackStatus @default(NEW)
+  handledAt    DateTime?
+  handledById  String?
+  handledBy    User?              @relation("HelpFeedbackHandledBy", fields: [handledById], references: [id], onDelete: SetNull)
+  internalNote String?            @db.Text
+
+  @@unique([articleSlug, visitorHash])
+  @@index([createdAt])
+  @@index([articleSlug, createdAt])
+  @@index([helpful, status, createdAt])
+  @@map("help_feedback")
 }
 
 // Journal des actions de l'équipe dans le back-office : qui, quoi, quand.

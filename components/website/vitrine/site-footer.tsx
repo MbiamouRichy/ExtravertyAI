@@ -19,6 +19,7 @@ const COLUMNS = [
     title: "Entreprise",
     links: [
       { label: "À propos", href: "/apropos" },
+      { label: "Centre d’aide", href: "/aide" },
       { label: "Contact", href: "/contact" },
       { label: "Mon espace", href: "/projects" },
     ],

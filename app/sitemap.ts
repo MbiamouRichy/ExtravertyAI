@@ -1,5 +1,7 @@
 import type { MetadataRoute } from "next";
 
+import { helpArticleHref } from "@/lib/help-center/articles";
+import { HELP_ARTICLES } from "@/lib/help-center/content";
 import { SITE_URL } from "@/lib/site";
 
 // Pages publiques à faire connaître aux moteurs de recherche. `/tarifs`
@@ -12,6 +14,12 @@ const PAGES: Array<{
   { path: "", changeFrequency: "weekly", priority: 1 },
   { path: "/apropos", changeFrequency: "monthly", priority: 0.8 },
   { path: "/contact", changeFrequency: "monthly", priority: 0.7 },
+  { path: "/aide", changeFrequency: "weekly", priority: 0.7 },
+  ...HELP_ARTICLES.map((article) => ({
+    path: helpArticleHref(article.slug),
+    changeFrequency: "monthly" as const,
+    priority: article.detailed ? 0.6 : 0.4,
+  })),
   { path: "/sign-up", changeFrequency: "yearly", priority: 0.6 },
   { path: "/sign-in", changeFrequency: "yearly", priority: 0.5 },
   { path: "/conditions", changeFrequency: "yearly", priority: 0.3 },

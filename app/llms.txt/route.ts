@@ -42,6 +42,8 @@ Détail et comparaison : ${SITE_URL}/#tarifs
 - [Accueil](${SITE_URL}/) : présentation du produit, démonstration et tarifs
 - [À propos](${SITE_URL}/apropos) : l’équipe et sa démarche
 - [Contact](${SITE_URL}/contact) : écrire à l’équipe
+- [Centre d’aide](${SITE_URL}/aide) : guides pas à pas, de la création du compte à la mise en ligne de l’assistant
+- [Centre d’aide en Markdown](${SITE_URL}/aide.md) : tout le guide d’utilisation dans un seul fichier
 - [Créer un compte](${SITE_URL}/sign-up)
 - [Conditions d’utilisation](${SITE_URL}/conditions)
 - [Politique de remboursement](${SITE_URL}/remboursement)
