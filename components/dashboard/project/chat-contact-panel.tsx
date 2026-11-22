@@ -268,6 +268,17 @@ export function ChatContactPanel({
         </div>
       </header>
 
+      {captureEnabled && (
+        <ProspectCaptureSection
+          key={`capture-${client.id}`}
+          projectId={projectId}
+          contactId={client.id}
+          contactName={client.name}
+          capture={capture}
+          onChanged={onCaptureChanged ?? onContactChanged}
+        />
+      )}
+
       <section aria-label="Suivi de la conversation" className="py-4">
         <dl className="space-y-1">
           <Row label="Statut">
@@ -350,6 +361,15 @@ export function ChatContactPanel({
         )}
       </section>
 
+      {summaryEnabled && (
+        <ConversationSummaryCard
+          key={`summary-${client.id}`}
+          projectId={projectId}
+          contactId={client.id}
+          enabled={hasClientMessage}
+        />
+      )}
+
       {/* The stage is unknown until the conversation list has loaded:
           never show a default « Nouveau » that may be wrong. */}
       {pipeline?.enabled && client.pipelineStage && (
@@ -362,26 +382,6 @@ export function ChatContactPanel({
           currency={pipeline.currency}
           canChangeCurrency={pipeline.canChangeCurrency}
           onChanged={onContactChanged}
-        />
-      )}
-
-      {captureEnabled && (
-        <ProspectCaptureSection
-          key={`capture-${client.id}`}
-          projectId={projectId}
-          contactId={client.id}
-          contactName={client.name}
-          capture={capture}
-          onChanged={onCaptureChanged ?? onContactChanged}
-        />
-      )}
-
-      {summaryEnabled && (
-        <ConversationSummaryCard
-          key={`summary-${client.id}`}
-          projectId={projectId}
-          contactId={client.id}
-          enabled={hasClientMessage}
         />
       )}
 

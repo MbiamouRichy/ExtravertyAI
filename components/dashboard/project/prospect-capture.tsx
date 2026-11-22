@@ -279,14 +279,10 @@ export function ProspectCaptureSection({ projectId, contactId, contactName, capt
   const titleId = `capture-${contactId}`;
   return (
     <section aria-labelledby={titleId} className="py-5">
-      <div className="mb-2 flex items-center justify-between gap-2">
-        <h2
-          id={titleId}
-          className="flex items-center gap-1.5 font-mono text-[11px] font-normal uppercase tracking-wider text-muted-foreground"
-        >
-          <ScanText aria-hidden="true" className="size-3.5" />
-          Capture IA
-        </h2>
+      <h2 id={titleId} className="sr-only">
+        Informations relevées par l’IA
+      </h2>
+      <div className="mb-2 flex items-center justify-end gap-2">
         <Button
           type="button"
           variant="ghost"
@@ -296,6 +292,7 @@ export function ProspectCaptureSection({ projectId, contactId, contactName, capt
         >
           <Pencil data-icon="inline-start" />
           {fields.length ? "Modifier" : "Ajouter"}
+          <span className="sr-only"> les informations du prospect</span>
         </Button>
       </div>
       {!capture ? (
