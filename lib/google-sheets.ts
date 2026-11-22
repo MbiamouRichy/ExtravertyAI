@@ -224,6 +224,8 @@ const SOURCE_LABELS: Record<string, string> = {
   whatsapp: "WhatsApp",
   web_dashboard: "Tableau de bord",
   broadcast: "Diffusion",
+  scheduled: "Message programmé",
+  forwarded: "Message transféré",
 };
 
 const localFormats = new Map<string, Intl.DateTimeFormat>();

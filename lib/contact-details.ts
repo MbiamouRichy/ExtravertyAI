@@ -1,3 +1,5 @@
+import { scheduledFailureLabel } from "./scheduled-messages-shared";
+
 // Détails de contact exposés à la fiche du chat. Le numéro n’est jamais
 // envoyé en clair au navigateur : seule une version masquée l’est ici.
 
@@ -40,7 +42,9 @@ export type ContactEventKind =
   | "AI_QUIET"
   | "AI_WOKEN"
   | "BROADCAST_OPT_OUT"
-  | "BROADCAST_OPT_IN";
+  | "BROADCAST_OPT_IN"
+  | "SCHEDULED_MESSAGE_FAILED"
+  | "SCHEDULED_MESSAGE_CANCELLED";
 
 /** Libellé de l’événement affiché au centre de la conversation. */
 export function contactEventLabel(
@@ -74,6 +78,10 @@ export function contactEventLabel(
       return "Désinscrit des diffusions (STOP)";
     case "BROADCAST_OPT_IN":
       return "Réinscrit aux diffusions (START)";
+    case "SCHEDULED_MESSAGE_FAILED":
+      return `Message programmé${actorName ? ` par ${actor}` : ""} non envoyé · ${scheduledFailureLabel(detail)}`;
+    case "SCHEDULED_MESSAGE_CANCELLED":
+      return `${actor} a annulé un message programmé`;
     case "AI_WOKEN":
       return actorName
         ? `${actor} a réveillé l’IA`

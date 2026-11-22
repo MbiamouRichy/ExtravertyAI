@@ -19,6 +19,7 @@ import {
 } from "@/lib/conversation-reads";
 import { getSession } from "@/lib/auth-server";
 import { projectTags } from "@/lib/conversation-workflow";
+import { scheduledMessagesForChat, windowClosesAt } from "@/lib/scheduled-messages";
 import { planAllows } from "@/lib/plan-features";
 import { captureView } from "@/lib/prospect-capture-shared";
 import {
@@ -390,7 +391,7 @@ export async function GET(
           where: { senderType: "CLIENT", fromMe: false },
           orderBy: [{ createdAt: "desc" }, { id: "desc" }],
           take: 1,
-          select: { id: true, source: true },
+          select: { id: true, source: true, createdAt: true },
         },
         // Capture IA : renvoyée seulement si l’offre du projet l’inclut.
         prospectCapture: { select: { fields: true } },
@@ -493,6 +494,7 @@ export async function GET(
         extractionStatus: true,
         createdAt: true,
         status: true,
+        source: true,
       },
     });
 
@@ -610,6 +612,10 @@ export async function GET(
           outboundState: message.outboundJob?.state ?? null,
           clientRequestId: message.outboundJob?.requestId ?? null,
           feedback: message.senderType === "BOT" ? (message.feedback[0] ?? null) : null,
+          origin:
+            message.senderType === "AGENT" && (message.source === "scheduled" || message.source === "forwarded")
+              ? message.source
+              : null,
         })),
         ...notes.map((note): ChatMessage => ({
           id: note.id,
@@ -638,6 +644,17 @@ export async function GET(
       ...(cursor
         ? {}
         : {
+            // Fonction annexe : son indisponibilité ne bloque pas la conversation.
+            scheduled: await scheduledMessagesForChat(prisma, {
+              projectId,
+              contactId,
+              viewerId: session.user.id,
+              role: membership?.role,
+            }).catch(() => {
+              console.error("[chat] Messages programmés indisponibles.");
+              return [];
+            }),
+            windowClosesAt: windowClosesAt(contact.messages[0]?.createdAt)?.toISOString() ?? null,
             notes: {
               total: noteTotal,
               recent: recentNotes.map((note) => ({

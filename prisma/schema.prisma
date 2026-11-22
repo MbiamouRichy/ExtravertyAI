@@ -271,6 +271,7 @@ model Project {
   storedFiles          StoredFile[]
   productFeedback      ProductFeedback[]
   broadcasts           Broadcast[]
+  scheduledMessages    ScheduledMessage[]
   // Icône de l'entreprise (clé du fichier dans le stockage), servie par /api/projects/[id]/logo.
   logoKey              String?
   // Version des événements demandés au webhook Evolution (2 : présence des contacts).
@@ -343,6 +344,7 @@ model Contact {
   events      ContactEvent[]
   knowledgeGaps KnowledgeGap[]
   csatSurveys CsatSurvey[]
+  scheduledMessages ScheduledMessage[]
 
   // Conversation traitée par l'équipe ; effacée dès qu'un message client arrive.
   resolvedAt   DateTime?
@@ -443,6 +445,8 @@ model Message {
   feedback     AiFeedback[]
   knowledgeGap KnowledgeGap?
   csatSurvey   CsatSurvey?   @relation("CsatSurveyMessage")
+  // Message programmé dont l'envoi a créé ce message.
+  scheduledMessage ScheduledMessage? @relation("ScheduledMessageSent")
   csatResponse CsatSurvey?   @relation("CsatResponseMessage")
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
@@ -514,6 +518,8 @@ model User {
   csatSurveysResolved CsatSurvey[]
   integrationEndpoints IntegrationEndpoint[]
   internalNotes InternalNote[]
+  scheduledMessages ScheduledMessage[] @relation("ScheduledMessageAuthor")
+  scheduledMessagesCancelled ScheduledMessage[] @relation("ScheduledMessageCancelledBy")
   contactEvents ContactEvent[]
   lastActiveAt  DateTime  @default(now())
   createdAt     DateTime  @default(now())
@@ -948,6 +954,8 @@ enum ContactEventType {
   AI_WOKEN
   BROADCAST_OPT_OUT
   BROADCAST_OPT_IN
+  SCHEDULED_MESSAGE_FAILED    // detail : code de la raison (lib/scheduled-messages-shared.ts)
+  SCHEDULED_MESSAGE_CANCELLED // annulé par un autre membre que son auteur
 }
 
 enum PipelineStage {
@@ -1482,4 +1490,53 @@ model PhoneVerification {
   @@index([numberHash, createdAt])
   @@index([projectId])
   @@map("phone_verification")
+}
+
+enum ScheduledMessageStatus {
+  SCHEDULED // en attente de son heure
+  SENT      // confié à la file d'envoi normale (message + outbound_job)
+  CANCELLED // annulé par son auteur ou un responsable
+  FAILED    // non envoyé : raison dans failureReason
+}
+
+// Message écrit par un membre dans la messagerie et envoyé au contact à la date
+// choisie (lib/scheduled-messages.ts). À l'heure dite, le worker d'envoi
+// revérifie tout (droits de l'auteur, projet, offre, fenêtre de 24 h de
+// WhatsApp) puis le confie à la file d'envoi, comme un envoi immédiat.
+model ScheduledMessage {
+  id            String                 @id @default(cuid())
+  projectId     String
+  project       Project                @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  contactId     String
+  contact       Contact                @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  // Le message part au nom de son auteur : s'il n'a plus accès au projet, il ne part pas.
+  authorId      String?
+  author        User?                  @relation("ScheduledMessageAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+  // Fourni par le navigateur : une même demande ne programme qu'un message.
+  requestId     String                 @db.Uuid
+  content       String                 @db.Text
+  scheduledAt   DateTime
+  // Prochain essai : l'heure prévue, puis repoussée tant que WhatsApp est déconnecté.
+  nextAttemptAt DateTime
+  status        ScheduledMessageStatus @default(SCHEDULED)
+  // Code de la raison d'un échec, ou de l'attente (DISCONNECTED) d'un message encore programmé.
+  failureReason String?
+  failedAt      DateTime?
+  // Échec retiré de la conversation par l'équipe.
+  dismissedAt   DateTime?
+  sentAt        DateTime?
+  messageId     String?                @unique
+  message       Message?               @relation("ScheduledMessageSent", fields: [messageId], references: [id], onDelete: SetNull)
+  cancelledAt   DateTime?
+  cancelledById String?
+  cancelledBy   User?                  @relation("ScheduledMessageCancelledBy", fields: [cancelledById], references: [id], onDelete: SetNull)
+  // Incrémentée à chaque modification : deux membres ne s'écrasent pas.
+  version       Int                    @default(0)
+  createdAt     DateTime               @default(now())
+  updatedAt     DateTime               @updatedAt
+
+  @@unique([projectId, requestId])
+  @@index([status, nextAttemptAt])
+  @@index([projectId, contactId, status, scheduledAt])
+  @@map("scheduled_message")
 }

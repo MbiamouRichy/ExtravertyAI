@@ -1,6 +1,7 @@
 import type { ProspectClassification } from "./instinct-classification";
 import type { ChatContactDetails } from "./contact-details";
 import type { PipelineStageId } from "./pipeline-shared";
+import type { ScheduledChatMessage } from "./scheduled-messages-shared";
 import type { ProspectCaptureView } from "./prospect-capture-shared";
 
 export type ChatMessageStatus =
@@ -77,6 +78,10 @@ export type ChatMessagesPage = ChatPage<ChatMessage> & {
   capture?: ProspectCaptureView;
   /** Première page uniquement. */
   notes?: ChatNotes;
+  /** Messages programmés et échecs récents (première page uniquement). */
+  scheduled?: ScheduledChatMessage[];
+  /** Fin de la fenêtre de 24 h de WhatsApp ; null si le client n’a jamais écrit (première page). */
+  windowClosesAt?: string | null;
   hasClientMessage: boolean;
   generation: ChatGeneration | null;
 };
@@ -105,6 +110,8 @@ export type ChatMessage = {
   clientRequestId?: string | null;
   /** Avis du membre connecté sur une réponse de l’IA. */
   feedback?: ChatFeedback | null;
+  /** Message d’un membre parti d’une programmation ou d’un transfert. */
+  origin?: "scheduled" | "forwarded" | null;
 };
 
 export type WorkspaceDataResponse =

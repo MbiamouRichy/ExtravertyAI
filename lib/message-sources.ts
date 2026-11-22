@@ -23,6 +23,8 @@ export function visibleMessageSources(
     whatsapp: "WhatsApp",
     web_dashboard: "Tableau de bord",
     broadcast: "Diffusion",
+    scheduled: "Message programmé",
+    forwarded: "Message transféré",
     unknown: "Origine non renseignée",
   };
   return [...totals]

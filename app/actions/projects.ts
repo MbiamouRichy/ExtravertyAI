@@ -141,6 +141,7 @@ export async function getProjectById(projectId: string) {
             agentQualifyLeads: true,
             plan: true,
             currency: true,
+            timeZone: true,
             messageCount: true,
             allMessagesCount: true,
             expiredAt: true,

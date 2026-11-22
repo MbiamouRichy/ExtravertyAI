@@ -179,6 +179,8 @@ export function useChatMessages(projectId: string, contactId: string | null) {
     generation: swr.error ? null : (swr.data?.[0]?.generation ?? null),
     agents: swr.data?.[0]?.agents,
     notes: swr.data?.[0]?.notes,
+    scheduled: swr.error ? [] : (swr.data?.[0]?.scheduled ?? []),
+    windowClosesAt: swr.data?.[0]?.windowClosesAt ?? null,
     contact: swr.data?.[0]?.contact,
     capture: swr.data?.[0]?.capture,
     hasClientMessage: !swr.error && !!swr.data?.[0]?.hasClientMessage,

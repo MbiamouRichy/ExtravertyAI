@@ -7,6 +7,7 @@ import { createOutboundProcessor } from "../lib/outbound-jobs";
 import { claimDelivery, defaultTransport, runDelivery } from "../lib/integrations";
 import { appendEventRow } from "../lib/google-sheets";
 import { runBroadcastTick } from "../lib/broadcasts";
+import { runScheduledMessageTick } from "../lib/scheduled-messages";
 import { PRESENCE_REFRESH_MS, refreshOnlinePresence } from "../lib/whatsapp-presence";
 initWorkerMonitoring("outbound-worker");
 const prisma = workerDatabase();
@@ -71,6 +72,21 @@ async function broadcastLoop() {
     }
   }
 }
+// Messages programmés depuis la messagerie : à l’heure dite, chacun est
+// revérifié puis confié à la file d’envoi normale. On enchaîne tant qu’il y en
+// a d’échus, sinon on revérifie chaque seconde (une minute d’avance minimum).
+async function scheduledLoop() {
+  while (!stopping) {
+    try {
+      const tick = await runScheduledMessageTick(prisma);
+      if (tick && tick.outcome !== "waiting") await notifyProject(tick.projectId);
+      if (!tick) await sleep(1000);
+    } catch (error) {
+      reportWorkerError("[scheduled-messages] Cycle interrompu.", error);
+      await sleep(5000);
+    }
+  }
+}
 // « Afficher le statut en ligne » : présence renvoyée chaque minute.
 async function presenceLoop() {
   while (!stopping) {
@@ -84,7 +100,7 @@ async function presenceLoop() {
       await sleep(1000);
   }
 }
-Promise.all([main(), integrationsLoop(), broadcastLoop(), presenceLoop()])
+Promise.all([main(), integrationsLoop(), broadcastLoop(), scheduledLoop(), presenceLoop()])
   .catch((error) => {
     reportWorkerError("[outbound-worker] Arrêt sur erreur.", error);
     process.exitCode = 1;

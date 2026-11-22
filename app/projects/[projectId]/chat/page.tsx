@@ -17,6 +17,7 @@ import { ChatRefreshButton } from "@/components/dashboard/project/chat-refresh-b
 import prisma from "@/lib/prisma";
 import { planAllows } from "@/lib/plan-features";
 import { instinctEnabled } from "@/lib/instinct-classification";
+import { projectTimeZone } from "@/lib/time-zones";
 
 export const dynamic = "force-dynamic";
 
@@ -174,6 +175,7 @@ export default async function ChatPage({ params, searchParams }: PageProps) {
           id: project.id,
           name: project.name,
           automationPaused: project.automationPaused,
+          timeZone: projectTimeZone(project.timeZone),
         }}
         user={{
           id: session.user.id,

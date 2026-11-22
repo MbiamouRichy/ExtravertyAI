@@ -56,6 +56,12 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
+import { ScheduledContentSchema } from "@/lib/scheduled-messages-shared";
+import {
+  ScheduleMessageDialog,
+  ScheduleSendMenu,
+  type ScheduleContext,
+} from "./chat-scheduled-messages";
 import { AudioRecording } from "./audio-recording";
 import { AudioPlayer } from "./audio-player";
 import { ChatEmojiPicker } from "./chat-emoji-picker";
@@ -150,6 +156,7 @@ export function ChatComposer({
   hasClientMessage,
   header,
   draftKey,
+  schedule,
 }: {
   projectId: string;
   contactId: string;
@@ -169,6 +176,11 @@ export function ChatComposer({
     content: string,
     attachment?: ChatAttachment,
   ) => Promise<"accepted" | "uncertain" | void>;
+  /** Programmer l’envoi du texte saisi (absent : envoi immédiat seulement). */
+  schedule?: ScheduleContext & {
+    /** Renvoie true quand le serveur a accepté la programmation. */
+    onSchedule: (content: string, at: Date) => Promise<boolean>;
+  };
 }) {
   // `pendingRef` est la source de vérité (lue pendant les imports et l’envoi) ;
   // l’état ne sert qu’à l’affichage. Toute modification passe par updatePending.
@@ -425,6 +437,31 @@ export function ChatComposer({
     setBusy(null);
     setProposal(null);
   }
+  const [scheduleOpen, setScheduleOpen] = useState(false);
+  const [scheduling, setScheduling] = useState(false);
+  // Texte seul : une pièce jointe importée porte un ticket de courte durée.
+  const scheduleBlocked = !draft.trim()
+    ? "Écrivez un message pour le programmer"
+    : pending.length
+      ? "Seuls les messages texte se programment : retirez les pièces jointes"
+      : undefined;
+  async function scheduleAt(at: Date) {
+    if (!schedule || scheduling || isSending) return;
+    const parsed = ScheduledContentSchema.safeParse(draft);
+    if (!parsed.success) {
+      form.setError("content", {
+        message: parsed.error.issues[0]?.message ?? "Message invalide.",
+      });
+      return;
+    }
+    setScheduling(true);
+    try {
+      await schedule.onSchedule(parsed.data, at);
+    } finally {
+      setScheduling(false);
+    }
+  }
+
   const requestId = useRef(0);
   const requestLock = useRef(false);
   // La requête en vol est abandonnée : sa réponse ne s’affichera pas.
@@ -468,6 +505,7 @@ export function ChatComposer({
   }
 
   return (
+    <>
     <form
       className="relative min-w-0"
       onSubmit={(event) => void form.handleSubmit(async ({ content }) => {
@@ -924,13 +962,24 @@ export function ChatComposer({
                         >
                           <Kbd>Shift</Kbd>+<Kbd>Entrée</Kbd> nouvelle ligne
                         </span>
+                        {schedule && (
+                          <ScheduleSendMenu
+                            context={schedule}
+                            disabled={!!scheduleBlocked || isSending || uploading}
+                            disabledReason={scheduleBlocked}
+                            busy={scheduling}
+                            onPreset={(at) => void scheduleAt(at)}
+                            onCustom={() => setScheduleOpen(true)}
+                          />
+                        )}
                         <SendButton
                           label={isSending ? "Envoi en cours" : "Envoyer le message"}
                           sending={isSending}
                           disabled={
                             (!draft.trim() && !pending.length) ||
                             isSending ||
-                            uploading
+                            uploading ||
+                            scheduling
                           }
                         />
                       </div>
@@ -959,6 +1008,19 @@ export function ChatComposer({
         {announcement}
       </p>
     </form>
+    {schedule && (
+      <ScheduleMessageDialog
+        open={scheduleOpen}
+        onOpenChange={setScheduleOpen}
+        context={schedule}
+        contactName={contactName}
+        mode="create"
+        initialContent={draft}
+        initialAt={null}
+        onSubmit={schedule.onSchedule}
+      />
+    )}
+    </>
   );
 }
 

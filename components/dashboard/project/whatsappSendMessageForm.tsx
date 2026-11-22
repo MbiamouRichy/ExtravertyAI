@@ -27,6 +27,8 @@ import {
 import {
   ArrowLeft,
   BookUser,
+  CalendarClock,
+  Forward,
   Hand,
   Hourglass,
   Plug,
@@ -113,6 +115,10 @@ import {
 } from "@/components/ui/message-scroller";
 
 import { sendWhatsAppMessage } from "@/app/actions/sendWhatsAppMessage";
+import { scheduleMessageAction } from "@/app/actions/scheduled-messages";
+import { formatScheduleDate, timeZoneLabel } from "@/lib/scheduled-messages-shared";
+import { ScheduledMessagesSection } from "./chat-scheduled-messages";
+import { ForwardMessageDialog, canForwardMessage } from "./forward-message-dialog";
 import { setContactAiState } from "@/app/actions/setContactAiState";
 import {
   addInternalNoteAction,
@@ -156,6 +162,8 @@ type WorkspaceProps = {
     id: string;
     name: string;
     automationPaused: boolean;
+    /** Fuseau de l’activité : heures des messages programmés. */
+    timeZone: string;
   };
   user: {
     id: string;
@@ -496,6 +504,7 @@ function ChatBubble({
   contactName,
   projectId,
   onRestore,
+  onForward,
   animate = false,
   grouped = false,
   question = "",
@@ -505,6 +514,8 @@ function ChatBubble({
   projectId: string;
   contactName: string;
   onRestore: (content: string) => void;
+  /** Ouvre le transfert vers d’autres conversations du projet. */
+  onForward?: (message: ChatMessage) => void;
   animate?: boolean;
   /** Message consécutif du même auteur : nom masqué, espacement réduit. */
   grouped?: boolean;
@@ -564,6 +575,25 @@ function ChatBubble({
     </time>
   );
 
+  const forwardButton =
+    onForward && canForwardMessage(message) ? (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-xs"
+            className="shrink-0 self-center text-muted-foreground opacity-0 transition-opacity group-hover/bubble:opacity-100 group-focus-within/bubble:opacity-100 hover:text-foreground focus-visible:opacity-100 pointer-coarse:opacity-100"
+            aria-label={`Transférer le message de ${author}`}
+            onClick={() => onForward(message as ChatMessage)}
+          >
+            <Forward aria-hidden="true" />
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>Transférer vers d’autres conversations</TooltipContent>
+      </Tooltip>
+    ) : null;
+
   // Journal (activation / pause de l’IA) : pastille centrée, comme la maquette.
   if (message.senderType === "system") {
     return (
@@ -583,8 +613,9 @@ function ChatBubble({
     return (
       <article
         aria-label={`Message de ${author}`}
-        className="flex w-full justify-end"
+        className="group/bubble flex w-full items-center justify-end gap-1"
       >
+        {forwardButton}
         <Message align="end" className="w-fit max-w-[85%] py-2 sm:max-w-[72%]">
           <MessageContent className="gap-1.5">
             <MessageHeader className="justify-end gap-1.5 px-1 text-[11px]">
@@ -633,6 +664,16 @@ function ChatBubble({
           Visible par l’équipe
         </span>
       )}
+      {isAgent && "origin" in message && message.origin && (
+        <span className="mr-1 inline-flex items-center gap-1">
+          {message.origin === "scheduled" ? (
+            <CalendarClock aria-hidden="true" className="size-3" />
+          ) : (
+            <Forward aria-hidden="true" className="size-3" />
+          )}
+          {message.origin === "scheduled" ? "Programmé" : "Transféré"}
+        </span>
+      )}
       {time}
       {isAgent && <DeliveryStatus status={visualStatus} compact />}
     </span>
@@ -642,11 +683,12 @@ function ChatBubble({
     <article
       aria-label={`Message de ${author}`}
       className={cn(
-        "flex w-full items-end gap-2",
+        "group/bubble flex w-full items-end gap-2",
         outgoing ? "justify-end" : "justify-start",
         !grouped && "mt-1",
       )}
     >
+      {outgoing && forwardButton}
       <div
         className={cn(
           "flex min-w-0 max-w-[85%] flex-col gap-1 sm:max-w-[72%]",
@@ -720,6 +762,7 @@ function ChatBubble({
           </Button>
         )}
       </div>
+      {!outgoing && forwardButton}
 
       {(isAgent || isNote) && (
         <span
@@ -893,6 +936,8 @@ export default function WhatsappWorkspace({
   const [resolveBusyId, setResolveBusyId] = useState<string | null>(null);
   const resolveLock = useRef(false);
   const [composerMode, setComposerMode] = useState<ComposerMode>("reply");
+  // Message en cours de transfert vers d’autres conversations.
+  const [forwarding, setForwarding] = useState<ChatMessage | null>(null);
   // Page rouverte sur un contact quitté en pleine note : la note est rouverte.
   const [draftModeRestored, setDraftModeRestored] = useState(false);
   if (draftsRestored && !draftModeRestored) {
@@ -1318,6 +1363,44 @@ export default function WhatsappWorkspace({
         message.localId === localId ? { ...message, ...patch } : message,
       ),
     }));
+  }
+
+  // Même demande pour un nouvel essai du même message : jamais programmé deux fois.
+  const scheduleRequests = useRef(new Map<string, string>());
+  async function handleSchedule(content: string, at: Date): Promise<boolean> {
+    if (!activeClient) return false;
+    const contactId = activeClient.id;
+    const key = [contactId, content, at.toISOString()].join("|");
+    const requestId = scheduleRequests.current.get(key) ?? crypto.randomUUID();
+    scheduleRequests.current.set(key, requestId);
+    if (!navigator.onLine) {
+      toast.error("Vous êtes hors ligne. Votre brouillon est conservé.");
+      return false;
+    }
+    try {
+      const result = await scheduleMessageAction({
+        projectId: project.id,
+        contactId,
+        requestId,
+        content,
+        scheduledAt: at.toISOString(),
+      });
+      if (!result.success) {
+        toast.error(result.error);
+        setAnnouncement(result.error);
+        return false;
+      }
+      scheduleRequests.current.delete(key);
+      setDrafts((previous) => ({ ...previous, [contactId]: "" }));
+      const when = `Envoi ${formatScheduleDate(result.scheduledAt, project.timeZone)}, ${timeZoneLabel(project.timeZone, new Date(result.scheduledAt))}.`;
+      toast.success("Message programmé", { description: when });
+      setAnnouncement(`Message programmé. ${when}`);
+      void historyQuery.mutate();
+      return true;
+    } catch {
+      toast.error("Programmation non confirmée. Vérifiez votre connexion et réessayez.");
+      return false;
+    }
   }
 
   async function handleSend(content: string, attachment?: ChatAttachment) {
@@ -2478,6 +2561,7 @@ export default function WhatsappWorkspace({
                                   contactName={activeClient.name}
                                   projectId={project.id}
                                   onRestore={restoreDraft}
+                                  onForward={setForwarding}
                                 />
                               </MessageScrollerItem>
                             );
@@ -2492,6 +2576,20 @@ export default function WhatsappWorkspace({
                               />
                             </MessageScrollerItem>
                           )}
+                        {historyQuery.scheduled.length > 0 && (
+                          <MessageScrollerItem>
+                            <ScheduledMessagesSection
+                              projectId={project.id}
+                              contactName={activeClient.name}
+                              items={historyQuery.scheduled}
+                              context={{
+                                timeZone: project.timeZone,
+                                windowClosesAt: historyQuery.windowClosesAt,
+                              }}
+                              onChanged={() => void historyQuery.mutate()}
+                            />
+                          </MessageScrollerItem>
+                        )}
                         <div
                           ref={readMarker}
                           aria-hidden="true"
@@ -2554,6 +2652,11 @@ export default function WhatsappWorkspace({
                       }}
                       onSend={handleSend}
                       header={composerToggle}
+                      schedule={{
+                        timeZone: project.timeZone,
+                        windowClosesAt: historyQuery.windowClosesAt,
+                        onSchedule: handleSchedule,
+                      }}
                     />
                   </div>
                 </div>
@@ -2646,6 +2749,24 @@ export default function WhatsappWorkspace({
             />
           </SheetContent>
         </Sheet>
+      )}
+
+      {activeClient && (
+        <ForwardMessageDialog
+          projectId={project.id}
+          sourceContactId={activeClient.id}
+          message={forwarding}
+          author={
+            forwarding?.senderType === "client"
+              ? `Message de ${activeClient.name}`
+              : forwarding?.senderType === "bot"
+                ? "Réponse de l’assistant IA"
+                : `Message de ${forwarding?.agent?.name?.trim() || "l’équipe"}`
+          }
+          timeZone={project.timeZone}
+          onOpenChange={(open) => !open && setForwarding(null)}
+          onForwarded={() => void contactsQuery.mutate()}
+        />
       )}
 
       <p
