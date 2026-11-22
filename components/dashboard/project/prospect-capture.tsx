@@ -305,8 +305,11 @@ export function ProspectCaptureSection({ projectId, contactId, contactName, capt
       ) : (
         <div className="flex flex-col items-start gap-2 rounded-xl border border-dashed p-3">
           <p className="text-xs leading-relaxed text-muted-foreground">
-            Aucune information supplémentaire sur ce prospect pour l’instant. Le nom,
-            l’e-mail, la ville ou l’adresse qu’il donne apparaîtront ici.
+            Aucune information supplémentaire sur ce prospect pour l’instant.
+            <span className="max-sm:hidden">
+              {" "}
+              Le nom, l’e-mail, la ville ou l’adresse qu’il donne apparaîtront ici.
+            </span>
           </p>
           <Button type="button" variant="outline" size="xs" onClick={() => setEditing(true)}>
             <Pencil data-icon="inline-start" />
