@@ -25,6 +25,8 @@ const Target = z.object({
 const MoveSchema = Target.extend({ stage: PipelineStageSchema });
 const ValueSchema = Target.extend({
   value: z.number().int().min(0).max(MAX_DEAL_VALUE).nullable(),
+  // Devise de saisie, toujours envoyée : comparée à celle du projet.
+  currency: CurrencySchema,
 });
 const CurrencyInput = z.object({
   projectId: z.string().cuid(),
@@ -69,8 +71,8 @@ export async function movePipelineStageAction(input: z.input<typeof MoveSchema>)
 
 export async function setDealValueAction(input: z.input<typeof ValueSchema>) {
   return run(ValueSchema, input, "enregistrer le montant", async (data, userId) => {
-    await setDealValue(prisma, { ...data, userId });
-    return {};
+    const { currencyChanged } = await setDealValue(prisma, { ...data, userId });
+    return { currencyChanged };
   });
 }
 

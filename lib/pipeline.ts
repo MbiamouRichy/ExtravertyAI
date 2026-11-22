@@ -2,9 +2,9 @@ import type { PrismaClient, Prisma } from "../src/generated/prisma/client";
 import { chatContactName } from "./chat-privacy";
 import { planAllows, requirePlanFeature } from "./plan-features";
 import { requireProjectAdmin } from "./project-settings";
-import { applyProjectCurrency } from "./project-currency";
+import { applyProjectCurrency, type ProjectCurrency } from "./project-currency";
 import { emitIntegrationEvent, integrationContact } from "./integration-events";
-import { rolesWith } from "./project-permissions";
+import { can, rolesWith } from "./project-permissions";
 import {
   CURRENCIES,
   MAX_DEAL_VALUE,
@@ -54,7 +54,7 @@ async function requirePipelineContact(tx: Prisma.TransactionClient, input: Actor
         members: { some: { userId: input.userId, role: { in: rolesWith("conversations.handle") } } },
       },
     },
-    select: { id: true, pipelineStage: true, project: { select: { plan: true } } },
+    select: { id: true, pipelineStage: true, project: { select: { plan: true, currency: true } } },
   });
   if (!contact) throw new PipelineError("Conversation indisponible.");
   requirePlanFeature(contact.project.plan, "pipeline");
@@ -91,19 +91,40 @@ export async function movePipelineStage(
   });
 }
 
+/**
+ * `currency` : devise dans laquelle le montant a été saisi. Si elle diffère de
+ * celle du projet, un administrateur fait basculer tout le projet avant
+ * l’enregistrement, sans conversion (`applyProjectCurrency`), comme depuis le
+ * formulaire produit. Pour les autres membres, la page est restée sur une
+ * ancienne devise : le montant est refusé plutôt qu’enregistré à la mauvaise échelle.
+ */
 export async function setDealValue(
   db: PrismaClient,
-  input: Actor & { value: number | null },
+  input: Actor & { value: number | null; currency?: ProjectCurrency },
 ) {
   if (input.value !== null && (!Number.isSafeInteger(input.value) || input.value < 0 || input.value > MAX_DEAL_VALUE)) {
     throw new PipelineError("Montant invalide.");
   }
-  await db.$transaction(async (tx) => {
-    await requirePipelineContact(tx, input);
+  return db.$transaction(async (tx) => {
+    const contact = await requirePipelineContact(tx, input);
+    let currencyChanged = false;
+    if (input.currency && input.currency !== contact.project.currency) {
+      const member = await tx.projectMembership.findUnique({
+        where: { userId_projectId: { userId: input.userId, projectId: input.projectId } },
+        select: { role: true },
+      });
+      if (!member || !can(member.role, "project.manage")) {
+        throw new PipelineError(
+          `La devise du projet est désormais ${contact.project.currency}. Rechargez la page pour saisir le montant.`,
+        );
+      }
+      currencyChanged = await applyProjectCurrency(tx, input.projectId, input.currency);
+    }
     await tx.contact.update({
       where: { id: input.contactId },
       data: { dealValue: input.value },
     });
+    return { currencyChanged };
   });
 }
 

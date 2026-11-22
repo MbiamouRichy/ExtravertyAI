@@ -158,3 +158,59 @@ test("lead pipeline", { timeout: 120000 }, async (t) => {
     });
   });
 });
+
+test("the contact sheet amount carries the project currency", { timeout: 300000 }, async (t) => {
+  await withTestDatabase(async (prisma) => {
+    const owner = await createUser(prisma, "Clara Mba");
+    const agent = await createUser(prisma);
+    const project = await createProject(prisma, { plan: "business" });
+    await addMember(prisma, project.id, owner.id, "OWNER");
+    await addMember(prisma, project.id, agent.id, "AGENT");
+    const contact = await ingestText(prisma, project.id, "Je prends le lot");
+    const other = await ingestText(prisma, project.id, "Et le sac ?", "24199999999@s.whatsapp.net");
+    const actor = { projectId: project.id, contactId: contact.id, userId: owner.id };
+    await setDealValue(prisma, { ...actor, contactId: other.id, value: 150000, currency: "XAF" });
+    const state = async () => ({
+      currency: (await prisma.project.findUniqueOrThrow({ where: { id: project.id } })).currency,
+      deal: (await prisma.contact.findUniqueOrThrow({ where: { id: contact.id } })).dealValue,
+      other: (await prisma.contact.findUniqueOrThrow({ where: { id: other.id } })).dealValue,
+    });
+
+    await t.test("an amount in the project currency changes nothing else", async () => {
+      assert.deepEqual(await setDealValue(prisma, { ...actor, value: 45000, currency: "XAF" }), {
+        currencyChanged: false,
+      });
+      assert.deepEqual(await state(), { currency: "XAF", deal: 45000, other: 150000 });
+    });
+
+    await t.test("an administrator saving in EUR switches the whole project, figures kept", async () => {
+      assert.deepEqual(await setDealValue(prisma, { ...actor, value: 125050, currency: "EUR" }), {
+        currencyChanged: true,
+      });
+      // 150 000 FCFA devient 150 000 €, et le montant saisi est lu en euros.
+      assert.deepEqual(await state(), { currency: "EUR", deal: 125050, other: 15000000 });
+    });
+
+    await t.test("a member whose page still shows the former currency is refused", async () => {
+      await assert.rejects(
+        setDealValue(prisma, { ...actor, userId: agent.id, value: 200000, currency: "XAF" }),
+        (error: unknown) => error instanceof PipelineError && /désormais EUR/.test(error.message),
+      );
+      assert.deepEqual(await state(), { currency: "EUR", deal: 125050, other: 15000000 });
+      await setDealValue(prisma, { ...actor, userId: agent.id, value: 990000, currency: "EUR" });
+      assert.equal((await state()).deal, 990000);
+    });
+
+    await t.test("a switch that would exceed the maximum keeps everything as it was", async () => {
+      await setDealValue(prisma, { ...actor, contactId: other.id, value: 150, currency: "EUR" });
+      await setDealValue(prisma, { ...actor, value: 990000, currency: "XAF" });
+      assert.deepEqual(await state(), { currency: "XAF", deal: 990000, other: 2 });
+      await setDealValue(prisma, { ...actor, contactId: other.id, value: 25_000_000, currency: "XAF" });
+      await assert.rejects(
+        setDealValue(prisma, { ...actor, value: 100, currency: "EUR" }),
+        /maximum en EUR/,
+      );
+      assert.deepEqual(await state(), { currency: "XAF", deal: 990000, other: 25_000_000 });
+    });
+  });
+});

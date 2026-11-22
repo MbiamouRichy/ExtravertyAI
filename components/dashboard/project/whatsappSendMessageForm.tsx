@@ -168,7 +168,7 @@ type WorkspaceProps = {
   /** Propriétaire ou administrateur (vérifié à nouveau côté serveur). */
   canCopyPhone?: boolean;
   /** Offre Business : étape et montant dans la fiche contact. */
-  pipeline?: { enabled: boolean; currency: string };
+  pipeline?: { enabled: boolean; currency: string; canChangeCurrency: boolean };
   /** Instinct IA tourne pour ce projet (offre et réglage, vérifiés côté serveur). */
   instinctEnabled?: boolean;
   /** Résumé IA inclus dans l’offre (vérifié à nouveau côté serveur). */

@@ -187,6 +187,8 @@ export default async function ChatPage({ params, searchParams }: PageProps) {
         pipeline={{
           enabled: planAllows(project.plan, "pipeline"),
           currency: project.currency,
+          // Revérifié côté serveur à l’enregistrement d’un montant.
+          canChangeCurrency: canManageAi,
         }}
         instinctEnabled={instinctEnabled(project)}
         summaryEnabled={planAllows(project.plan, "summary")}

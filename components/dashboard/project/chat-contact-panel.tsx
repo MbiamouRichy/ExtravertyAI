@@ -136,7 +136,8 @@ export function ChatContactPanel({
   /** Propriétaire ou administrateur : seul autorisé à copier le numéro. */
   canCopyPhone: boolean;
   currentUserId: string;
-  pipeline?: { enabled: boolean; currency: string };
+  /** `canChangeCurrency` : administrateur, la devise du projet se choisit dans la fiche. */
+  pipeline?: { enabled: boolean; currency: string; canChangeCurrency: boolean };
   /** Instinct IA tourne pour ce projet ; sinon la ligne « Intérêt » n’existe pas. */
   instinctEnabled?: boolean;
   /** Résumé IA inclus dans l’offre ; sinon la section n’existe pas. */
@@ -348,6 +349,7 @@ export function ChatContactPanel({
           stage={client.pipelineStage}
           dealValue={client.dealValue ?? null}
           currency={pipeline.currency}
+          canChangeCurrency={pipeline.canChangeCurrency}
           onChanged={onContactChanged}
         />
       )}
