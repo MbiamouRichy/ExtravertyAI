@@ -42,6 +42,8 @@ import {
   type BusinessProfileInput,
 } from "@/lib/business-profile";
 import { cn } from "@/lib/utils";
+import { GuideLink } from "@/components/help/guide-link";
+import { SETUP_STEP_LINKS } from "@/lib/help-center/app-links";
 import {
   AgentBehaviorFields,
   AgentLanguageField,
@@ -440,10 +442,18 @@ export function AgentSetup({
           onSelect={(index) => void go(index)}
         />
         <div>
-          <p className="font-mono text-xs text-muted-foreground">
-            Étape {step + 1} sur {steps.length}
-            {current === "knowledge" && " · facultative"}
-          </p>
+          {/* À droite, la section du guide qui explique cet écran. */}
+          <div className="flex flex-wrap items-center justify-between gap-x-3">
+            <p className="font-mono text-xs text-muted-foreground">
+              Étape {step + 1} sur {steps.length}
+              {current === "knowledge" && " · facultative"}
+            </p>
+            <GuideLink
+              className="-mr-1 min-h-9"
+              link={SETUP_STEP_LINKS[current]}
+              label="Aide pour cet écran"
+            />
+          </div>
           <h1
             ref={heading}
             tabIndex={-1}

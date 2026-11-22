@@ -49,6 +49,8 @@ import {
   type PlanId,
 } from "@/lib/pricing";
 import { cn } from "@/lib/utils";
+import { GuideLink } from "@/components/help/guide-link";
+import { GUIDE_STEP_LINKS } from "@/lib/help-center/app-links";
 
 export default function CreateProjectForm({
   initialPlan = "starter",
@@ -115,26 +117,33 @@ export default function CreateProjectForm({
 
   return (
     <div className="mx-auto w-full max-w-xl px-4 pt-6 pb-16 sm:px-6 sm:pt-10">
-      {step === "verify" ? (
-        // Le projet n’est pas encore enregistré : on revient au formulaire, pas à la liste.
-        <Button
-          type="button"
-          variant="link"
-          className="-ml-1 h-auto min-h-11 gap-2 px-1 text-muted-foreground hover:text-foreground hover:no-underline"
-          onClick={() => setStep("details")}
-        >
-          <ArrowLeft aria-hidden className="size-4" />
-          Retour
-        </Button>
-      ) : (
-        <Link
-          href="/projects"
-          className="-ml-1 inline-flex min-h-11 items-center gap-2 rounded-md px-1 text-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        >
-          <ArrowLeft aria-hidden className="size-4" />
-          Mes projets
-        </Link>
-      )}
+      {/* Retour à gauche ; à droite, la section du guide qui explique l’écran affiché. */}
+      <div className="flex items-center justify-between gap-3">
+        {step === "verify" ? (
+          // Le projet n’est pas encore enregistré : on revient au formulaire, pas à la liste.
+          <Button
+            type="button"
+            variant="link"
+            className="-ml-1 h-auto min-h-11 gap-2 px-1 text-muted-foreground hover:text-foreground hover:no-underline"
+            onClick={() => setStep("details")}
+          >
+            <ArrowLeft aria-hidden className="size-4" />
+            Retour
+          </Button>
+        ) : (
+          <Link
+            href="/projects"
+            className="-ml-1 inline-flex min-h-11 items-center gap-2 rounded-md px-1 text-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <ArrowLeft aria-hidden className="size-4" />
+            Mes projets
+          </Link>
+        )}
+        <GuideLink
+          className="-mr-1"
+          link={step === "verify" ? GUIDE_STEP_LINKS.verification : GUIDE_STEP_LINKS.project}
+        />
+      </div>
 
       <header hidden={step !== "details"} className="mt-4 mb-8">
         <h1 className="text-2xl! font-semibold! leading-tight! tracking-tight! sm:text-3xl!">

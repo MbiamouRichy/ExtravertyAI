@@ -4,6 +4,7 @@ import { AppBreadcrumbs } from "@/components/dashboard/app-breadcrumbs";
 import { NavUser } from "@/components/dashboard/nav-user";
 import { Notifications } from "./notifications";
 import { FeedbackDialog } from "./feedback-dialog";
+import { HelpButton } from "./help-button";
 import { ConditionalSidebarTrigger } from "./conditional-sidebar-trigger";
 
 export async function AppHeader() {
@@ -23,7 +24,8 @@ export async function AppHeader() {
         <AppBreadcrumbs />
       </div>
       <div className="flex shrink-0 items-center gap-2 sm:gap-3">
-        {/* « Nouveau projet » reste sur la page Projets ; ici, le retour produit. */}
+        {/* « Nouveau projet » reste sur la page Projets ; ici, l’aide de la page et le retour produit. */}
+        <HelpButton />
         <FeedbackDialog />
         <Notifications />
         <Separator

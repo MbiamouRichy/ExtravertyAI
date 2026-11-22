@@ -22,6 +22,8 @@ import {
 } from "@/app/actions/instance-actions";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { GuideLink } from "@/components/help/guide-link";
+import { GUIDE_STEP_LINKS } from "@/lib/help-center/app-links";
 
 type ConnectionData = Awaited<ReturnType<typeof getConnectionData>>;
 type Method = "qr" | "phone";
@@ -474,42 +476,50 @@ function ConnectionPanel({ projectId }: { projectId: string }) {
           )}
         </div>
 
-        <ol className="min-w-0 space-y-5 self-center px-4 py-6 text-sm leading-relaxed text-muted-foreground sm:p-6">
-          <Step number={1}>
-            Ouvrez <Label>WhatsApp</Label> sur{" "}
-            {method === "qr"
-              ? "votre téléphone."
-              : "le téléphone du numéro de ce projet."}
-          </Step>
-          <Step number={2}>
-            <span className="block">
-              Android : touchez{" "}
-              <MoreVertical
-                aria-hidden="true"
-                className="inline size-4 align-text-bottom text-foreground"
-              />
-              <span className="sr-only">le menu à trois points</span>, puis{" "}
-              <Label>Appareils connectés</Label>.
-            </span>
-            <span className="mt-1 block">
-              iPhone : touchez <Label>Réglages</Label>, puis{" "}
-              <Label>Appareils connectés</Label>.
-            </span>
-          </Step>
-          <Step number={3}>
-            Touchez <Label>Connecter un appareil</Label>.
-          </Step>
-          <Step number={4}>
-            {method === "qr" ? (
-              "Visez ce QR code avec votre téléphone."
-            ) : (
-              <>
-                Touchez <Label>Connecter avec un numéro de téléphone</Label>,
-                puis saisissez le code.
-              </>
-            )}
-          </Step>
-        </ol>
+        <div className="min-w-0 self-center px-4 py-6 sm:p-6">
+          <ol className="space-y-5 text-sm leading-relaxed text-muted-foreground">
+            <Step number={1}>
+              Ouvrez <Label>WhatsApp</Label> sur{" "}
+              {method === "qr"
+                ? "votre téléphone."
+                : "le téléphone du numéro de ce projet."}
+            </Step>
+            <Step number={2}>
+              <span className="block">
+                Android : touchez{" "}
+                <MoreVertical
+                  aria-hidden="true"
+                  className="inline size-4 align-text-bottom text-foreground"
+                />
+                <span className="sr-only">le menu à trois points</span>, puis{" "}
+                <Label>Appareils connectés</Label>.
+              </span>
+              <span className="mt-1 block">
+                iPhone : touchez <Label>Réglages</Label>, puis{" "}
+                <Label>Appareils connectés</Label>.
+              </span>
+            </Step>
+            <Step number={3}>
+              Touchez <Label>Connecter un appareil</Label>.
+            </Step>
+            <Step number={4}>
+              {method === "qr" ? (
+                "Visez ce QR code avec votre téléphone."
+              ) : (
+                <>
+                  Touchez <Label>Connecter avec un numéro de téléphone</Label>,
+                  puis saisissez le code.
+                </>
+              )}
+            </Step>
+          </ol>
+          {/* Un blocage (menu introuvable, code expiré) : la section du guide, en nouvel onglet. */}
+          <GuideLink
+            className="mt-3 -ml-1"
+            link={GUIDE_STEP_LINKS.whatsapp}
+            label="Un souci ? Voir le guide de connexion"
+          />
+        </div>
       </div>
     </section>
   );

@@ -15,7 +15,8 @@ import {
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
 } from "@/components/ui/dropdown-menu";
-import { UserIcon, Palette, UserCog, Loader2Icon } from "lucide-react";
+import { UserIcon, Palette, UserCog, Loader2Icon, LifeBuoy, ArrowUpRight } from "lucide-react";
+import { HELP_CENTER_LINK } from "@/lib/help-center/app-links";
 import Link from "next/link";
 import { ModifierProfile } from "./user/modifierProfile";
 import React from "react";
@@ -122,6 +123,15 @@ export function NavUser() {
             >
               <UserCog />
               Modifier le profil
+            </DropdownMenuItem>
+            {/* Tous les guides, quelle que soit la page ouverte. */}
+            <DropdownMenuItem className="cursor-pointer" asChild>
+              <a href={HELP_CENTER_LINK.href} target="_blank" rel="noopener" className="w-full">
+                <LifeBuoy aria-hidden />
+                {HELP_CENTER_LINK.title}
+                <span className="sr-only"> (nouvel onglet)</span>
+                <ArrowUpRight aria-hidden className="ml-auto text-muted-foreground" />
+              </a>
             </DropdownMenuItem>
           </DropdownMenuGroup>
           <DropdownMenuSeparator />

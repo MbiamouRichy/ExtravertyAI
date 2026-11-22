@@ -828,8 +828,15 @@ export const HELP_ARTICLES: HelpArticle[] = [
     title: "Contacter l’équipe",
     groupId: "aide",
     summary: "Une question sans réponse ici ? L’équipe ExtravertyAI vous répond sur WhatsApp.",
-    keywords: ["contact", "support", "humain", "whatsapp", "téléphone", "joindre"],
+    keywords: ["contact", "support", "humain", "whatsapp", "téléphone", "joindre", "bouton aide"],
     sections: [
+      {
+        id: "application",
+        title: "Depuis l’application",
+        blocks: [
+          { type: "p", text: "En haut de chaque page de l’application, touchez [[Aide]] : l’article qui explique la page ouverte s’affiche dans un nouvel onglet, sans perdre ce que vous étiez en train de saisir. Tous les guides restent accessibles depuis le menu de votre compte, rubrique [[Centre d’aide]]." },
+        ],
+      },
       {
         id: "whatsapp",
         title: "Sur WhatsApp",

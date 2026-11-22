@@ -576,6 +576,10 @@ Tout est expliqué sur la page [Données et confidentialité](https://www.extrav
 
 Une question sans réponse ici ? L’équipe ExtravertyAI vous répond sur WhatsApp.
 
+#### Depuis l’application
+
+En haut de chaque page de l’application, touchez **Aide** : l’article qui explique la page ouverte s’affiche dans un nouvel onglet, sans perdre ce que vous étiez en train de saisir. Tous les guides restent accessibles depuis le menu de votre compte, rubrique **Centre d’aide**.
+
 #### Sur WhatsApp
 
 Écrivez-nous au **+241 76 20 56 29** ([wa.me/24176205629](https://wa.me/24176205629)). Précisez le nom de votre projet et décrivez ce que vous voyez à l’écran : nous irons plus vite.
