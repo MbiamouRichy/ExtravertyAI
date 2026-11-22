@@ -34,7 +34,8 @@ export function HelpHeader({
       >
         Aller au contenu
       </a>
-      <div className="mx-auto flex h-16 w-full max-w-[90rem] items-center gap-3 px-4 sm:px-6 lg:px-8">
+      {/* Tient dans 320 px : espacements resserrés, flèche puis nom de marque masqués sur les plus petits écrans. */}
+      <div className="mx-auto flex h-16 w-full max-w-[90rem] items-center gap-2 px-4 sm:gap-3 sm:px-6 lg:px-8">
         <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
           <SheetTrigger asChild>
             <Button type="button" variant="ghost" size="icon" className="-ml-2 lg:hidden">
@@ -60,7 +61,7 @@ export function HelpHeader({
           href="/aide"
           className="flex shrink-0 items-center gap-2 rounded-md outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
         >
-          <LogoIcon LogoClassName="w-6" className="gap-1.5" />
+          <LogoIcon LogoClassName="w-6" className="gap-1.5 max-[379px]:[&>p]:sr-only" />
           <span aria-hidden="true" className="hidden h-5 w-px bg-border sm:block" />
           <span className="hidden text-sm font-medium text-muted-foreground sm:block">Aide</span>
           <span className="sr-only">Accueil du centre d’aide</span>
@@ -85,7 +86,10 @@ export function HelpHeader({
             signedInLabel={
               <>
                 Ouvrir l’app
-                <ArrowRight data-icon="inline-end" className="transition-transform group-hover:translate-x-0.5" />
+                <ArrowRight
+                  data-icon="inline-end"
+                  className="transition-transform group-hover:translate-x-0.5 max-[399px]:hidden"
+                />
               </>
             }
           >

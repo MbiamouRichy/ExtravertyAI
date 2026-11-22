@@ -170,7 +170,7 @@ function Block({ block }: { block: HelpBlock }) {
       );
     case "figure":
       return (
-        <figure className="grid gap-3">
+        <figure className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-3">
           <div className="rounded-2xl border bg-muted/30 p-3 sm:p-5">
             {/* Les maquettes sont masquées aux lecteurs d’écran : cette description les remplace. */}
             <p className="sr-only">Illustration : {block.description}</p>
@@ -268,7 +268,7 @@ export function HelpSectionView({ section }: { section: HelpSection }) {
   const level = section.level ?? 2;
   const headingId = section.id;
   return (
-    <section aria-labelledby={headingId} className={cn("grid gap-5", level === 2 ? "pt-6" : "pt-2")}>
+    <section aria-labelledby={headingId} className={cn("grid min-w-0 grid-cols-[minmax(0,1fr)] gap-5", level === 2 ? "pt-6" : "pt-2")}>
       {section.step ? (
         <div className="grid gap-3 border-t pt-8">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-2">

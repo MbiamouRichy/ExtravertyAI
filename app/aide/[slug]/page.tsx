@@ -100,7 +100,8 @@ export default async function HelpArticlePage({ params }: { params: Promise<{ sl
           </dl>
         </header>
 
-        <div className="grid gap-6">
+        {/* Colonne bornée : un schéma large défile dans son cadre au lieu d’élargir la page. */}
+        <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-6">
           {article.sections.map((section) => (
             <HelpSectionView key={section.id} section={section} />
           ))}
