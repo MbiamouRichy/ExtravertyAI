@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { LifeBuoy } from "lucide-react";
+import { CircleHelp } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -17,12 +17,10 @@ export function HelpButton() {
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <Button asChild variant="outline" size="sm" className="gap-1.5">
+        <Button asChild variant="outline" size="icon-sm">
           <a href={link.href} target="_blank" rel="noopener">
-            <LifeBuoy data-icon="inline-start" aria-hidden="true" />
-            <span className="hidden sm:inline">Aide</span>
-            <span className="sr-only sm:hidden">Aide</span>
-            <span className="sr-only">{` : ${link.title} (nouvel onglet)`}</span>
+            <CircleHelp aria-hidden="true" />
+            <span className="sr-only">{`Aide : ${link.title} (nouvel onglet)`}</span>
           </a>
         </Button>
       </TooltipTrigger>

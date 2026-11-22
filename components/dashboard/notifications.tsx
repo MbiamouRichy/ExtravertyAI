@@ -11,7 +11,6 @@ import {
   MessageSquare,
   TriangleAlert,
   Inbox,
-  ArrowUpRight,
   Trash2,
   X,
 } from "lucide-react";
@@ -474,10 +473,6 @@ export function Notifications() {
                         </span>
                       )}
                     </span>
-                    <ArrowUpRight
-                      aria-hidden
-                      className="mt-1 size-4 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100"
-                    />
                     {!item.read && <span className="sr-only">Non lue</span>}
                   </Link>
                   {/* Hors du lien (pas de bouton dans un lien), mais dans la

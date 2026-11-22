@@ -135,10 +135,9 @@ export function FeedbackDialog() {
       <Tooltip>
         <TooltipTrigger asChild>
           <DialogTrigger asChild>
-            <Button variant="outline" size="sm" className="gap-1.5">
-              <MessageSquareHeart data-icon="inline-start" />
-              <span className="hidden sm:inline">Votre avis</span>
-              <span className="sr-only sm:hidden">Donner votre avis</span>
+            <Button variant="outline" size="icon-sm">
+              <MessageSquareHeart aria-hidden="true" />
+              <span className="sr-only">Donner votre avis</span>
             </Button>
           </DialogTrigger>
         </TooltipTrigger>
