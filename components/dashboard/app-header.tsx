@@ -15,21 +15,22 @@ export async function AppHeader() {
         "bg-background/95 backdrop-blur-sm supports-backdrop-filter:bg-background/50",
       )}
     >
-      <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
+      <div className="flex min-w-0 flex-1 items-center gap-1.5 sm:gap-3">
         <ConditionalSidebarTrigger />
+        {/* Mobile : pas de séparateurs, la place va aux boutons. */}
         <Separator
-          className="mr-2 h-4 data-[orientation=vertical]:self-center transition-all duration-200"
+          className="mr-2 h-4 transition-all duration-200 max-sm:hidden data-[orientation=vertical]:self-center"
           orientation="vertical"
         />
         <AppBreadcrumbs />
       </div>
-      <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+      <div className="flex shrink-0 items-center gap-1.5 sm:gap-3">
         {/* « Nouveau projet » reste sur la page Projets ; ici, l’aide de la page et le retour produit. */}
         <HelpButton />
         <FeedbackDialog />
         <Notifications />
         <Separator
-          className="h-4 data-[orientation=vertical]:self-center"
+          className="h-4 max-sm:hidden data-[orientation=vertical]:self-center"
           orientation="vertical"
         />
         <NavUser />

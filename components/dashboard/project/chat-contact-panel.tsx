@@ -212,7 +212,9 @@ export function ChatContactPanel({
     <div className="flex flex-col divide-y px-5 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
       {/* Identité et informations relevées : un seul bloc, sans séparateur. */}
       <div className="pb-4">
-        <header className="flex min-w-0 items-center gap-3 pt-5 pb-3">
+        {/* pr-8 : sous 2xl la fiche s'ouvre dans un panneau dont la croix de
+            fermeture occupe le coin haut droit ; au-delà, elle est en colonne. */}
+        <header className="flex min-w-0 items-center gap-3 pt-5 pr-8 pb-3 2xl:pr-0">
           <span className="relative shrink-0">
             <Avatar className="size-11">
               {client.avatarUrl && <AvatarImage src={client.avatarUrl} alt="" className="object-cover" />}
@@ -235,8 +237,8 @@ export function ChatContactPanel({
               </p>
             )}
             {details?.maskedPhone && (
-              <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                <span className="font-mono tabular-nums" aria-label="Numéro masqué">
+              <div className="flex min-w-0 items-center gap-1 text-xs text-muted-foreground">
+                <span className="truncate font-mono whitespace-nowrap tabular-nums" aria-label="Numéro masqué">
                   {details.maskedPhone}
                 </span>
                 {canCopyPhone && (

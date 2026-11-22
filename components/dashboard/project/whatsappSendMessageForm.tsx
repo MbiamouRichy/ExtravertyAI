@@ -2718,7 +2718,7 @@ export default function WhatsappWorkspace({
         <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
           <SheetContent
             side="right"
-            className="w-full overflow-y-auto sm:max-w-sm 2xl:hidden"
+            className="overflow-x-hidden overflow-y-auto data-[side=right]:w-full data-[side=right]:sm:max-w-sm 2xl:hidden"
           >
             <SheetHeader className="sr-only">
               <SheetTitle>Fiche de {activeClient.name}</SheetTitle>

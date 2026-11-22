@@ -282,33 +282,38 @@ export function ProspectCaptureSection({ projectId, contactId, contactName, capt
       <h2 id={titleId} className="sr-only">
         Informations relevées par l’IA
       </h2>
-      <div className="mb-2 flex items-center justify-end gap-2">
-        <Button
-          type="button"
-          variant="ghost"
-          size="xs"
-          disabled={!capture}
-          onClick={() => setEditing(true)}
-        >
-          <Pencil data-icon="inline-start" />
-          {fields.length ? "Modifier" : "Ajouter"}
-          <span className="sr-only"> les informations du prospect</span>
-        </Button>
-      </div>
       {!capture ? (
-        <p className="text-xs text-muted-foreground">Chargement…</p>
+        <div
+          role="status"
+          aria-label="Chargement des informations du prospect"
+          className="h-16 rounded-xl bg-muted motion-safe:animate-pulse"
+        />
       ) : fields.length ? (
         <>
           <CaptureFieldList fields={fields} />
-          <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
-            Relevé dans les messages du prospect. Vérifiez avant de l’utiliser.
-          </p>
+          <div className="mt-1.5 flex items-center justify-between gap-2">
+            <p className="min-w-0 text-[11px] leading-relaxed text-muted-foreground">
+              Relevé dans les messages du prospect. Vérifiez avant de l’utiliser.
+            </p>
+            <Button type="button" variant="ghost" size="xs" className="shrink-0" onClick={() => setEditing(true)}>
+              <Pencil data-icon="inline-start" />
+              Modifier
+              <span className="sr-only"> les informations du prospect</span>
+            </Button>
+          </div>
         </>
       ) : (
-        <p className="rounded-xl border border-dashed px-3 py-3 text-xs leading-relaxed text-muted-foreground">
-          Aucune information supplémentaire sur ce prospect pour l’instant. Le nom, l’e-mail, la ville ou l’adresse que
-          donne le prospect apparaîtront ici.
-        </p>
+        <div className="flex flex-col items-start gap-2 rounded-xl border border-dashed p-3">
+          <p className="text-xs leading-relaxed text-muted-foreground">
+            Aucune information supplémentaire sur ce prospect pour l’instant. Le nom,
+            l’e-mail, la ville ou l’adresse qu’il donne apparaîtront ici.
+          </p>
+          <Button type="button" variant="outline" size="xs" onClick={() => setEditing(true)}>
+            <Pencil data-icon="inline-start" />
+            Ajouter
+            <span className="sr-only"> des informations sur le prospect</span>
+          </Button>
+        </div>
       )}
       <CaptureEditDialog
         open={editing}
