@@ -54,25 +54,42 @@ function markReauthenticating(value: boolean) {
  * (voir ReturnToAnchor). Seule voie de reconnexion de l’espace connecté.
  */
 export function useReauthenticate() {
-  const [reconnecting, setReconnecting] = useState(false);
+  const { leaving: reconnecting, leave } = useLeaveSession();
+  const reconnect = (callbackUrl: string, anchor?: string) =>
+    leave(reauthHref(callbackUrl, anchor));
+  return { reconnecting, reconnect };
+}
 
-  async function reconnect(callbackUrl: string, anchor?: string) {
-    setReconnecting(true);
+/** Déconnexion volontaire (bouton « Se déconnecter ») puis page de connexion. */
+export function useSignOut() {
+  const { leaving: signingOut, leave } = useLeaveSession();
+  return { signingOut, signOutAndLeave: () => leave("/sign-in") };
+}
+
+/**
+ * Ferme la session puis quitte l’espace connecté vers `destination`, une fois
+ * le cookie effacé par le serveur. Navigation complète : aucune page connectée
+ * ne reste en cache, et aucune redirection côté client (menu du compte) ne peut
+ * remplacer la destination.
+ */
+function useLeaveSession() {
+  const [leaving, setLeaving] = useState(false);
+
+  async function leave(destination: string) {
+    setLeaving(true);
     markReauthenticating(true);
     try {
       const result = await signOut();
       if (result.error) throw new Error("SIGN_OUT_FAILED");
-      // Navigation complète : aucune page connectée ne reste en cache, et
-      // aucune redirection côté client ne peut remplacer l'adresse de retour.
-      window.location.replace(reauthHref(callbackUrl, anchor));
+      window.location.replace(destination);
     } catch {
       markReauthenticating(false);
       toast.error("Impossible de vous déconnecter. Réessayez.");
-      setReconnecting(false);
+      setLeaving(false);
     }
   }
 
-  return { reconnecting, reconnect };
+  return { leaving, leave };
 }
 
 /** Affiche l’action sensible après une connexion récente, sinon la reconnexion. */

@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -27,6 +26,7 @@ import {
 } from "@/components/ui/input-group";
 import { emailOtp } from "@/lib/auth-client";
 import { checkoutCallback, signInAfterSignUpHref } from "@/lib/auth-redirects";
+import { enterSignedInApp } from "@/lib/auth-navigation";
 import {
 	accountNameSchema,
 	SIGN_UP_INTENT,
@@ -51,7 +51,6 @@ export function AuthPage({ callbackUrl }: { callbackUrl?: string }) {
 	const signInHref = signInAfterSignUpHref(callbackUrl);
 	// Every way in ends on the checkout or the projects, never on sign-in.
 	const destination = checkoutCallback(callbackUrl) ?? "/projects";
-	const router = useRouter();
 	const { playHaptic } = useHaptics();
 	const [loading, setLoading] = useState(false);
 	// Same step for new and existing addresses: an existing one gets a sign-in
@@ -106,8 +105,7 @@ export function AuthPage({ callbackUrl }: { callbackUrl?: string }) {
 					position: "top-center",
 				});
 		}
-		router.replace(destination);
-		router.refresh();
+		await enterSignedInApp(destination);
 	}
 
 	return (

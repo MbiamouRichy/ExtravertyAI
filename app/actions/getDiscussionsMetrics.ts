@@ -1,3 +1,6 @@
+// Lecture sans contrôle d’accès propre : réservée aux pages serveur qui ont déjà
+// vérifié l’appartenance au projet. Jamais importable côté client.
+import "server-only";
 import { getUserTimeZone } from "@/lib/server-time-zone";
 import { computeDeltaPct, recentLocalDays } from "@/lib/analytics";
 import { localDayKey } from "@/lib/user-time-zone";

@@ -5,7 +5,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import * as z from "zod";
-import { useRouter } from "next/navigation";
 
 // --- Tes composants UI ---
 import { Button } from "@/components/ui/button";
@@ -21,6 +20,7 @@ import {
 // --- Logique & Auth ---
 // IMPORT TON CLIENT BETTER AUTH ICI (Exemple générique)
 import { signUp } from "@/lib/auth-client";
+import { enterSignedInApp } from "@/lib/auth-navigation";
 import { EmailOtpStep } from "@/components/auth/email-otp-step";
 import {
   AtSignIcon,
@@ -67,7 +67,6 @@ export function InviteForm({
   projectName,
   inviterName,
 }: InviteFormProps) {
-  const router = useRouter();
   const [isLoading, setIsLoading] = React.useState(false);
   const [showPassword, setShowPassword] = React.useState(false);
   // The account exists but has no session until the invited address is confirmed.
@@ -131,7 +130,7 @@ export function InviteForm({
       });
 
       // 4. Redirection vers le projet
-      router.push(`/projects/${result.projectId}`);
+      await enterSignedInApp(`/projects/${encodeURIComponent(result.projectId)}`);
     } catch (error: unknown) {
       const message =
         error instanceof Error ? error.message : "Une erreur est survenue.";

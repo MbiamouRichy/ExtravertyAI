@@ -575,6 +575,19 @@ model Verification {
   @@map("verification")
 }
 
+// Compteurs des limites de débit de l'authentification (Better Auth), par IP
+// et par route, partagés par toutes les instances Vercel. Voir lib/auth-rate-limit.ts.
+model RateLimit {
+  id          String @id
+  key         String @unique
+  count       Int
+  // Millisecondes depuis l'époque Unix, comme Better Auth les écrit.
+  lastRequest BigInt
+
+  @@index([lastRequest])
+  @@map("rate_limit")
+}
+
 model Invitation {
   id        String   @id @default(cuid())
   email     String

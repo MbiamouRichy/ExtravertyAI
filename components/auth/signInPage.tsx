@@ -2,7 +2,6 @@
 import { Button } from "@/components/ui/button";
 import { AuthDivider } from "@/components/dashboard/auth-divider";
 import { ArrowLeft } from "lucide-react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useState } from "react";
 import { SignInSocialButton } from "./signInSocialButton";
@@ -11,9 +10,9 @@ import { CodeSignInForm, PasswordSignInForm } from "./sign-in-forms";
 import { LogoIcon } from "../logo";
 import { AuthShowcase } from "./auth-showcase";
 import { signUpHref } from "@/lib/auth-redirects";
+import { enterSignedInApp } from "@/lib/auth-navigation";
 
 export function AuthPage({ callbackUrl }: { callbackUrl: string }) {
-	const router = useRouter();
 	// Passwordless by default, like most modern products; the password stays one click away.
 	const [method, setMethod] = useState<"code" | "password">("code");
 	// Typed address, carried from one method to the other.
@@ -53,7 +52,7 @@ export function AuthPage({ callbackUrl }: { callbackUrl: string }) {
 						<EmailOtpStep
 							email={pending.email}
 							purpose={pending.purpose}
-							onVerified={() => router.push(callbackUrl)}
+							onVerified={() => enterSignedInApp(callbackUrl)}
 							onChangeEmail={() => {
 								setEmail(pending.email);
 								setSwitched(true);

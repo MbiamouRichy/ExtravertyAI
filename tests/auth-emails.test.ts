@@ -4,6 +4,7 @@ import { runInNewContext } from "node:vm";
 import { test } from "node:test";
 import ts from "typescript";
 import * as signUp from "../lib/sign-up";
+import * as authRateLimit from "../lib/auth-rate-limit";
 
 type Send = (input: Record<string, unknown>, ctx?: unknown) => Promise<void>;
 type OtpOptions = {
@@ -35,6 +36,7 @@ function loadAuth(
     (!where.expiresAt?.lte || row.expiresAt <= where.expiresAt.lte);
   let config: {
     disabledPaths: string[];
+    rateLimit?: { storage?: string };
     hooks: { before: (ctx: Record<string, unknown>) => Promise<void> };
     plugins: { options: OtpOptions }[];
     emailAndPassword: {
@@ -113,6 +115,7 @@ function loadAuth(
         return { requiresRecentSession: () => false, isRecentSession: () => true };
       if (id === "./prisma") return { __esModule: true, default: prisma };
       if (id === "./sign-up") return signUp;
+      if (id === "./auth-rate-limit") return authRateLimit;
       if (id === "better-auth/adapters/prisma")
         return { prismaAdapter: () => ({}) };
       if (id === "./resend")
@@ -216,6 +219,8 @@ test("codes are hashed, verification is required and only verification and sign-
   const auth = loadAuth({ data: { id: "email_1" }, error: null });
   const config = auth.config();
   assert.equal(config.emailAndPassword.requireEmailVerification, true);
+  // Limites par IP communes à toutes les instances (voir auth-rate-limit.test.ts).
+  assert.equal(config.rateLimit?.storage, "database");
   assert.equal(auth.otp().storeOTP, "hashed");
   // Codes may create accounts: only from the sign-up form (tested below).
   assert.equal(auth.otp().disableSignUp, false);

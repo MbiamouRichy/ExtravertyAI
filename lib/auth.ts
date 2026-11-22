@@ -14,6 +14,7 @@ import {
   SIGN_UP_INTENT_HEADER,
 } from "./sign-up";
 import { countryFromHeader } from "./site-analytics";
+import { AUTH_RATE_LIMIT } from "./auth-rate-limit";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import prisma from "./prisma";
 import { resend } from "./resend";
@@ -196,6 +197,7 @@ export const auth = betterAuth({
   advanced: {
     backgroundTasks: { handler: runAfterResponse },
   },
+  rateLimit: AUTH_RATE_LIMIT,
   disabledPaths: UNUSED_OTP_PATHS,
   database: prismaAdapter(prisma, {
     provider: "postgresql",

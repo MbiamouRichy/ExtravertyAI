@@ -2,7 +2,6 @@
 
 import { useState, type ChangeEvent } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   Controller,
@@ -36,6 +35,7 @@ import {
   InputGroupInput,
 } from "@/components/ui/input-group";
 import { emailOtp, signIn } from "@/lib/auth-client";
+import { enterSignedInApp } from "@/lib/auth-navigation";
 import { useHaptics } from "@/lib/webHaptics";
 
 const email = z.string().trim().email("Entrer une adresse email valide.");
@@ -210,7 +210,6 @@ export function PasswordSignInForm({
   onUnverified: (email: string) => void;
   onUseCode: (email: string) => void;
 }) {
-  const router = useRouter();
   const { playHaptic } = useHaptics();
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -223,6 +222,8 @@ export function PasswordSignInForm({
 
   async function onSubmit(data: PasswordValues) {
     setLoading(true);
+    // Session ouverte : la page part, le bouton reste en attente jusque-là.
+    let leaving = false;
     try {
       await signIn.email(
         { email: data.email, password: data.password, rememberMe: remember },
@@ -230,8 +231,8 @@ export function PasswordSignInForm({
           onSuccess: () => {
             playHaptic("success");
             toast.success("Connexion réussie.", { position: "top-center" });
-            router.push(callbackUrl);
-            form.reset();
+            leaving = true;
+            void enterSignedInApp(callbackUrl);
           },
           onError: (context) => {
             // Only reachable with the right password: safe to say so.
@@ -256,7 +257,7 @@ export function PasswordSignInForm({
       playHaptic("error");
       networkError();
     } finally {
-      setLoading(false);
+      if (!leaving) setLoading(false);
     }
   }
 
