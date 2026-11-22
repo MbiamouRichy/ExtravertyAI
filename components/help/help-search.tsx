@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import { CornerDownLeft, FileText, Hash, Search } from "lucide-react";
 
@@ -11,13 +11,15 @@ import { Kbd } from "@/components/ui/kbd";
 import { searchHelpIndex, type HelpSearchEntry } from "@/lib/help-center/search";
 import { cn } from "@/lib/utils";
 
-/** Raccourci affiché selon la plateforme, connue seulement après le montage. */
+const subscribeNever = () => () => {};
+
+/** Raccourci affiché selon la plateforme : « Ctrl K » au rendu serveur, puis celui de l’appareil. */
 function useShortcutLabel() {
-  const [label, setLabel] = useState("Ctrl K");
-  useEffect(() => {
-    if (/Mac|iPhone|iPad/.test(navigator.platform)) setLabel("⌘ K");
-  }, []);
-  return label;
+  return useSyncExternalStore(
+    subscribeNever,
+    () => (/Mac|iPhone|iPad/.test(navigator.platform) ? "⌘ K" : "Ctrl K"),
+    () => "Ctrl K",
+  );
 }
 
 function isTypingTarget(target: EventTarget | null) {
