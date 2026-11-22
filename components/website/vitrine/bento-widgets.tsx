@@ -9,7 +9,21 @@ import {
   type PointerEvent,
 } from "react";
 import { AnimatePresence, m, useInView } from "motion/react";
-import { Clock3, Loader2, Pause, Play, RotateCcw, Sparkles, UserRoundCheck } from "lucide-react";
+import {
+  Clock3,
+  House,
+  Loader2,
+  Mail,
+  MapPin,
+  Pause,
+  Play,
+  RotateCcw,
+  ScanText,
+  Sparkles,
+  UserRound,
+  UserRoundCheck,
+  type LucideIcon,
+} from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -356,5 +370,76 @@ function LeadTag({ tag, show, delay }: { tag: "interesting" | "follow-up"; show:
       )}
       {interesting ? "Intéressant" : "À suivre"}
     </m.span>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Capture IA: details given in the chat land on the contact card              */
+/* -------------------------------------------------------------------------- */
+
+type CapturePart = { text: string; field?: { label: string; icon: LucideIcon } };
+
+// Démonstration : les morceaux soulignés sont ceux que Capture IA relève.
+const CAPTURE_MESSAGE: readonly CapturePart[] = [
+  { text: "Bonsoir, c’est " },
+  { text: "Aïcha", field: { label: "Nom", icon: UserRound } },
+  { text: ". Livrez-moi à " },
+  { text: "Owendo", field: { label: "Ville", icon: MapPin } },
+  { text: ", " },
+  { text: "quartier Akournam", field: { label: "Adresse", icon: House } },
+  { text: ". Mon mail : " },
+  { text: "aicha.n@exemple.com", field: { label: "E-mail", icon: Mail } },
+];
+
+export function CaptureWidget() {
+  const ref = useRef<HTMLDivElement>(null);
+  const inView = useInView(ref, { once: true, amount: 0.6 });
+  const captured = CAPTURE_MESSAGE.filter((part) => part.field);
+
+  return (
+    <div ref={ref} className="mt-8 flex flex-1 flex-col gap-3">
+      <p className="max-w-[92%] rounded-lg rounded-tl-sm border bg-card px-3 py-2 text-xs leading-relaxed">
+        {CAPTURE_MESSAGE.map((part, index) =>
+          part.field ? (
+            <m.mark
+              key={index}
+              initial={false}
+              animate={inView ? { backgroundSize: "100% 100%" } : { backgroundSize: "0% 100%" }}
+              transition={{ duration: 0.5, ease: EASE_OUT, delay: 0.2 + index * 0.08 }}
+              // bg-transparent : le surlignage jaune par défaut de <mark> est remplacé par celui du thème.
+              className="rounded-sm bg-transparent bg-linear-to-r from-primary/15 to-primary/15 bg-no-repeat px-0.5 text-foreground"
+            >
+              {part.text}
+            </m.mark>
+          ) : (
+            <span key={index}>{part.text}</span>
+          ),
+        )}
+      </p>
+      <div className="rounded-lg border bg-card">
+        <p className="flex items-center gap-1.5 border-b px-3 py-2 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+          <ScanText aria-hidden="true" className="size-3" />
+          Fiche contact
+        </p>
+        <dl className="divide-y">
+          {captured.map((part, index) => {
+            const Icon = part.field!.icon;
+            return (
+              <m.div
+                key={part.field!.label}
+                initial={false}
+                animate={inView ? { opacity: 1, x: 0 } : { opacity: 0, x: 8 }}
+                transition={{ ...SPRING, delay: 0.7 + index * 0.15 }}
+                className="flex min-h-8 items-center gap-2 px-3 text-xs"
+              >
+                <Icon aria-hidden="true" className="size-3.5 shrink-0 text-muted-foreground" />
+                <dt className="shrink-0 text-muted-foreground">{part.field!.label}</dt>
+                <dd className="min-w-0 flex-1 truncate text-right font-medium">{part.text}</dd>
+              </m.div>
+            );
+          })}
+        </dl>
+      </div>
+    </div>
   );
 }

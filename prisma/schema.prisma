@@ -334,6 +334,7 @@ model Contact {
   projectId   String
   project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
   summaryCache ConversationSummaryCache?
+  prospectCapture ProspectCapture?
   readStates  ConversationReadState[]
   messages    Message[]
   aiJobs      AiJob[]
@@ -799,6 +800,22 @@ model ConversationSummaryCache {
   leaseToken String?
   leaseUntil DateTime? @db.Timestamptz(3)
   @@map("conversation_summary")
+}
+
+// Capture IA : informations que le prospect donne de lui-même dans la
+// conversation (nom, e-mail, ville…), relevées par le worker IA puis
+// revérifiées mot pour mot dans ses messages. L'équipe peut les corriger.
+model ProspectCapture {
+  contactId  String    @id
+  contact    Contact   @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  // { email: { value, origin: "ai" | "team", at } … } : lu par lib/prospect-capture-shared.ts.
+  fields     Json      @default("{}")
+  // Dernier message du client déjà lu : seuls les suivants sont analysés.
+  sourceId   String?
+  leaseToken String?
+  leaseUntil DateTime? @db.Timestamptz(3)
+  updatedAt  DateTime  @default(now()) @updatedAt @db.Timestamptz(3)
+  @@map("prospect_capture")
 }
 
 model UserPresence {

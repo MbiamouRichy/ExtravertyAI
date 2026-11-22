@@ -11,6 +11,7 @@ export const AI_FEATURE_LABEL: Record<AiFeature, string> = {
   audio: "Notes vocales",
   instinct: "Instinct IA",
   follow_up: "Relances automatiques",
+  capture: "Capture IA",
 };
 
 /** Seuil mensuel par projet au-delà duquel le back-office le signale, en dollars. */

@@ -11,6 +11,7 @@ export const AI_FEATURES = [
   "audio",
   "instinct",
   "follow_up",
+  "capture",
 ] as const;
 export type AiFeature = (typeof AI_FEATURES)[number];
 

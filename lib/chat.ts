@@ -1,6 +1,7 @@
 import type { ProspectClassification } from "./instinct-classification";
 import type { ChatContactDetails } from "./contact-details";
 import type { PipelineStageId } from "./pipeline-shared";
+import type { ProspectCaptureView } from "./prospect-capture-shared";
 
 export type ChatMessageStatus =
   "pending" | "sent" | "delivered" | "read" | "failed" | "unknown";
@@ -72,6 +73,8 @@ export type ChatGeneration = {
 export type ChatMessagesPage = ChatPage<ChatMessage> & {
   agents?: ChatAgent[];
   contact?: ChatContactDetails;
+  /** Capture IA : première page uniquement, absente hors de l’offre. */
+  capture?: ProspectCaptureView;
   /** Première page uniquement. */
   notes?: ChatNotes;
   hasClientMessage: boolean;

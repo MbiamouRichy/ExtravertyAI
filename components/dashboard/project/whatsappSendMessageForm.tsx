@@ -137,6 +137,7 @@ import { AiResponseText, AiThinking, useLiveAiResponses } from "./ai-response";
 import { ChatComposer } from "./chat-composer";
 import { ExpandableText } from "./expandable-text";
 import { ChatContactPanel } from "./chat-contact-panel";
+import { ProspectCaptureFloating } from "./prospect-capture";
 import { InternalNotesStrip } from "./chat-internal-notes";
 import { downloadConversation } from "./export-conversation";
 import { ConversationSummaryView } from "./conversation-summary";
@@ -173,6 +174,8 @@ type WorkspaceProps = {
   instinctEnabled?: boolean;
   /** Résumé IA inclus dans l’offre (vérifié à nouveau côté serveur). */
   summaryEnabled?: boolean;
+  /** Capture IA incluse dans l’offre (vérifiée à nouveau côté serveur). */
+  captureEnabled?: boolean;
 };
 
 type Filter = ChatFilter;
@@ -768,6 +771,7 @@ export default function WhatsappWorkspace({
   pipeline,
   instinctEnabled = false,
   summaryEnabled = false,
+  captureEnabled = false,
   initialClient,
 }: WorkspaceProps) {
   const { dateFormatter, previewDateFormatter, timeZone } = useChatDates();
@@ -2349,6 +2353,23 @@ export default function WhatsappWorkspace({
                     onClose={() => setSummaryFor(null)}
                   />
                 )}
+                {/* Capture IA posée sur la conversation tant que la fiche est fermée :
+                    masquée sur grand écran quand la colonne de la fiche est ouverte. */}
+                {captureEnabled &&
+                  !summaryOpen &&
+                  !sheetOpen &&
+                  !!historyQuery.capture?.fields.length && (
+                    <ProspectCaptureFloating
+                      key={`capture-card-${activeClient.id}`}
+                      projectId={project.id}
+                      contactId={activeClient.id}
+                      contactName={activeClient.name}
+                      capture={historyQuery.capture}
+                      onChanged={() => void historyQuery.mutate()}
+                      onOpenContact={openContact}
+                      className={cn(panelOpen && "xl:hidden")}
+                    />
+                  )}
                 <MessageScrollerProvider
                   key={activeClient.id}
                   autoScroll
@@ -2580,6 +2601,9 @@ export default function WhatsappWorkspace({
               pipeline={pipeline}
               instinctEnabled={instinctEnabled}
               summaryEnabled={summaryEnabled}
+              captureEnabled={captureEnabled}
+              capture={historyQuery.capture}
+              onCaptureChanged={() => void historyQuery.mutate()}
               onContactChanged={() => void contactsQuery.mutate()}
               projectTags={contactsQuery.projectTags}
             />
@@ -2614,6 +2638,9 @@ export default function WhatsappWorkspace({
               pipeline={pipeline}
               instinctEnabled={instinctEnabled}
               summaryEnabled={summaryEnabled}
+              captureEnabled={captureEnabled}
+              capture={historyQuery.capture}
+              onCaptureChanged={() => void historyQuery.mutate()}
               onContactChanged={() => void contactsQuery.mutate()}
               projectTags={contactsQuery.projectTags}
             />

@@ -192,6 +192,7 @@ export default async function ChatPage({ params, searchParams }: PageProps) {
         }}
         instinctEnabled={instinctEnabled(project)}
         summaryEnabled={planAllows(project.plan, "summary")}
+        captureEnabled={planAllows(project.plan, "capture")}
       />
     </>
   );

@@ -605,6 +605,7 @@ export const MATRIX_GROUPS: readonly MatrixGroup[] = [
     rows: [
       { label: "Instinct IA : prospects repérés", values: gated("instinct") },
       { label: "Résumé IA des conversations", values: gated("summary") },
+      { label: "Capture IA : coordonnées des prospects", values: gated("capture") },
       { label: "Questionnaire de satisfaction", values: gated("csat") },
       { label: "Pipeline de prospects", values: gated("pipeline") },
       { label: "Relances automatiques des prospects", values: gated("followUps") },
@@ -690,6 +691,8 @@ export const MATRIX_HINTS: Readonly<Record<string, string>> = {
   "Diffusion de messages":
     "Un même message, personnalisé avec le prénom, envoyé aux clients qui vous ont déjà écrit, à un rythme sûr pour votre numéro.",
   "Résumé IA des conversations": "L’essentiel d’une longue conversation en quelques lignes.",
+  "Capture IA : coordonnées des prospects":
+    "Le nom, l’e-mail, la ville ou l’adresse que le prospect donne dans le chat s’affichent sur sa fiche, vérifiés mot pour mot dans ses messages et modifiables par l’équipe.",
   "Questionnaire de satisfaction": "Une note demandée au client après la résolution de sa demande.",
   "Export CSV des contacts": "Téléchargez la liste de vos contacts pour votre tableur ou votre CRM.",
   "Rapports hebdomadaires programmés": "Un bilan de l’activité envoyé automatiquement chaque semaine.",

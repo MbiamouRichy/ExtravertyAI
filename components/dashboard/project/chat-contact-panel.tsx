@@ -27,6 +27,8 @@ import { downloadConversation } from "./export-conversation";
 import { ContactTagsEditor } from "./chat-workflow";
 import { AssigneePicker } from "./assignee-picker";
 import { ContactPipelineSection } from "./pipeline-controls";
+import { ProspectCaptureSection } from "./prospect-capture";
+import type { ProspectCaptureView } from "@/lib/prospect-capture-shared";
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -120,6 +122,9 @@ export function ChatContactPanel({
   pipeline,
   instinctEnabled = false,
   summaryEnabled = false,
+  captureEnabled = false,
+  capture,
+  onCaptureChanged,
   onContactChanged,
   projectTags = [],
 }: {
@@ -142,6 +147,12 @@ export function ChatContactPanel({
   instinctEnabled?: boolean;
   /** Résumé IA inclus dans l’offre ; sinon la section n’existe pas. */
   summaryEnabled?: boolean;
+  /** Capture IA incluse dans l’offre ; sinon la section n’existe pas. */
+  captureEnabled?: boolean;
+  /** Informations relevées par Capture IA ; absentes tant que la conversation charge. */
+  capture?: ProspectCaptureView;
+  /** Recharge la conversation après une correction de Capture IA. */
+  onCaptureChanged?: () => void;
   /** Rafraîchit la liste après une modification (étiquettes, assignation). */
   onContactChanged: () => void;
   /** Étiquettes du projet, proposées à l’ajout. */
@@ -351,6 +362,17 @@ export function ChatContactPanel({
           currency={pipeline.currency}
           canChangeCurrency={pipeline.canChangeCurrency}
           onChanged={onContactChanged}
+        />
+      )}
+
+      {captureEnabled && (
+        <ProspectCaptureSection
+          key={`capture-${client.id}`}
+          projectId={projectId}
+          contactId={client.id}
+          contactName={client.name}
+          capture={capture}
+          onChanged={onCaptureChanged ?? onContactChanged}
         />
       )}
 

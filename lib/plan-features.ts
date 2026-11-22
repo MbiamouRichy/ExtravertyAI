@@ -27,6 +27,8 @@ export type PlanFeatures = {
   instinct: boolean;
   /** Résumé IA d’une conversation, généré à la demande. */
   summary: boolean;
+  /** Capture IA : informations données par le prospect (e-mail, ville…) relevées dans la conversation. */
+  capture: boolean;
   pipeline: boolean;
   csat: boolean;
   /** Page Intégrations et Google Sheets. */
@@ -69,6 +71,7 @@ export const PLAN_FEATURES: Record<PlanId, PlanFeatures> = {
     images: false,
     instinct: false,
     summary: false,
+    capture: false,
     pipeline: false,
     csat: false,
     integrations: true,
@@ -95,6 +98,7 @@ export const PLAN_FEATURES: Record<PlanId, PlanFeatures> = {
     images: false,
     instinct: true,
     summary: true,
+    capture: true,
     // Pipeline de ventes : Business seulement. Instinct IA continue de classer
     // les prospects ; ils sont déjà dans le pipeline au passage à Business.
     pipeline: false,
@@ -123,6 +127,7 @@ export const PLAN_FEATURES: Record<PlanId, PlanFeatures> = {
     images: true,
     instinct: true,
     summary: true,
+    capture: true,
     pipeline: true,
     csat: true,
     integrations: true,
@@ -143,6 +148,7 @@ export type GatedFeature =
   | "images"
   | "instinct"
   | "summary"
+  | "capture"
   | "pipeline"
   | "csat"
   | "integrations"
@@ -157,6 +163,7 @@ const FEATURE_LABEL: Record<GatedFeature, string> = {
   images: "La compréhension des images",
   instinct: "Instinct IA",
   summary: "Le résumé IA des conversations",
+  capture: "Capture IA",
   pipeline: "Le pipeline de prospects",
   csat: "Le questionnaire de satisfaction",
   integrations: "Les intégrations",

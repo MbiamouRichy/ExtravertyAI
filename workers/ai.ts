@@ -5,6 +5,7 @@ import { flushWorkerMonitoring, initWorkerMonitoring, reportWorkerError } from "
 import { claimAiJob, runAiJob } from "../lib/ai-jobs";
 import { reconcileProviderReceipts } from "../lib/provider-reconciliation";
 import { runInstinctCycle } from "../lib/ai-instinct";
+import { runProspectCaptureCycle } from "../lib/prospect-capture";
 import { runFollowUpTick } from "../lib/follow-ups";
 import { claimKnowledgeSource, runKnowledgeSource } from "../lib/knowledge";
 import { knowledgeExtractors } from "../lib/knowledge-extract";
@@ -55,6 +56,18 @@ async function instinctLoop() {
     await sleep(2000);
   }
 }
+// Capture IA : informations données par le prospect, relues après une rafale.
+async function captureLoop() {
+  while (!stopping) {
+    try {
+      const projectId = await runProspectCaptureCycle(prisma, undefined, { quietSeconds: 30 });
+      if (projectId) await notifyProject(projectId);
+    } catch (error) {
+      reportWorkerError("[prospect-capture] Cycle interrompu.", error);
+    }
+    await sleep(2000);
+  }
+}
 async function extractionLoop() {
   while (!stopping) {
     try {
@@ -101,7 +114,14 @@ async function followUpLoop() {
       await sleep(1000);
   }
 }
-Promise.all([main(), instinctLoop(), extractionLoop(), knowledgeLoop(), followUpLoop()])
+Promise.all([
+  main(),
+  instinctLoop(),
+  captureLoop(),
+  extractionLoop(),
+  knowledgeLoop(),
+  followUpLoop(),
+])
   .catch((error) => {
     stopping = true;
     reportWorkerError("[ai-worker] Arrêt sur erreur.", error);

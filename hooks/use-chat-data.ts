@@ -180,6 +180,7 @@ export function useChatMessages(projectId: string, contactId: string | null) {
     agents: swr.data?.[0]?.agents,
     notes: swr.data?.[0]?.notes,
     contact: swr.data?.[0]?.contact,
+    capture: swr.data?.[0]?.capture,
     hasClientMessage: !swr.error && !!swr.data?.[0]?.hasClientMessage,
     hasMore: !!swr.data?.at(-1)?.nextCursor,
     loadMore: () => swr.setSize((size) => size + 1),

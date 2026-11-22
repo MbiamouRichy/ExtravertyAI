@@ -19,6 +19,8 @@ import {
 } from "@/lib/conversation-reads";
 import { getSession } from "@/lib/auth-server";
 import { projectTags } from "@/lib/conversation-workflow";
+import { planAllows } from "@/lib/plan-features";
+import { captureView } from "@/lib/prospect-capture-shared";
 import {
   normalizeChatStatus,
   type ChatClient,
@@ -390,8 +392,11 @@ export async function GET(
           take: 1,
           select: { id: true, source: true },
         },
+        // Capture IA : renvoyée seulement si l’offre du projet l’inclut.
+        prospectCapture: { select: { fields: true } },
         project: {
           select: {
+            plan: true,
             status: true,
             automationPaused: true,
             deletionPending: true,
@@ -570,6 +575,10 @@ export async function GET(
             maskedPhone: maskContactPhone(contact.phone),
           }
         : undefined,
+      capture:
+        !cursor && planAllows(contact.project.plan, "capture")
+          ? captureView(contact.prospectCapture?.fields)
+          : undefined,
       generation: generationJob
         ? {
             id: generationJob.id,

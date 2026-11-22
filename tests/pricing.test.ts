@@ -76,6 +76,7 @@ test("every pricing list follows the plan gates enforced on the server", () => {
         "Répartition automatique des conversations",
       ],
       ["reports", /rapports/i, /Rapports hebdomadaires/, "Rapports hebdomadaires programmés"],
+      ["capture", /Capture IA/, /Capture IA/, "Capture IA : coordonnées des prospects"],
     ] as const) {
       const allowed = planAllows(plan.id, feature);
       assert.equal(
