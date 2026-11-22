@@ -13,7 +13,6 @@ import {
   Heart,
   Lightbulb,
   Loader2,
-  MessageSquareHeart,
   Send,
 } from "lucide-react";
 
@@ -141,7 +140,7 @@ export function FeedbackDialog() {
         <TooltipTrigger asChild>
           <DialogTrigger asChild>
             <Button variant="outline" size="icon-sm">
-              <MessageSquareHeart aria-hidden="true" />
+              <Bug aria-hidden="true" />
               <span className="sr-only">Donner votre avis</span>
             </Button>
           </DialogTrigger>
