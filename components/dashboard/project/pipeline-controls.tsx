@@ -239,7 +239,7 @@ export function DealValueForm({
                           size="sm"
                           aria-label="Devise du projet"
                           aria-describedby={currencySwitch ? `${id}-currency-help` : undefined}
-                          className="h-6 gap-0.5 border-0 bg-transparent px-1.5 py-0 font-mono text-[11px] shadow-none dark:bg-transparent dark:hover:bg-accent [&_svg]:size-3"
+                          className="h-6 cursor-pointer gap-0.5 border-0 bg-transparent px-1.5 py-0 font-mono text-[11px] shadow-none dark:bg-transparent dark:hover:bg-accent [&_svg]:size-3"
                         >
                           <SelectValue />
                         </SelectTrigger>
