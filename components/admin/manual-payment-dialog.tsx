@@ -207,8 +207,11 @@ export function ManualPaymentDialog({
           <span className="sr-only"> pour {project.name}</span>
         </Button>
       </DialogTrigger>
-      {/* overflow-x-hidden : le libellé caché de la croix dépasse de quelques pixels sur petit écran. */}
-      <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-x-hidden overflow-y-auto sm:max-w-lg">
+      {/* Colonne minmax(0,1fr) : la grille de la fenêtre ne s'élargit plus à la
+          largeur d'un contenu insécable (e-mail, libellés) et tout passe à la
+          ligne. overflow-x-hidden ne masque que les libellés invisibles (croix,
+          boutons radio), qui dépassent de quelques pixels sur petit écran. */}
+      <DialogContent className="max-h-[calc(100dvh-2rem)] grid-cols-[minmax(0,1fr)] overflow-x-hidden overflow-y-auto sm:max-w-lg">
         <DialogHeader>
           {/* pr-8 : le titre ne passe pas sous la croix de fermeture. */}
           <DialogTitle className="pr-8">Paiement hors carte</DialogTitle>
@@ -245,8 +248,9 @@ export function ManualPaymentDialog({
                         <FieldLabel
                           key={value}
                           htmlFor={`${id}-method-${value}`}
+                          // w-full et retour à la ligne : « Virement bancaire » tient dans sa case dès 220 px.
                           className={cn(
-                            "relative min-h-10 cursor-pointer justify-center rounded-md border px-2 text-center text-sm font-medium transition-colors hover:bg-muted",
+                            "relative min-h-10 w-full cursor-pointer items-center justify-center rounded-md border px-2 py-1.5 text-center text-sm leading-tight font-medium whitespace-normal transition-colors hover:bg-muted",
                             "has-focus-visible:border-ring has-focus-visible:ring-[3px] has-focus-visible:ring-ring/50",
                             "has-data-[state=checked]:border-primary has-data-[state=checked]:bg-primary/5",
                           )}
@@ -325,7 +329,7 @@ export function ManualPaymentDialog({
                 control={form.control}
                 render={({ field, fieldState }) => (
                   <FieldSet data-invalid={fieldState.invalid} className="gap-2">
-                    <FieldLegend variant="label">Durée payée</FieldLegend>
+                    <FieldLegend variant="label">Durée payée (mois)</FieldLegend>
                     <RadioGroup
                       name={field.name}
                       value={field.value}
@@ -339,12 +343,14 @@ export function ManualPaymentDialog({
                           key={value}
                           htmlFor={`${id}-months-${value}`}
                           className={cn(
-                            "relative h-9 cursor-pointer justify-center rounded-md border border-transparent text-sm font-medium text-foreground/60 tabular-nums transition-colors hover:text-foreground",
+                            "relative h-9 w-full cursor-pointer items-center justify-center rounded-md border border-transparent text-sm font-medium text-foreground/60 tabular-nums transition-colors hover:text-foreground",
                             "has-focus-visible:border-ring has-focus-visible:ring-[3px] has-focus-visible:ring-ring/50",
                             "has-data-[state=checked]:bg-background has-data-[state=checked]:text-foreground has-data-[state=checked]:shadow-sm dark:has-data-[state=checked]:border-input dark:has-data-[state=checked]:bg-input/30",
                           )}
                         >
-                          {value} mois
+                          {/* Le chiffre seul : cinq cases tiennent sur une ligne dès 220 px. */}
+                          {value}
+                          <span className="sr-only"> mois</span>
                           <RadioGroupItem
                             id={`${id}-months-${value}`}
                             value={String(value)}
