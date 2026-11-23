@@ -11,6 +11,7 @@ import {
 } from "./lib/error-tracking/options";
 import { parseDsn } from "./lib/error-tracking/tunnel";
 import { browserRefusesTracking } from "./lib/tracking-consent";
+import { reloadOnceAfterChunkError } from "./lib/chunk-reload";
 
 const dsn = parseDsn(process.env.NEXT_PUBLIC_ERROR_TRACKING_DSN);
 const posthogToken = process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN;
@@ -39,6 +40,16 @@ if (browserRefusesTracking()) {
       : "NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN variable required by PostHog is missing or un-configured, this causes events to be silently missed. This error stops appearing once NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN is configured",
   );
 }
+
+// Fichier JavaScript disparu après un déploiement (ChunkLoadError) : la page
+// est rechargée une fois pour récupérer la nouvelle version. Les erreurs
+// rattrapées par une page error.tsx passent par useReportError.
+window.addEventListener("unhandledrejection", (event) => {
+  reloadOnceAfterChunkError(event.reason);
+});
+window.addEventListener("error", (event) => {
+  reloadOnceAfterChunkError(event.error);
+});
 
 if (dsn) {
   try {
