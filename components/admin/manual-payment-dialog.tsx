@@ -429,7 +429,13 @@ export function ManualPaymentDialog({
             Annuler
           </Button>
           {!blocked && (
-            <Button type="submit" form={`${id}-form`} disabled={form.formState.isSubmitting}>
+            <Button
+              type="submit"
+              form={`${id}-form`}
+              disabled={form.formState.isSubmitting}
+              // La date complète dépasse la largeur d’un écran étroit : le libellé passe à la ligne.
+              className="h-auto min-h-10 py-2 text-center leading-snug whitespace-normal sm:min-h-9"
+            >
               {form.formState.isSubmitting && (
                 <Loader2 data-icon="inline-start" className="animate-spin motion-reduce:animate-none" />
               )}
