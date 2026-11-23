@@ -28,13 +28,14 @@ export function AppBreadcrumbs() {
 	}
 
 	return (
-		<Breadcrumb className="min-w-0">
+		// Très petit écran (moins de 360 px) : masqué. L’icône seule n’y disait
+		// rien, et la place revient aux boutons de l’en-tête.
+		<Breadcrumb className="min-w-0 max-[359px]:hidden">
 			<BreadcrumbList className="flex-nowrap">
 				<BreadcrumbItem className="min-w-0">
 					<BreadcrumbPage className="flex min-w-0 items-center gap-2 [&>svg]:size-3.5 [&>svg]:shrink-0">
 						{page.icon}
-						{/* Très petit écran : l’icône seule, le titre reste lu par les lecteurs d’écran. */}
-						<span className="truncate max-[359px]:sr-only">{page.title}</span>
+						<span className="truncate">{page.title}</span>
 					</BreadcrumbPage>
 				</BreadcrumbItem>
 			</BreadcrumbList>

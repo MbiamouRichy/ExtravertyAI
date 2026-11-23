@@ -49,8 +49,6 @@ import {
   type PlanId,
 } from "@/lib/pricing";
 import { cn } from "@/lib/utils";
-import { GuideLink } from "@/components/help/guide-link";
-import { GUIDE_STEP_LINKS } from "@/lib/help-center/app-links";
 
 export default function CreateProjectForm({
   initialPlan = "starter",
@@ -117,8 +115,8 @@ export default function CreateProjectForm({
 
   return (
     <div className="mx-auto w-full max-w-xl px-4 pt-6 pb-16 sm:px-6 sm:pt-10">
-      {/* Retour à gauche ; à droite, la section du guide qui explique l’écran affiché. */}
-      <div className="flex items-center justify-between gap-3">
+      {/* Retour : à la liste des projets, ou au formulaire depuis la vérification. */}
+      <div className="flex items-center">
         {step === "verify" ? (
           // Le projet n’est pas encore enregistré : on revient au formulaire, pas à la liste.
           <Button
@@ -139,10 +137,6 @@ export default function CreateProjectForm({
             Mes projets
           </Link>
         )}
-        <GuideLink
-          className="-mr-1"
-          link={step === "verify" ? GUIDE_STEP_LINKS.verification : GUIDE_STEP_LINKS.project}
-        />
       </div>
 
       <header hidden={step !== "details"} className="mt-4 mb-8">
