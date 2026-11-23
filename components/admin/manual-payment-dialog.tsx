@@ -207,9 +207,11 @@ export function ManualPaymentDialog({
           <span className="sr-only"> pour {project.name}</span>
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-lg">
+      {/* overflow-x-hidden : le libellé caché de la croix dépasse de quelques pixels sur petit écran. */}
+      <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-x-hidden overflow-y-auto sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Paiement hors carte</DialogTitle>
+          {/* pr-8 : le titre ne passe pas sous la croix de fermeture. */}
+          <DialogTitle className="pr-8">Paiement hors carte</DialogTitle>
           <DialogDescription className="wrap-break-word">
             <span className="font-medium text-foreground">{project.name}</span>
             {project.ownerEmail && <> · {project.ownerEmail}</>}

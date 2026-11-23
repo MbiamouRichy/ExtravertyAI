@@ -52,9 +52,8 @@ export function BillingProjectSearch({ query }: { query: string }) {
         control={form.control}
         render={({ field, fieldState }) => (
           <Field data-invalid={fieldState.invalid} className="min-w-0 flex-1">
-            <FieldLabel htmlFor={`${id}-q`} className="sr-only">
-              Projet, e-mail du propriétaire ou numéro WhatsApp
-            </FieldLabel>
+            {/* Libellé visible : masqué, Field lui redonne une largeur auto et la page déborde. */}
+            <FieldLabel htmlFor={`${id}-q`}>Rechercher un projet</FieldLabel>
             <InputGroup>
               <InputGroupAddon>
                 <Search aria-hidden="true" />
