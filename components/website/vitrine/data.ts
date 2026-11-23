@@ -33,6 +33,15 @@ export const SECTIONS = [
 
 export type SectionId = (typeof SECTIONS)[number]["id"];
 
+// Pages du site, après les sections de l'accueil. Le menu principal est le
+// signal le plus fort pour que Google les retienne comme pages clés et les
+// propose en liens annexes sous le résultat principal.
+export const PAGES = [
+  { href: "/aide", label: "Aide" },
+  { href: "/apropos", label: "À propos" },
+  { href: "/contact", label: "Contact" },
+] as const;
+
 /* -------------------------------------------------------------------------- */
 /* Hero conversation simulator                                                 */
 /* -------------------------------------------------------------------------- */

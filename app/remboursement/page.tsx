@@ -13,13 +13,15 @@ import {
 
 import { LegalPage, type LegalSection } from "@/components/website/legal-page";
 import { TRIAL_DAYS } from "@/lib/pricing";
+import { pageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMetadata({
   title: "Politique de remboursement | ExtravertyAI",
+  shareTitle: "Politique de remboursement",
   description:
     "Essai gratuit, résiliation et cas de remboursement des abonnements ExtravertyAI.",
-  alternates: { canonical: "/remboursement" },
-};
+  path: "/remboursement",
+});
 export const dynamic = "force-static";
 
 const highlights = [

@@ -16,6 +16,9 @@ import {
   helpReadingMinutes,
 } from "@/lib/help-center/articles";
 import { HELP_ARTICLES, HELP_UPDATED_AT } from "@/lib/help-center/content";
+import { JsonLd } from "@/components/json-ld";
+import { pageMetadata } from "@/lib/seo";
+import { breadcrumbStructuredData, helpArticleStructuredData } from "@/lib/structured-data";
 
 // Uniquement les articles connus : toute autre adresse renvoie une 404.
 export const dynamicParams = false;
@@ -27,12 +30,13 @@ export function generateStaticParams() {
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const article = getHelpArticle((await params).slug);
   if (!article) return {};
-  return {
+  return pageMetadata({
     title: article.title,
+    shareTitle: article.title,
     description: article.summary,
-    alternates: { canonical: helpArticleHref(article.slug) },
-    openGraph: { title: article.title, description: article.summary, type: "article" },
-  };
+    path: helpArticleHref(article.slug),
+    type: "article",
+  });
 }
 
 export default async function HelpArticlePage({ params }: { params: Promise<{ slug: string }> }) {
@@ -41,9 +45,24 @@ export default async function HelpArticlePage({ params }: { params: Promise<{ sl
   const group = getHelpGroup(article.groupId);
   const toc = getHelpToc(article);
   const { previous, next } = getAdjacentHelpArticles(article.slug);
+  const path = helpArticleHref(article.slug);
 
   return (
     <div className="flex gap-10">
+      <JsonLd
+        data={breadcrumbStructuredData([
+          { name: "Centre d’aide", path: "/aide" },
+          { name: article.title, path },
+        ])}
+      />
+      <JsonLd
+        data={helpArticleStructuredData({
+          title: article.title,
+          summary: article.summary,
+          path,
+          dateModified: HELP_UPDATED_AT,
+        })}
+      />
       <main id="contenu" tabIndex={-1} className="min-w-0 max-w-3xl flex-1 py-8 outline-none sm:py-10">
         <nav aria-label="Fil d’Ariane" className="text-sm text-muted-foreground">
           <ol className="flex flex-wrap items-center gap-1.5">

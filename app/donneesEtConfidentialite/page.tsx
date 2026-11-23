@@ -2,13 +2,15 @@ import type { Metadata } from "next";
 import { Ban, Cog, Database, Lock, Scale, Share2, ShieldCheck, Trash2 } from "lucide-react";
 
 import { LegalPage, type LegalSection } from "@/components/website/legal-page";
+import { pageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMetadata({
   title: "Données et confidentialité | ExtravertyAI",
+  shareTitle: "Données et confidentialité",
   description:
     "Comment ExtravertyAI collecte, utilise et protège vos données et celles de vos clients.",
-  alternates: { canonical: "/donneesEtConfidentialite" },
-};
+  path: "/donneesEtConfidentialite",
+});
 export const dynamic = "force-static";
 
 const LAST_UPDATED = "12 juin 2026";

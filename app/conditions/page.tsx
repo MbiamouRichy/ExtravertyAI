@@ -18,13 +18,15 @@ import {
 
 import { LegalPage, type LegalSection } from "@/components/website/legal-page";
 import { TRIAL_DAYS, TRIAL_MESSAGES, formatMessageLimit } from "@/lib/pricing";
+import { pageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMetadata({
   title: "Conditions d’utilisation | ExtravertyAI",
+  shareTitle: "Conditions d’utilisation",
   description:
     "Les règles d’utilisation d’ExtravertyAI : essai, abonnement, usages autorisés, responsabilités et résiliation.",
-  alternates: { canonical: "/conditions" },
-};
+  path: "/conditions",
+});
 export const dynamic = "force-static";
 
 const highlights = [
