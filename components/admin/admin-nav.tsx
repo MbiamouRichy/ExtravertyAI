@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Coins, LayoutDashboard, LifeBuoy, MessageSquareHeart } from "lucide-react";
+import { Coins, LayoutDashboard, LifeBuoy, MessageSquareHeart, Wallet } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 const LINKS = [
   { href: "/admin", label: "Vue d’ensemble", icon: LayoutDashboard, exact: true },
+  { href: "/admin/paiements", label: "Paiements", icon: Wallet, exact: false },
   { href: "/admin/feedback", label: "Retours", icon: MessageSquareHeart, exact: false },
   { href: "/admin/aide", label: "Aide", icon: LifeBuoy, exact: false },
   { href: "/admin/ai-costs", label: "Coûts IA", icon: Coins, exact: false },

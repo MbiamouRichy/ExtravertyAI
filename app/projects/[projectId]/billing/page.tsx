@@ -9,8 +9,10 @@ import {
   CircleAlert,
   CreditCard,
   FileText,
+  MessageCircle,
   MessageSquarePlus,
   Repeat,
+  Smartphone,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getSession } from "@/lib/auth-server";
@@ -54,6 +56,17 @@ import {
   extraMessageCost,
   polarCreditProductId,
 } from "@/lib/message-credit";
+import { projectManualPayments } from "@/lib/manual-billing";
+import {
+  MANUAL_PAYMENT_METHOD_LABEL,
+  MANUAL_PERIOD_PREFIX,
+  formatXaf,
+} from "@/lib/manual-billing-shared";
+import { SITE_CONTACT } from "@/lib/site";
+
+const RENEW_ON_WHATSAPP = `${SITE_CONTACT.whatsapp}?text=${encodeURIComponent(
+  "Bonjour, je souhaite renouveler mon offre ExtravertyAI.",
+)}`;
 
 /**
  * Projet interne d'ExtravertyAI : ni abonnement ni facture. Seul le quota
@@ -169,11 +182,12 @@ function CardSummary({ card }: { card: PolarCard }) {
   );
 }
 
-/** Une ligne de la liste unique des factures : abonnement ou recharge. */
+/** Une ligne de la liste unique des factures : abonnement, recharge ou paiement hors carte. */
 type InvoiceRow = {
   id: string;
-  orderId: string;
-  kind: "subscription" | "credit";
+  /** Commande Polar, d'où se télécharge le PDF ; null pour un paiement hors carte. */
+  orderId: string | null;
+  kind: "subscription" | "credit" | "manual";
   label: string;
   date: Date;
   amount: string;
@@ -291,6 +305,11 @@ export default async function BillingPage({
       unavailable = true;
     }
   }
+  // Accès réglé hors carte (mobile money) : il décrit l'offre, pas un ancien
+  // abonnement par carte terminé, dont les factures restent listées.
+  const manualPeriod = quota?.key.startsWith(MANUAL_PERIOD_PREFIX) ? quota : null;
+  const manualEnded = !!manualPeriod && manualPeriod.endsAt <= new Date();
+  if (manualPeriod) subscription = null;
   // Recharges de la même période que cette page de factures (toutes sur la
   // dernière page) ; sans Polar, seulement les plus récentes en première page.
   const purchases =
@@ -308,11 +327,21 @@ export default async function BillingPage({
           take: 50,
           select: { id: true, orderId: true, credit: true, refunded: true, createdAt: true },
         });
+  // Même fenêtre que les recharges, pour rester à leur place dans la liste.
+  const manualPayments =
+    !firstPage && (unavailable || !configured)
+      ? []
+      : (await projectManualPayments(prisma, projectId)).filter(
+          (payment) =>
+            (!newerThan || payment.createdAt >= newerThan) &&
+            (!olderThan || payment.createdAt < olderThan),
+        );
   const periodEnd =
     subscription?.status === "trialing"
       ? subscription.trial_end
       : subscription?.current_period_end;
-  const endsAt = periodEnd ? new Date(periodEnd) : p.stripeCurrentPeriodEnd;
+  const endsAt =
+    manualPeriod?.endsAt ?? (periodEnd ? new Date(periodEnd) : p.stripeCurrentPeriodEnd);
   const cancelling = !!subscription?.cancel_at_period_end;
   const status = subscription?.status || p.status;
   const synced = !!subscription;
@@ -361,7 +390,9 @@ export default async function BillingPage({
     !!session.user.emailVerified && isPaymentHolder(session.user.email, holder);
   // Sans carte précise à montrer : pourquoi, en quelques mots.
   const cardNote = !configured
-    ? "Enregistrée au premier paiement"
+    ? manualPeriod
+      ? "Réglé par mobile money, sans carte enregistrée"
+      : "Enregistrée au premier paiement"
     : !payment
       ? "Indisponible pour le moment"
       : payment.card === null
@@ -386,7 +417,11 @@ export default async function BillingPage({
     .join(" · ");
   const usedRatio = quota ? Math.min(1, quota.used / Math.max(1, quota.limit)) : 0;
   const endPhrase =
-    ended
+    manualPeriod
+      ? manualEnded
+        ? "terminée le"
+        : "jusqu’au"
+      : ended
       ? "terminé le"
       : cancelling
         ? "jusqu’au"
@@ -422,6 +457,15 @@ export default async function BillingPage({
             ? "Remboursée en partie"
             : null,
     })),
+    ...manualPayments.map((payment) => ({
+      id: payment.id,
+      orderId: null,
+      kind: "manual" as const,
+      label: `Paiement ${MANUAL_PAYMENT_METHOD_LABEL[payment.method]} · ${pricingPlan(payment.plan).name}, ${payment.months} mois`,
+      date: payment.createdAt,
+      amount: formatXaf(payment.amountXaf),
+      status: null,
+    })),
   ].sort((a, b) => b.date.getTime() - a.date.getTime());
 
   // Messages au-delà du quota : crédit prépayé, décompté au tarif de l'offre.
@@ -447,7 +491,32 @@ export default async function BillingPage({
         <h1 className="mt-1 text-2xl font-semibold tracking-tight sm:text-3xl">Facturation</h1>
       </header>
 
-      {(unavailable || !configured) && (
+      {manualPeriod ? (
+        <p
+          role="status"
+          className={cn(
+            "flex gap-3 rounded-lg border p-4 text-sm",
+            manualEnded ? "border-destructive/40" : "border-dashed text-muted-foreground",
+          )}
+        >
+          <Smartphone aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-foreground" />
+          <span>
+            {manualEnded ? (
+              <>
+                Votre période réglée par mobile money s’est terminée le{" "}
+                <LocalBillingDate value={manualPeriod.endsAt} dateOnly />. Écrivez-nous sur
+                WhatsApp pour la renouveler : l’accès reprend dès réception du paiement.
+              </>
+            ) : (
+              <>
+                Offre réglée par mobile money jusqu’au{" "}
+                <LocalBillingDate value={manualPeriod.endsAt} dateOnly />. Pour la prolonger,
+                écrivez-nous sur WhatsApp : l’accès est prolongé dès réception du paiement.
+              </>
+            )}
+          </span>
+        </p>
+      ) : (unavailable || !configured) && (
         <p
           role={unavailable ? "alert" : "status"}
           className="flex gap-3 rounded-lg border border-dashed p-4 text-sm text-muted-foreground"
@@ -474,9 +543,15 @@ export default async function BillingPage({
                 <h2 id="plan-title" className="text-sm text-muted-foreground">
                   Offre
                 </h2>
-                <Badge variant={cancelling || ended || !upToDate ? "outline" : "secondary"}>
-                  {cancelling && !ended ? "Résiliation programmée" : billingStatusLabel(status)}
-                </Badge>
+                {manualPeriod ? (
+                  <Badge variant={manualEnded ? "outline" : "secondary"}>
+                    {manualEnded ? "Période terminée" : "Actif"}
+                  </Badge>
+                ) : (
+                  <Badge variant={cancelling || ended || !upToDate ? "outline" : "secondary"}>
+                    {cancelling && !ended ? "Résiliation programmée" : billingStatusLabel(status)}
+                  </Badge>
+                )}
               </div>
               <p className="mt-2 text-2xl font-semibold tracking-tight">
                 {pricingPlan(currentPlan).name}
@@ -487,6 +562,8 @@ export default async function BillingPage({
                     <span className="font-medium text-foreground">{price}</span>
                     {interval && ` / ${interval}`}
                   </>
+                ) : manualPeriod ? (
+                  "Réglée par mobile money"
                 ) : (
                   "Tarif à confirmer"
                 )}
@@ -562,7 +639,22 @@ export default async function BillingPage({
                   <p className="text-sm text-muted-foreground">Aucune période en cours</p>
                 )}
               </div>
-              {canManage && (
+              {canManage && manualPeriod && (
+                <div className="shrink-0">
+                  <Button
+                    asChild
+                    variant={manualEnded ? "default" : "outline"}
+                    className="min-h-10 w-full shrink-0 sm:min-h-9 sm:w-auto"
+                  >
+                    <a href={RENEW_ON_WHATSAPP} target="_blank" rel="noopener noreferrer">
+                      <MessageCircle data-icon="inline-start" />
+                      Renouveler sur WhatsApp
+                      <span className="sr-only"> (nouvel onglet)</span>
+                    </a>
+                  </Button>
+                </div>
+              )}
+              {canManage && !manualPeriod && (
                 <div className="shrink-0 empty:hidden">
                   <BillingActions
                     projectId={projectId}
@@ -631,7 +723,12 @@ export default async function BillingPage({
           <div className={cn(CARD, "overflow-hidden")}>
             <ul aria-labelledby="invoices-title" className="divide-y">
               {invoices.map((row) => {
-                const Icon = row.kind === "credit" ? MessageSquarePlus : Repeat;
+                const Icon =
+                  row.kind === "credit"
+                    ? MessageSquarePlus
+                    : row.kind === "manual"
+                      ? Smartphone
+                      : Repeat;
                 return (
                   <li key={row.id} className="flex items-center gap-3 px-4 py-3 sm:gap-4 sm:px-6">
                     {/* Écran étroit : le libellé prend la place de l'icône,
@@ -655,13 +752,16 @@ export default async function BillingPage({
                       </p>
                     </div>
                     <p className="shrink-0 text-sm font-medium tabular-nums">{row.amount}</p>
-                    <div className="-mr-2 shrink-0">
-                      <BillingInvoiceButton
-                        projectId={projectId}
-                        orderId={row.orderId}
-                        label={`Télécharger la facture « ${row.label} » en PDF`}
-                      />
-                    </div>
+                    {/* Paiement hors carte : pas de facture PDF chez Polar. */}
+                    {row.orderId && (
+                      <div className="-mr-2 shrink-0">
+                        <BillingInvoiceButton
+                          projectId={projectId}
+                          orderId={row.orderId}
+                          label={`Télécharger la facture « ${row.label} » en PDF`}
+                        />
+                      </div>
+                    )}
                   </li>
                 );
               })}

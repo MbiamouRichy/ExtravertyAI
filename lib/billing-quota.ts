@@ -1,4 +1,5 @@
 import type { PrismaClient } from "../src/generated/prisma/client";
+import { MANUAL_PERIOD_PREFIX } from "./manual-billing-shared";
 import { TRIAL_MESSAGES, type PlanId } from "./pricing";
 import { consumeTrial } from "./trial-eligibility";
 
@@ -88,6 +89,41 @@ export async function applySubscriptionState(
     )
       return;
     if (eventCreated < current.billingEventCreated) return;
+    // Accès réglé hors carte en cours (lib/manual-billing.ts) : seul un mois
+    // payé par carte le remplace. Un essai, une résiliation ou un impayé chez
+    // Polar ne coupe jamais un accès déjà payé par mobile money.
+    if (!(status === "active" && paidCycle)) {
+      const [{ now }] = await tx.$queryRaw<
+        Array<{ now: Date }>
+      >`SELECT clock_timestamp() AS now`;
+      const manual = await tx.quotaPeriod.findFirst({
+        where: {
+          projectId,
+          isCurrent: true,
+          key: { startsWith: MANUAL_PERIOD_PREFIX },
+          startsAt: { lte: now },
+          endsAt: { gt: now },
+        },
+        select: { id: true },
+      });
+      if (manual) {
+        // Le statut affiché suit Polar, sans toucher à l'accès ni à l'offre.
+        if (
+          current.stripeSubscriptionId === sub.id &&
+          (current.stripeStatus !== sub.providerStatus ||
+            eventCreated > current.billingEventCreated)
+        )
+          await tx.project.update({
+            where: { id: projectId },
+            data: {
+              stripeStatus: sub.providerStatus,
+              billingEventCreated: eventCreated,
+              billingRevision: { increment: 1 },
+            },
+          });
+        return;
+      }
+    }
     await tx.project.update({
       where: { id: projectId },
       data: {
