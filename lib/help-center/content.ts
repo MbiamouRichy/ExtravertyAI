@@ -14,6 +14,8 @@ import { PRICING_PLANS, TRIAL_DAYS, TRIAL_MESSAGES, formatPlanPrice } from "../p
 
 export const HELP_UPDATED_AT = "2026-11-22";
 export const SUPPORT_WHATSAPP_DISPLAY = "+241 76 20 56 29";
+export const HELP_DESCRIPTION =
+  "Guides pas à pas pour mettre en ligne votre assistant WhatsApp ExtravertyAI : compte, numéro, configuration, connaissances, équipe et facturation.";
 
 /** Les chiffres des forfaits viennent de lib/pricing.ts : l’aide ne peut pas les contredire. */
 const TRIAL = `${TRIAL_DAYS} jours et jusqu’à ${TRIAL_MESSAGES} messages`;

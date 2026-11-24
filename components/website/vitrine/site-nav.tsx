@@ -21,8 +21,32 @@ import {
 } from "@/components/ui/sheet";
 
 import { AccountButton, useSignedIn } from "./account-button";
-import { SECTIONS, type SectionId } from "./data";
+import { PAGES, SECTIONS, type SectionId } from "./data";
 import { SPRING } from "./motion";
+
+// Avec les pages du site, le menu de bureau ne tient pas en entier dans
+// max-w-7xl : le parcours et l’analytique, sous-parties des fonctionnalités,
+// restent dans le menu mobile, le pied de page et le défilement de l’accueil.
+const DESKTOP_SECTIONS = SECTIONS.filter(
+  (section) => section.id !== "parcours" && section.id !== "analytique",
+);
+
+const PILL_LINK =
+  "relative block rounded-full px-3.5 py-1.5 text-sm text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50";
+const SHEET_LINK =
+  "flex items-baseline gap-3 rounded-md px-3 py-2.5 text-base outline-none hover:bg-muted focus-visible:bg-muted aria-[current=location]:bg-muted aria-[current=page]:bg-muted";
+
+/** Pastille glissant sous le lien actif, section de l’accueil ou page. */
+function ActivePill() {
+  return (
+    <m.span
+      layoutId="vitrine-nav-pill"
+      transition={SPRING}
+      aria-hidden="true"
+      className="absolute inset-0 rounded-full bg-muted"
+    />
+  );
+}
 
 /** Highlights the section currently crossing the middle of the viewport. */
 function useActiveSection(): SectionId | null {
@@ -52,9 +76,11 @@ export function SiteNav() {
   const scrolled = useScroll(16);
   const active = useActiveSection();
   const [open, setOpen] = useState(false);
-  const onHome = usePathname() === "/";
+  const pathname = usePathname();
+  const onHome = pathname === "/";
   const signedIn = useSignedIn();
   const sectionHref = (id: SectionId) => (onHome ? `#${id}` : `/#${id}`);
+  const isCurrentPage = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
 
   return (
     <header
@@ -84,27 +110,33 @@ export function SiteNav() {
         </Link>
 
         <ul className="hidden items-center gap-0.5 rounded-full border bg-background/60 p-1 backdrop-blur xl:flex">
-          {SECTIONS.map((section) => {
+          {DESKTOP_SECTIONS.map((section) => {
             const isActive = active === section.id;
             return (
               <li key={section.id} className="relative">
-                {isActive && (
-                  <m.span
-                    layoutId="vitrine-nav-pill"
-                    transition={SPRING}
-                    aria-hidden="true"
-                    className="absolute inset-0 rounded-full bg-muted"
-                  />
-                )}
+                {isActive && <ActivePill />}
                 <Link
                   href={sectionHref(section.id)}
                   aria-current={isActive ? "location" : undefined}
-                  className={cn(
-                    "relative block rounded-full px-3.5 py-1.5 text-sm text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50",
-                    isActive && "text-foreground",
-                  )}
+                  className={cn(PILL_LINK, isActive && "text-foreground")}
                 >
                   {section.label}
+                </Link>
+              </li>
+            );
+          })}
+          <li aria-hidden="true" className="mx-1 h-4 w-px bg-border" />
+          {PAGES.map((page) => {
+            const isCurrent = isCurrentPage(page.href);
+            return (
+              <li key={page.href} className="relative">
+                {isCurrent && <ActivePill />}
+                <Link
+                  href={page.href}
+                  aria-current={isCurrent ? "page" : undefined}
+                  className={cn(PILL_LINK, isCurrent && "text-foreground")}
+                >
+                  {page.label}
                 </Link>
               </li>
             );
@@ -161,12 +193,30 @@ export function SiteNav() {
                     href={sectionHref(section.id)}
                     onClick={() => setOpen(false)}
                     aria-current={active === section.id ? "location" : undefined}
-                    className="flex items-baseline gap-3 rounded-md px-3 py-2.5 text-base outline-none hover:bg-muted focus-visible:bg-muted aria-[current=location]:bg-muted"
+                    className={SHEET_LINK}
                   >
                     <span className="font-mono text-xs text-muted-foreground">
                       0{index + 1}
                     </span>
                     {section.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+            <ul className="mx-4 mt-2 flex flex-col gap-1 border-t pt-3">
+              {PAGES.map((page) => (
+                <li key={page.href}>
+                  <Link
+                    href={page.href}
+                    onClick={() => setOpen(false)}
+                    aria-current={isCurrentPage(page.href) ? "page" : undefined}
+                    className={SHEET_LINK}
+                  >
+                    {/* Même retrait que les numéros des sections, pour aligner les libellés. */}
+                    <span aria-hidden="true" className="invisible font-mono text-xs">
+                      00
+                    </span>
+                    {page.label}
                   </Link>
                 </li>
               ))}

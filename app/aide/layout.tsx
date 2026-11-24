@@ -4,6 +4,7 @@ import Link from "next/link";
 import { HelpHeader } from "@/components/help/help-header";
 import { HelpSidebar } from "@/components/help/help-sidebar";
 import { buildHelpSearchIndex, getHelpNavigation, getHelpSearchSuggestions } from "@/lib/help-center/articles";
+import { HELP_DESCRIPTION } from "@/lib/help-center/content";
 import { SITE_CONTACT, SITE_NAME } from "@/lib/site";
 
 export const metadata: Metadata = {
@@ -11,8 +12,7 @@ export const metadata: Metadata = {
     default: `Centre d’aide | ${SITE_NAME}`,
     template: `%s | Aide ${SITE_NAME}`,
   },
-  description:
-    "Guides pas à pas pour mettre en ligne votre assistant WhatsApp ExtravertyAI : compte, numéro, configuration, connaissances, équipe et facturation.",
+  description: HELP_DESCRIPTION,
 };
 
 export default function HelpLayout({ children }: { children: React.ReactNode }) {

@@ -13,12 +13,18 @@ import {
   helpArticleHref,
   helpReadingMinutes,
 } from "@/lib/help-center/articles";
-import { SUPPORT_WHATSAPP_DISPLAY } from "@/lib/help-center/content";
+import { HELP_DESCRIPTION, SUPPORT_WHATSAPP_DISPLAY } from "@/lib/help-center/content";
+import { JsonLd } from "@/components/json-ld";
+import { pageMetadata } from "@/lib/seo";
 import { SITE_CONTACT } from "@/lib/site";
+import { breadcrumbStructuredData } from "@/lib/structured-data";
 
-export const metadata: Metadata = {
-  alternates: { canonical: "/aide" },
-};
+// Le titre vient du layout (`title.default`).
+export const metadata: Metadata = pageMetadata({
+  shareTitle: "Centre d’aide ExtravertyAI",
+  description: HELP_DESCRIPTION,
+  path: "/aide",
+});
 
 export default function HelpHomePage() {
   const guide = getHelpArticle(HELP_GUIDE_SLUG)!;
@@ -29,6 +35,7 @@ export default function HelpHomePage() {
 
   return (
     <main id="contenu" tabIndex={-1} className="mx-auto max-w-4xl py-10 outline-none sm:py-14">
+      <JsonLd data={breadcrumbStructuredData([{ name: "Centre d’aide", path: "/aide" }])} />
       <header className="max-w-2xl">
         <p className="text-[11px] font-semibold tracking-widest text-muted-foreground uppercase">Centre d’aide</p>
         <h1 className="mt-3 text-4xl! leading-[1.05]! sm:text-5xl!">Comment pouvons-nous vous aider ?</h1>
