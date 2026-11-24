@@ -1,11 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
-import posthog from "posthog-js";
 import * as z from "zod";
 import { AtSignIcon, ChevronLeftIcon, Loader, UserIcon } from "lucide-react";
 
@@ -27,13 +26,6 @@ import {
 } from "@/components/ui/input-group";
 import { emailOtp } from "@/lib/auth-client";
 import { checkoutCallback, signInAfterSignUpHref } from "@/lib/auth-redirects";
-import type { InAppBrowser } from "@/lib/in-app-browser";
-import {
-	clearPendingCode,
-	deviceStorage,
-	readPendingCode,
-	rememberPendingCode,
-} from "@/lib/pending-code";
 import { enterSignedInApp } from "@/lib/auth-navigation";
 import {
 	accountNameSchema,
@@ -44,7 +36,6 @@ import { useHaptics } from "@/lib/webHaptics";
 import { TRIAL_DAYS } from "@/lib/pricing";
 import { AuthShowcase } from "./auth-showcase";
 import { EmailOtpStep } from "./email-otp-step";
-import { InAppBrowserNotice } from "./in-app-browser-notice";
 import { SignInSocialButton } from "./signInSocialButton";
 
 const formSchema = z.object({
@@ -56,14 +47,7 @@ type FormValues = z.infer<typeof formSchema>;
 
 // Name and address only: the emailed code creates the account and opens the
 // session; a password can be added on the code step, never required.
-export function AuthPage({
-	callbackUrl,
-	inAppBrowser = null,
-}: {
-	callbackUrl?: string;
-	/** Navigateur intégré (Facebook, Instagram…) : pas de bouton Google. */
-	inAppBrowser?: InAppBrowser | null;
-}) {
+export function AuthPage({ callbackUrl }: { callbackUrl?: string }) {
 	const signInHref = signInAfterSignUpHref(callbackUrl);
 	// Every way in ends on the checkout or the projects, never on sign-in.
 	const destination = checkoutCallback(callbackUrl) ?? "/projects";
@@ -71,19 +55,7 @@ export function AuthPage({
 	const [loading, setLoading] = useState(false);
 	// Same step for new and existing addresses: an existing one gets a sign-in
 	// code instead, and the same screen signs it in.
-	const [pending, setPending] = useState<(FormValues & { sentAt: number }) | null>(null);
-
-	// Retour depuis l’application mail : si la page a été rechargée entre-temps
-	// (navigateur intégré, onglet mis en veille), l’étape du code reprend, sans
-	// renvoyer de code. Lu après l’hydratation : le serveur ne voit pas ce
-	// brouillon.
-	useEffect(() => {
-		const draft = readPendingCode(deviceStorage(), "sign-up");
-		if (!draft?.name) return;
-		// eslint-disable-next-line react-hooks/set-state-in-effect -- brouillon lu une fois, après l’hydratation
-		setPending({ name: draft.name, email: draft.email, sentAt: draft.sentAt });
-		posthog.capture("auth_code_step_restored", { page: "sign-up" });
-	}, []);
+	const [pending, setPending] = useState<FormValues | null>(null);
 
 	const form = useForm<FormValues>({
 		resolver: zodResolver(formSchema),
@@ -112,14 +84,7 @@ export function AuthPage({
 				return;
 			}
 			playHaptic("success");
-			const name = data.name.trim();
-			const { sentAt } = rememberPendingCode(deviceStorage(), {
-				flow: "sign-up",
-				purpose: "sign-up",
-				name,
-				email,
-			});
-			setPending({ name, email, sentAt });
+			setPending({ name: data.name.trim(), email });
 		} catch {
 			playHaptic("error");
 			toast.error("Erreur de connexion", {
@@ -132,7 +97,6 @@ export function AuthPage({
 	}
 
 	async function finish({ password }: { password?: string }) {
-		clearPendingCode(deviceStorage());
 		if (password) {
 			const result = await addSignUpPasswordAction({ newPassword: password });
 			if (!result.success)
@@ -180,21 +144,10 @@ export function AuthPage({
 							email={pending.email}
 							name={pending.name}
 							allowPassword
-							sentAt={pending.sentAt}
-							onResent={() => {
-								const { sentAt } = rememberPendingCode(deviceStorage(), {
-									flow: "sign-up",
-									purpose: "sign-up",
-									name: pending.name,
-									email: pending.email,
-								});
-								setPending({ ...pending, sentAt });
-							}}
 							onVerified={finish}
 							onChangeEmail={() => {
 								// Back to the form, with what was typed.
-								clearPendingCode(deviceStorage());
-								form.reset({ name: pending.name, email: pending.email });
+								form.reset(pending);
 								setPending(null);
 							}}
 						/>
@@ -295,17 +248,11 @@ export function AuthPage({
 						</form>
 
 						<AuthDivider>ou</AuthDivider>
-						{inAppBrowser ? (
-							// Google refuse la connexion ici : l’e-mail reste la voie
-							// principale, Google passe par le vrai navigateur.
-							<InAppBrowserNotice browser={inAppBrowser} page="sign-up" />
-						) : (
-							<SignInSocialButton
-								variant="outline"
-								text="Continuer avec"
-								callbackUrl={destination}
-							/>
-						)}
+						<SignInSocialButton
+							variant="outline"
+							text="Continuer avec"
+							callbackUrl={destination}
+						/>
 
 						<p className="text-center text-sm text-muted-foreground">
 							Déjà un compte ?{" "}

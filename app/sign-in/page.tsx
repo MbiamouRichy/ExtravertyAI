@@ -1,8 +1,6 @@
 import { AuthPage } from "@/components/auth/signInPage";
 import type { Metadata } from "next";
-import { headers } from "next/headers";
 import { safeAuthCallback } from "@/lib/auth-redirects";
-import { detectInAppBrowser } from "@/lib/in-app-browser";
 import { pageMetadata } from "@/lib/seo";
 
 export const metadata: Metadata = pageMetadata({
@@ -23,8 +21,6 @@ export default async function SeConnecterPage({
   const params = await searchParams;
 
   const callbackUrl = safeAuthCallback(params.callbackUrl);
-  // Lu côté serveur : la page arrive déjà adaptée au navigateur intégré.
-  const inAppBrowser = detectInAppBrowser((await headers()).get("user-agent"));
 
-  return <AuthPage callbackUrl={callbackUrl} inAppBrowser={inAppBrowser} />;
+  return <AuthPage callbackUrl={callbackUrl} />;
 }

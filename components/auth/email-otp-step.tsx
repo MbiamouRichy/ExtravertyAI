@@ -29,7 +29,6 @@ import {
   SIGN_UP_INTENT,
   SIGN_UP_INTENT_HEADER,
 } from "@/lib/sign-up";
-import { resendDelayLeft } from "@/lib/pending-code";
 import { useHaptics } from "@/lib/webHaptics";
 
 const CODE_LENGTH = 6;
@@ -130,8 +129,6 @@ export function EmailOtpStep({
   changeEmailLabel = "Modifier l’adresse",
   purpose = "email-verification",
   allowPassword = false,
-  sentAt,
-  onResent,
 }: {
   email: string;
   /** Sign-up only: the name of the account the code creates. */
@@ -143,19 +140,12 @@ export function EmailOtpStep({
   purpose?: CodePurpose;
   /** Offers to choose a password on the same step (optional). */
   allowPassword?: boolean;
-  /** When the code was sent: a restored step resumes the resend delay. */
-  sentAt?: number;
-  /** A new code was sent: the caller dates it and keeps it. */
-  onResent?: () => void;
 }) {
   const copy = COPY[purpose];
   const { playHaptic } = useHaptics();
   const [verifying, setVerifying] = useState(false);
   const [resending, setResending] = useState(false);
-  // Rendered only after a client action or restore, never on the server.
-  const [cooldown, setCooldown] = useState(() =>
-    sentAt === undefined ? RESEND_DELAY_SECONDS : resendDelayLeft(sentAt, RESEND_DELAY_SECONDS),
-  );
+  const [cooldown, setCooldown] = useState(RESEND_DELAY_SECONDS);
   const [showPassword, setShowPassword] = useState(false);
   // A pasted or autofilled code submits on its own: block a second request.
   const submitting = useRef(false);
@@ -239,7 +229,6 @@ export function EmailOtpStep({
       }
       form.resetField("otp");
       setCooldown(RESEND_DELAY_SECONDS);
-      onResent?.();
       toast.success("Nouveau code envoyé.", {
         description: "L’ancien code ne fonctionne plus.",
         position: "top-center",

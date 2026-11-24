@@ -3,9 +3,7 @@ import { Button } from "@/components/ui/button";
 import { AuthDivider } from "@/components/dashboard/auth-divider";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import posthog from "posthog-js";
-import { InAppBrowserNotice } from "./in-app-browser-notice";
+import { useState } from "react";
 import { SignInSocialButton } from "./signInSocialButton";
 import { EmailOtpStep, type CodePurpose } from "./email-otp-step";
 import { CodeSignInForm, PasswordSignInForm } from "./sign-in-forms";
@@ -13,22 +11,8 @@ import { LogoIcon } from "../logo";
 import { AuthShowcase } from "./auth-showcase";
 import { signUpHref } from "@/lib/auth-redirects";
 import { enterSignedInApp } from "@/lib/auth-navigation";
-import type { InAppBrowser } from "@/lib/in-app-browser";
-import {
-	clearPendingCode,
-	deviceStorage,
-	readPendingCode,
-	rememberPendingCode,
-} from "@/lib/pending-code";
 
-export function AuthPage({
-	callbackUrl,
-	inAppBrowser = null,
-}: {
-	callbackUrl: string;
-	/** Navigateur intégré (Facebook, Instagram…) : pas de bouton Google. */
-	inAppBrowser?: InAppBrowser | null;
-}) {
+export function AuthPage({ callbackUrl }: { callbackUrl: string }) {
 	// Passwordless by default, like most modern products; the password stays one click away.
 	const [method, setMethod] = useState<"code" | "password">("code");
 	// Typed address, carried from one method to the other.
@@ -36,26 +20,7 @@ export function AuthPage({
 	// Focus follows an explicit switch, never the first page load (it would
 	// open the mobile keyboard over the page).
 	const [switched, setSwitched] = useState(false);
-	const [pending, setPending] = useState<{
-		email: string;
-		purpose: CodePurpose;
-		sentAt: number;
-	} | null>(null);
-
-	// Retour depuis l’application mail après un rechargement : l’étape du code
-	// reprend, sans nouvel envoi. Lu après l’hydratation.
-	useEffect(() => {
-		const draft = readPendingCode(deviceStorage(), "sign-in");
-		if (!draft || draft.purpose === "sign-up") return;
-		// eslint-disable-next-line react-hooks/set-state-in-effect -- brouillon lu une fois, après l’hydratation
-		setPending({ email: draft.email, purpose: draft.purpose, sentAt: draft.sentAt });
-		posthog.capture("auth_code_step_restored", { page: "sign-in" });
-	}, []);
-
-	function startCode(email: string, purpose: Exclude<CodePurpose, "sign-up">) {
-		const { sentAt } = rememberPendingCode(deviceStorage(), { flow: "sign-in", email, purpose });
-		setPending({ email, purpose, sentAt });
-	}
+	const [pending, setPending] = useState<{ email: string; purpose: CodePurpose } | null>(null);
 
 	function switchTo(next: "code" | "password", typed: string) {
 		setEmail(typed.trim());
@@ -87,21 +52,8 @@ export function AuthPage({
 						<EmailOtpStep
 							email={pending.email}
 							purpose={pending.purpose}
-							sentAt={pending.sentAt}
-							onResent={() => {
-								const { sentAt } = rememberPendingCode(deviceStorage(), {
-									flow: "sign-in",
-									email: pending.email,
-									purpose: pending.purpose,
-								});
-								setPending({ ...pending, sentAt });
-							}}
-							onVerified={() => {
-								clearPendingCode(deviceStorage());
-								return enterSignedInApp(callbackUrl);
-							}}
+							onVerified={() => enterSignedInApp(callbackUrl)}
 							onChangeEmail={() => {
-								clearPendingCode(deviceStorage());
 								setEmail(pending.email);
 								setSwitched(true);
 								setPending(null);
@@ -117,45 +69,30 @@ export function AuthPage({
 						Connectez-vous pour retrouver vos conversations.
 					</p>
 
-					{/* Google refuse la connexion dans un navigateur intégré :
-					    l’e-mail passe en premier, Google par le vrai navigateur. */}
-					{!inAppBrowser && (
-						<>
-							<div className="mt-6 sm:mt-8">
-								<SignInSocialButton callbackUrl={callbackUrl} text="Continuer avec" />
-							</div>
+					<div className="mt-6 sm:mt-8">
+						<SignInSocialButton callbackUrl={callbackUrl} text="Continuer avec" />
+					</div>
 
-							<div className="my-5 sm:my-6">
-								<AuthDivider>ou avec votre e-mail</AuthDivider>
-							</div>
-						</>
-					)}
+					<div className="my-5 sm:my-6">
+						<AuthDivider>ou avec votre e-mail</AuthDivider>
+					</div>
 
-					<div className={inAppBrowser ? "mt-6 sm:mt-8" : undefined}>
 					{method === "code" ? (
 						<CodeSignInForm
 							defaultEmail={email}
 							autoFocus={switched}
-							onCodeSent={(address) => startCode(address, "sign-in")}
+							onCodeSent={(address) => setPending({ email: address, purpose: "sign-in" })}
 							onUsePassword={(typed) => switchTo("password", typed)}
 						/>
 					) : (
 						<PasswordSignInForm
 							defaultEmail={email}
 							callbackUrl={callbackUrl}
-							onUnverified={(address) => startCode(address, "email-verification")}
+							onUnverified={(address) =>
+								setPending({ email: address, purpose: "email-verification" })
+							}
 							onUseCode={(typed) => switchTo("code", typed)}
 						/>
-					)}
-					</div>
-
-					{inAppBrowser && (
-						<>
-							<div className="my-5 sm:my-6">
-								<AuthDivider>ou</AuthDivider>
-							</div>
-							<InAppBrowserNotice browser={inAppBrowser} page="sign-in" />
-						</>
 					)}
 
 					<p className="mt-6 text-center text-sm text-muted-foreground sm:mt-8">
