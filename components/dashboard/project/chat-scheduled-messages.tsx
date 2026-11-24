@@ -170,14 +170,23 @@ export function ScheduleSendMenu({
         {presets.map((preset) => {
           const late = !!windowWarning(preset.at, context);
           return (
-            <DropdownMenuItem key={preset.id} onSelect={() => onPreset(preset.at)} className="gap-2">
-              <span className="min-w-0 flex-1 truncate">{preset.label}</span>
-              {late && (
-                <>
-                  <TriangleAlert aria-hidden="true" className="size-3.5 text-muted-foreground" />
-                  <span className="sr-only">, après la fermeture de la fenêtre de 24 h</span>
-                </>
-              )}
+            // Menu étroit (petit écran) : la date passe sous le libellé au lieu
+            // de le couper (« Dans… », « Ce s… »). flex-auto, pas flex-1 : la
+            // largeur du libellé décide du retour à la ligne.
+            <DropdownMenuItem
+              key={preset.id}
+              onSelect={() => onPreset(preset.at)}
+              className="flex-wrap gap-x-2 gap-y-0.5"
+            >
+              <span className="flex min-w-0 flex-auto items-center gap-1.5">
+                <span className="min-w-0 wrap-break-word">{preset.label}</span>
+                {late && (
+                  <>
+                    <TriangleAlert aria-hidden="true" className="size-3.5 shrink-0 text-muted-foreground" />
+                    <span className="sr-only">, après la fermeture de la fenêtre de 24 h</span>
+                  </>
+                )}
+              </span>
               <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
                 {formatScheduleDate(preset.at, context.timeZone)}
               </span>
@@ -296,9 +305,9 @@ export function ScheduleMessageDialog({
 
   return (
     <Dialog open={open} onOpenChange={(next) => !submitting && onOpenChange(next)}>
-      <DialogContent className="max-h-[calc(100dvh-2rem)] gap-5 overflow-y-auto sm:max-w-lg">
+      <DialogContent className="max-h-[calc(100dvh-2rem)] grid-cols-[minmax(0,1fr)] gap-5 overflow-x-hidden overflow-y-auto sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
+          <DialogTitle className="pr-8">{title}</DialogTitle>
           <DialogDescription>
             Envoyé à {contactName} à l’heure choisie, en votre nom. Vous pouvez le modifier ou l’annuler
             jusqu’à son départ.

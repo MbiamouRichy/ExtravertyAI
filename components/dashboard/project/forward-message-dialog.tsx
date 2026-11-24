@@ -181,9 +181,11 @@ export function ForwardMessageDialog({
 
   return (
     <Dialog open={open} onOpenChange={(next) => !submitting && onOpenChange(next)}>
-      <DialogContent className="max-h-[calc(100dvh-2rem)] gap-5 overflow-y-auto sm:max-w-lg">
+      {/* minmax(0,1fr) : un contenu insécable n'élargit plus la fenêtre ; pr-8 :
+          le titre ne passe plus sous la croix de fermeture. */}
+      <DialogContent className="max-h-[calc(100dvh-2rem)] grid-cols-[minmax(0,1fr)] gap-5 overflow-x-hidden overflow-y-auto sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Transférer le message</DialogTitle>
+          <DialogTitle className="pr-8">Transférer le message</DialogTitle>
           <DialogDescription>
             Envoyé en votre nom dans chaque conversation choisie, {FORWARD_LIMITS.maxTargets} au plus.
             WhatsApp n’accepte un message que dans les 24 h qui suivent le dernier message du client.
@@ -235,7 +237,7 @@ export function ForwardMessageDialog({
                     <InputGroupInput
                       type="search"
                       aria-label="Rechercher une conversation par nom"
-                      placeholder="Rechercher par nom"
+                      placeholder="Nom du client"
                       autoComplete="off"
                       value={query}
                       maxLength={100}
