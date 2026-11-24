@@ -23,6 +23,7 @@ import {
   InputGroupButton,
   InputGroupInput,
 } from "@/components/ui/input-group";
+import { visitCampaign } from "@/lib/auth-analytics";
 import { emailOtp, signIn } from "@/lib/auth-client";
 import {
   accountPasswordSchema,
@@ -201,8 +202,11 @@ export function EmailOtpStep({
       playHaptic("success");
       toast.success(copy.success, { position: "top-center" });
       if (purpose === "sign-up") {
+        // Même événement que l'inscription Google (SiteAnalyticsBeacon).
         posthog.capture("account_created", {
+          auth_method: "email_otp",
           password_added: withPassword,
+          ...visitCampaign(window.location.search),
         });
       } else if (purpose === "sign-in") {
         posthog.capture("user_signed_in", { auth_method: "email_otp" });

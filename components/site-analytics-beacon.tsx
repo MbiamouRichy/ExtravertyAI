@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
 import posthog from "posthog-js";
 
+import { readGoogleSignUp, rememberArrivalCampaign } from "@/lib/auth-analytics";
 import { useSession } from "@/lib/auth-client";
 import { browserRefusesTracking } from "@/lib/tracking-consent";
 
@@ -17,14 +18,27 @@ export function SiteAnalyticsBeacon() {
   const first = useRef(true);
   const last = useRef<string | null>(null);
 
+  // Avant l'effet suivant, qui retire la campagne de l'adresse au retour de Google.
+  useEffect(() => {
+    rememberArrivalCampaign(window.location.search);
+  }, []);
+
   useEffect(() => {
     const userId = session?.user?.id;
+    if (!userId) return;
+    // Retour de Google pour un nouveau compte (googleSignUpReturn) : marqueur
+    // et campagne quittent l'adresse, un rechargement ne recompte donc pas.
+    const signUp = readGoogleSignUp(window.location.href);
+    if (signUp) window.history.replaceState(null, "", signUp.cleanUrl);
     // PostHog n'est pas démarré si le suivi est refusé ou non configuré.
-    if (!userId || !posthog.__loaded) return;
+    if (!posthog.__loaded) return;
     // L'identifiant du compte seul : ni e-mail ni nom chez PostHog. Il ne
     // change pas avec le profil, et le rappeler au chargement suffit à
     // retrouver la personne après un rafraîchissement.
     posthog.identify(userId);
+    // Même événement que l'inscription par e-mail (EmailOtpStep).
+    if (signUp)
+      posthog.capture("account_created", { auth_method: "google", ...signUp.campaign });
   }, [session?.user?.id]);
 
   useEffect(() => {
