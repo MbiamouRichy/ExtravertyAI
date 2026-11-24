@@ -18,7 +18,13 @@ const LINKS = [
 export function AdminNav() {
   const pathname = usePathname();
   return (
-    <nav aria-label="Back-office" className="ml-2 flex min-w-0 items-center gap-1">
+    // Sous lg : ligne pleine largeur sous le logo. Sous sm, icônes seules
+    // réparties sur toute la ligne (cibles de 40 px) ; au-dessus, avec libellés.
+    // Le défilement horizontal n'est qu'un filet si un libellé s'allonge.
+    <nav
+      aria-label="Back-office"
+      className="order-last -mx-1 flex min-w-0 basis-full items-center gap-1 overflow-x-auto px-1 pt-0.5 pb-1.5 [scrollbar-width:none] lg:order-none lg:mx-0 lg:ml-2 lg:basis-auto lg:overflow-visible lg:p-0 [&::-webkit-scrollbar]:hidden"
+    >
       {LINKS.map(({ href, label, icon: Icon, exact }) => {
         const active = exact ? pathname === href : pathname.startsWith(href);
         return (
@@ -27,7 +33,7 @@ export function AdminNav() {
             asChild
             variant="ghost"
             size="sm"
-            className={cn(active && "bg-muted text-foreground")}
+            className={cn("h-10 flex-1 sm:h-8 sm:flex-none", active && "bg-muted text-foreground")}
           >
             <Link href={href} aria-current={active ? "page" : undefined}>
               <Icon data-icon="inline-start" />

@@ -200,7 +200,7 @@ export function ManualPaymentDialog({
         <Button
           variant={renewal ? "default" : "outline"}
           size="sm"
-          className="min-h-10 w-full sm:min-h-8 sm:w-auto"
+          className="h-auto min-h-10 w-full py-2 leading-tight whitespace-normal sm:min-h-8 sm:w-auto sm:py-1 sm:whitespace-nowrap"
         >
           <Wallet data-icon="inline-start" />
           {renewal ? "Renouveler" : "Enregistrer un paiement"}

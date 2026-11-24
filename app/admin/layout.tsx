@@ -16,14 +16,15 @@ export default async function AdminLayout({
   return (
     <div className="flex min-h-dvh flex-col bg-background text-foreground">
       <header className="sticky top-0 z-30 border-b bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/80">
-        <div className="mx-auto flex h-14 w-full max-w-7xl items-center gap-3 px-4 sm:px-6 lg:px-8">
+        {/* Sous 1024 px, la navigation passe sur une seconde ligne (AdminNav) :
+            logo, cinq liens et bouton Application ne tiennent pas sur une seule. */}
+        <div className="mx-auto flex w-full max-w-7xl flex-wrap items-center gap-x-3 px-4 sm:px-6 lg:flex-nowrap lg:px-8">
           <Link
             href="/admin"
-            className="flex shrink-0 items-center gap-2 rounded-md font-medium focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
+            className="flex h-12 shrink-0 items-center gap-2 rounded-md font-medium lg:h-14 focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
           >
             <ShieldCheck aria-hidden="true" className="size-4" />
-            <span className="hidden sm:inline">Back-office</span>
-            <span className="sr-only sm:hidden">Back-office</span>
+            Back-office
           </Link>
           <AdminNav />
           <div className="ml-auto flex min-w-0 items-center gap-2">
