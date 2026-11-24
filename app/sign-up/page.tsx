@@ -1,6 +1,8 @@
 import { AuthPage } from "@/components/auth/signUpPage";
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { checkoutCallback } from "@/lib/auth-redirects";
+import { detectInAppBrowser } from "@/lib/in-app-browser";
 import { pageMetadata } from "@/lib/seo";
 
 export const metadata: Metadata = pageMetadata({
@@ -16,5 +18,8 @@ export default async function SignUpPage({
   searchParams: Promise<{ callbackUrl?: string | string[] }>;
 }) {
   const callbackUrl = checkoutCallback((await searchParams).callbackUrl);
-  return <AuthPage callbackUrl={callbackUrl} />;
+  // Lu côté serveur : la page arrive déjà adaptée au navigateur intégré
+  // (Facebook, Instagram…), sans bouton Google qui y échouerait.
+  const inAppBrowser = detectInAppBrowser((await headers()).get("user-agent"));
+  return <AuthPage callbackUrl={callbackUrl} inAppBrowser={inAppBrowser} />;
 }
