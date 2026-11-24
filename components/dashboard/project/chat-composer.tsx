@@ -2,12 +2,13 @@
 
 import {
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   type ReactNode,
   type RefObject,
 } from "react";
-import { Controller, useForm } from "react-hook-form";
+import { Controller, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import {
@@ -379,6 +380,22 @@ export function ChatComposer({
   const audioMode =
     audioRecorder.recording || audioRecorder.preparing || !!audioItem;
   const recordingMode = audioRecorder.recording || audioRecorder.preparing;
+  // Hauteur ajustée au texte, mesurée après le rendu où le champ reçoit sa
+  // valeur. Mesurée plus tôt (au changement du brouillon, chez le parent), elle
+  // gardait la hauteur du message envoyé alors que le champ était déjà vide.
+  const content = useWatch({ control: form.control, name: "content" });
+  useLayoutEffect(() => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+    // field-sizing: content (Chrome, Edge, Safari récents) suit le texte seul :
+    // une hauteur posée en ligne l'empêcherait de redescendre.
+    if (CSS.supports("field-sizing", "content")) {
+      textarea.style.removeProperty("height");
+      return;
+    }
+    textarea.style.height = "auto";
+    textarea.style.height = `${Math.min(textarea.scrollHeight, 160)}px`;
+  }, [content, textareaRef, audioMode]);
   const [scrollEdges, setScrollEdges] = useState({ top: false, bottom: false });
   useEffect(() => {
     const textarea = textareaRef.current;

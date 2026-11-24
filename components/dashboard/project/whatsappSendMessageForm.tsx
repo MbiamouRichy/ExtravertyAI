@@ -1211,14 +1211,6 @@ export default function WhatsappWorkspace({
     );
   }, [historyQuery.agents, activeMessages]);
 
-  useEffect(() => {
-    const element = textareaRef.current;
-    if (!element) return;
-
-    element.style.height = "auto";
-    element.style.height = `${Math.min(element.scrollHeight, 160)}px`;
-  }, [draft, activeId, mobileChat]);
-
   const selectClientRef = useRef(selectClient);
   useEffect(() => {
     selectClientRef.current = selectClient;
