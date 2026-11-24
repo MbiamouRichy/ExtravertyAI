@@ -63,6 +63,10 @@ const sections: LegalSection[] = [
           <li>Améliorer la logique de nos systèmes et la précision des réponses automatisées.</li>
           <li>Assurer le support technique et répondre à vos demandes.</li>
           <li>Traiter les transactions via nos prestataires de paiement sécurisés.</li>
+          <li>
+            Mesurer l’efficacité de nos publicités Facebook et Instagram (voir
+            « Partage et tiers »).
+          </li>
         </ul>
       </>
     ),
@@ -72,14 +76,27 @@ const sections: LegalSection[] = [
     icon: Share2,
     title: "Partage et tiers",
     body: (
-      <p>
-        ExtravertyAI ne vend <strong>jamais</strong> vos données personnelles ni
-        celles de vos clients. Nous partageons certaines informations uniquement
-        avec des fournisseurs d’infrastructure cloud de confiance (hébergement,
-        bases de données, modèles de langage) strictement nécessaires à
-        l’exécution de notre service, dans le cadre d’accords de confidentialité
-        rigoureux.
-      </p>
+      <>
+        <p>
+          ExtravertyAI ne vend <strong>jamais</strong> vos données personnelles
+          ni celles de vos clients. Nous partageons certaines informations
+          uniquement avec des fournisseurs d’infrastructure cloud de confiance
+          (hébergement, bases de données, modèles de langage) strictement
+          nécessaires à l’exécution de notre service, dans le cadre d’accords de
+          confidentialité rigoureux.
+        </p>
+        <p>
+          <strong>Mesure publicitaire :</strong> nos pages publiques utilisent le
+          pixel Meta pour savoir si nos publicités Facebook et Instagram amènent
+          des visites et des inscriptions. Meta reçoit l’adresse de la page vue,
+          des informations techniques sur votre navigateur et, à la création
+          d’un compte, un simple signal « inscription ». Le pixel dépose des
+          cookies Meta (_fbp, _fbc). Aucun nom, e-mail ou numéro de téléphone ne
+          lui est transmis, et rien ne lui est envoyé depuis votre espace connecté.
+          Si votre navigateur envoie un refus de suivi (Global Privacy Control
+          ou « Do Not Track »), le pixel n’est pas chargé.
+        </p>
+      </>
     ),
   },
   {
