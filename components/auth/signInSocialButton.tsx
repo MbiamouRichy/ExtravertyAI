@@ -1,3 +1,6 @@
+import posthog from "posthog-js";
+
+import { googleSignUpReturn, visitCampaign } from "@/lib/auth-analytics";
 import { signIn } from "@/lib/auth-client";
 import { useHaptics } from "@/lib/webHaptics";
 import { toast } from "sonner";
@@ -17,10 +20,22 @@ export function SignInSocialButton({
 }) {
   const { playHaptic } = useHaptics();
   async function signInWithGoogle() {
+    const callbackURL = safeAuthCallback(callbackUrl);
+    // Campagne d'arrivée (pub Meta) : PostHog l'oublie pendant l'aller-retour
+    // chez Google, elle repart donc dans l'adresse de retour d'un nouveau compte.
+    const campaign = visitCampaign(window.location.search);
+    // Envoyé tout de suite : la page part chez Google juste après.
+    posthog.capture(
+      "google_auth_started",
+      { page: window.location.pathname, ...campaign },
+      { send_instantly: true },
+    );
     await signIn.social(
       {
         provider: "google",
-        callbackURL: safeAuthCallback(callbackUrl),
+        callbackURL,
+        // Nouveau compte seulement : compté au retour par SiteAnalyticsBeacon.
+        newUserCallbackURL: googleSignUpReturn(callbackURL, campaign),
       },
       {
         onError: (error) => {
