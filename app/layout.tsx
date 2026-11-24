@@ -10,6 +10,7 @@ import { Analytics } from "@vercel/analytics/next";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { SiteAnalyticsBeacon } from "@/components/site-analytics-beacon";
+import { MetaPixel } from "@/components/meta-pixel";
 import type { Metadata } from "next";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/site";
 import { SHARED_OPEN_GRAPH, SHARED_TWITTER } from "@/lib/seo";
@@ -97,6 +98,7 @@ export default async function RootLayout({
         </ThemeProvider>
         <Analytics />
         <SiteAnalyticsBeacon />
+        <MetaPixel />
       </body>
     </html>
   );
