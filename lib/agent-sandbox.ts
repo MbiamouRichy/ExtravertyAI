@@ -96,6 +96,7 @@ export async function runAgentTest(
     knowledge: knowledge.block,
     flagMissing: true,
     quiet: project.aiQuietEnabled,
+    timeZone: project.timeZone,
     meter: aiMeter(db, projectId, "sandbox"),
     feature: "sandbox" as const,
   };

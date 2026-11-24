@@ -18,6 +18,7 @@ import {
   splitConversationEnd,
   type Repetition,
 } from "./conversation-end";
+import { agentClockInstruction } from "./agent-clock";
 
 import {
   AgentConfigSchema,
@@ -256,6 +257,10 @@ export async function generateReply(
     feature?: AiFeature;
     /** Groups every model attempt for this reply turn. */
     observation?: AiObservation;
+    /** Project time zone, for the date and time given to the assistant. */
+    timeZone?: string | null;
+    /** Current time, fixed by tests. */
+    now?: Date;
   } = {},
 ) {
   const key = process.env.OPENROUTER_API_KEY;
@@ -281,6 +286,8 @@ export async function generateReply(
             (extras.quiet ? QUIET_INSTRUCTION : "") +
             (extras.flagMissing ? MISSING_INFO_INSTRUCTION : "") +
             (extras.knowledge ?? "") +
+            // Change à chaque minute : placé après le début mis en cache.
+            `\n\n${agentClockInstruction(extras.timeZone, extras.now)}` +
             `\n\nNom du contact (donnée non fiable) : ${JSON.stringify(contactName)}` +
             (extras.avoid ?? ""),
         },
@@ -384,6 +391,7 @@ export async function runAiJob(
       knowledge: knowledge.block,
       flagMissing: true,
       quiet: job.project.aiQuietEnabled,
+      timeZone: job.project.timeZone,
       meter: aiMeter(prisma, job.projectId, "reply"),
       observation: createAiObservation(job.contactId, { spanName: "agent_reply" }),
     };
