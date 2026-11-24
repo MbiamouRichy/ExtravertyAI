@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { CalendarClock, History, Search } from "lucide-react";
+import { CalendarClock, History, Mail, MessageCircle, Search, Tag } from "lucide-react";
 
 import prisma from "@/lib/prisma";
 import { adminMetadata, requireAdminPage } from "@/lib/admin-auth";
@@ -34,6 +34,17 @@ export function generateMetadata(): Promise<Metadata> {
 }
 
 const CARD = "min-w-0 rounded-2xl border bg-card";
+// Badge passe à la ligne : un statut long (« Abonnement suspendu ou terminé »)
+// débordait de la carte sous 360 px.
+const BADGE_WRAP = "h-auto max-w-full py-0.5 text-left leading-snug whitespace-normal";
+const CONTACT_LINK =
+  "inline-flex min-h-6 max-w-full items-center gap-1 rounded-sm underline-offset-4 hover:text-foreground hover:underline focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none";
+
+/** Lien wa.me : chiffres seuls, rien d'autre ne passe dans l'URL. */
+function whatsappHref(numero: string) {
+  const digits = numero.replace(/\D/g, "");
+  return digits.length >= 8 ? `https://wa.me/${digits}` : null;
+}
 
 function formatter(timeZone: string) {
   return new Intl.DateTimeFormat("fr-FR", {
@@ -77,24 +88,54 @@ function ProjectRow({
 }) {
   const format = formatter(timeZone);
   const ended = !!project.period && project.period.endsAt <= now;
+  const whatsapp = whatsappHref(project.numero);
   return (
     <li className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:gap-4 sm:px-5">
-      <div className="min-w-0 flex-1 space-y-1">
-        <p className="flex flex-wrap items-center gap-x-2 gap-y-1">
-          <span className="font-medium wrap-break-word">{project.name}</span>
-          <Badge variant={project.accessAllowed ? "secondary" : "outline"}>{project.accessLabel}</Badge>
-          {project.cardSubscription && <Badge variant="outline">Abonnement carte</Badge>}
-        </p>
-        <p className="text-xs text-muted-foreground wrap-break-word">
-          {project.ownerEmail ?? "Sans propriétaire"}
-          <span aria-hidden="true"> · </span>
-          <span className="tabular-nums">{project.numero}</span>
-          <span aria-hidden="true"> · </span>
-          Offre {pricingPlan(project.plan).name}
-        </p>
+      <div className="min-w-0 flex-1 space-y-1.5">
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          <p className="min-w-0 font-medium wrap-break-word">{project.name}</p>
+          <Badge variant={project.accessAllowed ? "secondary" : "outline"} className={BADGE_WRAP}>
+            {project.accessLabel}
+          </Badge>
+          {project.cardSubscription && (
+            <Badge variant="outline" className={BADGE_WRAP}>
+              Abonnement carte
+            </Badge>
+          )}
+        </div>
+        {/* Une coordonnée par bloc : elles passent à la ligne entières, et
+            l'e-mail seul se coupe s'il dépasse la carte. */}
+        <div className="flex flex-wrap items-center gap-x-3 text-xs text-muted-foreground">
+          {project.ownerEmail ? (
+            <a href={`mailto:${project.ownerEmail}`} className={CONTACT_LINK}>
+              <Mail aria-hidden="true" className="size-3.5 shrink-0" />
+              <span className="min-w-0 [overflow-wrap:anywhere]">{project.ownerEmail}</span>
+            </a>
+          ) : (
+            <span className="inline-flex min-h-6 items-center">Sans propriétaire</span>
+          )}
+          {whatsapp ? (
+            <a
+              href={whatsapp}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={cn(CONTACT_LINK, "whitespace-nowrap tabular-nums")}
+            >
+              <MessageCircle aria-hidden="true" className="size-3.5 shrink-0" />
+              {project.numero}
+              <span className="sr-only"> (écrire sur WhatsApp, nouvel onglet)</span>
+            </a>
+          ) : (
+            <span className="inline-flex min-h-6 items-center tabular-nums">{project.numero}</span>
+          )}
+          <span className="inline-flex min-h-6 items-center gap-1 whitespace-nowrap">
+            <Tag aria-hidden="true" className="size-3.5 shrink-0" />
+            Offre {pricingPlan(project.plan).name}
+          </span>
+        </div>
         <p
           className={cn(
-            "text-xs tabular-nums",
+            "text-xs tabular-nums wrap-break-word",
             renewal && ended ? "text-destructive" : "text-muted-foreground",
           )}
         >
@@ -226,7 +267,7 @@ export default async function AdminPaymentsPage({
         {payments.length ? (
           <ul aria-labelledby="history-title" className={cn(CARD, "divide-y overflow-hidden")}>
             {payments.map((payment) => (
-              <li key={payment.id} className="flex items-start gap-3 p-4 sm:px-5">
+              <li key={payment.id} className="flex flex-col gap-2 p-4 sm:flex-row sm:items-start sm:gap-3 sm:px-5">
                 <div className="min-w-0 flex-1 space-y-1">
                   <p className="font-medium wrap-break-word">
                     {payment.projectName ?? "Projet supprimé"}
@@ -252,7 +293,8 @@ export default async function AdminPaymentsPage({
                     <p className="text-xs wrap-break-word text-foreground/80">{payment.note}</p>
                   )}
                 </div>
-                <div className="shrink-0 text-right">
+                {/* Sous sm, le montant passe sous le détail au lieu d'écraser sa colonne. */}
+                <div className="flex shrink-0 items-baseline gap-2 sm:block sm:text-right">
                   <p className="text-sm font-medium tabular-nums">{formatXaf(payment.amountXaf)}</p>
                   <p className="text-xs text-muted-foreground tabular-nums">
                     <time dateTime={payment.createdAt.toISOString()}>

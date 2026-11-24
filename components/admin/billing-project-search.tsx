@@ -8,7 +8,7 @@ import { z } from "zod";
 import { Loader2, RotateCcw, Search } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { Field, FieldError, FieldLabel } from "@/components/ui/field";
+import { Field, FieldDescription, FieldError, FieldLabel } from "@/components/ui/field";
 import {
   InputGroup,
   InputGroupAddon,
@@ -65,10 +65,14 @@ export function BillingProjectSearch({ query }: { query: string }) {
                 inputMode="search"
                 autoComplete="off"
                 maxLength={SEARCH_MAX}
-                placeholder="Projet, e-mail du propriétaire ou numéro WhatsApp"
+                placeholder="Nom, e-mail ou numéro"
                 aria-invalid={fieldState.invalid}
+                aria-describedby={`${id}-q-hint`}
               />
             </InputGroup>
+            <FieldDescription id={`${id}-q-hint`}>
+              Nom du projet, e-mail du propriétaire ou au moins 4 chiffres du numéro WhatsApp.
+            </FieldDescription>
             {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
           </Field>
         )}

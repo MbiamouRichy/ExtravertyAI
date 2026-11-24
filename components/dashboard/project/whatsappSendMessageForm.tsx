@@ -575,19 +575,21 @@ function ChatBubble({
     </time>
   );
 
+  // Rond et toujours visible, pour qu'on le trouve sans le chercher : 36 px à la
+  // souris (en demi-teinte hors survol de la bulle), 40 px au doigt.
   const forwardButton =
     onForward && canForwardMessage(message) ? (
       <Tooltip>
         <TooltipTrigger asChild>
           <Button
             type="button"
-            variant="ghost"
-            size="icon-xs"
-            className="shrink-0 self-center text-muted-foreground opacity-0 transition-opacity group-hover/bubble:opacity-100 group-focus-within/bubble:opacity-100 hover:text-foreground focus-visible:opacity-100 pointer-coarse:opacity-100"
+            variant="outline"
+            size="icon"
+            className="shrink-0 self-center rounded-full bg-background text-muted-foreground shadow-xs transition-[color,background-color,opacity] hover:text-foreground focus-visible:opacity-100 pointer-fine:opacity-60 pointer-fine:group-hover/bubble:opacity-100 pointer-fine:group-focus-within/bubble:opacity-100 pointer-coarse:size-10"
             aria-label={`Transférer le message de ${author}`}
             onClick={() => onForward(message as ChatMessage)}
           >
-            <Forward aria-hidden="true" />
+            <Forward aria-hidden="true" className="size-4" />
           </Button>
         </TooltipTrigger>
         <TooltipContent>Transférer vers d’autres conversations</TooltipContent>
@@ -1210,14 +1212,6 @@ export default function WhatsappWorkspace({
         (a.name || "").localeCompare(b.name || "") || a.id.localeCompare(b.id),
     );
   }, [historyQuery.agents, activeMessages]);
-
-  useEffect(() => {
-    const element = textareaRef.current;
-    if (!element) return;
-
-    element.style.height = "auto";
-    element.style.height = `${Math.min(element.scrollHeight, 160)}px`;
-  }, [draft, activeId, mobileChat]);
 
   const selectClientRef = useRef(selectClient);
   useEffect(() => {
