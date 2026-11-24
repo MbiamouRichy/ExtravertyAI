@@ -10,7 +10,8 @@ const EVENING = new Date("2026-11-24T19:15:00Z");
 
 test("the assistant gets the project's date and time", () => {
   const line = agentClockInstruction("Africa/Libreville", EVENING);
-  assert.match(line, /fuseau Africa\/Libreville/);
+  assert.match(line, /heure de Libreville/);
+  assert.doesNotMatch(line, /Africa\//);
   assert.match(line, /mardi 24 novembre 2026/);
   assert.match(line, /20:15/);
 });
@@ -20,13 +21,14 @@ test("the date follows the project's zone across midnight", () => {
   const line = agentClockInstruction("Africa/Libreville", late);
   assert.match(line, /mercredi 25 novembre 2026/);
   assert.match(line, /00:30/);
-  assert.match(agentClockInstruction("Africa/Abidjan", late), /mardi 24 novembre 2026.*23:30/);
+  assert.match(agentClockInstruction("Africa/Abidjan", late), /heure de Abidjan.*mardi 24 novembre 2026.*23:30/);
+  assert.match(agentClockInstruction("America/New_York", late), /heure de New York/);
 });
 
 test("an unknown zone falls back to Libreville", () => {
   for (const zone of ["Mars/Olympus", "", null, undefined, 42]) {
     const line = agentClockInstruction(zone, EVENING);
-    assert.match(line, /fuseau Africa\/Libreville/);
+    assert.match(line, /heure de Libreville/);
     assert.match(line, /20:15/);
   }
 });

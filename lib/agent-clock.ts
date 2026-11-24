@@ -18,5 +18,8 @@ export function agentClockInstruction(timeZone: unknown, now: Date = new Date())
     minute: "2-digit",
     hourCycle: "h23",
   }).format(now);
-  return `Date et heure actuelles chez l'entreprise (fuseau ${zone}) : ${moment}. Tiens-en compte pour les créneaux, les horaires, les délais et les mots comme « ce soir » ou « demain » ; ne la cite que si c'est utile.`;
+  // Nom de ville plutôt que l'identifiant IANA, que l'assistant recopierait.
+  const city = zone.split("/").pop()?.replaceAll("_", " ") ?? zone;
+  const label = zone.includes("/") ? `heure de ${city}` : `heure ${zone}`;
+  return `Date et heure actuelles chez l'entreprise (${label}) : ${moment}. Tiens-en compte pour les créneaux, les horaires, les délais et les mots comme « ce soir » ou « demain » ; ne la cite que si c'est utile.`;
 }
