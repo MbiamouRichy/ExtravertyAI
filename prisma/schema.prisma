@@ -123,6 +123,15 @@ model QuotaPeriod {
   extraUsed  Int           @default(0)
   isCurrent  Boolean       @default(true)
 
+  // Essai ouvert depuis la grille du 2026-11-25 : il se termine dès son dernier
+  // message, et le premier mois est prélevé tout de suite (lib/trial-end.ts).
+  endsOnQuota      Boolean   @default(false)
+  // PENDING, REQUESTING, DONE, PAYMENT_FAILED, CANCELLED ou FAILED (contrainte SQL).
+  trialEndStatus   String?
+  // Prochaine tentative, ou fin du bail d'une demande en cours.
+  trialEndDueAt    DateTime?
+  trialEndAttempts Int       @default(0)
+
   jobs       OutboundJob[]
 
   createdAt  DateTime      @default(now())

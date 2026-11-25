@@ -72,7 +72,7 @@ const comparison: { group: string; rows: { label: string; values: Cell[] }[] }[]
 const faqs = [
   {
     q: "Comment fonctionne l’essai gratuit ?",
-    a: `Chaque offre démarre par ${TRIAL_DAYS} jours d’essai, limités à ${formatMessageLimit(TRIAL_MESSAGES)} messages. Une carte est demandée à l’inscription, mais aucun prélèvement n’a lieu avant la fin de l’essai et vous pouvez annuler avant.`,
+    a: `Chaque offre démarre par un essai de ${TRIAL_DAYS} jours ou ${formatMessageLimit(TRIAL_MESSAGES)} messages, selon ce qui arrive en premier. Une carte est demandée à l’inscription ; rien n’est prélevé pendant l’essai et vous pouvez annuler avant sa fin. Sinon, le premier mois est prélevé à la fin de l’essai, dès le ${formatMessageLimit(TRIAL_MESSAGES)}e message s’il arrive avant le ${TRIAL_DAYS}e jour.`,
   },
   {
     q: "Puis-je changer d’offre en cours de mois ?",
@@ -200,7 +200,7 @@ export function PricingPage() {
             </Accordion>
             <div className="mt-10 flex flex-col items-center gap-3 rounded-2xl border bg-muted/30 p-8 text-center">
               <p className="font-heading text-lg font-semibold">
-                Plus de 25 000 messages par mois ?
+                Plus de {formatMessageLimit(PRICING_PLANS[PRICING_PLANS.length - 1].messageLimit)} messages par mois ?
               </p>
               <p className="text-sm text-muted-foreground">
                 Parlons d’une offre adaptée à votre volume.

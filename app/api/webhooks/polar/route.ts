@@ -3,14 +3,22 @@ import prisma from "@/lib/prisma";
 import { syncPolarSubscription } from "@/lib/billing-polar";
 import { syncMessageCreditOrder } from "@/lib/message-credit";
 import { getPolarOrder, getPolarSubscription } from "@/lib/polar";
-import { verifyWebhookSignature } from "@/lib/standard-webhook";
+import { readWebhookBody, verifyWebhookSignature } from "@/lib/standard-webhook";
 
 export const runtime = "nodejs";
 
+/**
+ * Webhook Polar : rien n'est lu ni appliqué avant la vérification de la
+ * signature (secret, horodatage à 5 minutes près, comparaison en temps
+ * constant). Le contenu reçu ne sert qu'à savoir quoi relire : l'abonnement
+ * ou la commande est toujours relu chez Polar, ce qui rend les doublons, le
+ * désordre et un rejeu sans effet.
+ */
 export async function POST(req: Request) {
   const secret = process.env.POLAR_WEBHOOK_SECRET;
   if (!secret) return new NextResponse("Webhook unavailable", { status: 503 });
-  const body = await req.text();
+  const body = await readWebhookBody(req);
+  if (body === null) return new NextResponse("Payload too large", { status: 413 });
   const timestamp = req.headers.get("webhook-timestamp");
   const valid = verifyWebhookSignature({
     secret,
@@ -20,23 +28,31 @@ export async function POST(req: Request) {
     signature: req.headers.get("webhook-signature"),
   });
   if (!valid) return new NextResponse("Invalid signature", { status: 400 });
+  let event: { type?: unknown; data?: { id?: unknown; subscription_id?: unknown } | null };
   try {
-    const event = JSON.parse(body) as {
-      type?: string;
-      data?: { id?: string; subscription_id?: string | null };
-    };
+    event = JSON.parse(body);
+  } catch {
+    // Signé mais illisible : le renvoyer ne changerait rien.
+    return new NextResponse("Invalid payload", { status: 400 });
+  }
+  if (!event || typeof event !== "object" || typeof event.type !== "string")
+    return new NextResponse("Invalid payload", { status: 400 });
+  const type = event.type;
+  const text = (value: unknown) =>
+    typeof value === "string" && value.length > 0 && value.length <= 200 ? value : undefined;
+  const dataId = text(event.data?.id);
+  const dataSubscriptionId = text(event.data?.subscription_id);
+  try {
     // Une commande désigne l'abonnement par subscription_id ; un achat unique n'en a pas.
-    const subscriptionId = event.type?.startsWith("subscription.")
-      ? event.data?.id
-      : event.type?.startsWith("order.")
-        ? event.data?.subscription_id
+    const subscriptionId = type.startsWith("subscription.")
+      ? dataId
+      : type.startsWith("order.")
+        ? dataSubscriptionId
         : undefined;
     // Achat unique : une recharge de messages, relue chez Polar avant d'être créditée.
     const creditOrderId =
-      event.type?.startsWith("order.") && !event.data?.subscription_id
-        ? event.data?.id
-        : undefined;
-    if (typeof creditOrderId === "string" && creditOrderId) {
+      type.startsWith("order.") && !event.data?.subscription_id ? dataId : undefined;
+    if (creditOrderId) {
       await syncMessageCreditOrder(prisma, await getPolarOrder(creditOrderId));
     }
     if (subscriptionId) {

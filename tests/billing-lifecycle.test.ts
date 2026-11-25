@@ -168,7 +168,7 @@ test(
         };
       }
       process.env.POLAR_STARTER_PRODUCT_ID = "prod_billing_test";
-      process.env.MESSAGE_LIMIT_STARTER = "4000";
+      process.env.MESSAGE_LIMIT_STARTER = "400";
 
       await t.test(
         "an unknown product cannot trigger stale expiry emails; once configured, access is restored",
@@ -353,7 +353,7 @@ test(
             where: { projectId: project.id, isCurrent: true },
           });
           assert.equal(quota.used, 1);
-          assert.equal(quota.limit, 4000);
+          assert.equal(quota.limit, 400);
           await deliverNextBillingEmail(client, async () => {
             throw Error("Obsolete expiry");
           });
@@ -433,7 +433,7 @@ test(
               key: `cycle:${sub.id}:${cycleStart - 2592000}`,
               startsAt: new Date((cycleStart - 2592000) * 1000),
               endsAt: new Date(cycleStart * 1000 - 1000),
-              limit: 4000,
+              limit: 400,
               used: 12,
             },
           });
@@ -447,7 +447,7 @@ test(
           });
           assert.equal(renewed.key, `cycle:${sub.id}:${cycleStart}`);
           assert.equal(renewed.used, 0);
-          assert.equal(renewed.limit, 4000);
+          assert.equal(renewed.limit, 400);
           assert.equal(
             (await getBillingAccess(client, project.id)).allowed,
             true,

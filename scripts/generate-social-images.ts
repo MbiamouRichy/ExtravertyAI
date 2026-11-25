@@ -23,6 +23,15 @@ import path from "node:path";
 import { chromium } from "playwright";
 import sharp from "sharp";
 
+import {
+  PRICING_PLANS,
+  TRIAL_DAYS,
+  TRIAL_MESSAGES,
+  formatMessageLimit,
+  formatPlanPrice,
+  type PlanId,
+} from "../lib/pricing";
+
 type Theme = "light" | "dark";
 type VisualId = string;
 
@@ -351,7 +360,14 @@ const toggleCard = () => `
     <p class="muted" style="margin-top: 22px; font-size: 22px; line-height: 1.45;">IA désactivée : vous répondez vous-même, l’assistant reprend quand vous le rallumez.</p>
   </div>`;
 
-const priceRows = (rows: readonly [string, string, string][]) => `
+/** Ce qui distingue chaque offre sur le visuel des tarifs. */
+const POST_PLAN_HIGHLIGHT: Record<PlanId, string> = {
+  starter: "réponses texte",
+  pro: "notes vocales",
+  business: "notes vocales et images",
+};
+
+const priceRows = (rows: readonly (readonly [string, string, string])[]) => `
   <div style="display: flex; flex-direction: column; gap: 14px;">
     ${rows
       .map(
@@ -426,13 +442,16 @@ const POSTS: Record<PostDate, { eyebrow: string; heading: string; body: string; 
   },
   "2026-11-26": {
     eyebrow: "Offres",
-    heading: `Essayez 5 jours, <em class="serif">gratuitement.</em>`,
-    body: priceRows([
-      ["Starter", "15,99 $", "2 500 messages · réponses texte"],
-      ["Pro", "39,99 $", "8 000 messages · notes vocales"],
-      ["Business", "99 $", "25 000 messages · notes vocales et images"],
-    ]),
-    note: "100 messages inclus pendant l’essai.",
+    // Prix, quotas et essai lus dans lib/pricing.ts : le visuel suit la grille en vigueur.
+    heading: `Essayez ${TRIAL_DAYS} jours, <em class="serif">gratuitement.</em>`,
+    body: priceRows(
+      PRICING_PLANS.map((plan) => [
+        plan.name,
+        formatPlanPrice(plan.priceCents),
+        `${formatMessageLimit(plan.messageLimit)} messages · ${POST_PLAN_HIGHLIGHT[plan.id]}`,
+      ]),
+    ),
+    note: `${TRIAL_MESSAGES} messages inclus pendant l’essai.`,
   },
 };
 

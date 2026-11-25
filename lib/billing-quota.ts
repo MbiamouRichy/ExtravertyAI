@@ -1,6 +1,6 @@
 import type { PrismaClient } from "../src/generated/prisma/client";
 import { MANUAL_PERIOD_PREFIX } from "./manual-billing-shared";
-import { TRIAL_MESSAGES, type PlanId } from "./pricing";
+import { PRICING_PLANS, TRIAL_MESSAGES, type PlanId } from "./pricing";
 import { consumeTrial } from "./trial-eligibility";
 
 export function subscriptionStatus(status: string) {
@@ -11,11 +11,21 @@ export function subscriptionStatus(status: string) {
   return "inactive" as const;
 }
 
+/**
+ * Quota mensuel d'une période payée. Source unique : `messageLimit` de
+ * lib/pricing.ts, le quota annoncé sur le site. `MESSAGE_LIMIT_<OFFRE>` peut
+ * seulement l'abaisser (essais sur la préversion) : une valeur oubliée d'un
+ * ancien tarif n'accorde jamais plus que ce que le client a payé.
+ */
 export function paidMessageLimit(plan: string) {
-  const value = Number(process.env[`MESSAGE_LIMIT_${plan.toUpperCase()}`]);
+  const announced = PRICING_PLANS.find((candidate) => candidate.id === plan)?.messageLimit;
+  if (!announced) throw new Error("PAID_MESSAGE_LIMIT_UNKNOWN_PLAN");
+  const raw = process.env[`MESSAGE_LIMIT_${plan.toUpperCase()}`]?.trim();
+  if (!raw) return announced;
+  const value = Number(raw);
   if (!Number.isSafeInteger(value) || value <= 0)
-    throw new Error("PAID_MESSAGE_LIMIT_NOT_CONFIGURED");
-  return value;
+    throw new Error("PAID_MESSAGE_LIMIT_INVALID");
+  return Math.min(value, announced);
 }
 
 /** État d'un abonnement Polar, prêt à appliquer. Dates en secondes Unix. */
@@ -178,14 +188,26 @@ export async function applySubscriptionState(
       ? await tx.quotaPeriod.update({
           where: { id: period.id },
           // Un essai en cours garde le quota annoncé à son ouverture, même si
-          // l'offre d'essai change ensuite ; un cycle payé suit l'offre (montée).
-          data: { isCurrent: true, startsAt, endsAt, limit: trial ? period.limit : limit },
+          // l'offre d'essai change ensuite. Un cycle payé suit une montée
+          // d'offre, mais ne perd jamais de messages en cours de route (baisse
+          // des quotas du catalogue, événement rejoué) : la baisse attend le
+          // cycle suivant.
+          data: {
+            isCurrent: true,
+            startsAt,
+            endsAt,
+            limit: trial ? period.limit : Math.max(period.limit, limit),
+          },
         })
       : await tx.quotaPeriod.create({
           data: {
             projectId,
             key,
             kind: trial ? "trialing" : "active",
+            // Essai de 7 jours ou 50 messages : son dernier message déclenche
+            // le premier prélèvement (lib/trial-end.ts). Les essais ouverts
+            // avant ce changement gardent leurs conditions (false par défaut).
+            endsOnQuota: trial,
             startsAt,
             endsAt,
             limit,

@@ -93,7 +93,7 @@ Ouvre l'URL affichée et paie avec `4242 4242 4242 4242`, une date future et n'i
 
 Chaque événement s'affiche en JSON. `missing` liste les champs attendus par la synchronisation et absents de l'événement.
 
-Pour atteindre le premier prélèvement sans attendre 5 jours, ajoute `PAYMENT_SANDBOX_TRIAL_DAYS=1` à `.env`, puis crée un nouveau paiement. Garde le tunnel et l'écouteur actifs jusqu'à la fin de l'essai.
+Pour atteindre le premier prélèvement sans attendre 7 jours, ajoute `PAYMENT_SANDBOX_TRIAL_DAYS=1` à `.env`, puis crée un nouveau paiement. Garde le tunnel et l'écouteur actifs jusqu'à la fin de l'essai.
 
 Résultats Polar du 31 octobre 2026 : `subscription.active` arrive dès le début de l'essai, avec le statut `trialing`. Une commande `paid` arrive aussi à ce moment. Une migration devra donc se fier au statut et au montant, pas au seul nom de l'événement.
 

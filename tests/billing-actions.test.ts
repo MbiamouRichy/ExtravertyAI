@@ -34,6 +34,10 @@ function setup(
     "@/lib/agent-config": {},
     "@/lib/chat-realtime": {},
     "@/lib/whatsapp-settings-sync": {},
+    "@/lib/trial-end": {
+      requeueCancelledTrialEnd: async (_db: unknown, projectId: string) =>
+        void calls.push({ requeueTrialEnd: projectId }),
+    },
     "@/lib/auth-server": {
       getSession: async () =>
         options.anonymous
@@ -219,7 +223,8 @@ test("renewal lifts a scheduled cancellation instead of opening the portal", asy
   const s = setup({ cancelling: true });
   const result = await s.call("renew");
   assert.equal(result.url, BILLING_URL);
-  sameCalls(s.calls, ["retrieve", { resume: "sub_ours" }]);
+  // Essai épuisé mis en attente par la résiliation : la demande repart.
+  sameCalls(s.calls, ["retrieve", { resume: "sub_ours" }, { requeueTrialEnd: "cmuhe8ap1000004l64j9yddk1" }]);
 });
 test("cancellation requires the billing permission and checks the customer before Polar", async () => {
   for (const options of [{ anonymous: true }, { forbidden: true }]) {

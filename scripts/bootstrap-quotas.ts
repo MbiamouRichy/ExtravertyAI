@@ -50,8 +50,8 @@ async function main() {
               : `cycle:${p.stripeSubscriptionId}:${Math.floor(row.startsAt.getTime() / 1000)}`;
           if (
             row.key !== expectedKey ||
-            // 150 : essais ouverts avant le passage à TRIAL_MESSAGES, qui gardent leur quota.
-            (row.kind === "trialing" && ![150, TRIAL_MESSAGES].includes(row.limit))
+            // 150 et 100 : essais ouverts avant le passage à TRIAL_MESSAGES, qui gardent leur quota.
+            (row.kind === "trialing" && ![150, 100, TRIAL_MESSAGES].includes(row.limit))
           )
             throw new Error("Invalid canonical billing key/limit");
           const current = await tx.quotaPeriod.findFirst({

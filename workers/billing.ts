@@ -8,6 +8,7 @@ import {
   deliverNextBillingEmail,
 } from "../lib/billing-lifecycle";
 import { renewInternalQuotas } from "../lib/internal-project";
+import { endNextExhaustedTrial } from "../lib/trial-end";
 
 initWorkerMonitoring("billing-worker");
 const prisma = workerDatabase();
@@ -42,6 +43,16 @@ async function main() {
       } catch (error) {
         reportWorkerError("[billing-worker] Quota du projet interne non renouvelé.", error);
       }
+    }
+    try {
+      // Essai épuisé avant 7 jours : premier mois prélevé tout de suite.
+      const ended = await endNextExhaustedTrial(prisma);
+      if (ended) {
+        worked = true;
+        await notifyProject(ended.projectId);
+      }
+    } catch (error) {
+      reportWorkerError("[billing-worker] Fin d'essai interrompue.", error);
     }
     try {
       const projectId = await reconcileNextBillingProject(prisma, config);

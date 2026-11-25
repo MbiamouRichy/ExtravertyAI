@@ -219,6 +219,20 @@ export function changePolarSubscriptionProduct(
   });
 }
 
+/**
+ * Termine l'essai tout de suite : Polar prélève le premier mois sur la carte
+ * enregistrée, pendant l'appel. Carte refusée : erreur 402, l'abonnement reste
+ * en essai. Appelé seulement par lib/trial-end.ts, après relecture de l'état.
+ */
+export function endPolarTrialNow(id: string) {
+  return polarRequest<PolarSubscription>(`/v1/subscriptions/${segment(id)}`, {
+    method: "PATCH",
+    body: { trial_end: "now" },
+    // Le prélèvement est synchrone : laisser le temps à la banque de répondre.
+    timeoutMs: 30000,
+  });
+}
+
 /** Annule un changement d'offre programmé pour la période suivante. */
 export function clearPolarPendingUpdate(id: string) {
   return polarRequest<PolarSubscription>(`/v1/subscriptions/${segment(id)}`, {

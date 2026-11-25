@@ -1086,7 +1086,7 @@ test(
         "billing duplicates preserve quota and renewal opens exactly one new period",
         async () => {
           process.env.POLAR_STARTER_PRODUCT_ID = "prod_test";
-          process.env.MESSAGE_LIMIT_STARTER = "1000";
+          process.env.MESSAGE_LIMIT_STARTER = "300";
           const p = await fixture();
           await client.quotaPeriod.deleteMany({ where: { projectId: p.id } });
           await client.project.update({
@@ -1144,7 +1144,16 @@ test(
             where: { projectId: p.id, isCurrent: true },
           });
           assert.equal(period.used, 0);
-          assert.equal(period.limit, 1000);
+          assert.equal(period.limit, 300);
+          // Quota abaissé en cours de cycle (nouvelle grille, événement
+          // rejoué) : le cycle payé garde le sien, la baisse attend le suivant.
+          process.env.MESSAGE_LIMIT_STARTER = "200";
+          await syncPolarSubscription(client, sub, 11);
+          assert.equal(
+            (await client.quotaPeriod.findUniqueOrThrow({ where: { id: period.id } })).limit,
+            300,
+          );
+          process.env.MESSAGE_LIMIT_STARTER = "300";
           assert.equal(
             await client.quotaPeriod.count({
               where: { projectId: p.id, isCurrent: true },

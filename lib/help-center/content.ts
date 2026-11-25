@@ -10,15 +10,18 @@
  * - `[texte](/aide/slug)` ou `[texte](https://…)` : lien.
  */
 
+import { PLAN_FEATURES } from "../plan-features";
 import { PRICING_PLANS, TRIAL_DAYS, TRIAL_MESSAGES, formatPlanPrice } from "../pricing";
 
-export const HELP_UPDATED_AT = "2026-11-22";
+export const HELP_UPDATED_AT = "2026-11-25";
 export const SUPPORT_WHATSAPP_DISPLAY = "+241 76 20 56 29";
 export const HELP_DESCRIPTION =
   "Guides pas à pas pour mettre en ligne votre assistant WhatsApp ExtravertyAI : compte, numéro, configuration, connaissances, équipe et facturation.";
 
 /** Les chiffres des forfaits viennent de lib/pricing.ts : l’aide ne peut pas les contredire. */
-const TRIAL = `${TRIAL_DAYS} jours et jusqu’à ${TRIAL_MESSAGES} messages`;
+const TRIAL = `${TRIAL_DAYS} jours ou ${TRIAL_MESSAGES} messages, selon ce qui arrive en premier`;
+// Premier prélèvement : fin des jours d'essai, ou dernier message de l'essai (lib/trial-end.ts).
+const TRIAL_CHARGE = `À la fin de l’essai, le premier mois est prélevé sur la carte enregistrée : dès le ${TRIAL_MESSAGES}e message s’il arrive avant le ${TRIAL_DAYS}e jour. Résiliez avant pour ne rien payer.`;
 const formatCount = (value: number) => new Intl.NumberFormat("fr-FR").format(value);
 const perPlan = (pick: (plan: (typeof PRICING_PLANS)[number]) => string) => PRICING_PLANS.map(pick);
 const PLAN_PRICES = perPlan((plan) => `${plan.name} ${formatPlanPrice(plan.priceCents)}`).join(", ");
@@ -517,7 +520,7 @@ const GUIDE: HelpArticle = {
             { question: "Puis-je garder mon numéro WhatsApp actuel ?", answer: "Oui, avec WhatsApp comme avec WhatsApp Business. Vous continuez à utiliser l’application sur votre téléphone : ExtravertyAI s’ajoute simplement à vos appareils connectés." },
             { question: "Quand l’assistant commence-t-il à répondre ?", answer: "Dès que deux conditions sont réunies : l’assistant est activé (étape 4) et WhatsApp est connecté (étape 5). Avant cela, aucun client ne reçoit de réponse automatique." },
             { question: "Le test envoie-t-il des messages à mes clients ?", answer: "Non. Le test de l’étape 4 se passe entièrement dans ExtravertyAI. Rien n’est envoyé sur WhatsApp." },
-            { question: "Que comprend l’essai gratuit ?", answer: `${TRIAL[0].toUpperCase()}${TRIAL.slice(1)}, une seule fois par numéro WhatsApp. Si le numéro a déjà profité d’un essai, vous pouvez payer directement avec [[Payer sans essai]].` },
+            { question: "Que comprend l’essai gratuit ?", answer: `${TRIAL[0].toUpperCase()}${TRIAL.slice(1)}, une seule fois par numéro WhatsApp. ${TRIAL_CHARGE} Si le numéro a déjà profité d’un essai, vous pouvez payer directement avec [[Payer sans essai]].` },
             { question: "Dois-je choisir un mot de passe ?", answer: "Non. Vous vous connectez avec un code reçu par e-mail, ou avec Google. Si vous le souhaitez, ajoutez un mot de passe sur l’écran du code à l’inscription : 8 caractères minimum." },
             { question: "Je n’ai pas reçu le code de vérification du numéro.", answer: "Vérifiez le numéro affiché (touchez [[Modifier]] pour le corriger), puis touchez [[Renvoyer le code]]. Vous pouvez aussi revenir à la méthode par message avec [[Envoyer un message à la place]]." },
             { question: "Le QR code ne fonctionne pas.", answer: "Un QR code expire vite : demandez-en un nouveau. Augmentez la luminosité de l’écran et tenez le téléphone à 20 cm environ. Si cela ne suffit pas, choisissez [[Numéro de téléphone]] et saisissez le code affiché dans WhatsApp." },
@@ -550,10 +553,12 @@ export const HELP_ARTICLES: HelpArticle[] = [
     slug: "forfaits",
     title: "Choisir votre forfait",
     groupId: "prise-en-main",
-    summary: `Trois forfaits mensuels, un numéro WhatsApp par projet. Chaque nouvel abonnement commence par un essai gratuit de ${TRIAL_DAYS} jours.`,
+    summary: `Trois forfaits mensuels, un numéro WhatsApp par projet. Chaque nouvel abonnement commence par un essai gratuit de ${TRIAL_DAYS} jours ou ${TRIAL_MESSAGES} messages.`,
     keywords: ["prix", "tarif", "abonnement", "starter", "pro", "business", "essai gratuit", "comparer"],
     points: [
       `Essai gratuit : ${TRIAL}, une fois par numéro WhatsApp.`,
+      TRIAL_CHARGE,
+      "Carte refusée à la fin de l’essai : les envois sont en pause. Mettez la carte à jour, puis touchez [[Relancer le paiement]] dans la page [[Facturation]].",
       "Changez de forfait depuis la page [[Facturation]] de votre projet.",
     ],
     extra: [
@@ -722,10 +727,10 @@ export const HELP_ARTICLES: HelpArticle[] = [
     summary: "Envoyez un même message, personnalisé avec le prénom, aux contacts qui vous ont déjà écrit.",
     keywords: ["diffusion", "envoi groupé", "campagne", "message de masse"],
     points: [
-      "Pro : jusqu’à 500 contacts par envoi et 2 000 messages de diffusion par mois.",
-      "Business : jusqu’à 2 000 contacts par envoi et 10 000 messages par mois, avec ciblage par étape du pipeline.",
+      "Autant de diffusions que vous voulez : chaque message envoyé est décompté du quota mensuel de votre forfait.",
+      `Pro : jusqu’à ${formatCount(PLAN_FEATURES.pro.broadcastRecipients)} contacts par envoi et ${formatCount(PLAN_FEATURES.pro.broadcastDaily)} messages par jour.`,
+      `Business : jusqu’à ${formatCount(PLAN_FEATURES.business.broadcastRecipients)} contacts par envoi et ${formatCount(PLAN_FEATURES.business.broadcastDaily)} messages par jour, avec ciblage par étape du pipeline.`,
       "Seuls les contacts qui vous ont déjà écrit peuvent être ciblés : cela protège votre numéro contre les signalements.",
-      "Chaque message de diffusion compte aussi dans le quota mensuel de votre forfait.",
     ],
   }),
   brief({

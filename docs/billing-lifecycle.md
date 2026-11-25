@@ -5,6 +5,7 @@
 - L’accès aux envois et aux fonctions IA exige un statut facturable `active` ou `trialing` et une période de quota courante, commencée et non expirée. L’horloge de PostgreSQL fait foi ; à l’instant exact de fin, l’accès expire.
 - Les résumés, l’assistance à la rédaction et la qualification IA sont soumis à cette vérification. Une pause manuelle de l’automatisation ne suspend pas l’abonnement.
 - Aucun quota payant n’est accordé avant qu’un abonnement Polar soit actif sur le cycle (paiement confirmé). Il n’y a pas de période de grâce implicite.
+- L’essai dure 7 jours ou 50 messages, selon ce qui arrive en premier. Au dernier message de l’essai, le worker demande à Polar de terminer l’essai (`lib/trial-end.ts`) : le premier mois est prélevé sur la carte enregistrée et le cycle payé s’ouvre, généralement en quelques secondes. Entre-temps, les envois sont refusés avec un message qui l’explique, et la page Facturation affiche le paiement en cours. Une carte refusée n’est jamais représentée automatiquement : la page propose de mettre la carte à jour, puis « Relancer le paiement » (gestionnaires de la facturation seulement, une relance par minute au plus, exécutée par le worker).
 - Le bandeau du projet distingue essai terminé, paiement à régulariser, confirmation en attente et pause manuelle. Il se réactualise toutes les 30 secondes, au retour sur l’onglet et à l’échéance. Les échéances sont affichées avec heure et fuseau UTC.
 - La lecture de l’historique et la facturation restent accessibles. Cette évolution ne supprime ni les données ni l’instance WhatsApp.
 
@@ -27,7 +28,7 @@ Les emails sont en texte brut : les noms des projets ne sont jamais interprété
    - `DATABASE_URL`
    - `POLAR_ACCESS_TOKEN` du même environnement que l’application, et `POLAR_SERVER=sandbox` hors production
    - `POLAR_STARTER_PRODUCT_ID`, `POLAR_PRO_PRODUCT_ID`, `POLAR_BUSINESS_PRODUCT_ID`
-   - `MESSAGE_LIMIT_STARTER`, `MESSAGE_LIMIT_PRO`, `MESSAGE_LIMIT_BUSINESS`
+   - `MESSAGE_LIMIT_STARTER`, `MESSAGE_LIMIT_PRO`, `MESSAGE_LIMIT_BUSINESS` facultatives : les quotas viennent de `lib/pricing.ts`, ces variables ne peuvent que les abaisser
    - `RESEND_API_KEY`
    - `NEXT_PUBLIC_APP_URL` : origine HTTPS publique de l’application
    - `BILLING_EMAIL_FROM` facultatif : défaut `ExtravertyAI <support@extravertyai.com>`, pour que les réponses des clients arrivent au support, expéditeur à vérifier chez Resend
@@ -35,7 +36,7 @@ Les emails sont en texte brut : les noms des projets ne sont jamais interprété
 4. Lancer le service persistant : `docker compose up -d --build billing-worker`, ou `npm run worker:billing` sous le superviseur habituel.
 5. Configurer le webhook Polar (voir [Facturation Polar](polar-billing.md)).
 
-La fin d’essai bloque les opérations même si ce worker ou Polar est momentanément indisponible. **Les emails et le rattrapage automatique nécessitent le worker en fonctionnement.** Aucune tâche planifiée Vercel supplémentaire n’est nécessaire.
+La fin d’essai bloque les opérations même si ce worker ou Polar est momentanément indisponible. **Les emails, le rattrapage automatique et le prélèvement d’un essai épuisé avant terme nécessitent le worker en fonctionnement** : sans lui, un essai épuisé attend ses 7 jours, sans envois. Aucune tâche planifiée Vercel supplémentaire n’est nécessaire.
 
 Le worker refuse de démarrer si les offres ou quotas sont absents. Si Polar répond mais que la synchronisation échoue (produit inconnu, conflit de données), aucune nouvelle alerte n’est préparée depuis cet état obsolète ; corriger la configuration puis laisser le worker réessayer.
 

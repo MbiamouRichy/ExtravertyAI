@@ -13,7 +13,7 @@ Une requête HEAD sans session sur l'ancien webhook de paiement a reçu HTTP 302
 - Dans le sandbox Polar, créer un webhook vers `/api/webhooks/polar` sur cette Preview, au format `Raw`. Son secret doit correspondre à `POLAR_WEBHOOK_SECRET` dans Vercel Preview.
 - Autoriser l'accès serveur de Polar via les mécanismes de protection Vercel. Conserver la vérification de signature. Ne pas copier les secrets dans Git ou dans la conversation.
 - Événements traités : tous les `subscription.*` et `order.*` (voir [Facturation Polar](polar-billing.md)).
-- Configurer les limites `MESSAGE_LIMIT_STARTER`, `MESSAGE_LIMIT_PRO`, `MESSAGE_LIMIT_BUSINESS` pour les périodes payantes.
+- Quotas des périodes payantes : ceux de `lib/pricing.ts`. `MESSAGE_LIMIT_STARTER`, `MESSAGE_LIMIT_PRO`, `MESSAGE_LIMIT_BUSINESS` sont facultatives et ne peuvent que les abaisser.
 
 ## Recette manuelle
 
@@ -49,9 +49,9 @@ Après correction, renvoyer l'événement depuis Polar puis recharger `/projects
 Prérequis : les trois produits de recharge du sandbox et `POLAR_*_CREDIT_PRODUCT_ID` sur la Preview (voir [polar-billing.md](polar-billing.md#messages-supplémentaires)), et un projet en abonnement payé, pas en essai.
 
 1. Page Facturation : la section « Messages supplémentaires » affiche 0 $ de crédit et le bouton « Acheter 1 000 messages · 8 $ » (Starter).
-2. Payer avec `4242 4242 4242 4242`. Au retour, le message « Paiement reçu » s'affiche ; après actualisation, le crédit vaut 8 $ (≈ 1 000 messages) et la recharge apparaît avec sa facture.
+2. Payer avec `4242 4242 4242 4242`. Au retour, le message « Paiement reçu » s'affiche ; après actualisation, le crédit vaut 14 $ (≈ 1 000 messages) et la recharge apparaît avec sa facture.
 3. Renvoyer `order.paid` depuis Polar : le crédit ne change pas.
-4. Pour voir le crédit servir sans envoyer 2 500 messages, baisser temporairement `MESSAGE_LIMIT_STARTER` sur la Preview, attendre le prochain cycle ou rejouer `subscription.updated`, puis envoyer des messages au-delà du quota : chacun retire 0,008 $ et la case « Messages » affiche « + N payés par le crédit ».
+4. Pour voir le crédit servir sans envoyer 500 messages, baisser temporairement `MESSAGE_LIMIT_STARTER` sur la Preview, attendre le prochain cycle ou rejouer `subscription.updated`, puis envoyer des messages au-delà du quota : chacun retire 0,014 $ et la case « Messages » affiche « + N payés par le crédit ».
 5. Rembourser la commande dans Polar : le crédit restant baisse de la part remboursée, sans passer sous zéro.
 6. Un membre sans le rôle Facturation ne voit pas le bouton ; un projet en essai le voit désactivé (« Disponible après l'essai »).
 

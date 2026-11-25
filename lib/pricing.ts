@@ -1,17 +1,23 @@
+/**
+ * Catalogue des offres : prix (USD, vérifié contre Polar au paiement), quota
+ * mensuel de messages (appliqué par le serveur, lib/billing-quota.ts) et prix
+ * d'une recharge. Une recharge ne coûte jamais moins cher au message que le
+ * forfait lui-même : monter d'offre reste toujours le meilleur choix.
+ */
 export const PRICING_PLANS = [
   {
     id: "starter",
     name: "Starter",
-    priceCents: 1599,
-    messageLimit: 2500,
-    extraPackCents: 800,
+    priceCents: 700,
+    messageLimit: 500,
+    extraPackCents: 1400,
     users: 2,
     storage: "500 Mo",
     description: "Pour automatiser vos premiers échanges clients.",
     highlighted: false,
     features: [
       "2 utilisateurs · 1 numéro WhatsApp",
-      "2 500 messages par mois, puis 8 $ les 1 000",
+      "500 messages par mois, puis 14 $ les 1 000",
       "Réponses textuelles uniquement",
       "Assistant disponible 24 h/24, 7 j/7",
       "Statistiques sur 30 jours",
@@ -23,9 +29,9 @@ export const PRICING_PLANS = [
   {
     id: "pro",
     name: "Pro",
-    priceCents: 3999,
-    messageLimit: 8000,
-    extraPackCents: 600,
+    priceCents: 1700,
+    messageLimit: 2000,
+    extraPackCents: 900,
     users: 4,
     storage: "1,2 Go",
     description:
@@ -33,7 +39,7 @@ export const PRICING_PLANS = [
     highlighted: true,
     features: [
       "4 utilisateurs · 1 numéro WhatsApp",
-      "8 000 messages par mois, puis 6 $ les 1 000",
+      "2 000 messages par mois, puis 9 $ les 1 000",
       "Texte et compréhension des notes vocales",
       "Assistant disponible 24 h/24, 7 j/7",
       "Statistiques sur 90 jours",
@@ -42,7 +48,7 @@ export const PRICING_PLANS = [
       "Capture IA des coordonnées des prospects",
       "Questionnaire de satisfaction",
       "Webhooks et Google Sheets",
-      "Diffusion : 500 contacts par envoi, 2 000 messages par mois",
+      "Diffusions à volonté sur votre quota, 500 contacts par envoi",
       "1,2 Go de fichiers",
       "Support prioritaire",
     ],
@@ -50,8 +56,8 @@ export const PRICING_PLANS = [
   {
     id: "business",
     name: "Business",
-    priceCents: 9900,
-    messageLimit: 25000,
+    priceCents: 10000,
+    messageLimit: 20000,
     extraPackCents: 500,
     users: 10,
     storage: "3 Go",
@@ -60,7 +66,7 @@ export const PRICING_PLANS = [
     // Le pipeline en 4e position : la carte d'accueil n'affiche que les quatre premières lignes.
     features: [
       "10 utilisateurs · 1 numéro WhatsApp",
-      "25 000 messages par mois, puis 5 $ les 1 000",
+      "20 000 messages par mois, puis 5 $ les 1 000",
       "Texte, notes vocales et compréhension des images",
       "Pipeline de prospects et relances automatiques",
       "Assistant disponible 24 h/24, 7 j/7",
@@ -69,7 +75,7 @@ export const PRICING_PLANS = [
       "Capture IA des coordonnées des prospects",
       "Webhooks, Google Sheets et rapports programmés",
       "Répartition automatique des conversations",
-      "Diffusion : 2 000 contacts par envoi, 10 000 messages par mois",
+      "Diffusions à volonté sur votre quota, 2 000 contacts par envoi",
       "3 Go de fichiers",
       "Support prioritaire",
     ],
@@ -84,8 +90,9 @@ export type PlanId = PricingPlan["id"];
  * (durée) et le quota (messages) l'appliquent côté serveur, les pages
  * l'annoncent avec ces mêmes valeurs.
  */
-export const TRIAL_DAYS = 5;
-export const TRIAL_MESSAGES = 100;
+export const TRIAL_DAYS = 7;
+/** Premier atteint des deux : au-delà, plus aucun envoi jusqu'au premier paiement. */
+export const TRIAL_MESSAGES = 50;
 
 /**
  * Messages au-delà du quota mensuel : recharge prépayée de EXTRA_PACK_MESSAGES
@@ -156,7 +163,7 @@ export const PLAN_CAPABILITIES: Record<PlanId, readonly string[]> = {
     "Résumé IA des conversations",
     "Questionnaire de satisfaction",
     "Connexion à vos outils (Make, Zapier, CRM)",
-    "Diffusion de messages : 500 contacts par envoi, 2 000 messages par mois, 300 par jour",
+    "Diffusion de messages : autant d’envois que vous voulez, 500 contacts par envoi et 300 messages par jour, décomptés de votre quota",
     "Statistiques sur 90 jours",
     "Base de connaissances : ≈ 300 pages, 10 documents PDF ou pages web",
     "1,2 Go de fichiers",
@@ -173,7 +180,7 @@ export const PLAN_CAPABILITIES: Record<PlanId, readonly string[]> = {
     "Questionnaire de satisfaction",
     "Connexion à vos outils (Make, Zapier, CRM)",
     "Répartition automatique entre les membres en ligne",
-    "Diffusion de messages : 2 000 contacts par envoi, 10 000 messages par mois, 1 000 par jour",
+    "Diffusion de messages : autant d’envois que vous voulez, 2 000 contacts par envoi et 1 000 messages par jour, décomptés de votre quota",
     "Ciblage des diffusions par étape du pipeline",
     "Rapports hebdomadaires programmés",
     "Statistiques sur 12 mois",

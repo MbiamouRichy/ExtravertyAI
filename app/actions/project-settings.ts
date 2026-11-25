@@ -33,6 +33,7 @@ import {
 import { isPaymentHolder, maskEmail } from "@/lib/billing-plan-change";
 import { resolvePlanId } from "@/lib/pricing";
 import { syncWhatsAppSettings } from "@/lib/whatsapp-settings-sync";
+import { requeueCancelledTrialEnd } from "@/lib/trial-end";
 
 const Id = z.string().cuid();
 const Version = z.number().int().nonnegative();
@@ -251,6 +252,8 @@ export async function openProjectBillingPortal(
         throw new SettingsError("L’abonnement n’a pas pu être vérifié.");
       if (intent === "renew" && current.cancel_at_period_end) {
         await resumePolarSubscription(current.id);
+        // Essai épuisé mis en attente par la résiliation : prélevé maintenant.
+        await requeueCancelledTrialEnd(prisma, project.id);
         return { success: true as const, url: billingUrl };
       }
       if (intent === "renew" && isEndedPolarSubscription(current)) {

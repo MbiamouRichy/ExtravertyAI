@@ -9,6 +9,7 @@ import {
   CircleAlert,
   CreditCard,
   FileText,
+  Loader2,
   MessageCircle,
   MessageSquarePlus,
   Repeat,
@@ -63,6 +64,11 @@ import {
   formatXaf,
 } from "@/lib/manual-billing-shared";
 import { SITE_CONTACT } from "@/lib/site";
+import { trialEndView } from "@/lib/trial-end";
+import {
+  TrialActivationRefresh,
+  TrialActivationRetryButton,
+} from "@/components/dashboard/project/trial-activation";
 
 const RENEW_ON_WHATSAPP = `${SITE_CONTACT.whatsapp}?text=${encodeURIComponent(
   "Bonjour, je souhaite renouveler mon offre ExtravertyAI.",
@@ -416,6 +422,8 @@ export default async function BillingPage({
     .filter(Boolean)
     .join(" · ");
   const usedRatio = quota ? Math.min(1, quota.used / Math.max(1, quota.limit)) : 0;
+  // Essai épuisé avant son terme : premier mois prélevé par le worker.
+  const trialEnd = manualPeriod ? null : trialEndView(quota);
   const endPhrase =
     manualPeriod
       ? manualEnded
@@ -526,6 +534,67 @@ export default async function BillingPage({
             ? "Le service de paiement ne répond pas. Actualisez dans un instant."
             : "Facturation pas encore synchronisée. Terminez le paiement puis actualisez."}
         </p>
+      )}
+
+      {trialEnd && quota && (
+        <div
+          role={trialEnd === "processing" || trialEnd === "cancelled" ? "status" : "alert"}
+          className={cn(
+            "flex flex-col gap-4 rounded-lg border p-4 text-sm sm:flex-row sm:items-center",
+            trialEnd === "payment_failed" || trialEnd === "failed"
+              ? "border-destructive/40"
+              : "border-dashed text-muted-foreground",
+          )}
+        >
+          <p className="flex min-w-0 flex-1 gap-3">
+            {trialEnd === "processing" ? (
+              <Loader2
+                aria-hidden="true"
+                className="mt-0.5 size-4 shrink-0 animate-spin text-foreground motion-reduce:animate-none"
+              />
+            ) : (
+              <CreditCard aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-foreground" />
+            )}
+            <span>
+              Les {quota.limit.toLocaleString("fr-FR")} messages de l’essai sont utilisés
+              {trialEnd === "processing" ? (
+                <>
+                  {" "}: le premier mois de l’offre {pricingPlan(currentPlan).name} est en cours
+                  de prélèvement sur la carte enregistrée. Les envois reprennent dès le paiement
+                  confirmé.
+                </>
+              ) : trialEnd === "payment_failed" ? (
+                <>
+                  , mais la carte enregistrée a été refusée : les envois sont en pause.{" "}
+                  {canManage && isHolder
+                    ? "Mettez à jour la carte, puis relancez le paiement."
+                    : holder
+                      ? `Le titulaire du paiement (${maskEmail(holder)}) doit mettre à jour la carte, puis relancer le paiement.`
+                      : "Mettez à jour la carte, puis relancez le paiement."}
+                </>
+              ) : trialEnd === "failed" ? (
+                <>
+                  , mais le premier prélèvement n’a pas pu être lancé : les envois sont en pause.
+                  Relancez-le, ou contactez le support s’il échoue de nouveau.
+                </>
+              ) : (
+                <>
+                  {" "}et l’abonnement est résilié : aucun prélèvement n’aura lieu. Réactivez-le pour
+                  reprendre les envois tout de suite ; le premier mois sera alors prélevé.
+                </>
+              )}
+            </span>
+          </p>
+          {canManage && (trialEnd === "payment_failed" || trialEnd === "failed") && (
+            <div className="flex shrink-0 flex-col gap-2 sm:flex-row">
+              {trialEnd === "payment_failed" && isHolder && (
+                <PaymentSettingsButton projectId={projectId} />
+              )}
+              <TrialActivationRetryButton projectId={projectId} />
+            </div>
+          )}
+          {trialEnd === "processing" && <TrialActivationRefresh projectId={projectId} />}
+        </div>
       )}
 
       {/* Offre et crédit côte à côte dès que la zone de contenu (et non

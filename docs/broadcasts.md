@@ -7,13 +7,13 @@ Envoi d’un même message, personnalisé avec le prénom, à des contacts Whats
 | | Pro | Business |
 |---|---|---|
 | Contacts par diffusion | 500 | 2 000 |
-| Messages de diffusion par période de facturation | 2 000 | 10 000 |
+| Nombre de diffusions | Illimité | Illimité |
 | Messages de diffusion par jour | 300 | 1 000 |
 | Ciblage par étape du pipeline | Non | Oui |
 
 Le ciblage par étape suit l’offre du pipeline (Business) : une audience avec des étapes est refusée côté serveur sur Pro, à l’estimation comme à la création.
 
-Chaque message de diffusion est aussi décompté du quota mensuel de messages de l’offre. Les limites sont définies dans `lib/plan-features.ts` et vérifiées côté serveur à la création **et** à chaque envoi.
+Depuis le 2026-11-25, les diffusions n’ont plus de plafond mensuel propre : chaque message est pris sur le quota mensuel de messages de l’offre (2 000 en Pro, 20 000 en Business), puis sur le crédit prépayé. À la création, le serveur refuse une audience plus grande que le quota restant, ou toute diffusion sans période d’accès ouverte ; à chaque envoi, `reserveMessageQuota` met la diffusion en pause une fois le quota épuisé. Les limites sont définies dans `lib/plan-features.ts` et vérifiées côté serveur à la création **et** à chaque envoi.
 
 ## Règles de protection du numéro
 
@@ -26,7 +26,7 @@ Chaque message de diffusion est aussi décompté du quota mensuel de messages de
 
 - À la création, la liste des destinataires est figée (`broadcast_recipient`). Un contact désinscrit entre-temps est ignoré au moment de son tour.
 - Le worker outbound exécute `broadcastLoop` : à chaque tour, `runBroadcastTick` crée **un** message (expéditeur : l’auteur de la diffusion, source `broadcast`) et sa tâche d’envoi, puis repousse la diffusion de 8 à 15 secondes. Les messages rejoignent la file d’envoi normale un par un : les conversations des autres projets ne sont jamais retardées.
-- Arrêts automatiques (statut « En pause », alerte aux administrateurs dans les notifications) : quota atteint, limite mensuelle de diffusion, offre sans diffusion, projet en pause ou inactif, auteur parti du projet. Un administrateur peut reprendre la diffusion ; s’il le fait après le départ de l’auteur, les messages partent désormais à son nom.
+- Arrêts automatiques (statut « En pause », alerte aux administrateurs dans les notifications) : quota atteint, offre sans diffusion, projet en pause ou inactif, auteur parti du projet. Un administrateur peut reprendre la diffusion ; s’il le fait après le départ de l’auteur, les messages partent désormais à son nom.
 - Attentes sans intervention : WhatsApp déconnecté (nouvel essai chaque minute), hors des heures d’envoi, limite quotidienne.
 - L’IA garde son état sur chaque conversation : les réponses des clients sont traitées comme n’importe quel message.
 - Statistiques : envoyés, distribués et lus d’après les accusés WhatsApp ; réponses = contacts qui ont écrit dans les 7 jours suivant leur message.
@@ -34,7 +34,7 @@ Chaque message de diffusion est aussi décompté du quota mensuel de messages de
 
 ## Espace Diffusions
 
-- **/projects/<id>/broadcasts** : onglets « Diffusions » (utilisation du mois et du jour, liste avec progression et résultats) et « Désinscrits » (contacts ayant répondu STOP, en lecture seule : seul le client peut se réinscrire).
+- **/projects/<id>/broadcasts** : onglets « Diffusions » (quota du forfait et envois du jour, liste avec progression et résultats) et « Désinscrits » (contacts ayant répondu STOP, en lecture seule : seul le client peut se réinscrire).
 - **/projects/<id>/broadcasts/new** : rédaction avec variable {prénom}, image, ciblage avec décompte en direct, envoi immédiat ou programmé, aperçu et confirmation.
 - **/projects/<id>/broadcasts/<diffusion>** : onglets « Vue d’ensemble » (entonnoir ciblés → envoyés → distribués → lus → réponses, message réellement envoyé avec son image, ciblage, journal), « Destinataires » (filtres par état, recherche par nom) et « Réponses » (messages reçus dans les 7 jours, liens vers la conversation).
 

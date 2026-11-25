@@ -13,6 +13,7 @@ import {
 import {
   BroadcastError,
   broadcastStats,
+  broadcastUsage,
   cancelBroadcast,
   createBroadcast,
   estimateAudience,
@@ -355,6 +356,44 @@ test("broadcasts end to end", { timeout: 240000 }, async (t) => {
         /quota de messages ne suffit pas/,
       );
       await prisma.quotaPeriod.updateMany({ where: { projectId: project.id }, data: { used: 0 } });
+    });
+
+    await t.test("broadcasts have no monthly cap: each message is taken from the plan's quota", async () => {
+      // 2 000 messages de diffusion déjà partis sur la période : l'ancien plafond mensuel de Pro.
+      await prisma.message.createMany({
+        data: Array.from({ length: 2000 }, () => ({
+          projectId: project.id,
+          contactId: aminata.id,
+          content: "Diffusion précédente",
+          senderType: "AGENT" as const,
+          fromMe: true,
+          source: "broadcast",
+          createdAt: new Date(Date.now() - 3_600_000),
+        })),
+      });
+      const usage = await broadcastUsage(prisma, project);
+      assert.ok(usage.period.sent >= 2000);
+      assert.equal("monthly" in usage, false);
+      const broadcast = await createBroadcast(prisma, { ...draft(), projectId: project.id, userId: owner.id, audience: {} });
+      // Un autre jour que la limite quotidienne déjà atteinte plus haut.
+      const later = new Date(inWindow.getTime() + 86_400_000);
+      await prisma.broadcast.update({ where: { id: broadcast.id }, data: { nextSendAt: later } });
+      const before = await prisma.quotaPeriod.findFirstOrThrow({ where: { projectId: project.id, isCurrent: true } });
+      assert.equal((await runBroadcastTick(prisma, { now: later }))?.sent, true);
+      const after = await prisma.quotaPeriod.findFirstOrThrow({ where: { id: before.id } });
+      assert.equal(after.used, before.used + 1);
+      await cancelBroadcast(prisma, { projectId: project.id, broadcastId: broadcast.id, userId: owner.id });
+      await prisma.message.deleteMany({ where: { projectId: project.id, content: "Diffusion précédente" } });
+    });
+
+    await t.test("without an open access period, no broadcast is created", async () => {
+      const period = await prisma.quotaPeriod.findFirstOrThrow({ where: { projectId: project.id, isCurrent: true } });
+      await prisma.quotaPeriod.update({ where: { id: period.id }, data: { endsAt: new Date(Date.now() - 1000) } });
+      await assert.rejects(
+        createBroadcast(prisma, { ...draft(), projectId: project.id, userId: owner.id, audience: {} }),
+        /période d’accès/,
+      );
+      await prisma.quotaPeriod.update({ where: { id: period.id }, data: { endsAt: period.endsAt } });
     });
 
     await t.test("a scheduled broadcast image is never taken for an orphan", async () => {

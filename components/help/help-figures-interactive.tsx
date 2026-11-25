@@ -130,7 +130,7 @@ export function VerificationFigure() {
                 </span>
               </div>
               <p className="mt-4 text-xs text-muted-foreground">
-                Essai gratuit de {TRIAL_DAYS} jours avec {TRIAL_MESSAGES} messages, puis forfait {HIGHLIGHTED.name} à{" "}
+                Essai gratuit de {TRIAL_DAYS} jours ou {TRIAL_MESSAGES} messages, puis forfait {HIGHLIGHTED.name} à{" "}
                 {formatPlanPrice(HIGHLIGHTED.priceCents)} par mois.
               </p>
               <MockButton className="mt-4 h-9 w-full">Continuer vers le paiement</MockButton>

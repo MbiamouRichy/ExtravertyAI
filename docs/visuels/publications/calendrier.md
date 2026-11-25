@@ -86,11 +86,11 @@ Visuel : `2026-11-25.png`
 ## Jeudi 26 novembre · 19 h 00 — Offres et essai
 Visuel : `2026-11-26.png`
 
-> Trois offres, toutes avec 5 jours d'essai gratuit (100 messages inclus) :
+> Trois offres, toutes avec 7 jours d'essai gratuit (50 messages inclus) :
 >
-> • Starter : 15,99 $/mois, 2 500 messages, réponses texte
-> • Pro : 39,99 $/mois, 8 000 messages, notes vocales comprises
-> • Business : 99 $/mois, 25 000 messages, notes vocales et images
+> • Starter : 7 $/mois, 500 messages, réponses texte
+> • Pro : 17 $/mois, 2 000 messages, notes vocales comprises
+> • Business : 100 $/mois, 20 000 messages, notes vocales et images
 >
 > Changez d'offre à tout moment.
 > 👉 extravertyai.com/tarifs

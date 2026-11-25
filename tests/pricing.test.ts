@@ -115,6 +115,7 @@ test("every pricing list follows the plan gates enforced on the server", () => {
     );
 
     // Les limites de diffusion écrites en toutes lettres suivent PLAN_FEATURES.
+    // Pas de plafond mensuel propre : les textes renvoient au quota de l’offre.
     const limits = PLAN_FEATURES[plan.id];
     const card = plan.features.find((line) => line.startsWith("Diffusion"));
     const full = PLAN_CAPABILITIES[plan.id].find((line) => line.startsWith("Diffusion"));
@@ -122,16 +123,16 @@ test("every pricing list follows the plan gates enforced on the server", () => {
     assert.equal(Boolean(full), limits.broadcast, `${plan.id} : diffusion dans la liste`);
     assert.equal(Boolean(matrix("Diffusion de messages")[plan.id]), limits.broadcast);
     if (card && full) {
-      for (const value of [limits.broadcastRecipients, limits.broadcastMonthly]) {
-        assert.ok(digits(card).includes(String(value)), `${plan.id} : ${value} sur la carte`);
-      }
-      for (const value of [limits.broadcastRecipients, limits.broadcastMonthly, limits.broadcastDaily]) {
+      assert.ok(digits(card).includes(String(limits.broadcastRecipients)), `${plan.id} : contacts sur la carte`);
+      assert.match(card, /quota/, `${plan.id} : quota sur la carte`);
+      for (const value of [limits.broadcastRecipients, limits.broadcastDaily]) {
         assert.ok(digits(full).includes(String(value)), `${plan.id} : ${value} dans la liste`);
       }
+      assert.match(full, /quota/, `${plan.id} : quota dans la liste`);
     }
   }
 
-  // Quota mensuel : appliqué depuis MESSAGE_LIMIT_<OFFRE>, dont l’exemple suit les tarifs.
+  // Quota mensuel : lib/pricing.ts fait foi ; l’exemple de MESSAGE_LIMIT_<OFFRE> le recopie.
   const example = readFileSync(new URL("../.env.example", import.meta.url), "utf8");
   for (const plan of PRICING_PLANS) {
     const configured = example.match(
