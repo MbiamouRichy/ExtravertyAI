@@ -272,9 +272,17 @@ export function subscriptionFlows(
   };
 }
 
-const PRICE_BY_LIMIT = new Map<number, number>(
-  PRICING_PLANS.map((plan) => [plan.messageLimit, plan.priceCents]),
-);
+/**
+ * Quota mensuel → prix catalogue, en centimes. Les cycles ouverts avant la
+ * grille du 2026-11-25 gardent le prix d'alors (Starter 2 500 messages à
+ * 15,99 $, Pro 8 000 à 39,99 $, Business 25 000 à 99 $).
+ */
+const PRICE_BY_LIMIT = new Map<number, number>([
+  [2500, 1599],
+  [8000, 3999],
+  [25000, 9900],
+  ...PRICING_PLANS.map((plan) => [plan.messageLimit, plan.priceCents] as [number, number]),
+]);
 
 /** Revenu estimé quand Polar est injoignable : mois payés × prix catalogue (USD). */
 export function estimateRevenue(periods: BillingPeriodRow[], period: DashboardPeriod) {

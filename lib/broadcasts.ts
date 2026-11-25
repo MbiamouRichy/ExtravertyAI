@@ -110,7 +110,11 @@ async function currentPeriod(db: Db, projectId: string, now: Date) {
   });
 }
 
-/** Broadcast messages sent this billing period and today, against the plan limits. */
+/**
+ * Broadcast messages sent this billing period and today. Broadcasts have no
+ * monthly cap of their own: every message is taken from the plan's message
+ * quota (then the prepaid credit), like any other outgoing message.
+ */
 export async function broadcastUsage(
   db: Db,
   project: { id: string; plan: unknown; timeZone: string },
@@ -120,7 +124,7 @@ export async function broadcastUsage(
   const features = planFeatures(project.plan);
   const period = await currentPeriod(db, projectId, now);
   const periodStart = period?.startsAt ?? new Date(now.getTime() - 30 * 86_400_000);
-  const [monthly, daily, reserved, credit] = await Promise.all([
+  const [sent, daily, reserved, credit] = await Promise.all([
     db.message.count({ where: { projectId, source: "broadcast", createdAt: { gte: periodStart } } }),
     db.message.count({
       where: { projectId, source: "broadcast", createdAt: { gte: localDayStart(now, project.timeZone) } },
@@ -132,7 +136,8 @@ export async function broadcastUsage(
     db.project.findUnique({ where: { id: projectId }, select: { extraCredit: true } }),
   ]);
   return {
-    monthly: { used: monthly, reserved, limit: features.broadcastMonthly },
+    /** Informational: already counted in `quota.used`. */
+    period: { sent, reserved },
     daily: { used: daily, limit: features.broadcastDaily },
     recipientsLimit: features.broadcastRecipients,
     // « extra » : messages hors quota que le crédit prépayé couvre encore.
@@ -235,18 +240,18 @@ export async function createBroadcast(db: PrismaClient, input: BroadcastInput) {
           `${contacts.length.toLocaleString("fr-FR")} contacts correspondent : votre offre permet ${usage.recipientsLimit.toLocaleString("fr-FR")} contacts par diffusion. Affinez le ciblage.`,
         );
       }
-      const monthlyLeft = usage.monthly.limit - usage.monthly.used - usage.monthly.reserved;
-      if (contacts.length > monthlyLeft) {
+      // The plan's message quota is the only monthly limit: without an open
+      // period (trial or paid month), nothing can be promised.
+      if (!usage.quota) {
         throw new BroadcastError(
-          `Il vous reste ${Math.max(0, monthlyLeft).toLocaleString("fr-FR")} messages de diffusion ce mois-ci pour ${contacts.length.toLocaleString("fr-FR")} contacts ciblés.`,
+          "Votre période d’accès est terminée ou attend une confirmation de paiement. Consultez la facturation pour lancer une diffusion.",
         );
       }
-      const quotaLeft = usage.quota
-        ? Math.max(0, usage.quota.limit - usage.quota.used) + usage.quota.extra
-        : null;
-      if (quotaLeft !== null && contacts.length > quotaLeft) {
+      const quotaLeft =
+        Math.max(0, usage.quota.limit - usage.quota.used) + usage.quota.extra - usage.period.reserved;
+      if (contacts.length > quotaLeft) {
         throw new BroadcastError(
-          `Votre quota de messages ne suffit pas : ${quotaLeft.toLocaleString("fr-FR")} restants pour ${contacts.length.toLocaleString("fr-FR")} contacts.`,
+          `Votre quota de messages ne suffit pas : ${Math.max(0, quotaLeft).toLocaleString("fr-FR")} restants pour ${contacts.length.toLocaleString("fr-FR")} contacts.`,
         );
       }
 
@@ -409,26 +414,18 @@ export async function runBroadcastTick(
     const opening = nextSendingWindow(now, project.timeZone);
     if (opening > now) return wait(opening, "OUTSIDE_WINDOW");
 
-    const features = planFeatures(project.plan);
-    const period = await currentPeriod(tx, project.id, now);
-    const [monthly, daily] = await Promise.all([
-      tx.message.count({
-        where: {
-          projectId: project.id,
-          source: "broadcast",
-          createdAt: { gte: period?.startsAt ?? new Date(now.getTime() - 30 * 86_400_000) },
-        },
-      }),
-      tx.message.count({
-        where: {
-          projectId: project.id,
-          source: "broadcast",
-          createdAt: { gte: localDayStart(now, project.timeZone) },
-        },
-      }),
-    ]);
-    if (monthly >= features.broadcastMonthly) return pause("MONTHLY_LIMIT");
-    if (daily >= features.broadcastDaily) return wait(tomorrowWindow(now, project.timeZone), "DAILY_LIMIT");
+    // No monthly cap of its own: reserveMessageQuota below takes each message
+    // from the plan's quota and pauses the broadcast once it is used up.
+    const daily = await tx.message.count({
+      where: {
+        projectId: project.id,
+        source: "broadcast",
+        createdAt: { gte: localDayStart(now, project.timeZone) },
+      },
+    });
+    if (daily >= planFeatures(project.plan).broadcastDaily) {
+      return wait(tomorrowWindow(now, project.timeZone), "DAILY_LIMIT");
+    }
 
     const [next] = await tx.$queryRaw<Array<{ id: string; contactId: string }>>`
       SELECT id, "contactId" FROM broadcast_recipient

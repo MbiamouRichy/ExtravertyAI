@@ -14,6 +14,8 @@ import {
   planChange,
 } from "@/lib/billing-plan-change";
 import { teamSeats } from "@/lib/plan-features";
+import { allowRequest } from "@/lib/rate-limit";
+import { TRIAL_END_MANUAL_RETRY_SECONDS } from "@/lib/trial-end";
 import {
   changePolarSubscriptionProduct,
   clearPolarPendingUpdate,
@@ -236,6 +238,53 @@ export async function buyMessageCredit(projectId: unknown) {
     });
     await audit(prisma, project, user.id, `billing.credit_checkout.${plan}`);
     return { success: true as const, url };
+  } catch (error) {
+    return { success: false as const, error: publicError(error) };
+  }
+}
+
+/**
+ * Relance le premier prélèvement d'un essai épuisé (carte refusée et mise à
+ * jour, ou demande en échec). Rien n'est prélevé ici : la demande est remise au
+ * worker de facturation, seul à appeler Polar, qui relit l'abonnement avant
+ * d'agir. Double clic ou deux onglets : un seul passage, sous verrou.
+ */
+export async function retryTrialActivation(projectId: unknown) {
+  try {
+    const id = ProjectId.parse(projectId);
+    const user = await currentUser();
+    if (!allowRequest(`trial-activation:${user.id}`, 5, 10 * 60_000))
+      throw new SettingsError("Trop de relances. Réessayez dans quelques minutes.");
+    await prisma.$transaction(async (tx) => {
+      const { project } = await requireProjectPermission(tx, id, user.id, "billing.manage");
+      if (project.deletionPending)
+        throw new SettingsError("Ce projet est en cours de suppression.");
+      if (project.internal || !project.stripeSubscriptionId)
+        throw new SettingsError("La facturation n’est pas encore activée pour ce projet.");
+      const [period] = await tx.$queryRaw<{ id: string; ready: boolean }[]>`
+        SELECT id, "updatedAt" <= clock_timestamp()
+          - (${TRIAL_END_MANUAL_RETRY_SECONDS}::int * interval '1 second') AS ready
+        FROM quota_period
+        WHERE "projectId" = ${project.id} AND "isCurrent" AND kind = 'trialing'
+          AND "endsOnQuota" AND used >= "limit"
+          AND key = ${`trial:${project.stripeSubscriptionId}`}
+          AND "trialEndStatus" IN ('PAYMENT_FAILED', 'FAILED')
+        FOR UPDATE`;
+      if (!period)
+        throw new SettingsError("Aucun paiement d’essai n’est à relancer pour ce projet.");
+      if (!period.ready)
+        throw new SettingsError("Patientez une minute avant de relancer le paiement.");
+      await tx.$executeRaw`UPDATE quota_period SET "trialEndStatus" = 'PENDING',
+        "trialEndDueAt" = clock_timestamp(), "trialEndAttempts" = 0,
+        "updatedAt" = clock_timestamp()
+        WHERE id = ${period.id}`;
+      await audit(tx, project, user.id, "billing.trial_activation_retry");
+    });
+    revalidatePath(`/projects/${id}/billing`);
+    return {
+      success: true as const,
+      message: "Paiement relancé : la page se met à jour dès sa confirmation.",
+    };
   } catch (error) {
     return { success: false as const, error: publicError(error) };
   }

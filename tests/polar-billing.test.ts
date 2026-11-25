@@ -40,7 +40,7 @@ const product = (overrides: Partial<PolarProduct> = {}): PolarProduct => ({
   prices: [
     {
       amount_type: "fixed",
-      price_amount: 1599,
+      price_amount: 700,
       price_currency: "usd",
       is_archived: false,
     },
@@ -135,7 +135,7 @@ test("le produit doit correspondre au tarif affiché", () => {
         prices: [
           {
             amount_type: "fixed",
-            price_amount: 1599,
+            price_amount: 700,
             price_currency: "eur",
             is_archived: false,
           },

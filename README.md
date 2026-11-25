@@ -57,13 +57,16 @@ Chaque étape est enregistrée en base avant de passer à la suivante : un redé
 
 ## Offres
 
-Les offres sont définies dans [`lib/pricing.ts`](./lib/pricing.ts). Les plafonds réellement appliqués viennent des variables `MESSAGE_LIMIT_*`.
+Les offres sont définies dans [`lib/pricing.ts`](./lib/pricing.ts), qui fait foi pour le serveur : les variables `MESSAGE_LIMIT_*`, facultatives, ne peuvent qu’abaisser les quotas. Essai gratuit : 7 jours ou 50 messages, le premier des deux atteint.
 
 | | Starter | Pro | Business |
 | --- | --- | --- | --- |
-| Prix mensuel | 15,99 $ | 39,99 $ | 99 $ |
+| Prix mensuel | 7 $ | 17 $ | 100 $ |
 | Utilisateurs | 2 | 4 | 10 |
-| Messages / mois | 4 000 | 10 000 | 25 000 |
+| Messages / mois | 500 | 2 000 | 20 000 |
+| 1 000 messages en plus | 14 $ | 9 $ | 5 $ |
+| Diffusions (décomptées du quota) | — | ✓ | ✓ |
+| Tests de l’agent par jour | 50 | 100 | 200 |
 | Notes vocales | — | ✓ | ✓ |
 | Images | — | — | ✓ |
 | Résumés IA et qualification des prospects | — | ✓ | ✓ |

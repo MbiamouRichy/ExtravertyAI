@@ -15,7 +15,7 @@ import {
   planUpgradeMessage,
   plansWith,
 } from "@/lib/plan-features";
-import { pricingPlan } from "@/lib/pricing";
+import { formatMessageLimit, pricingPlan } from "@/lib/pricing";
 import { Button } from "@/components/ui/button";
 import { BroadcastsWorkspace } from "@/components/dashboard/project/broadcasts/broadcasts-workspace";
 import { OptedOutPanel } from "@/components/dashboard/project/broadcasts/opted-out-panel";
@@ -91,9 +91,10 @@ export default async function BroadcastsPage({ params }: { params: Promise<{ pro
         {/* Limites lues dans PLAN_FEATURES : elles ne peuvent pas diverger des contrôles serveur. */}
         {plansWith("broadcast").map((plan) => (
           <li key={plan}>
-            {pricingPlan(plan).name} : {PLAN_FEATURES[plan].broadcastRecipients.toLocaleString("fr-FR")}{" "}
-            contacts par diffusion et {PLAN_FEATURES[plan].broadcastMonthly.toLocaleString("fr-FR")} messages
-            de diffusion par mois.
+            {pricingPlan(plan).name} : autant de diffusions que vous voulez, jusqu’à{" "}
+            {PLAN_FEATURES[plan].broadcastRecipients.toLocaleString("fr-FR")} contacts par envoi. Chaque
+            message est décompté des {formatMessageLimit(pricingPlan(plan).messageLimit)} messages
+            mensuels de l’offre.
           </li>
         ))}
         <li>

@@ -101,8 +101,10 @@ export async function reserveMessageQuota(
   }
   throw new MessageQuotaError(
     "QUOTA_EXCEEDED",
-    period.kind !== "active"
-      ? "Le quota de messages est atteint."
+    period.kind === "trialing" && period.endsOnQuota
+      ? "Les messages de l’essai sont utilisés : le premier mois de votre abonnement est en cours de prélèvement. Les envois reprennent dès le paiement confirmé."
+      : period.kind !== "active"
+        ? "Le quota de messages est atteint."
       : period.extraUsed >= period.limit
         ? "Le quota de messages et le plafond de messages supplémentaires sont atteints pour cette période."
         : "Le quota de messages est atteint. Achetez des messages supplémentaires depuis la page Facturation.",

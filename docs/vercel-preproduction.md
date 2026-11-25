@@ -26,7 +26,7 @@ Dans **Settings → Environment Variables**, utiliser l’environnement **Previe
 | Fichiers | `MINIO_ENDPOINT`, `MINIO_BUCKET`, `MINIO_ACCESS_KEY`, `MINIO_SECRET_KEY` : stockage de test compatible S3, accessible en HTTPS ; le module actuel exige les clés dès son chargement |
 | WhatsApp | `EVOLUTION_API_URL`, `EVOLUTION_API_KEY`, `EVOLUTION_WEBHOOK_SECRET` : service et instance de test dédiés |
 | Paiement (Polar) | `POLAR_SERVER=sandbox`, `POLAR_ACCESS_TOKEN` du sandbox, `POLAR_WEBHOOK_SECRET` du nouvel endpoint, et `POLAR_STARTER_PRODUCT_ID`, `POLAR_PRO_PRODUCT_ID`, `POLAR_BUSINESS_PRODUCT_ID` : produits mensuels du sandbox ; `POLAR_STARTER_CREDIT_PRODUCT_ID`, `POLAR_PRO_CREDIT_PRODUCT_ID`, `POLAR_BUSINESS_CREDIT_PRODUCT_ID` : recharges du sandbox (voir [polar-billing.md](polar-billing.md#messages-supplémentaires)) |
-| Quotas, sur Vercel **et** sur le serveur des workers | `MESSAGE_LIMIT_STARTER=2500`, `MESSAGE_LIMIT_PRO=8000`, `MESSAGE_LIMIT_BUSINESS=25000` : les quotas annoncés par `lib/pricing.ts` |
+| Quotas, facultatif | Les quotas appliqués sont ceux de `lib/pricing.ts` (500, 2 000, 20 000). `MESSAGE_LIMIT_STARTER`, `MESSAGE_LIMIT_PRO`, `MESSAGE_LIMIT_BUSINESS` ne peuvent que les abaisser, pour tester l’épuisement du quota |
 | Temps réel | `PUSHER_APP_ID`, `PUSHER_KEY`, `PUSHER_SECRET`, `PUSHER_CLUSTER`, `NEXT_PUBLIC_PUSHER_KEY`, `NEXT_PUBLIC_PUSHER_CLUSTER` : application Pusher de test ; les valeurs publiques doivent correspondre aux valeurs serveur |
 | IA, sur Vercel **et** sur le serveur des workers | `OPENROUTER_API_KEY`, `OPENROUTER_MODEL=google/gemini-2.5-flash-lite`, `OPENROUTER_FALLBACK_MODEL=openai/gpt-6-luna` (secours, voir [ai-fallback.md](ai-fallback.md)) ; le résumé des conversations est généré par une action serveur du site |
 

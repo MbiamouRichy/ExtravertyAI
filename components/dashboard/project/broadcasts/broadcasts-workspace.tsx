@@ -47,6 +47,16 @@ function Meter({ label, used, limit, hint }: { label: string; used: number; limi
   );
 }
 
+/** Part des diffusions dans le quota, messages encore prévus et crédit prépayé. */
+function quotaHint(usage: BroadcastUsageView) {
+  const parts = [
+    `Dont ${number(usage.period.sent)} envoyé${usage.period.sent > 1 ? "s" : ""} par vos diffusions`,
+  ];
+  if (usage.period.reserved) parts.push(`${number(usage.period.reserved)} encore prévus dans la diffusion en cours`);
+  const extra = usage.quota?.extra ?? 0;
+  return `${parts.join(", ")}.${extra ? ` ${number(extra)} de plus couverts par votre crédit.` : ""}`;
+}
+
 function StatusLabel({ status }: { status: BroadcastStatus }) {
   const tone =
     status === "PAUSED"
@@ -265,12 +275,19 @@ export function BroadcastsWorkspace({
     <div className="space-y-4">
       <section aria-label="Utilisation" className="rounded-xl border bg-card p-4">
         <div className="grid gap-x-8 gap-y-3 sm:grid-cols-2">
-          <Meter
-            label="Messages de diffusion ce mois-ci"
-            used={usage.monthly.used}
-            limit={usage.monthly.limit}
-            hint={usage.monthly.reserved ? `${number(usage.monthly.reserved)} encore prévus dans la diffusion en cours.` : undefined}
-          />
+          {/* Pas de plafond propre aux diffusions : chaque message est pris sur le quota du forfait. */}
+          {usage.quota ? (
+            <Meter
+              label="Quota de messages du forfait"
+              used={usage.quota.used}
+              limit={usage.quota.limit}
+              hint={quotaHint(usage)}
+            />
+          ) : (
+            <p className="min-w-0 flex-1 text-xs text-muted-foreground">
+              Aucune période d’accès en cours : consultez la facturation pour envoyer des diffusions.
+            </p>
+          )}
           <Meter label="Aujourd’hui" used={usage.daily.used} limit={usage.daily.limit} />
         </div>
         <p className="mt-3 text-xs text-muted-foreground">

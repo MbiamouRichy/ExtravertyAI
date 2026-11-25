@@ -283,7 +283,9 @@ export function ChangePlanDialog({
                   prélevé pendant l’essai, qui reste limité à{" "}
                   {formatMessageLimit(TRIAL_MESSAGES)} messages : le premier paiement de{" "}
                   {formatPlanPrice(target.priceCents)} aura lieu
-                  {state.periodEnd ? <> le {date(state.periodEnd)}</> : " à la fin de l’essai"}.
+                  {state.periodEnd ? <> le {date(state.periodEnd)}</> : " à la fin de l’essai"}, ou
+                  dès le {formatMessageLimit(TRIAL_MESSAGES)}
+                  <sup>e</sup> message s’il arrive avant.
                 </p>
               ) : change.kind === "upgrade" ? (
                 <p>

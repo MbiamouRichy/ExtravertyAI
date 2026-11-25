@@ -18,7 +18,7 @@ const HOUR = 3_600_000;
 test("extra message prices are whole credit units, above the in-quota price", () => {
   assert.deepEqual(
     PRICING_PLANS.map((plan) => extraMessageCost(plan.id)),
-    [80, 60, 50],
+    [140, 90, 50],
   );
   for (const plan of PRICING_PLANS) {
     assert.ok(Number.isSafeInteger(extraMessageCost(plan.id)), plan.id);
@@ -31,15 +31,15 @@ test("extra message prices are whole credit units, above the in-quota price", ()
   }
   assert.deepEqual(
     PRICING_PLANS.map((plan) => plan.messageLimit),
-    [2500, 8000, 25000],
+    [500, 2000, 20000],
   );
 });
 
 test("credit only extends a paid period, within the credit and the period cap", () => {
   const period = { kind: "active", limit: 10, used: 10, extraUsed: 0 };
-  assert.equal(extraMessagesLeft(period, { plan: "starter", extraCredit: 400 }), 5);
+  assert.equal(extraMessagesLeft(period, { plan: "starter", extraCredit: 700 }), 5);
   assert.equal(extraMessagesLeft(period, { plan: "business", extraCredit: 400 }), 8);
-  assert.equal(extraMessagesLeft(period, { plan: "starter", extraCredit: 79 }), 0);
+  assert.equal(extraMessagesLeft(period, { plan: "starter", extraCredit: 139 }), 0);
   // Plafond : au plus `limit` messages de plus par période.
   assert.equal(extraMessagesLeft(period, { plan: "starter", extraCredit: 10_000 }), 10);
   assert.equal(
@@ -51,7 +51,7 @@ test("credit only extends a paid period, within the credit and the period cap", 
     0,
   );
   assert.equal(
-    messagesLeft({ ...period, used: 7 }, { plan: "starter", extraCredit: 160 }),
+    messagesLeft({ ...period, used: 7 }, { plan: "starter", extraCredit: 280 }),
     5,
   );
   assert.equal(messagesLeft(null, { plan: "starter", extraCredit: 10_000 }), 0);
@@ -62,7 +62,7 @@ test("credit products must be one-time USD products at the plan price", () => {
     is_archived: false,
     is_recurring: false,
     recurring_interval: null,
-    prices: [{ amount_type: "fixed", price_amount: 800, price_currency: "usd", is_archived: false }],
+    prices: [{ amount_type: "fixed", price_amount: 1400, price_currency: "usd", is_archived: false }],
   };
   assert.equal(matchesPolarCreditProduct(product, "starter"), true);
   assert.equal(matchesPolarCreditProduct(product, "pro"), false);
@@ -92,7 +92,7 @@ async function paidPeriod(
 test("reservation uses the quota first, then the prepaid credit, up to the cap", { timeout: 600000 }, async () => {
   await withTestDatabase(async (prisma) => {
     const project = await createProject(prisma, { plan: "starter" });
-    await prisma.project.update({ where: { id: project.id }, data: { extraCredit: 200 } });
+    await prisma.project.update({ where: { id: project.id }, data: { extraCredit: 350 } });
     const period = await paidPeriod(prisma, project.id, { limit: 2 });
     const reserve = () => prisma.$transaction((tx) => reserveMessageQuota(tx, project.id));
 
@@ -100,16 +100,16 @@ test("reservation uses the quota first, then the prepaid credit, up to the cap",
     assert.equal((await reserve()).extra, false);
     assert.equal(
       (await prisma.project.findUniqueOrThrow({ where: { id: project.id } })).extraCredit,
-      200,
+      350,
       "le crédit n'est pas touché tant que le quota suffit",
     );
     assert.equal((await reserve()).extra, true);
     assert.equal((await reserve()).extra, true);
-    // Plafond atteint (2 messages de plus pour un quota de 2), crédit restant : 40.
+    // Plafond atteint (2 messages de plus pour un quota de 2), crédit restant : 70.
     await assert.rejects(reserve, { code: "QUOTA_EXCEEDED" });
     const after = await prisma.project.findUniqueOrThrow({ where: { id: project.id } });
     const quota = await prisma.quotaPeriod.findUniqueOrThrow({ where: { id: period.id } });
-    assert.equal(after.extraCredit, 40);
+    assert.equal(after.extraCredit, 70);
     assert.equal(after.messageCount, 4);
     assert.deepEqual([quota.used, quota.extraUsed], [2, 2]);
   });
@@ -118,7 +118,7 @@ test("reservation uses the quota first, then the prepaid credit, up to the cap",
 test("reservation refuses when the credit is short or during a trial", { timeout: 600000 }, async () => {
   await withTestDatabase(async (prisma) => {
     const short = await createProject(prisma, { plan: "starter" });
-    await prisma.project.update({ where: { id: short.id }, data: { extraCredit: 79 } });
+    await prisma.project.update({ where: { id: short.id }, data: { extraCredit: 139 } });
     await paidPeriod(prisma, short.id, { limit: 1, used: 1 });
     await assert.rejects(
       prisma.$transaction((tx) => reserveMessageQuota(tx, short.id)),

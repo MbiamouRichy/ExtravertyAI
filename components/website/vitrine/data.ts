@@ -698,7 +698,7 @@ export const MATRIX_HINTS: Readonly<Record<string, string>> = {
   "Relances automatiques des prospects":
     "Un prospect « Intéressé » ou « Devis envoyé » resté silencieux est relancé au bon moment, par l’IA ou avec votre message, jamais après sa réponse ni après un STOP.",
   "Diffusion de messages":
-    "Un même message, personnalisé avec le prénom, envoyé aux clients qui vous ont déjà écrit, à un rythme sûr pour votre numéro.",
+    "Un même message, personnalisé avec le prénom, envoyé aux clients qui vous ont déjà écrit, à un rythme sûr pour votre numéro. Autant de diffusions que vous voulez : chaque message est décompté de votre quota.",
   "Résumé IA des conversations": "L’essentiel d’une longue conversation en quelques lignes.",
   "Capture IA : coordonnées des prospects":
     "Le nom, l’e-mail, la ville ou l’adresse que le prospect donne dans le chat s’affichent sur sa fiche, vérifiés mot pour mot dans ses messages et modifiables par l’équipe.",

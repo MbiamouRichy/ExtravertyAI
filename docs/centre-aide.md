@@ -1,6 +1,6 @@
 # Centre d’aide ExtravertyAI
 
-> Guide d’utilisation d’ExtravertyAI, l’assistant IA qui répond aux clients sur WhatsApp. Mis à jour le 22 novembre 2026. Version en ligne : https://www.extravertyai.com/aide
+> Guide d’utilisation d’ExtravertyAI, l’assistant IA qui répond aux clients sur WhatsApp. Mis à jour le 25 novembre 2026. Version en ligne : https://www.extravertyai.com/aide
 
 Ce document est généré à partir de lib/help-center/content.ts (npm run help:export) : ne le modifiez pas à la main. Les mots en gras désignent souvent un bouton ou un écran de l’application, avec le libellé exact affiché.
 
@@ -74,7 +74,7 @@ Un projet correspond à un numéro WhatsApp : votre entreprise, son assistant, s
 3. **Forfait** : Starter, Pro ou Business. Le bouton **Inclus dans…** détaille ce que comprend le forfait choisi. Vous pourrez en changer plus tard depuis la page **Facturation** du projet.
 4. Vérifiez le récapitulatif : **À payer aujourd’hui** affiche 0 $ pendant l’essai, suivi du prix mensuel du forfait. Touchez **Vérifier mon numéro**.
 
-> *Illustration* : Formulaire « Créer un projet » : nom du projet (Entreprise), pays, numéro WhatsApp avec indicatif, choix du forfait (Starter 15,99 $, Pro 39,99 $, Business 99 $ par mois), récapitulatif À payer aujourd’hui à 0 $ et bouton Vérifier mon numéro.
+> *Illustration* : Formulaire « Créer un projet » : nom du projet (Entreprise), pays, numéro WhatsApp avec indicatif, choix du forfait (Starter 7 $, Pro 17 $, Business 100 $ par mois), récapitulatif À payer aujourd’hui à 0 $ et bouton Vérifier mon numéro.
 
 > **Bon à savoir** : Rien n’est enregistré avant la vérification du numéro. À l’écran suivant, **Retour** vous ramène au formulaire sans rien perdre, et **Modifier** permet de corriger le numéro.
 
@@ -101,7 +101,7 @@ Vous préférez recevoir un code ? Touchez **Recevoir un code à la place** : Ex
 
 > *Illustration* : Écran « Vérifiez votre numéro » : un QR code à scanner, le code à 6 chiffres à envoyer avec le bouton Copier, le bouton Ouvrir WhatsApp, le lien Recevoir un code à la place ; puis l’écran « Numéro vérifié », « Confirmé avec WhatsApp », avec le bouton Continuer vers le paiement.
 
-> **Attention** : L’essai gratuit (5 jours et jusqu’à 100 messages) est accordé une seule fois par numéro. Si ce numéro en a déjà profité, l’écran affiche **Essai déjà utilisé par ce numéro** et propose **Payer sans essai** : le premier mois est alors prélevé à la validation du paiement. Un code expire au bout de 10 minutes ; une fois le numéro vérifié, vous avez 30 minutes pour ouvrir le paiement, sinon recommencez la vérification.
+> **Attention** : L’essai gratuit (7 jours ou 50 messages, selon ce qui arrive en premier) est accordé une seule fois par numéro. Si ce numéro en a déjà profité, l’écran affiche **Essai déjà utilisé par ce numéro** et propose **Payer sans essai** : le premier mois est alors prélevé à la validation du paiement. Un code expire au bout de 10 minutes ; une fois le numéro vérifié, vous avez 30 minutes pour ouvrir le paiement, sinon recommencez la vérification.
 
 *Version courte, à envoyer sur WhatsApp :*
 
@@ -109,7 +109,7 @@ Vous préférez recevoir un code ? Touchez **Recevoir un code à la place** : Ex
 - Envoyez le message prêt tel quel : il contient un code à 6 chiffres.
 - Attendez **Numéro vérifié**, puis touchez **Continuer vers le paiement**.
 - Autre méthode : **Recevoir un code à la place**, puis saisissez les 6 chiffres reçus sur WhatsApp.
-- Essai gratuit : 5 jours et jusqu’à 100 messages, une fois par numéro. Rien à payer aujourd’hui.
+- Essai gratuit : 7 jours ou 50 messages, selon ce qui arrive en premier, une fois par numéro. Rien à payer aujourd’hui.
 
 #### Étape 4 : Configurer votre assistant (8 min)
 
@@ -239,7 +239,7 @@ Non. Le test de l’étape 4 se passe entièrement dans ExtravertyAI. Rien n’e
 
 **Que comprend l’essai gratuit ?**
 
-5 jours et jusqu’à 100 messages, une seule fois par numéro WhatsApp. Si le numéro a déjà profité d’un essai, vous pouvez payer directement avec **Payer sans essai**.
+7 jours ou 50 messages, selon ce qui arrive en premier, une seule fois par numéro WhatsApp. À la fin de l’essai, le premier mois est prélevé sur la carte enregistrée : dès le 50e message s’il arrive avant le 7e jour. Résiliez avant pour ne rien payer. Si le numéro a déjà profité d’un essai, vous pouvez payer directement avec **Payer sans essai**.
 
 **Dois-je choisir un mot de passe ?**
 
@@ -276,21 +276,23 @@ Votre compte vous identifie dans tous vos projets. Il suffit d’un nom et d’u
 
 *Rubrique : Prise en main · Lecture : 1 min · Page : https://www.extravertyai.com/aide/forfaits*
 
-Trois forfaits mensuels, un numéro WhatsApp par projet. Chaque nouvel abonnement commence par un essai gratuit de 5 jours.
+Trois forfaits mensuels, un numéro WhatsApp par projet. Chaque nouvel abonnement commence par un essai gratuit de 7 jours ou 50 messages.
 
 #### L’essentiel
 
-- [ ] Essai gratuit : 5 jours et jusqu’à 100 messages, une fois par numéro WhatsApp.
+- [ ] Essai gratuit : 7 jours ou 50 messages, selon ce qui arrive en premier, une fois par numéro WhatsApp.
+- [ ] À la fin de l’essai, le premier mois est prélevé sur la carte enregistrée : dès le 50e message s’il arrive avant le 7e jour. Résiliez avant pour ne rien payer.
+- [ ] Carte refusée à la fin de l’essai : les envois sont en pause. Mettez la carte à jour, puis touchez **Relancer le paiement** dans la page **Facturation**.
 - [ ] Changez de forfait depuis la page **Facturation** de votre projet.
 
 #### Comparer les forfaits
 
 |  | Starter | Pro | Business |
 | --- | --- | --- | --- |
-| Prix par mois | 15,99 $ | 39,99 $ | 99 $ |
+| Prix par mois | 7 $ | 17 $ | 100 $ |
 | Utilisateurs | 2 | 4 | 10 |
-| Messages par mois | 2 500 | 8 000 | 25 000 |
-| 1 000 messages en plus | 8 $ | 6 $ | 5 $ |
+| Messages par mois | 500 | 2 000 | 20 000 |
+| 1 000 messages en plus | 14 $ | 9 $ | 5 $ |
 | Notes vocales | Non | Oui | Oui |
 | Images | Non | Non | Oui |
 | Instinct IA et résumés | Non | Oui | Oui |
@@ -449,10 +451,10 @@ Envoyez un même message, personnalisé avec le prénom, aux contacts qui vous o
 
 #### L’essentiel
 
-- [ ] Pro : jusqu’à 500 contacts par envoi et 2 000 messages de diffusion par mois.
-- [ ] Business : jusqu’à 2 000 contacts par envoi et 10 000 messages par mois, avec ciblage par étape du pipeline.
+- [ ] Autant de diffusions que vous voulez : chaque message envoyé est décompté du quota mensuel de votre forfait.
+- [ ] Pro : jusqu’à 500 contacts par envoi et 300 messages par jour.
+- [ ] Business : jusqu’à 2 000 contacts par envoi et 1 000 messages par jour, avec ciblage par étape du pipeline.
 - [ ] Seuls les contacts qui vous ont déjà écrit peuvent être ciblés : cela protège votre numéro contre les signalements.
-- [ ] Chaque message de diffusion compte aussi dans le quota mensuel de votre forfait.
 
 ## Pilotage
 
@@ -522,7 +524,7 @@ Votre forfait inclut un nombre de messages par mois. Au-delà, rechargez par paq
 
 #### L’essentiel
 
-- [ ] Recharge de 1 000 messages : 8 $ (Starter), 6 $ (Pro), 5 $ (Business).
+- [ ] Recharge de 1 000 messages : 14 $ (Starter), 9 $ (Pro), 5 $ (Business).
 - [ ] Changez de forfait ou retrouvez vos factures depuis la page **Facturation**.
 - [ ] Politique de remboursement : [extravertyai.com/remboursement](https://www.extravertyai.com/remboursement).
 

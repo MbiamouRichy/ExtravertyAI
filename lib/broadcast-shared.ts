@@ -96,7 +96,8 @@ export const BROADCAST_REASON_LABEL: Record<string, string> = {
   QUOTA_EXCEEDED: "Quota de messages du mois atteint. Elle reprendra quand vous la relancerez.",
   PERIOD_UNAVAILABLE: "Abonnement à régulariser avant de reprendre l’envoi.",
   PROJECT_INACTIVE: "Le projet n’est pas actif.",
-  MONTHLY_LIMIT: "Limite mensuelle de diffusion de votre offre atteinte.",
+  // Ancien plafond mensuel des diffusions, retiré : seules d'anciennes diffusions l'affichent.
+  MONTHLY_LIMIT: "Ancienne limite mensuelle de diffusion atteinte : relancez-la, seul le quota de messages compte désormais.",
   PLAN: "Votre offre actuelle n’inclut plus la diffusion.",
   PROJECT_PAUSED: "Le projet est en pause.",
   AUTHOR_LEFT: "La personne qui l’a créée a quitté le projet. Un administrateur peut la reprendre.",

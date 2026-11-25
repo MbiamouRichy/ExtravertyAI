@@ -405,9 +405,9 @@ export default function CreateProjectForm({
               </span>
             </div>
             <p className="mt-1 text-xs leading-5 text-muted-foreground">
-              Essai de {TRIAL_DAYS} jours limité à {TRIAL_MESSAGES} messages,
-              puis {formatPlanPrice(selectedPlan.priceCents)} / mois. Résiliable
-              avant la fin de l’essai.
+              Essai de {TRIAL_DAYS} jours ou {TRIAL_MESSAGES} messages, selon ce qui
+              arrive en premier, puis {formatPlanPrice(selectedPlan.priceCents)} / mois,
+              prélevés à la fin de l’essai. Résiliable avant.
             </p>
           </div>
 

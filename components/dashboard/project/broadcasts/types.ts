@@ -20,7 +20,8 @@ export type BroadcastView = {
 };
 
 export type BroadcastUsageView = {
-  monthly: { used: number; reserved: number; limit: number };
+  /** Diffusions de la période, déjà comptées dans `quota.used` ; `reserved` : encore à envoyer. */
+  period: { sent: number; reserved: number };
   daily: { used: number; limit: number };
   recipientsLimit: number;
   /** `extra` : messages hors quota encore couverts par le crédit prépayé. */

@@ -287,12 +287,12 @@ export function BroadcastComposer({
   const preview = personalise(content || "Votre message apparaîtra ici.", { name: "Aminata" }, nameFallback);
   const showFallback = usesNameVariable(content);
   const count = estimate.state === "ready" ? estimate.count : null;
-  const monthlyLeft = Math.max(0, usage.monthly.limit - usage.monthly.used - usage.monthly.reserved);
-  // Le crédit prépayé prolonge le quota ; le serveur revérifie au lancement.
+  // Seule limite mensuelle : le quota du forfait, prolongé par le crédit
+  // prépayé. Indicatif ici, le serveur revérifie au lancement.
   const quotaLeft = usage.quota
-    ? Math.max(0, usage.quota.limit - usage.quota.used) + (usage.quota.extra ?? 0)
-    : null;
-  const overLimit = count !== null && (count > usage.recipientsLimit || count > monthlyLeft || (quotaLeft !== null && count > quotaLeft));
+    ? Math.max(0, usage.quota.limit - usage.quota.used + (usage.quota.extra ?? 0) - usage.period.reserved)
+    : 0;
+  const overLimit = count !== null && (count > usage.recipientsLimit || count > quotaLeft);
 
   return (
     <form
@@ -645,17 +645,23 @@ export function BroadcastComposer({
           )}
           <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
             <li>Au plus {number(usage.recipientsLimit)} contacts par diffusion.</li>
-            <li>{number(monthlyLeft)} messages de diffusion restants ce mois-ci.</li>
-            {quotaLeft !== null && (
+            {usage.quota ? (
               <li>
                 {number(quotaLeft)} messages restants sur votre quota
-                {usage.quota?.extra ? `, dont ${number(usage.quota.extra)} payés par votre crédit` : ""}.
+                {usage.quota.extra ? `, dont ${number(usage.quota.extra)} payés par votre crédit` : ""} : chaque
+                contact ciblé en utilise un.
               </li>
+            ) : (
+              <li>Aucune période d’accès en cours : consultez la facturation.</li>
             )}
           </ul>
           {overLimit && (
             <p role="alert" className="mt-3 text-xs text-destructive">
-              Ce ciblage dépasse une limite de votre offre : affinez-le pour continuer.
+              {count !== null && count > usage.recipientsLimit
+                ? "Ce ciblage dépasse le nombre de contacts par diffusion de votre offre : affinez-le pour continuer."
+                : usage.quota
+                  ? "Ce ciblage dépasse les messages restants sur votre quota : affinez-le, ou ajoutez des messages depuis la facturation."
+                  : "Aucune période d’accès en cours : réglez votre abonnement depuis la facturation pour diffuser."}
             </p>
           )}
           {!connected && (

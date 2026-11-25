@@ -22,7 +22,7 @@ export const MAX_CREDIT_PACKS = 10;
 /** Métadonnée posée sur le paiement Polar d'une recharge. */
 export const CREDIT_ORDER_KIND = "message_credit";
 
-/** Prix d'un message hors quota, en unités de crédit (Starter 80, Pro 60, Business 50). */
+/** Prix d'un message hors quota, en unités de crédit (Starter 140, Pro 90, Business 50). */
 export function extraMessageCost(plan: unknown) {
   return (
     (pricingPlan(plan).extraPackCents * CREDIT_UNITS_PER_CENT) /

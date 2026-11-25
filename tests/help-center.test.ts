@@ -103,7 +103,7 @@ test("plan figures come from the pricing source", () => {
   assert.deepEqual(table.head.slice(1), PRICING_PLANS.map((plan) => plan.name));
   assert.deepEqual(table.rows[0].slice(1), PRICING_PLANS.map((plan) => formatPlanPrice(plan.priceCents)));
   const markdown = helpCenterToMarkdown();
-  assert.ok(markdown.includes(`${TRIAL_DAYS} jours et jusqu’à ${TRIAL_MESSAGES} messages`));
+  assert.ok(markdown.includes(`${TRIAL_DAYS} jours ou ${TRIAL_MESSAGES} messages, selon ce qui arrive en premier`));
 });
 
 test("inline markup never produces an unsafe link", () => {

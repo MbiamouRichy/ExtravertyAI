@@ -13,6 +13,7 @@ import {
 import { notificationFeed } from "../lib/notifications";
 import { MISSING_INFO_MARKER, splitMissingInfo } from "../lib/missing-info";
 import { saveEntry } from "../lib/knowledge";
+import { PLAN_FEATURES } from "../lib/plan-features";
 import { SettingsError } from "../lib/project-settings";
 import { addMember, createUser, ingestText, withTestDatabase } from "./helpers/database";
 
@@ -196,6 +197,9 @@ test("agent improvement loop", { timeout: 180000 }, async (t) => {
     });
 
     await t.test("the sandbox uses production generation within a daily limit", async () => {
+      // Starter : 50 tests par jour (grille du 2026-11-25).
+      const limit = PLAN_FEATURES.starter.sandboxPerDay;
+      assert.equal(limit, 50);
       await assert.rejects(
         runAgentTest(prisma, { projectId: project.id, userId: member.id, messages: [{ role: "user", content: "Salut" }] }, async () => "x"),
         SettingsError,
@@ -212,7 +216,7 @@ test("agent improvement loop", { timeout: 180000 }, async (t) => {
       assert.equal(result.reply, "Oui, en 48 h.");
       assert.equal(result.trace.missingInfo, true);
       assert.ok(result.trace.sources.some((source) => /Port-Gentil/.test(source.title)));
-      assert.equal(result.remaining, 29);
+      assert.equal(result.remaining, limit - 1);
       // Nothing is sent: no outbound job, no knowledge gap, no message.
       assert.equal(await prisma.knowledgeGap.count({ where: { projectId: project.id, status: "OPEN" } }), 0);
 
@@ -226,11 +230,11 @@ test("agent improvement loop", { timeout: 180000 }, async (t) => {
       assert.equal(await prisma.agentTestRun.count({ where: { projectId: project.id } }), 1);
 
       await prisma.agentTestRun.createMany({
-        data: Array.from({ length: 29 }, () => ({ projectId: project.id, actorId: owner.id })),
+        data: Array.from({ length: limit - 1 }, () => ({ projectId: project.id, actorId: owner.id })),
       });
       await assert.rejects(
         runAgentTest(prisma, { projectId: project.id, userId: owner.id, messages: [{ role: "user", content: "Encore" }] }, async () => "x"),
-        /Limite de 30 tests/,
+        new RegExp(`Limite de ${limit} tests`),
       );
     });
   });

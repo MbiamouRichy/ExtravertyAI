@@ -21,6 +21,7 @@ import {
   type ManualPaymentInput,
 } from "../lib/manual-billing-shared";
 
+// Anciennes valeurs, plus hautes que le catalogue : le quota appliqué reste celui de lib/pricing.ts.
 process.env.MESSAGE_LIMIT_STARTER = "2500";
 process.env.MESSAGE_LIMIT_PRO = "8000";
 process.env.MESSAGE_LIMIT_BUSINESS = "25000";
@@ -167,11 +168,11 @@ test("a mobile money payment opens access, once, and a renewal extends it", asyn
     const project = await prisma.project.findUniqueOrThrow({ where: { id } });
     assert.equal(project.status, "active");
     assert.equal(project.plan, "pro");
-    assert.equal(project.allMessagesCount, 8000);
+    assert.equal(project.allMessagesCount, 2000);
     const period = await prisma.quotaPeriod.findFirstOrThrow({ where: { projectId: id, isCurrent: true } });
     assert.match(period.key, /^manual:\d+$/);
     assert.equal(period.kind, "active");
-    assert.equal(period.limit, 8000);
+    assert.equal(period.limit, 2000);
     const span = period.endsAt.getTime() - period.startsAt.getTime();
     assert.ok(span >= 28 * DAY && span <= 31 * DAY);
 
@@ -193,7 +194,7 @@ test("a mobile money payment opens access, once, and a renewal extends it", asyn
     const extended = await prisma.quotaPeriod.findUniqueOrThrow({ where: { id: period.id } });
     assert.equal(extended.isCurrent, true);
     assert.equal(extended.used, 300);
-    assert.equal(extended.limit, 8000 * 4);
+    assert.equal(extended.limit, 2000 * 4);
     assert.equal(
       extended.endsAt.toISOString(),
       addMonthsUtc(period.endsAt, 3).toISOString(),

@@ -45,13 +45,15 @@ Ne jamais mélanger un jeton sandbox et un jeton de production : ils ne voient p
 
 ## Produits
 
-Chaque forfait est un abonnement mensuel en USD, au prix de `lib/pricing.ts`. Un prix différent bloque le paiement avant la création du projet. L'essai de 5 jours (100 messages) est demandé par l'application au moment du paiement.
+Chaque forfait est un abonnement mensuel en USD, au prix de `lib/pricing.ts`. Un prix différent bloque le paiement avant la création du projet. L'essai de 7 jours ou 50 messages (le premier des deux atteint le termine) est demandé par l'application au moment du paiement. Quand les 50 messages sont utilisés avant le 7e jour, le worker de facturation termine l'essai chez Polar (`PATCH /v1/subscriptions/{id}` avec `trial_end: "now"`, droit `subscriptions:write`) : le premier mois est prélevé tout de suite sur la carte enregistrée. Seuls les essais ouverts à partir de cette version sont concernés (`quota_period.endsOnQuota`).
+
+**Grille du 2026-11-25** : Starter 7 $ (500 messages), Pro 17 $ (2 000), Business 100 $ (20 000). Les prix des produits Polar, en sandbox comme en production, doivent être ceux-là : sinon le paiement est refusé. Les abonnements déjà souscrits gardent leur ancien prix chez Polar ; côté application, leur cycle en cours garde son quota, le suivant prend celui de la nouvelle grille.
 
 ## Messages supplémentaires
 
-Au-delà du quota mensuel (2 500, 8 000 ou 25 000 messages), un projet payant continue d’envoyer grâce à un crédit prépayé. Une recharge vaut 1 000 messages au tarif de l’offre : 8 $ en Starter, 6 $ en Pro, 5 $ en Business (`extraPackCents` de `lib/pricing.ts`).
+Au-delà du quota mensuel (500, 2 000 ou 20 000 messages), un projet payant continue d’envoyer grâce à un crédit prépayé. Une recharge vaut 1 000 messages au tarif de l’offre : 14 $ en Starter, 9 $ en Pro, 5 $ en Business (`extraPackCents` de `lib/pricing.ts`). Le message hors quota ne coûte jamais moins cher que le message inclus dans le forfait : passer à l’offre supérieure reste plus avantageux.
 
-**Produits à créer**, dans le sandbox puis en production : trois produits à **achat unique** (pas d’abonnement), en USD, à prix fixe de 8 $, 6 $ et 5 $. Ne pas y ajouter de prix à l’usage. Renseigner leurs identifiants dans `POLAR_*_CREDIT_PRODUCT_ID` sur Vercel. Un prix différent, un produit archivé ou récurrent rend l’achat indisponible. Sans ces variables, le bouton n’apparaît pas et l’envoi s’arrête au quota, comme avant.
+**Produits à créer**, dans le sandbox puis en production : trois produits à **achat unique** (pas d’abonnement), en USD, à prix fixe de 14 $, 9 $ et 5 $. Ne pas y ajouter de prix à l’usage. Renseigner leurs identifiants dans `POLAR_*_CREDIT_PRODUCT_ID` sur Vercel. Un prix différent, un produit archivé ou récurrent rend l’achat indisponible. Sans ces variables, le bouton n’apparaît pas et l’envoi s’arrête au quota, comme avant.
 
 **Pourquoi pas une facturation à l’usage Polar.** Les compteurs Polar sont tenus par client, et un client Polar (une adresse e-mail) paie souvent plusieurs projets, avec des offres différentes. L’usage d’un projet pourrait être facturé sur l’abonnement d’un autre, ou deux fois. Avec une recharge, rien n’est dû après coup.
 
@@ -74,7 +76,9 @@ URL de production : `https://www.extravertyai.com/api/webhooks/polar`. Elle doit
 
 Format `Raw`. Événements : tous les `subscription.*` et tous les `order.*`. Au minimum `subscription.created`, `subscription.active`, `subscription.updated`, `subscription.canceled`, `subscription.uncanceled`, `subscription.past_due`, `subscription.revoked`, `order.paid`, `order.refunded`.
 
-L'application relit toujours l'abonnement chez Polar avant de l'appliquer. Les doublons et le désordre sont donc sans effet.
+Chaque requête est authentifiée avant toute lecture : signature Standard Webhooks (HMAC-SHA256 sur `webhook-id.webhook-timestamp.corps`), comparée en temps constant, horodatage à moins de 5 minutes, corps limité à 1 Mo. Le secret `whsec_…` est accepté sous ses deux formes (secrets créés depuis le 8 septembre 2026, utilisés tels quels, et secrets plus anciens), comme le SDK Polar. Une signature invalide reçoit 400 ; un secret absent, 503, pour que Polar réessaie.
+
+L'application relit toujours l'abonnement ou la commande chez Polar avant de l'appliquer, sans se fier au contenu reçu. Les doublons et le désordre sont donc sans effet : périodes de quota à clé stable (`trial:<abonnement>`, `cycle:<abonnement>:<début>`), crédit unique par commande (`message_credit_purchase.orderId`), filigrane et révision du projet contre un état plus ancien.
 
 ## Fonctionnement
 
@@ -85,6 +89,7 @@ L'application relit toujours l'abonnement chez Polar avant de l'appliquer. Les d
 | Titulaire sans droits | Après un transfert de propriété, l'ancien propriétaire paie toujours. S'il n'a plus le droit de facturation sur le projet, l'offre ne peut plus être changée : le support reprend le paiement |
 | Paiement en retard | « Régulariser le paiement » ouvre le portail au titulaire, qui met sa carte à jour, puis Polar relance le paiement |
 | Résiliation | Bouton « Résilier l'abonnement » de l'application : en fin de période (essai compris, sans prélèvement), ou tout de suite si l'abonnement est impayé |
+| Essai épuisé avant terme | Le worker demande la fin d'essai, une seule demande à la fois par essai, après avoir relu l'abonnement : jamais pour un essai déjà terminé ou résilié. Réussite : cycle payé ouvert tout de suite, puis confirmé par le webhook. Carte refusée (402) : l'essai continue chez Polar, les envois restent en pause, et seul un gestionnaire de la facturation relance (« Relancer le paiement ») après avoir mis la carte à jour. Erreur passagère : nouvelles tentatives espacées (2 min à 1 h, 8 au plus). Essai résilié : rien n'est prélevé, et la réactivation relance la demande |
 | Résiliation programmée | « Renouveler le plan » l'annule directement |
 | Abonnement terminé | « Renouveler le plan » ouvre un nouveau paiement, sans nouvel essai |
 | Carte enregistrée | Marque, 4 derniers chiffres et expiration affichés au propriétaire et au rôle Facturation (`GET /v1/customers/{id}/payment-methods`, droit `customers:read`). Sinon, visible dans le portail |

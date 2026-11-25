@@ -16,6 +16,7 @@ export type PlanFeatures = {
   storageMb: number;
   /** Mémoire de contexte : derniers messages de la conversation lus par l’IA. */
   contextMessages: number;
+  /** Conversations de test de l’agent sur 24 heures glissantes (chacune appelle le modèle). */
   sandboxPerDay: number;
   /** Profondeur d’historique consultable dans Analytics, en jours. */
   analyticsDays: number;
@@ -37,11 +38,12 @@ export type PlanFeatures = {
   webhooks: boolean;
   /** Diffusion d’un message à des contacts existants. */
   broadcast: boolean;
-  /** Contacts au plus par diffusion. */
+  /**
+   * Contacts au plus par diffusion. Le nombre de diffusions n’est pas limité :
+   * chaque message envoyé est décompté du quota de messages de l’offre.
+   */
   broadcastRecipients: number;
-  /** Messages de diffusion par période de facturation (aussi décomptés du quota). */
-  broadcastMonthly: number;
-  /** Messages de diffusion par jour : rythme sûr pour le numéro WhatsApp. */
+  /** Messages de diffusion par jour : rythme sûr pour le numéro WhatsApp, l’envoi reprend le lendemain. */
   broadcastDaily: number;
   /** Relances automatiques des prospects silencieux du pipeline. */
   followUps: boolean;
@@ -65,7 +67,7 @@ export const PLAN_FEATURES: Record<PlanId, PlanFeatures> = {
     pdfMaxMb: 5,
     storageMb: 500,
     contextMessages: 20,
-    sandboxPerDay: 30,
+    sandboxPerDay: 50,
     analyticsDays: 30,
     audio: false,
     images: false,
@@ -78,7 +80,6 @@ export const PLAN_FEATURES: Record<PlanId, PlanFeatures> = {
     webhooks: false,
     broadcast: false,
     broadcastRecipients: 0,
-    broadcastMonthly: 0,
     broadcastDaily: 0,
     followUps: false,
     followUpDaily: 0,
@@ -107,7 +108,6 @@ export const PLAN_FEATURES: Record<PlanId, PlanFeatures> = {
     webhooks: true,
     broadcast: true,
     broadcastRecipients: 500,
-    broadcastMonthly: 2000,
     broadcastDaily: 300,
     followUps: false,
     followUpDaily: 0,
@@ -121,7 +121,7 @@ export const PLAN_FEATURES: Record<PlanId, PlanFeatures> = {
     pdfMaxMb: 10,
     storageMb: 3000,
     contextMessages: 50,
-    sandboxPerDay: 300,
+    sandboxPerDay: 200,
     analyticsDays: 365,
     audio: true,
     images: true,
@@ -134,7 +134,6 @@ export const PLAN_FEATURES: Record<PlanId, PlanFeatures> = {
     webhooks: true,
     broadcast: true,
     broadcastRecipients: 2000,
-    broadcastMonthly: 10000,
     broadcastDaily: 1000,
     followUps: true,
     followUpDaily: 150,

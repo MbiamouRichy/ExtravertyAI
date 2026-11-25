@@ -30,7 +30,7 @@ export const metadata: Metadata = pageMetadata({
 export const dynamic = "force-static";
 
 const highlights = [
-  { icon: CalendarClock, title: `${TRIAL_DAYS} jours d’essai`, text: "Annulez avant la fin : aucun prélèvement." },
+  { icon: CalendarClock, title: `${TRIAL_DAYS} jours ou ${TRIAL_MESSAGES} messages d’essai`, text: "Annulez avant la fin : aucun prélèvement." },
   { icon: RefreshCw, title: "Sans engagement", text: "Abonnement mensuel, résiliable à tout moment." },
   { icon: ShieldAlert, title: "Connexion type WhatsApp Web", text: "Hors API officielle de Meta : un risque de restriction existe, que l’application limite." },
 ];
@@ -149,11 +149,13 @@ const sections: LegalSection[] = [
     title: "Essai gratuit",
     body: (
       <p>
-        Chaque nouvel abonnement peut bénéficier d’un essai gratuit de {TRIAL_DAYS} jours,
-        limité à {formatMessageLimit(TRIAL_MESSAGES)} messages. Un moyen de paiement est demandé au départ. Sans
-        annulation avant la fin de l’essai, l’abonnement choisi démarre et le
-        premier mois est prélevé automatiquement. Nous pouvons refuser un nouvel
-        essai à un client qui en a déjà bénéficié.
+        Chaque nouvel abonnement peut bénéficier d’un essai gratuit de {TRIAL_DAYS} jours ou{" "}
+        {formatMessageLimit(TRIAL_MESSAGES)} messages : l’essai prend fin dès que l’une des deux
+        limites est atteinte. Un moyen de paiement est demandé au départ. Sans annulation
+        avant la fin de l’essai, l’abonnement choisi démarre et le premier mois est prélevé
+        automatiquement sur ce moyen de paiement, y compris avant le {TRIAL_DAYS}
+        <sup>e</sup> jour si les {formatMessageLimit(TRIAL_MESSAGES)} messages sont utilisés plus
+        tôt. Nous pouvons refuser un nouvel essai à un client qui en a déjà bénéficié.
       </p>
     ),
   },
@@ -312,8 +314,8 @@ export default function TermsPage() {
       eyebrowIcon={FileText}
       title="Conditions d’utilisation"
       intro="Les règles qui encadrent votre utilisation d’ExtravertyAI, écrites le plus simplement possible."
-      updatedLabel="16 novembre 2026"
-      updatedDate="2026-11-13"
+      updatedLabel="25 novembre 2026"
+      updatedDate="2026-11-25"
       highlights={highlights}
       sections={sections}
       contactTitle="Une question sur ces conditions ?"

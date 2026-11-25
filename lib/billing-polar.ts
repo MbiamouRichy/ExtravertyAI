@@ -4,7 +4,7 @@ import {
   subscriptionStatus,
   type SubscriptionState,
 } from "./billing-quota";
-import { polarProductId, type PolarSubscription } from "./polar";
+import { polarProductId, revokePolarSubscription, type PolarSubscription } from "./polar";
 import { PRICING_PLANS } from "./pricing";
 
 const seconds = (value: string | null) =>
@@ -72,4 +72,40 @@ export async function syncPolarSubscription(
     fallbackProjectId,
     expectedRevision,
   );
+  await revokeDuplicateTrial(prisma, sub);
+}
+
+const ENDED_STATUSES = ["canceled", "unpaid", "incomplete_expired"];
+
+/**
+ * Deux paiements initiaux ouverts en parallèle (deux onglets, retour arrière)
+ * créent deux essais chez Polar pour le même projet. Le projet n'en garde
+ * qu'un ; l'autre ne servirait à rien mais serait prélevé à la fin de son
+ * essai. Il est donc révoqué tant qu'il est en essai, avant tout prélèvement.
+ * Un abonnement déjà payé n'est jamais révoqué ici (remboursement : support).
+ */
+export async function revokeDuplicateTrial(
+  prisma: Pick<PrismaClient, "project">,
+  sub: PolarSubscription,
+  revoke: (id: string) => Promise<void> = revokePolarSubscription,
+) {
+  const projectId = sub.metadata.projectId;
+  if (typeof projectId !== "string") return false;
+  const project = await prisma.project.findUnique({
+    where: { id: projectId },
+    select: { stripeSubscriptionId: true, stripeStatus: true },
+  });
+  if (!project?.stripeSubscriptionId || project.stripeSubscriptionId === sub.id) return false;
+  // L'abonnement rattaché est terminé : le nouveau le remplace (renouvellement).
+  if (ENDED_STATUSES.includes(project.stripeStatus ?? "")) return false;
+  if (sub.status !== "trialing") {
+    if (sub.status === "active" || sub.status === "past_due")
+      console.error("[billing] Second abonnement payé pour un même projet : à rembourser.", {
+        projectId,
+      });
+    return false;
+  }
+  await revoke(sub.id);
+  console.warn("[billing] Essai en double révoqué avant tout prélèvement.", { projectId });
+  return true;
 }

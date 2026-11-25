@@ -8,6 +8,7 @@ import * as billingPlanChange from "../lib/billing-plan-change";
 import * as pricing from "../lib/pricing";
 import * as messageCredit from "../lib/message-credit";
 import * as planFeatures from "../lib/plan-features";
+import { paidMessageLimit } from "../lib/billing-quota";
 import { getPolarDefaultCard, polarPaymentSettingsUrl } from "../lib/polar";
 
 const { planChange, isPaymentHolder, maskEmail, holderManagesBilling } = billingPlanChange;
@@ -72,9 +73,52 @@ test("the Polar portal opens on payment settings, not on the list of subscriptio
   );
 });
 
-test("the trial offer is 5 days and 100 messages", () => {
-  assert.equal(pricing.TRIAL_DAYS, 5);
-  assert.equal(pricing.TRIAL_MESSAGES, 100);
+test("the trial offer is 7 days or 50 messages", () => {
+  assert.equal(pricing.TRIAL_DAYS, 7);
+  assert.equal(pricing.TRIAL_MESSAGES, 50);
+});
+
+test("the 2026-11-25 grid: prices, quotas, recharges and agent tests", () => {
+  assert.deepEqual(
+    pricing.PRICING_PLANS.map((plan) => [plan.id, plan.priceCents, plan.messageLimit, plan.extraPackCents]),
+    [
+      ["starter", 700, 500, 1400],
+      ["pro", 1700, 2000, 900],
+      ["business", 10000, 20000, 500],
+    ],
+  );
+  assert.deepEqual(
+    pricing.PRICING_PLANS.map((plan) => planFeatures.PLAN_FEATURES[plan.id].sandboxPerDay),
+    [50, 100, 200],
+  );
+  // Diffusions : Pro et Business, sans plafond mensuel propre.
+  assert.deepEqual(planFeatures.plansWith("broadcast"), ["pro", "business"]);
+  for (const plan of pricing.PRICING_PLANS)
+    assert.equal("broadcastMonthly" in planFeatures.PLAN_FEATURES[plan.id], false);
+});
+
+test("the server quota comes from the catalogue; the environment can only lower it", () => {
+  const saved = process.env.MESSAGE_LIMIT_PRO;
+  try {
+    delete process.env.MESSAGE_LIMIT_PRO;
+    assert.equal(paidMessageLimit("pro"), 2000);
+    // Ancienne valeur oubliée sur un serveur : jamais plus que le quota payé.
+    process.env.MESSAGE_LIMIT_PRO = "8000";
+    assert.equal(paidMessageLimit("pro"), 2000);
+    process.env.MESSAGE_LIMIT_PRO = " 150 ";
+    assert.equal(paidMessageLimit("pro"), 150);
+    process.env.MESSAGE_LIMIT_PRO = "";
+    assert.equal(paidMessageLimit("pro"), 2000);
+    for (const invalid of ["0", "-5", "12.5", "abc", "1e3x"]) {
+      process.env.MESSAGE_LIMIT_PRO = invalid;
+      assert.throws(() => paidMessageLimit("pro"), /PAID_MESSAGE_LIMIT_INVALID/);
+    }
+    assert.throws(() => paidMessageLimit("enterprise"), /PAID_MESSAGE_LIMIT_UNKNOWN_PLAN/);
+    assert.throws(() => paidMessageLimit("__proto__"), /PAID_MESSAGE_LIMIT_UNKNOWN_PLAN/);
+  } finally {
+    if (saved === undefined) delete process.env.MESSAGE_LIMIT_PRO;
+    else process.env.MESSAGE_LIMIT_PRO = saved;
+  }
 });
 
 class SettingsError extends Error {}
@@ -93,13 +137,22 @@ type Options = {
   holderRole?: string | null;
   productMismatch?: boolean;
   notHolder?: boolean;
+  /** Essai épuisé dont le premier prélèvement peut être relancé. */
+  trialPeriod?: { id: string; ready: boolean } | null;
+  rateLimited?: boolean;
 };
 
 function setup(options: Options = {}) {
   const calls: unknown[] = [];
   const exports: Record<string, (...args: unknown[]) => Promise<Record<string, unknown>>> = {};
   const tx = {
-    $queryRaw: async () => [{ locked: !options.locked }],
+    $queryRaw: async (strings: TemplateStringsArray, ...values: unknown[]) => {
+      if (!strings.join("?").includes("quota_period")) return [{ locked: !options.locked }];
+      calls.push({ trialLookup: values.filter((value) => typeof value === "string") });
+      return options.trialPeriod ? [options.trialPeriod] : [];
+    },
+    $executeRaw: async (_strings: TemplateStringsArray, ...values: unknown[]) =>
+      void calls.push({ requeue: values.at(-1) }),
     projectMembership: {
       count: async () => options.members ?? 1,
       findFirst: async () => {
@@ -169,6 +222,8 @@ function setup(options: Options = {}) {
       },
     },
     "@/lib/checkout-price": { matchesPolarProduct: () => !options.productMismatch },
+    "@/lib/rate-limit": { allowRequest: () => !options.rateLimited },
+    "@/lib/trial-end": { TRIAL_END_MANUAL_RETRY_SECONDS: 60 },
     "@/lib/billing-polar": {
       planForPolarProduct: (id: string) => {
         const plan = id.replace(/^prod_/, "");
@@ -224,6 +279,7 @@ function setup(options: Options = {}) {
   return {
     change: (plan: unknown) => exports.changeProjectPlan({ projectId: PROJECT, plan }),
     payment: () => exports.openProjectPaymentSettings(PROJECT),
+    retry: () => exports.retryTrialActivation(PROJECT),
     calls,
   };
 }
@@ -386,4 +442,30 @@ test("the card shown is the default one, or the same card saved for several proj
     if (previousToken === undefined) delete process.env.POLAR_ACCESS_TOKEN;
     else process.env.POLAR_ACCESS_TOKEN = previousToken;
   }
+});
+
+test("retrying a declined trial charge only requeues it for the worker, under the billing permission", async () => {
+  for (const options of [{ anonymous: true }, { forbidden: true }, { rateLimited: true }]) {
+    const s = setup({ ...options, trialPeriod: { id: "period_1", ready: true } });
+    assert.equal((await s.retry()).success, false);
+    assert.equal(s.calls.length, 0);
+  }
+  const none = setup({ trialPeriod: null });
+  const refused = await none.retry();
+  assert.equal(refused.success, false);
+  assert.match(String(refused.error), /Aucun paiement/);
+  assert.deepEqual(plain(none.calls), [{ trialLookup: [PROJECT, "trial:sub_ours"] }]);
+
+  const early = setup({ trialPeriod: { id: "period_1", ready: false } });
+  assert.match(String((await early.retry()).error), /Patientez/);
+  assert.equal(early.calls.length, 1, "rien n'est remis en file avant une minute");
+
+  const s = setup({ trialPeriod: { id: "period_1", ready: true } });
+  assert.equal((await s.retry()).success, true);
+  // Aucun appel à Polar ici : le worker relit l'abonnement avant de prélever.
+  assert.deepEqual(plain(s.calls), [
+    { trialLookup: [PROJECT, "trial:sub_ours"] },
+    { requeue: "period_1" },
+    { audit: "billing.trial_activation_retry" },
+  ]);
 });
