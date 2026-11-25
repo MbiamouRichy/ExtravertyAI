@@ -1,0 +1,42 @@
+# syntax=docker/dockerfile:1.7
+# Site web servi par le VPS (`next start`), derrière le Traefik du serveur.
+# Construit par ops/production/deploy.sh avec compose.web.yaml.
+#
+# Les variables de l'app (.env.web) ne sont montées que le temps de la
+# compilation, comme un secret : elles ne sont jamais copiées dans l'image.
+# Next.js y lit les NEXT_PUBLIC_*, qu'il intègre au code envoyé au navigateur
+# (des valeurs publiques par nature). Au démarrage, le conteneur reçoit le
+# même fichier par `env_file`.
+FROM node:22-bookworm-slim
+
+WORKDIR /app
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends openssl ca-certificates \
+    && rm -rf /var/lib/apt/lists/* \
+    && chown node:node /app
+
+# Jamais root dans le conteneur, y compris pendant la compilation.
+USER node
+
+COPY --chown=node:node package.json package-lock.json ./
+RUN npm ci
+
+COPY --chown=node:node . .
+
+# Version déployée, lue par Next.js (NEXT_DEPLOYMENT_ID) : un onglet ouvert
+# avant une mise à jour se recharge au lieu d'appeler du code disparu.
+ARG GIT_COMMIT_SHA=""
+ENV NEXT_TELEMETRY_DISABLED=1 \
+    NEXT_DEPLOYMENT_ID=${GIT_COMMIT_SHA}
+
+RUN --mount=type=secret,id=web_env,target=/app/.env.production,uid=1000,mode=0400,required=true \
+    NODE_OPTIONS=--max-old-space-size=3072 npm run build
+
+ENV NODE_ENV=production \
+    HOSTNAME=0.0.0.0 \
+    PORT=3000
+
+EXPOSE 3000
+
+CMD ["./node_modules/.bin/next", "start"]

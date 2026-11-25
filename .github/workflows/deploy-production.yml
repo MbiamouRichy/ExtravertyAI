@@ -1,7 +1,8 @@
 name: Deploy production workers
 
-# Workers de production du VPS (IA, messages sortants, facturation, rapports).
-# L’app web est déployée par l’intégration Git de Vercel au même push. Voir
+# Workers de production du VPS (IA, messages sortants, facturation, rapports)
+# et, une fois `.env.web` créé sur le VPS, le site web lui-même
+# (docs/hebergement-vps.md). Sinon, le site reste sur Vercel. Voir
 # docs/production.md. L’environnement GitHub `production` peut exiger une
 # validation manuelle avant chaque exécution (Settings → Environments).
 
@@ -21,7 +22,8 @@ jobs:
   deploy:
     if: github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    # Compilation du site comprise, sur le VPS.
+    timeout-minutes: 60
     environment: production
     steps:
       - name: Configure dedicated SSH identity

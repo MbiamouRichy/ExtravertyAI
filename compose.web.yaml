@@ -1,0 +1,59 @@
+# Site web de production servi par le VPS, à la place de Vercel.
+# Utilisé seulement par ops/production/deploy.sh, en plus de compose.yaml et
+# compose.override.yaml : la préversion ne le charge jamais.
+#
+# - `.env.web` (à côté de ce fichier, jamais dans Git) contient les variables
+#   de l'app : docs/hebergement-vps.md.
+# - Le Traefik du VPS publie www.extravertyai.com en HTTPS (Let's Encrypt) et
+#   redirige le domaine nu vers www, comme Vercel le faisait.
+# - Les réseaux (base de données, Traefik) sont ajoutés par le script de
+#   déploiement, qui les relève sur le serveur.
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+      args:
+        GIT_COMMIT_SHA: ${GIT_COMMIT_SHA:-}
+      secrets:
+        - web_env
+    env_file:
+      - ${WEB_ENV_FILE:-.env.web}
+    environment:
+      GIT_COMMIT_SHA: ${GIT_COMMIT_SHA:-}
+    restart: unless-stopped
+    init: true
+    stop_grace_period: 20s
+    mem_limit: 1g
+    cpus: 1.5
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:3000/api/health').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.extraverty-web.entrypoints: websecure
+      traefik.http.routers.extraverty-web.rule: Host(`${WEB_HOST:-www.extravertyai.com}`)
+      traefik.http.routers.extraverty-web.tls.certresolver: letsencrypt
+      traefik.http.routers.extraverty-web.service: extraverty-web
+      traefik.http.services.extraverty-web.loadbalancer.server.port: "3000"
+      # Domaine nu : redirection permanente vers www, chemin et paramètres compris.
+      traefik.http.routers.extraverty-apex.entrypoints: websecure
+      traefik.http.routers.extraverty-apex.rule: Host(`${WEB_APEX_HOST:-extravertyai.com}`)
+      traefik.http.routers.extraverty-apex.tls.certresolver: letsencrypt
+      traefik.http.routers.extraverty-apex.middlewares: extraverty-apex-to-www
+      traefik.http.routers.extraverty-apex.service: extraverty-web
+      traefik.http.middlewares.extraverty-apex-to-www.redirectregex.regex: "^https?://[^/]+(.*)$$"
+      traefik.http.middlewares.extraverty-apex-to-www.redirectregex.replacement: "https://${WEB_HOST:-www.extravertyai.com}$${1}"
+      traefik.http.middlewares.extraverty-apex-to-www.redirectregex.permanent: "true"
+
+secrets:
+  web_env:
+    file: ${WEB_ENV_FILE:-.env.web}

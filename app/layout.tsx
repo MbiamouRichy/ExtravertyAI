@@ -96,7 +96,9 @@ export default async function RootLayout({
           <TooltipProvider>{children}</TooltipProvider>
           <Toaster />
         </ThemeProvider>
-        <Analytics />
+        {/* Vercel Analytics n'existe que sur Vercel : hors Vercel (VPS), son
+            script répondrait 404 à chaque page. Le compteur maison reste. */}
+        {process.env.VERCEL && <Analytics />}
         <SiteAnalyticsBeacon />
         <MetaPixel />
       </body>
