@@ -6,3 +6,10 @@ node_modules
 !.env.example
 backups
 .scratch
+# Inutiles aux images (workers et site) : outils, rapports, médias de com.
+.claude
+playwright-report
+test-results
+tsconfig.tsbuildinfo
+docs/video
+docs/visuels
