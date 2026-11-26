@@ -126,11 +126,8 @@ function emitMessageReceived(
   }));
 }
 
-export async function ingestMessage(
-  tx: Prisma.TransactionClient,
-  projectId: string,
-  raw: unknown,
-) {
+/** Message Evolution validé : enveloppe éphémère ôtée, texte et type lus. */
+export function readIncoming(raw: unknown) {
   const msg = IncomingSchema.parse(raw);
   for (let depth = 0; depth < 3; depth++) {
     const wrapped = msg.message?.ephemeralMessage;
@@ -138,16 +135,13 @@ export async function ingestMessage(
       break;
     msg.message = IncomingSchema.shape.message.parse(wrapped.message);
   }
-  const { id: evolutionId, remoteJid, fromMe } = msg.key;
-  if (!remoteJid.endsWith("@s.whatsapp.net") && !remoteJid.endsWith("@lid"))
-    return;
   const text =
     msg.message?.conversation ||
     msg.message?.extendedTextMessage?.text ||
     msg.message?.imageMessage?.caption ||
     msg.message?.videoMessage?.caption ||
     "";
-  const type = msg.message?.imageMessage
+  const type: MessageType = msg.message?.imageMessage
     ? "IMAGE"
     : msg.message?.videoMessage
       ? "VIDEO"
@@ -158,6 +152,22 @@ export async function ingestMessage(
           : text
             ? "TEXT"
             : "OTHER";
+  return { msg, text, type };
+}
+
+/** Conversation privée : un numéro ou son identifiant masqué (@lid). */
+export function isPrivateJid(remoteJid: string) {
+  return remoteJid.endsWith("@s.whatsapp.net") || remoteJid.endsWith("@lid");
+}
+
+export async function ingestMessage(
+  tx: Prisma.TransactionClient,
+  projectId: string,
+  raw: unknown,
+) {
+  const { msg, text, type } = readIncoming(raw);
+  const { id: evolutionId, remoteJid, fromMe } = msg.key;
+  if (!isPrivateJid(remoteJid)) return;
   if (fromMe) {
     await saveReceipt(tx, projectId, evolutionId, "SENT", {
       remoteJid,
