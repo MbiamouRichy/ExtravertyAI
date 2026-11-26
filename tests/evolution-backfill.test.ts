@@ -59,9 +59,10 @@ test("missed WhatsApp messages are copied back without waking the AI", { timeout
       const awa = "111@lid";
       const ben = "222@lid";
       const records = newestFirst([
-        record({ id: "in-1", jid: awa, at: "2026-11-26T05:32:39Z", pushName: "Awa" }),
-        // Evolution garde le même message deux fois (identifiant masqué et numéro).
-        record({ id: "in-1", jid: awa, at: "2026-11-26T05:32:40Z", alt: "24177000000@s.whatsapp.net" }),
+        // Evolution garde le même message deux fois : la copie sans numéro porte
+        // l’identifiant chiffré au lieu du nom.
+        record({ id: "in-1", jid: awa, at: "2026-11-26T05:32:39Z", pushName: "111222333444555" }),
+        record({ id: "in-1", jid: awa, at: "2026-11-26T05:32:40Z", pushName: "Awa", alt: "24177000000@s.whatsapp.net" }),
         record({ id: "in-2", jid: ben, at: "2026-11-26T07:13:35Z", pushName: "Ben" }),
         record({ id: "out-1", jid: awa, at: "2026-11-26T11:34:16Z", fromMe: true, text: "Réponse 1" }),
         record({ id: "out-2", jid: awa, at: "2026-11-26T11:34:16Z", fromMe: true, text: "Réponse 2" }),
@@ -98,6 +99,7 @@ test("missed WhatsApp messages are copied back without waking the AI", { timeout
           conversations: 2,
           newContacts: 2,
           aiPaused: 1,
+          namesCompleted: 0,
         },
       );
 
@@ -135,6 +137,7 @@ test("missed WhatsApp messages are copied back without waking the AI", { timeout
         where: { projectId_remoteJid: { projectId, remoteJid: ben } },
       });
       assert.equal(ben2.aiActive, true, "a prospect nobody answered keeps the AI");
+      assert.equal(ben2.pushName, "Ben");
 
       const again = await backfillEvolutionMessages(prisma, {
         projectId,
@@ -187,6 +190,52 @@ test("missed WhatsApp messages are copied back without waking the AI", { timeout
       const after = await prisma.contact.findUniqueOrThrow({ where: { id: contact.id } });
       assert.equal(after.resolvedAt, null, "a newer client message reopens the conversation");
       assert.equal(after.aiActive, true);
+    });
+
+    await t.test("a contact imported without its name gets it, and digits never become a name", async () => {
+      const { id: projectId } = await project(prisma);
+      const named = "777@lid";
+      const anonymous = "888@lid";
+      const contact = await prisma.contact.create({
+        data: { projectId, remoteJid: named, phone: "777", pushName: "777000111222333" },
+      });
+      await prisma.message.create({
+        data: {
+          projectId,
+          contactId: contact.id,
+          evolutionId: "imported",
+          content: "Bonjour",
+          senderType: "CLIENT",
+          status: "DELIVERED",
+        },
+      });
+      const records = newestFirst([
+        record({ id: "imported", jid: named, at: "2026-11-26T05:00:00Z", pushName: "777000111222333" }),
+        record({ id: "imported", jid: named, at: "2026-11-26T05:00:01Z", pushName: "Mireille K", alt: "24166000000@s.whatsapp.net" }),
+        record({ id: "lonely", jid: anonymous, at: "2026-11-26T06:00:00Z", pushName: "888000111222333" }),
+      ]);
+      const dry = await backfillEvolutionMessages(prisma, {
+        projectId, supportNumber: false, records, since, until, apply: false,
+      });
+      assert.equal(dry.namesCompleted, 1);
+      assert.equal(
+        (await prisma.contact.findUniqueOrThrow({ where: { id: contact.id } })).pushName,
+        "777000111222333",
+        "a dry run writes nothing",
+      );
+      const applied = await backfillEvolutionMessages(prisma, {
+        projectId, supportNumber: false, records, since, until, apply: true,
+      });
+      assert.deepEqual(applied, dry);
+      assert.equal((await prisma.contact.findUniqueOrThrow({ where: { id: contact.id } })).pushName, "Mireille K");
+      const lonely = await prisma.contact.findUniqueOrThrow({
+        where: { projectId_remoteJid: { projectId, remoteJid: anonymous } },
+      });
+      assert.equal(lonely.pushName, null, "an encrypted identifier is not a name");
+      const again = await backfillEvolutionMessages(prisma, {
+        projectId, supportNumber: false, records, since, until, apply: true,
+      });
+      assert.equal(again.namesCompleted, 0, "a real name is never replaced by a repair");
     });
 
     await t.test("an AI re-enabled after the phone reply stays on", async () => {
