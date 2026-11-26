@@ -9,6 +9,12 @@ import { appendEventRow } from "../lib/google-sheets";
 import { runBroadcastTick } from "../lib/broadcasts";
 import { runScheduledMessageTick } from "../lib/scheduled-messages";
 import { PRESENCE_REFRESH_MS, refreshOnlinePresence } from "../lib/whatsapp-presence";
+import {
+  INSTANCE_CHECK_MS,
+  createInstanceHealthMonitor,
+  type DisconnectionEmail,
+} from "../lib/instance-health";
+import { NOREPLY_SENDER } from "../lib/email-senders";
 initWorkerMonitoring("outbound-worker");
 const prisma = workerDatabase();
 const { claimNextJob, dispatch, recoverInterruptedDispatches } =
@@ -100,7 +106,51 @@ async function presenceLoop() {
       await sleep(1000);
   }
 }
-Promise.all([main(), integrationsLoop(), broadcastLoop(), scheduledLoop(), presenceLoop()])
+// État réel des numéros WhatsApp : un webhook perdu ne doit pas laisser
+// l’application croire un numéro connecté. Les administrateurs sont prévenus.
+async function sendDisconnectionEmail(email: DisconnectionEmail) {
+  const response = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+      "Content-Type": "application/json",
+      "Idempotency-Key": email.idempotencyKey,
+    },
+    body: JSON.stringify({
+      from: NOREPLY_SENDER,
+      to: email.to,
+      subject: email.subject,
+      html: email.html,
+      text: email.text,
+    }),
+    signal: AbortSignal.timeout(20000),
+  });
+  if (!response.ok) throw new Error("DISCONNECTION_EMAIL_UNCONFIRMED");
+}
+async function instanceHealthLoop() {
+  const checkInstances = createInstanceHealthMonitor({
+    db: prisma,
+    sendEmail: process.env.RESEND_API_KEY ? sendDisconnectionEmail : undefined,
+  });
+  while (!stopping) {
+    try {
+      const { demoted } = await checkInstances();
+      for (const projectId of demoted) await notifyProject(projectId);
+    } catch (error) {
+      reportWorkerError("[instance-health] Cycle interrompu.", error);
+    }
+    for (let waited = 0; waited < INSTANCE_CHECK_MS && !stopping; waited += 1000)
+      await sleep(1000);
+  }
+}
+Promise.all([
+  main(),
+  integrationsLoop(),
+  broadcastLoop(),
+  scheduledLoop(),
+  presenceLoop(),
+  instanceHealthLoop(),
+])
   .catch((error) => {
     reportWorkerError("[outbound-worker] Arrêt sur erreur.", error);
     process.exitCode = 1;
