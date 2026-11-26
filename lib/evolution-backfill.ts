@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { MessageType, PrismaClient } from "../src/generated/prisma/client";
 import { broadcastKeyword } from "./broadcast-shared";
+import { looksLikePhoneNumber } from "./chat-privacy";
 import { isPrivateJid, readIncoming } from "./evolution-ingestion";
 import { isVerificationText } from "./phone-verification";
 
@@ -16,6 +17,9 @@ import { isVerificationText } from "./phone-verification";
  * - une réponse écrite depuis le téléphone met l’IA en pause sur la
  *   conversation, comme en direct, sauf si l’IA y a été réactivée depuis ;
  * - un STOP reçu pendant la panne retire le contact des diffusions ;
+ * - Evolution garde souvent deux copies d’un message : l’une porte le nom
+ *   WhatsApp, l’autre l’identifiant chiffré du @lid. Seul un vrai nom est
+ *   recopié, et il complète un contact resté sans nom ;
  * - un message déjà présent, ou encore en cours de rapprochement avec un envoi
  *   de l’application, n’est jamais recréé : relancer le rattrapage est sans effet ;
  * - sur le numéro des codes, rien de ce qui ressemble à une vérification n’est
@@ -61,6 +65,8 @@ export type BackfillReport = {
   newContacts: number;
   /** Conversations où l’IA passe en pause à cause d’une réponse du téléphone. */
   aiPaused: number;
+  /** Contacts existants sans nom WhatsApp, complétés. */
+  namesCompleted: number;
 };
 
 type ContactState = {
@@ -76,7 +82,6 @@ type Candidate = {
   evolutionId: string;
   remoteJid: string;
   fromMe: boolean;
-  pushName?: string;
   text: string;
   type: MessageType;
   at: Date;
@@ -112,6 +117,7 @@ export async function backfillEvolutionMessages(
     conversations: 0,
     newContacts: 0,
     aiPaused: 0,
+    namesCompleted: 0,
   };
 
   // Ordre chronologique ; à la même seconde, l’ordre d’Evolution inversé.
@@ -125,6 +131,8 @@ export async function backfillEvolutionMessages(
     );
   const seen = new Set<string>();
   const candidates: Candidate[] = [];
+  // Dernier vrai nom WhatsApp de chaque client, doublons compris.
+  const names = new Map<string, string>();
   const perSecond = new Map<number, number>();
   for (const { raw, stored } of ordered) {
     if (!stored.success) {
@@ -146,6 +154,9 @@ export async function backfillEvolutionMessages(
       report.ignored++;
       continue;
     }
+    const pushName = msg.pushName?.trim().slice(0, 250);
+    if (!msg.key.fromMe && pushName && !looksLikePhoneNumber(pushName))
+      names.set(msg.key.remoteJid, pushName);
     if (seen.has(msg.key.id)) {
       report.duplicates++;
       continue;
@@ -165,7 +176,6 @@ export async function backfillEvolutionMessages(
       evolutionId: msg.key.id,
       remoteJid: msg.key.remoteJid,
       fromMe: msg.key.fromMe,
-      pushName: msg.pushName,
       text,
       type,
       at: new Date(seconds * 1000 + Math.min(rank, 999)),
@@ -177,6 +187,24 @@ export async function backfillEvolutionMessages(
   const paused = new Set<string>();
   // À blanc : l’état que les écritures auraient produit, pour un rapport juste.
   const simulated = new Map<string, ContactState>();
+
+  // Contacts déjà là mais sans nom (copie chiffrée gardée, par exemple) :
+  // complétés avant le reste, pour un rapport identique à blanc et pour de bon.
+  for (const [remoteJid, name] of names) {
+    const completed = await db.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM project WHERE id = ${projectId} FOR UPDATE`;
+      const contact = await tx.contact.findUnique({
+        where: { projectId_remoteJid: { projectId, remoteJid } },
+        select: { id: true, pushName: true },
+      });
+      if (!contact || (contact.pushName?.trim() && !looksLikePhoneNumber(contact.pushName)))
+        return false;
+      if (apply)
+        await tx.contact.update({ where: { id: contact.id }, data: { pushName: name } });
+      return true;
+    });
+    if (completed) report.namesCompleted++;
+  }
 
   for (const candidate of candidates) {
     const outcome = await db.$transaction(
@@ -254,14 +282,13 @@ export async function backfillEvolutionMessages(
         }
 
         const later = !before?.lastMessageAt || before.lastMessageAt < candidate.at;
+        const name = names.get(candidate.remoteJid);
         const contact = before
           ? await tx.contact.update({
               where,
               data: {
                 ...(later ? { lastMessageAt: candidate.at } : {}),
-                ...(!candidate.fromMe && later && candidate.pushName
-                  ? { pushName: candidate.pushName }
-                  : {}),
+                ...(!candidate.fromMe && later && name ? { pushName: name } : {}),
                 // Un message client plus récent que la résolution la rouvre.
                 ...(!candidate.fromMe && before.resolvedAt && before.resolvedAt < candidate.at
                   ? { resolvedAt: null, resolvedById: null }
@@ -276,9 +303,7 @@ export async function backfillEvolutionMessages(
                 projectId,
                 remoteJid: candidate.remoteJid,
                 phone: candidate.remoteJid.split("@")[0],
-                ...(!candidate.fromMe && candidate.pushName
-                  ? { pushName: candidate.pushName }
-                  : {}),
+                ...(name ? { pushName: name } : {}),
                 lastMessageAt: candidate.at,
                 ...(pause ? { aiActive: false, aiVersion: 1 } : {}),
                 ...(optOut ? { broadcastOptOutAt: candidate.at } : {}),
